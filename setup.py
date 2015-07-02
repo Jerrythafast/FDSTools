@@ -31,7 +31,7 @@ x = setup(
     # If you specify it here, setuptools wil overwrite the author field.
     #maintainer="LUMC, Jeroen F.J. Laros",
     #maintainer_email="j.f.j.laros@lumc.nl",
-    url="https://git.lumc.nl/jhoogenboom/fdstools",
+    url="https://git.lumc.nl/jhoogenboom/fdstools/blob/master/README.rst",
     license="LGPLv3+",
     platforms=["any"],
     classifiers=[

@@ -23,6 +23,7 @@ typing:
     ``pip install fdstools``
 
 Alternatively, FDSTools can be installed by running:
+
     ``python setup.py install``
 
 
