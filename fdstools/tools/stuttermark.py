@@ -5,11 +5,11 @@ of stutter product vs the parent allele.
 """
 import argparse
 import sys
-import re
 
-from ..lib import pos_int_arg, print_db, PAT_TSSV_BLOCK, get_column_ids
+from ..lib import pos_int_arg, print_db, PAT_TSSV_BLOCK, get_column_ids, \
+                  ensure_sequence_format, parse_library
 
-__version__ = "1.3"
+__version__ = "1.4"
 
 
 # Default values for parameters are specified below.
@@ -43,7 +43,7 @@ _DEF_MIN_REPORT = 0.1
 _DEF_COLNAME = "annotation"
 
 
-def load_data(infile, colname_annotation=_DEF_COLNAME):
+def load_data(infile, colname_annotation=_DEF_COLNAME, library=None):
     """
     Read data from the file handle infile and return a tuple
     (colum_names, data_rows).
@@ -56,20 +56,31 @@ def load_data(infile, colname_annotation=_DEF_COLNAME):
                 E.g., AGAT(7)TGAT(3).
         total   The total number of reads with this sequence.
 
-    An additional column "annotation" is appended.  All data rows
+    An additional column is appended.  All data rows
     are given a value of "UNKNOWN" for this column.
 
     :arg infile: Open readable handle to data file.
     :type infile: stream
+
+    :arg colname_annotation: Name of the newly added column
+    :type colname_annotation: str
+
+    :arg library: Library for sequence format conversion
+    :type library: dict
 
     :returns: A 2-tuple (column_names, data_rows).
     :rtype: tuple(list, list)
     """
     # Get column numbers.  We are adding a column as well.
     column_names = infile.readline().rstrip("\r\n").split("\t")
-    colid_total, colid_allele, colid_name = get_column_ids(column_names,
-        "total", "allele", "name")
+    colid_total, colid_allele, = get_column_ids(column_names,
+        "total", "allele")
     column_names.append(colname_annotation)
+
+    try:
+        colid_name = get_column_ids(column_names, "name")
+    except:
+        colid_name = None
 
     # Step through the file line by line to build the allele list.
     allelelist = []
@@ -83,12 +94,15 @@ def load_data(infile, colname_annotation=_DEF_COLNAME):
                 print("WARNING: skipped line: %s" % line)
             continue
 
+        # Convert to TSSV-style sequences.
+        if columns[colid_allele]:
+            marker = columns[colid_name] if colid_name is not None else None
+            columns[colid_allele] = ensure_sequence_format(
+                columns[colid_allele], 'tssv', marker=marker, library=library)
+
         # Split the allele column into a list of tuples:
         # [('ACTG','4'),('CCTC','12'),...]
         columns[colid_allele] = PAT_TSSV_BLOCK.findall(columns[colid_allele])
-        if columns[colid_allele] == None:
-            print("WARNING: skipped line: %s" % line)
-            continue
 
         # String to integer conversion...
         columns[colid_allele] = map(
@@ -115,7 +129,8 @@ def load_data(infile, colname_annotation=_DEF_COLNAME):
 
 def annotate_alleles(infile, outfile, stutter, min_reads=_DEF_MIN_READS,
                      min_repeats=_DEF_MIN_REPEATS, min_report=_DEF_MIN_REPORT,
-                     colname_annotation=_DEF_COLNAME, debug=False):
+                     colname_annotation=_DEF_COLNAME, libfile=None,
+                     debug=False):
     """
     Read data from the file handle infile and write annotated data to
     file handle outfile.
@@ -172,16 +187,28 @@ def annotate_alleles(infile, outfile, stutter, min_reads=_DEF_MIN_READS,
     :arg colname_annotation: Name of the newly added column.
     :type colname_annotation: str
 
+    :arg libfile: Open readable handle to library file for sequence format
+                  conversion
+    :type libfile: stream
+
     :arg debug: If True, print debug output to stdout.
     :type debug: bool
     """
-    column_names, allelelist = load_data(infile, colname_annotation)
-    colid_total, colid_allele, colid_name = get_column_ids(column_names,
-        "total", "allele", "name")
+    library = parse_library(libfile) if libfile is not None else None
+    column_names, allelelist = load_data(infile, colname_annotation, library)
+    colid_total, colid_allele, = get_column_ids(column_names,
+        "total", "allele")
+    try:
+        colid_name = get_column_ids(column_names, "name")
+    except:
+        colid_name = None
 
     # Sort (descending total reads).
-    allelelist.sort(key=lambda allele:
-        [allele[colid_name], -allele[colid_total]])
+    if colid_name is not None:
+        allelelist.sort(key=lambda allele:
+            [allele[colid_name], -allele[colid_total]])
+    else:
+        allelelist.sort(key=lambda allele: -allele[colid_total])
 
     for iCurrent in range(len(allelelist)):
 
@@ -197,8 +224,8 @@ def annotate_alleles(infile, outfile, stutter, min_reads=_DEF_MIN_READS,
         for iOther in range(iCurrent):
 
             # Must be same marker.
-            if (allelelist[iCurrent][colid_name] !=
-                    allelelist[iOther][colid_name]):
+            if colid_name is not None and (allelelist[iCurrent][colid_name] !=
+                                           allelelist[iOther][colid_name]):
                 continue
 
             print_db('%i vs %i' % (iCurrent+1, iOther+1), debug)
@@ -355,7 +382,8 @@ def stutter_def_arg(value):
 def add_arguments(parser):
     parser.add_argument('infile', nargs='?', metavar="IN", default=sys.stdin,
         type=argparse.FileType('r'),
-        help="the CSV data file to process (default: read from stdin)")
+        help="the tab-separated data file to process (default: read from "
+             "stdin)")
     parser.add_argument('outfile', nargs='?', metavar="OUT",
         default=sys.stdout, type=argparse.FileType('w'),
         help="the file to write the output to (default: write to stdout)")
@@ -365,9 +393,9 @@ def add_arguments(parser):
              "of '%(default)s' sets -1 stutter (loss of one repeat) to 15%%, "
              "+1 stutter (gain of one repeat) to 4%%.  Any unspecified "
              "stutter amount is assumed not to occur directly but e.g., a -2 "
-             "stutter may still be recognised as two -1 stutters stacked"
+             "stutter may still be recognised as two -1 stutters stacked "
              "together.  NOTE: It may be necessary to specify this option as "
-             "'-s=-1:15,+1:2' (note the equals sign instead of a space).")
+             "'-s=%(default)s' (note the equals sign instead of a space).")
     parser.add_argument('-m', '--min-reads', metavar="N", type=pos_int_arg,
         default=_DEF_MIN_READS,
         help="set minimum number of reads to evaluate (default: %(default)s)")
@@ -382,16 +410,21 @@ def add_arguments(parser):
              "is above this value (default: %(default)s)")
     parser.add_argument('-c', '--column-name', metavar="COLNAME",
         default=_DEF_COLNAME,
-        help="name of the newly added column (default: %(default)s)")
-    parser.add_argument('-d', '--debug', action="store_true",
-        help="if specified, debug output is printed to stdout")
+        help="name of the newly added column (default: '%(default)s')")
+    parser.add_argument('-l', '--library', metavar="LIBRARY",
+        type=argparse.FileType('r'),
+        help="library file for sequence format conversion if raw sequences or "
+             "allele names are given instead of TSSV-style sequences")
 #add_arguments
 
 
 def run(args):
+    if args.infile.isatty() and args.outfile.isatty():
+        raise ValueError("please specify an input file, or pipe in the output "
+                         "of another program")
     annotate_alleles(args.infile, args.outfile, args.stutter,
                      args.min_reads, args.min_repeats, args.min_report,
-                     args.column_name, args.debug)
+                     args.column_name, args.library, args.debug)
 #run
 
 

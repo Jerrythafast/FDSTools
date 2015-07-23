@@ -29,6 +29,10 @@ Alternatively, FDSTools can be installed by running:
 
 FDSTools Changelog
 ------------------
+v0.0.2
+    - Added global -d/--debug switch
+    - Includes Stuttermark v1.4
+
 v0.0.1
     - Initial version
     - Includes Stuttermark v1.3
@@ -41,13 +45,13 @@ Mark potential stutter products by assuming a fixed maximum percentage of
 stutter product vs the parent allele.
 
 Input
-    Tab-seperated file with at least these three columns:
-        - 'name': the name of the marker
-        - 'allele': the allele name, as a TSSV-style sequence, e.g.,
-          "``AGAT(12)TGAT(4)``"
-        - 'total': the total number of reads
+    Tab-seperated file with the following columns:
+        - 'allele': the allele name, as a TSSV_-style sequence, e.g.,
+          "``AGAT(12)TGAT(4)``" (required)
+        - 'total': the total number of reads (required)
+        - 'name': the name of the marker (optional)
 
-    This format is compatible with 'knownalleles.csv' files created by TSSV.
+    This format is compatible with 'knownalleles.csv' files created by TSSV_.
 
 Output
     The same file, with an additional column (named 'annotation' by default).
@@ -70,12 +74,18 @@ Output
 Changelog
 ~~~~~~~~~
 
+v1.4
+    - Stuttermark now accepts raw sequences and allele names as input, which
+      are automatically rewritten as TSSV-style sequences using a specified
+      library file
+    - The 'name' column is now optional
+
 v1.3
     - First version of Stuttermark to be included in ``fdstools``
     - Fixed crash that occurred when an empty allele (e.g., a primer dimer)
       was encountered
     - Stuttermark now prints a warning if an allele is encountered that is
-      not a TSSV-style sequence
+      not a TSSV_-style sequence
 
 v1.2
     - All settings are now available from the command line
@@ -89,3 +99,22 @@ v1.0
     - Initial version
 
 
+Libconvert
+----------
+
+Convert between TSSV (tab-separated) and FDSTools (ini-style) library formats.
+
+
+Seqconvert
+----------
+
+Convert between raw sequences, TSSV-style sequences, and allele names.
+
+
+Allelefinder
+------------
+
+Find true alleles in a single-person reference sample.
+
+
+.. _TSSV: https://pypi.python.org/pypi/tssv/

@@ -42,6 +42,8 @@ def main():
     parser = argparse.ArgumentParser(add_help=False, description=usage[0],
         formatter_class=argparse.ArgumentDefaultsHelpFormatter)
     parser.version = version(parser.prog)
+    parser.add_argument('-d', "--debug", action="store_true",
+                        help="if specified, debug output is printed to stdout")
     parser.add_argument('-v', "--version", action=_VersionAction,
                         default=argparse.SUPPRESS, nargs=argparse.REMAINDER,
                         help="show version number and exit")
@@ -66,11 +68,18 @@ def main():
         __tools__[name] = subparser
         module.add_arguments(subparser)
         subparser.set_defaults(func=module.run)
+        subparser.add_argument('-d', "--debug", action="store_true",
+            help="if specified, debug output is printed to stdout")
     try:
         args = parser.parse_args()
-        args.func(args)
-    except OSError as error:
+    except Exception as error:
         parser.error(error)
+    try:
+        args.func(args)
+    except Exception as error:
+        if args.debug:
+            raise
+        __tools__[args.tool].error(error)
 #main
 
 
