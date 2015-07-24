@@ -56,7 +56,8 @@ def convert_sequences(infile, outfile, to_format, libfile=None,
 
 def add_arguments(parser):
     parser.add_argument('format', metavar="FORMAT",
-        help="the format to convert to: one of 'raw', 'tssv', or 'allelename'")
+        choices=["raw", "tssv", "allelename"],
+        help="the format to convert to: one of %(choices)s")
     parser.add_argument('infile', nargs='?', metavar="IN", default=sys.stdin,
         type=argparse.FileType('r'),
         help="the tab-separated data file to process (default: read from "
@@ -77,7 +78,7 @@ def add_arguments(parser):
         help="name of the column to write the output to "
              "(default: '%(default)s')")
     parser.add_argument('-M', '--marker', metavar="MARKER",
-        help="assume the specified marker for all sequences in the file")
+        help="assume the specified marker for all sequences")
     parser.add_argument('-l', '--library', metavar="LIBRARY",
         type=argparse.FileType('r'),
         help="library file for sequence format conversion")

@@ -42,15 +42,15 @@ def main():
     parser = argparse.ArgumentParser(add_help=False, description=usage[0],
         formatter_class=argparse.ArgumentDefaultsHelpFormatter)
     parser.version = version(parser.prog)
-    parser.add_argument('-d', "--debug", action="store_true",
-                        help="if specified, debug output is printed to stdout")
-    parser.add_argument('-v', "--version", action=_VersionAction,
-                        default=argparse.SUPPRESS, nargs=argparse.REMAINDER,
-                        help="show version number and exit")
     parser.add_argument('-h', '--help', action=_HelpAction,
                         default=argparse.SUPPRESS, nargs=argparse.REMAINDER,
                         help="show this help message, or help for the "
                              "specified TOOL, and exit")
+    parser.add_argument('-v', "--version", action=_VersionAction,
+                        default=argparse.SUPPRESS, nargs=argparse.REMAINDER,
+                        help="show version number and exit")
+    parser.add_argument('-d', "--debug", action="store_true",
+                        help="if specified, debug output is printed to stdout")
     subparsers = parser.add_subparsers(title='available tools', dest='tool',
                                        metavar='TOOL', help="specify which "
                                        "tool to run")
@@ -66,10 +66,10 @@ def main():
             name, help=module.__doc__, description=module.__doc__,
             version=version(parser.prog, name, module.__version__))
         __tools__[name] = subparser
-        module.add_arguments(subparser)
-        subparser.set_defaults(func=module.run)
         subparser.add_argument('-d', "--debug", action="store_true",
             help="if specified, debug output is printed to stdout")
+        module.add_arguments(subparser)
+        subparser.set_defaults(func=module.run)
     try:
         args = parser.parse_args()
     except Exception as error:

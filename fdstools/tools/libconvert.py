@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 """
-Convert between TSSV (tab-separated) and FDSTools (ini-style) library formats.
+Convert between TSSV (tab-separated) and FDSTools (ini-style) library
+formats.  When no input is given, an empty FDSTools library is produced.
 """
 import argparse
 import sys
@@ -8,8 +9,17 @@ import re
 
 from ..lib import parse_library
 from ConfigParser import RawConfigParser
+from StringIO import StringIO
 
 __version__ = "0.1dev"
+
+
+# If no input is given, convert the following to FDSTools format.
+_DEFAULT_LIBRARY = "\t".join([
+    "MyMarker",
+    "ACTAGCTAGCGCTA",
+    "GCTCGATCGATCGA",
+    "TGAT 0 2 AGAT 3 20 ACCT 0 5"])
 
 
 def convert_library(infile, outfile, aliases=False):
@@ -36,7 +46,6 @@ def convert_library(infile, outfile, aliases=False):
             else:
                 marker_aliases[marker].append(alias)
 
-        newline = ""
         for marker in sorted(markers):
             if marker in library["aliases"] and not aliases:
                 # Ignore this alias, it will be merged into its marker.
@@ -126,10 +135,9 @@ def convert_library(infile, outfile, aliases=False):
                 for suffix in suffixes:
                     pattern.append((suffix, "0", "1"))
 
-            outfile.write(newline + "%s\t%s\t%s\t%s" % (
+            outfile.write("%s\t%s\t%s\t%s\n" % (
                 marker, flanks[0], flanks[1],
                 " ".join(map(lambda x: "%s %s %s" % x, pattern))))
-            newline = "\n"
 
     else:
         # TSSV -> FDSTools
@@ -141,6 +149,11 @@ def convert_library(infile, outfile, aliases=False):
         ini.add_section("aliases")
         ini.set("aliases", "; Specify three comma-separated values: marker "
                             "name, sequence, and allele name.")
+        ini.set("aliases", "; You may use the alias name to specify flanks, "
+                           "prefix, and suffix for this")
+        ini.set("aliases", "; allele specifically. You cannot specify a "
+                           "repeat structure for an alias.")
+        ini.set("aliases", ";MyAlias = MyMarker, AGCTAGC, MySpecialAlleleName")
         ini.add_section("flanks")
         ini.set("flanks", "; Specify two comma-separated values: left flank "
                           "and right flank.")
@@ -148,12 +161,18 @@ def convert_library(infile, outfile, aliases=False):
         ini.set("prefix", "; Specify all possible prefix sequences separated "
                           "by commas. The first sequence")
         ini.set("prefix", "; listed is used as the reference sequence when "
-                          "generating allele names.")
+                          "generating allele names. The")
+        ini.set("prefix", "; prefix is the sequence between the left flank "
+                          "and the repeat and is omitted")
+        ini.set("prefix", "; from allele names. Deviations from the reference "
+                          "are expressed as variants.")
         ini.add_section("suffix")
         ini.set("suffix", "; Specify all possible suffix sequences separated "
                           "by commas. The first sequence")
         ini.set("suffix", "; listed is used as the reference sequence when "
-                          "generating allele names.")
+                          "generating allele names. The")
+        ini.set("suffix", "; suffix is the sequence between the repeat and "
+                          "the right flank.")
         ini.add_section("repeat")
         ini.set("repeat", "; Specify the STR repeat structure in "
                           "space-separated triples of sequence,")
@@ -165,7 +184,7 @@ def convert_library(infile, outfile, aliases=False):
         ini.set("length_adjust", "; of the sequence (prefix+repeat+suffix) "
                                  "minus the adjustment specified here.")
         ini.add_section("block_length")
-        ini.set("block_length", "; Specify the core repeat unit lengths. The "
+        ini.set("block_length", "; Specify the core repeat unit length. The "
                                 "default length is 4.")
 
         # Enter flanking sequences and STR definitions.
@@ -214,9 +233,9 @@ def add_arguments(parser):
 
 
 def run(args):
-    if args.infile.isatty() and args.outfile.isatty():
-        raise ValueError("please specify an input file, or pipe in the output "
-                         "of another program")
+    if args.infile.isatty():
+        # No input given.  Produce a default FDSTools library.
+        args.infile = StringIO(_DEFAULT_LIBRARY)
     convert_library(args.infile, args.outfile, args.aliases)
 #run
 

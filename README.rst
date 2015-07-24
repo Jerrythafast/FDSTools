@@ -52,6 +52,9 @@ Input
         - 'name': the name of the marker (optional)
 
     This format is compatible with 'knownalleles.csv' files created by TSSV_.
+    If raw sequences or allele names are provided, Stuttermark can convert
+    those to TSSV-style sequences automatically if a library file is given as
+    well.
 
 Output
     The same file, with an additional column (named 'annotation' by default).

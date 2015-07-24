@@ -3,6 +3,7 @@
 import re, sys
 
 from ConfigParser import RawConfigParser, MissingSectionHeaderError
+from StringIO import StringIO
 from collections import defaultdict
 
 # Patterns that match entire sequences.
@@ -13,7 +14,7 @@ PAT_SEQ_ALLELENAME = re.compile(
     "(?:_[-+]\d+(?:\.1)?(?P<a>(?:(?<=\.1)-)|(?<!\.1)[ACGT]+)>"  # _+3A>
         "(?!(?P=a))(?:[ACTG]+|-))*$")  # Portion of variants after '>'.
 
-# Pattern that matches blocks of TSSV-style sequences and allele names.
+# Patterns that match blocks of TSSV-style sequences and allele names.
 PAT_TSSV_BLOCK = re.compile("([ACGT]+)\((\d+)\)")
 PAT_ALLELENAME_BLOCK = re.compile("([ACGT]+)\[(\d+)\]")
 
@@ -201,6 +202,9 @@ def mutate_sequence(sequence, variants):
 
 
 def parse_library(handle):
+    if handle == sys.stdin:
+        # Can't seek on pipes, so read it into a buffer first.
+        handle = StringIO(sys.stdin.read())
     try:
         return parse_library_ini(handle)
     except MissingSectionHeaderError:
@@ -568,6 +572,15 @@ def ensure_sequence_format(seq, to_format, from_format=None, library=None,
         return seq
     return convert_sequence_raw_allelename(seq, library, marker)
 #ensure_sequence_format
+
+
+def get_tag(filename, tag_expr, tag_format):
+    """Return formatted sample tag from filename using regex."""
+    try:
+        return tag_expr.search(filename).expand(tag_format)
+    except:
+        return filename
+#get_tag
 
 
 def get_column_ids(column_names, *names):
