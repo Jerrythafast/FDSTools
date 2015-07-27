@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 
-import re, sys
+import re, sys, argparse
 
 from ConfigParser import RawConfigParser, MissingSectionHeaderError
 from StringIO import StringIO
@@ -31,6 +31,14 @@ PAT_STR_DEF_BLOCK = re.compile("([ACGT]+)\s+(\d+)\s+(\d+)")
 
 # Pattern to split a comma-, semicolon-, or space-separated list.
 PAT_SPLIT = re.compile("[,; ]+")
+
+# Default regular expression to capture sample tags in file names.
+# This is the default of the -e command line option.
+DEF_TAG_EXPR = "^(.+?)(?:\.[^.]+)?$"
+
+# Default formatting template to write sample tags.
+# This is the default of the -f command line option.
+DEF_TAG_FORMAT = "\\1"
 
 
 def call_variants(template, sequence, reverse_indices=False, cache=True,
@@ -574,15 +582,6 @@ def ensure_sequence_format(seq, to_format, from_format=None, library=None,
 #ensure_sequence_format
 
 
-def get_tag(filename, tag_expr, tag_format):
-    """Return formatted sample tag from filename using regex."""
-    try:
-        return tag_expr.search(filename).expand(tag_format)
-    except:
-        return filename
-#get_tag
-
-
 def get_column_ids(column_names, *names):
     """Find all names in column_names and return their indices."""
     result = []
@@ -597,6 +596,29 @@ def get_column_ids(column_names, *names):
 #get_column_ids
 
 
+def parse_allelelist(allelelist, convert=None, library=None):
+    """Read allele list from open file handle."""
+    column_names = allelelist.readline().rstrip("\r\n").split("\t")
+    colid_sample, colid_marker, colid_allele = get_column_ids(column_names,
+        "sample", "marker", "allele")
+    alleles = {}
+    for line in allelelist:
+        line = line.rstrip("\r\n").split("\t")
+        sample = line[colid_sample]
+        marker = line[colid_marker]
+        allele = line[colid_allele]
+        if convert is not None:
+            allele = ensure_sequence_format(allele, convert, library=library,
+                                            marker=marker)
+        if sample not in alleles:
+            alleles[sample] = {}
+        if marker not in alleles[sample]:
+            alleles[sample][marker] = set()
+        alleles[sample][marker].add(allele)
+    return alleles
+#parse_allelelist
+
+
 def pos_int_arg(value):
     """Convert str to int, raise ArgumentTypeError if not positive."""
     if not value.isdigit() or not int(value):
@@ -604,6 +626,57 @@ def pos_int_arg(value):
             "invalid positive int value: '%s'" % value)
     return int(value)
 #pos_int_arg
+
+
+def add_allele_detection_args(parser):
+    parser.add_argument('-a', '--allelelist', metavar="ALLELEFILE",
+        type=argparse.FileType('r'),
+        help="file containing a list of the true alleles of each sample")
+    parser.add_argument('-c', '--annotation-column', metavar="COLNAME",
+        help="name of a column in the sample files, which contains a value "
+             "beginning with 'ALLELE' for the true alleles of the sample")
+#add_allele_detection_args
+
+
+def add_sample_files_args(parser):
+    """Add arguments for opening sample files to the given parser."""
+    parser.add_argument('filelist', nargs='*', metavar="FILE",
+        default=[sys.stdin], type=argparse.FileType('r'),
+        help="the data file(s) to process (default: read from stdin)")
+    parser.add_argument('-e', '--tag-expr', metavar="REGEX", type=re.compile,
+        default=DEF_TAG_EXPR,
+        help="regular expression that captures (using one or more capturing "
+             "groups) the sample tags from the file names; by default, the "
+             "entire file name except for its extension (if any) is captured")
+    parser.add_argument('-f', '--tag-format', metavar="EXPR",
+        default=DEF_TAG_FORMAT,
+        help="format of the sample tags produced; a capturing group reference "
+             "like '\\n' refers to the n-th capturing group in the regular "
+             "expression specified with -e/--tag-expr (the default of '\\1' "
+             "simply uses the first capturing group); with a single sample, "
+             "you can enter the samle tag here explicitly")
+#add_sample_fils_args
+
+
+def get_tag(filename, tag_expr, tag_format):
+    """Return formatted sample tag from filename using regex."""
+    try:
+        return tag_expr.search(filename).expand(tag_format)
+    except:
+        return filename
+#get_tag
+
+
+def map_tags_to_files(filelist, tag_expr, tag_format):
+    tags_to_files = {}
+    for infile in filelist:
+        tag = get_tag(infile.name, tag_expr, tag_format)
+        if tag not in tags_to_files:
+            tags_to_files[tag] = [infile]
+        else:
+            tags_to_files[tag].append(infile)
+    return tags_to_files
+#map_tags_to_files
 
 
 def print_db(text, debug):

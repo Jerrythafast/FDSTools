@@ -7,20 +7,13 @@ import argparse
 import sys
 import re
 
-from ..lib import get_column_ids, pos_int_arg, get_tag
+from ..lib import get_column_ids, pos_int_arg, map_tags_to_files, \
+                  add_sample_files_args, ensure_sequence_format
 
 __version__ = "0.1dev"
 
 
 # Default values for parameters are specified below.
-
-# Default regular expression to capture sample tags in file names.
-# This value can be overridden by the -e command line option.
-_DEF_TAG_EXPR = "^(.+?)(?:\.[^.]+)?$"
-
-# Default formatting template to write sample tags.
-# This value can be overridden by the -f command line option.
-_DEF_TAG_FORMAT = "\\1"
 
 # Default minimum number of reads required for the highest allele.
 # This value can be overridden by the -n command line option.
@@ -49,41 +42,54 @@ _DEF_MAX_NOISY = 2
 
 def find_alleles(filelist, reportfile, tag_expr, tag_format, min_reads,
                  min_allele_pct, max_noise_pct, max_alleles, max_noisy,
-                 stuttermark_column):
+                 stuttermark_column, seqformat, library):
+
+    if seqformat is not None and library is not None:
+        library = parse_library(library)
 
     print("\t".join(["sample", "marker", "total", "allele"]))
-    for infile in filelist:
-        tag = get_tag(infile.name, tag_expr, tag_format)
-        find_alleles_sample(infile, reportfile, tag, min_reads, min_allele_pct,
-            max_noise_pct, max_alleles, max_noisy, stuttermark_column)
+    tags_to_files = map_tags_to_files(filelist, tag_expr, tag_format)
+    for tag in tags_to_files:
+        data = {}
+        for infile in tags_to_files[tag]:
+            get_sample_data(infile, data, stuttermark_column)
+        find_alleles_sample(data, reportfile, tag, min_reads, min_allele_pct,
+            max_noise_pct, max_alleles, max_noisy, seqformat, library)
 #find_alleles
 
 
-def find_alleles_sample(infile, reportfile, tag, min_reads, min_allele_pct,
-                        max_noise_pct, max_alleles, max_noisy,
-                        stuttermark_column):
-
+def get_sample_data(infile, data, stuttermark_column):
+    """Add data from infile to data dict as [marker, allele]=reads."""
     # Get column numbers.
     column_names = infile.readline().rstrip("\r\n").split("\t")
     colid_total, colid_allele, colid_name = get_column_ids(column_names,
         "total", "allele", "name")
 
-    # Also get stuttermark column if we have one.
+    # Also try to get stuttermark column if we have one.
     if stuttermark_column is not None:
-        colid_stuttermark = get_column_ids(column_names, stuttermark_column)
+        try:
+            colid_stuttermark = get_column_ids(column_names,
+                stuttermark_column)
+        except:
+            stuttermark_column = None
 
-    top_noise = {}
-    top_allele = {}
-    alleles = {}
     for line in infile:
         line = line.rstrip("\r\n").split("\t")
         if (stuttermark_column is not None and
                 not line[colid_stuttermark].startswith("ALLELE")):
             continue
+        data[line[colid_name], line[colid_allele]] = int(line[colid_total])
+#get_sample_data
 
-        marker = line[colid_name]
-        allele = line[colid_allele]
-        reads = int(line[colid_total])
+
+def find_alleles_sample(data, reportfile, tag, min_reads, min_allele_pct,
+                        max_noise_pct, max_alleles, max_noisy, seqformat,
+                        library):
+    top_noise = {}
+    top_allele = {}
+    alleles = {}
+    for marker, allele in data:
+        reads = data[marker, allele]
 
         if marker not in alleles:
             alleles[marker] = {allele: reads}
@@ -135,10 +141,16 @@ def find_alleles_sample(infile, reportfile, tag, min_reads, min_allele_pct,
                         100.*top_noise[marker][1]/top_allele[marker]))
                 for allele in sorted(alleles[marker],
                                      key=lambda x: -alleles[marker][x]):
+                    seq = allele if seqformat is None \
+                        else ensure_sequence_format(allele, seqformat,
+                            library=library, marker=marker)
                     reportfile.write("%i\tALLELE\t%s\n" %
-                        (alleles[marker][allele], allele))
+                        (alleles[marker][allele], seq))
+                seq = top_noise[marker][0] if seqformat is None \
+                    else ensure_sequence_format(top_noise[marker][0],
+                        seqformat, library=library, marker=marker)
                 reportfile.write("%i\tNOISE\t%s\n\n" %
-                    (top_noise[marker][1], top_noise[marker][0]))
+                    (top_noise[marker][1], seq))
             noisy_markers += 1
             alleles[marker] = {}
 
@@ -152,31 +164,19 @@ def find_alleles_sample(infile, reportfile, tag, min_reads, min_allele_pct,
     for marker in alleles:
         for allele in sorted(alleles[marker],
                              key=lambda x: -alleles[marker][x]):
+            seq = allele if seqformat is None else ensure_sequence_format(
+                allele, seqformat, library=library, marker=marker)
             print("\t".join(
-                [tag, marker, str(alleles[marker][allele]), allele]))
+                [tag, marker, str(alleles[marker][allele]), seq]))
 #find_alleles_sample
 
 
 def add_arguments(parser):
-    parser.add_argument('filelist', nargs='*', metavar="FILE",
-        default=[sys.stdin], type=argparse.FileType('r'),
-        help="the data file(s) to process (default: read from stdin)")
+    add_sample_files_args(parser)
     parser.add_argument('-r', '--report', metavar="OUTFILE",
         type=argparse.FileType("w"),
         help="write a report to the given file, detailing possibly "
              "contaminated or otherwise unsuitable samples")
-    parser.add_argument('-e', '--tag-expr', metavar="REGEX", type=re.compile,
-        default=_DEF_TAG_EXPR,
-        help="regular expression that captures (using one or more capturing "
-             "groups) the sample tags from the file names; by default, the "
-             "entire file name except for its extension (if any) is captured")
-    parser.add_argument('-f', '--tag-format', metavar="EXPR",
-        default=_DEF_TAG_FORMAT,
-        help="format of the sample tags produced; a capturing group reference "
-             "like '\\n' refers to the n-th capturing group in the regular "
-             "expression specified with -e/--tag-expr (the default of '\\1' "
-             "simply uses the first capturing group); with a single sample, "
-             "you can enter the samle tag here explicitly")
     parser.add_argument('-n', '--min-reads', metavar="N", type=pos_int_arg,
         default=_DEF_MIN_READS,
         help="require at least this number of reads for the highest allele "
@@ -199,10 +199,16 @@ def add_arguments(parser):
         help="entirely reject a sample if more than this number of markers "
              "have a high non-allelic sequence (default: %(default)s)")
     parser.add_argument('-c', '--stuttermark-column', metavar="COLNAME",
-        default=None,
         help="name of column with Stuttermark output; if specified, sequences "
              "for which the value in this column does not start with ALLELE "
              "are ignored")
+    parser.add_argument('-F', '--sequence-format', metavar="FORMAT",
+        choices=["raw", "tssv", "allelename"],
+        help="convert sequences to the specified format: one of %(choices)s "
+             "(default: no conversion)")
+    parser.add_argument('-l', '--library', metavar="LIBRARY",
+        type=argparse.FileType('r'),
+        help="library file for sequence format conversion")
 #add_arguments
 
 
@@ -213,7 +219,8 @@ def run(args):
 
     find_alleles(args.filelist, args.report, args.tag_expr, args.tag_format,
                  args.min_reads, args.min_allele_pct, args.max_noise_pct,
-                 args.max_alleles, args.max_noisy, args.stuttermark_column)
+                 args.max_alleles, args.max_noisy, args.stuttermark_column,
+                 args.sequence_format, args.library)
 #run
 
 
