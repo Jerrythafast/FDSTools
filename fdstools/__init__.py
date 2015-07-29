@@ -15,5 +15,5 @@ def version(name, toolname=None, toolversion=None):
         return verformat % (name, __version__)
     if toolversion is None:
         return toolverformat % (toolname, verformat % (name, __version__))
-    return toolverformat % (verformat % (toolname,toolversion),
+    return toolverformat % (verformat % (toolname, toolversion),
                             verformat % (name, __version__))
