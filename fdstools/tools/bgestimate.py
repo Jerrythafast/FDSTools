@@ -6,7 +6,6 @@ import argparse
 import sys
 import random
 import time
-import json
 import math
 #import numpy as np  # Only imported when actually running this tool.
 
@@ -175,7 +174,7 @@ def solve_profile_mixture_single(samples, genotypes, n, variance=False,
         # The variances thus computed are population variances.  It is
         # more appropriate to compute the sample variance, but how?
         if reportfile:
-            if reduce(lambda x,y:x+len(y)-1, genotypes, 0):
+            if sum(map(len, genotypes))-len(genotypes):
                 reportfile.write(
                     "Computing variances...\n"
                     "EXPERIMENAL feature! The values produced may give a "
@@ -447,7 +446,7 @@ def preprocess_data(data, min_sample_pct):
 def generate_profiles(filelist, tag_expr, tag_format, allelefile,
                       annotation_column, reportfile, min_pct, min_abs,
                       min_samples, min_sample_pct, seqformat, library, marker,
-                      tidy, homozygotes, limit_reads, drop_samples):
+                      homozygotes, limit_reads, drop_samples):
     if reportfile:
         t0 = time.time()
 
@@ -508,7 +507,6 @@ def generate_profiles(filelist, tag_expr, tag_format, allelefile,
         reportfile.write("Data loading and filtering took %f seconds\n" %
                          (t1-t0))
 
-    first_marker = True
     for marker in data.keys():
         p = data[marker]["profiles"]
         profile_size = len(p["alleles"])
@@ -539,15 +537,14 @@ def generate_profiles(filelist, tag_expr, tag_format, allelefile,
             for i in range(profile_size):
                 profile[i] = round(profile[i], 3)
 
-        print('%s"%s":' % ("{" if first_marker else ",\n", marker))
-        if tidy:
-            json.dump(p, sys.stdout, indent=2,
-                      separators=(',', ': '))
-        else:
-            json.dump(p, sys.stdout, separators=(',', ':'))
-        first_marker = False
+        # TSV output (profiles in rows)
+        print("\t".join([marker, "0"] + map(str, p["alleles"])))
+        for i in range(p["true alleles"]):
+            print("\t".join(
+                [marker, str(i+1)] + map(str, p["profiles_forward"][i])))
+            print("\t".join(
+                [marker, str(-i-1)] + map(str, p["profiles_reverse"][i])))
         del data[marker]
-    print("\n}")
 #generate_profiles
 
 
@@ -557,19 +554,19 @@ def add_arguments(parser):
     parser.add_argument('-r', '--report', metavar="OUTFILE",
         type=argparse.FileType("w"),
         help="write a report to the given file")
-    parser.add_argument('-m', '--min-pct', type=float,
+    parser.add_argument('-m', '--min-pct', metavar="PCT", type=float,
         default=_DEF_THRESHOLD_PCT,
         help="minimum amount of background to consider, as a percentage "
              "of the highest allele (default: %4.2f)" % _DEF_THRESHOLD_PCT)
-    parser.add_argument('-n', '--min-abs', type=pos_int_arg,
+    parser.add_argument('-n', '--min-abs', metavar="N", type=pos_int_arg,
         default=_DEF_THRESHOLD_ABS,
         help="minimum amount of background to consider, as an absolute "
              "number of reads (default: %(default)s)")
-    parser.add_argument('-s', '--min-samples', type=pos_int_arg,
+    parser.add_argument('-s', '--min-samples', metavar="N", type=pos_int_arg,
         default=_DEF_MIN_SAMPLES,
         help="require this minimum number of samples for each true allele "
              "(default: %(default)s)")
-    parser.add_argument('-S', '--min-sample-pct', type=float,
+    parser.add_argument('-S', '--min-sample-pct', metavar="PCT", type=float,
         default=_DEF_MIN_SAMPLE_PCT,
         help="require this minimum number of samples for each background "
              "product, as a percentage of the number of samples with a "
@@ -584,15 +581,13 @@ def add_arguments(parser):
         help="library file for sequence format conversion")
     parser.add_argument('-M', '--marker', metavar="MARKER",
         help="work only on MARKER")
-    parser.add_argument('-t', '--tidy', action="store_true",
-        help="if specified, tidily indent the generated JSON")
     parser.add_argument('-H', '--homozygotes', action="store_true",
         help="if specified, only homozygous samples will be considered")
-    parser.add_argument('-R', '--limit-reads', type=pos_int_arg,
+    parser.add_argument('-R', '--limit-reads', metavar="N", type=pos_int_arg,
         default=sys.maxint,
         help="simulate lower sequencing depth by randomly dropping reads down "
              "to this maximum total number of reads for each sample")
-    parser.add_argument('-x', '--drop-samples', type=float,
+    parser.add_argument('-x', '--drop-samples', metavar="N", type=float,
         default=0, help="randomly drop this fraction of input samples")
 #add_arguments
 
@@ -601,13 +596,12 @@ def run(args):
     if args.filelist == [sys.stdin] and sys.stdin.isatty():
         raise ValueError("please specify an input file, or pipe in the output "
                          "of another program")
-
     generate_profiles(args.filelist, args.tag_expr, args.tag_format,
                       args.allelelist, args.annotation_column, args.report,
                       args.min_pct, args.min_abs, args.min_samples,
                       args.min_sample_pct, args.sequence_format, args.library,
-                      args.marker, args.tidy, args.homozygotes,
-                      args.limit_reads, args.drop_samples)
+                      args.marker, args.homozygotes, args.limit_reads,
+                      args.drop_samples)
 #run
 
 

@@ -181,11 +181,11 @@ def add_arguments(parser):
         default=_DEF_MIN_READS,
         help="require at least this number of reads for the highest allele "
              "(default: %(default)s)")
-    parser.add_argument('-m', '--min-allele-pct', metavar="N", type=float,
+    parser.add_argument('-m', '--min-allele-pct', metavar="PCT", type=float,
         default=_DEF_MIN_ALLELE_PCT,
         help="call heterozygous if the second allele is at least this "
              "percentage of the highest allele (default: %(default)s)")
-    parser.add_argument('-M', '--max-noise-pct', metavar="N", type=float,
+    parser.add_argument('-M', '--max-noise-pct', metavar="PCT", type=float,
         default=_DEF_MAX_NOISE_PCT,
         help="a sample is considered contaminated/unsuitable for a marker if "
              "the highest non-allelic sequence is at least this percentage of "

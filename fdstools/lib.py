@@ -374,6 +374,81 @@ def parse_library_ini(handle):
 #parse_library_ini
 
 
+def load_profiles(profilefile, library=None):
+    profiles = {}
+
+    # Read the profile file without assuming it is sorted.
+    for line in profilefile:
+        line = line.rstrip("\r\n").split("\t")
+        if line == [""]:
+            continue
+        if len(line) < 3:
+            raise ValueError(
+                "Invalid background noise profiles file: encountered line "
+                "with %i columns, need at least 3" % len(line))
+        marker = line[0]
+        try:
+            num = int(line[1])
+        except ValueError:
+            raise ValueError(
+                "Invalid background noise profiles file: encountered "
+                "non-number '%s' in the second column" % line[1])
+        values = line[2:]
+        if marker not in profiles:
+            profiles[marker] = {
+                "m": len(values),
+                "n": abs(num),
+                "seqs": [],
+                "forward": {},
+                "reverse": {}
+                }
+        elif len(values) != profiles[marker]["m"]:
+            raise ValueError(
+                "Invalid background noise profiles file: profiles of "
+                "marker '%s'% have inconsistent lengths" % marker)
+        profiles[marker]["n"] = max(abs(num), profiles[marker]["n"])
+        if num == 0:
+            if profiles[marker]["seqs"]:
+                raise ValueError(
+                    "Invalid background profiles noise file: encountered "
+                    "multiple header lines for marker '%s'" % marker)
+            values = map(
+                lambda seq: ensure_sequence_format(
+                    seq, "raw", library=library, marker=marker),
+                values)
+            profiles[marker]["seqs"] = values
+        else:
+            direction = "forward" if num > 0 else "reverse"
+            if abs(num) in profiles[marker][direction]:
+                raise ValueError(
+                    "Invalid background profiles noise file: encountered "
+                    "multiple %s profiles for marker '%s' allele %i" %
+                    (direction, marker, abs(num)))
+            values = map(float, values)
+            profiles[marker][direction][abs(num)] = values
+
+    # Check completeness and reorder true alleles.
+    for marker in profiles:
+        newprofiles = {"forward": [], "reverse": []}
+        if not profiles[marker]["seqs"]:
+            raise ValueError(
+                "Invalid background profiles noise file: missing header line "
+                "for marker '%s'" % marker)
+        for i in range(1, profiles[marker]["n"] + 1):
+            for direction in newprofiles:
+                if i not in profiles[marker][direction]:
+                    raise ValueError(
+                        "Invalid background profiles noise file: missing %s "
+                        "profile for marker '%s' allele %i" %
+                        (direction, marker, i))
+                newprofiles[direction].append(profiles[marker][direction][i])
+        profiles[marker]["forward"] = newprofiles["forward"]
+        profiles[marker]["reverse"] = newprofiles["reverse"]
+
+    return profiles
+#load_profiles
+
+
 def detect_sequence_format(seq):
     """Return format of seq.  One of 'raw', 'tssv', or 'allelename'."""
     if not seq:

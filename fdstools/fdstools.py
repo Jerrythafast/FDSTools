@@ -39,8 +39,7 @@ def main():
     """
     Main entry point.
     """
-    parser = argparse.ArgumentParser(add_help=False, description=usage[0],
-        formatter_class=argparse.ArgumentDefaultsHelpFormatter)
+    parser = argparse.ArgumentParser(add_help=False, description=usage[0])
     parser.version = version(parser.prog)
     parser.add_argument('-h', '--help', action=_HelpAction,
                         default=argparse.SUPPRESS, nargs=argparse.REMAINDER,
