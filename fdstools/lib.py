@@ -10,14 +10,15 @@ from collections import defaultdict
 # Patterns that match entire sequences.
 PAT_SEQ_RAW = re.compile("^[ACGT]*$")
 PAT_SEQ_TSSV = re.compile("^(?:[ACGT]+\(\d+\))*$")
-PAT_SEQ_ALLELENAME = re.compile(
-    "^(?:(?:(?:CE)?\d+(?:\.\d+)?_(?:[ACGT]+\[\d+\])+)|[XY])"  # n_ACT[m]
+PAT_SEQ_ALLELENAME = re.compile(  # First line: n_ACT[m] or alias.
+    "^(?:(?:(?:CE)?\d+(?:\.\d+)?_(?:[ACGT]+\[\d+\])+)|((?!_).+?))"
     "(?:_[-+]\d+(?:\.1)?(?P<a>(?:(?<=\.1)-)|(?<!\.1)[ACGT]+)>"  # _+3A>
         "(?!(?P=a))(?:[ACTG]+|-))*$")  # Portion of variants after '>'.
 
 # Patterns that match blocks of TSSV-style sequences and allele names.
 PAT_TSSV_BLOCK = re.compile("([ACGT]+)\((\d+)\)")
 PAT_ALLELENAME_BLOCK = re.compile("([ACGT]+)\[(\d+)\]")
+PAT_ALIAS = re.compile("^(?!_).+$")
 
 # Pattern that matches a single prefix/suffix variant.
 PAT_VARIANT = re.compile(
@@ -235,7 +236,8 @@ def parse_library_tsv(handle):
     """
     library = {
       "flanks": {},
-      "regex": {}
+      "regex": {},
+      "regex_middle": {}
     }
     for line in handle:
         line = map(lambda x: x.strip(), line.rstrip("\r\n").split("\t"))
@@ -256,8 +258,10 @@ def parse_library_tsv(handle):
             raise ValueError("STR definition '%s' of marker %s is invalid" %
                              (line[3], marker))
         library["flanks"][marker] = line[1:3]
-        library["regex"][marker] = re.compile("".join(["^"] + map(lambda x:
-            "(%s){%s,%s}" % x, PAT_STR_DEF_BLOCK.findall(line[3])) + ["$"]))
+        library["regex_middle"][marker] = re.compile("".join(map(lambda x:
+            "(%s){%s,%s}" % x, PAT_STR_DEF_BLOCK.findall(line[3]))))
+        library["regex"][marker] = re.compile(
+            "".join(["^", library["regex_middle"][marker].pattern, "$"]))
     return library
 #parse_library_tsv
 
@@ -268,6 +272,7 @@ def parse_library_ini(handle):
       "prefix": {},
       "suffix": {},
       "regex": {},
+      "regex_middle": {},
       "length_adjust": defaultdict(int),
       "block_length": defaultdict(lambda: 4),
       "aliases": {}
@@ -300,7 +305,7 @@ def parse_library_ini(handle):
                         raise ValueError(
                             "Prefix sequence '%s' of marker %s is invalid" %
                             (value, marker))
-                library["prefix"][marker] = list(set(values))
+                library["prefix"][marker] = values
                 markers.add(marker)
             elif section == "suffix":
                 values = PAT_SPLIT.split(value)
@@ -309,7 +314,7 @@ def parse_library_ini(handle):
                         raise ValueError(
                             "Suffix sequence '%s' of marker %s is invalid" %
                             (value, marker))
-                library["suffix"][marker] = list(set(values))
+                library["suffix"][marker] = values
                 markers.add(marker)
             elif section == "length_adjust":
                 try:
@@ -335,9 +340,13 @@ def parse_library_ini(handle):
                     raise ValueError("Alias %s does not have 3 values, but %i"
                                      % (marker, len(values)))
                 if PAT_SEQ_RAW.match(values[1]) is None:
-                        raise ValueError(
-                            "Alias sequence '%s' of alias %s is invalid" %
-                            (values[1], marker))
+                    raise ValueError(
+                        "Alias sequence '%s' of alias %s is invalid" %
+                        (values[1], marker))
+                if PAT_ALIAS.match(values[2]) is None:
+                    raise ValueError(
+                        "Allele name '%s' of alias %s is invalid" %
+                        (values[2], marker))
                 library["aliases"][marker] = {
                     "marker": values[0],
                     "sequence": values[1],
@@ -358,18 +367,23 @@ def parse_library_ini(handle):
     #       Then also update libconvert when converting to TSSV format.
     for marker in markers:
         parts = []
+        partsm = []
         if marker in library["prefix"]:
             parts += map(lambda x: "(%s){0,1}" % x, library["prefix"][marker])
         if marker in library["aliases"]:
             parts.append("(%s){0,1}" % library["aliases"][marker]["sequence"])
+            partsm.append("(%s){0,1}" % library["aliases"][marker]["sequence"])
         elif marker in library["regex"]:
-            parts += map(lambda x: "(%s){%s,%s}" % x,
+            partsm = map(lambda x: "(%s){%s,%s}" % x,
                          PAT_STR_DEF_BLOCK.findall(library["regex"][marker]))
+            parts += partsm
         if marker in library["suffix"]:
             parts += map(lambda x: "(%s){0,1}" % x, library["suffix"][marker])
         if parts:
             library["regex"][marker] = re.compile(
                 "".join(["^"] + parts + ["$"]))
+        if partsm:
+            library["regex_middle"][marker] = re.compile("".join(partsm))
     return library
 #parse_library_ini
 
@@ -449,6 +463,14 @@ def load_profiles(profilefile, library=None):
 #load_profiles
 
 
+def regex_longest_match(pattern, subject):
+    """Return the longest match of the pattern in the subject string."""
+    return reduce(lambda x, y:
+        y if x is None or x.end()-x.start() < y.end()-y.start() else x,
+        pattern.finditer(subject), None)
+#regex_longest_match
+
+
 def detect_sequence_format(seq):
     """Return format of seq.  One of 'raw', 'tssv', or 'allelename'."""
     if not seq:
@@ -483,24 +505,57 @@ def convert_sequence_raw_tssv(seq, library, marker, return_alias=False):
                     break
     if match is None and marker in library["regex"]:
         match = library["regex"][marker].match(seq)
+    if match is not None:
+        parts = [(match.group(i), match.end(i))
+                 for i in range(1, match.lastindex+1) if match.group(i)]
 
-    if match is None:
-        # TODO: still try prefix(1)middle(1)suffix(1) for this marker!
-        seq = "%s(1)" % seq
+    # Use heuristics if the sequence does not match the pattern.
     else:
-        seq = reduce(
-            lambda a, b:
-                (a[0] + "%s(%i)" % (b[0], (b[1]-a[1])/len(b[0])),
-                 b[1]),
-            reduce(
-                lambda x, y:
-                    x if y == (None, -1) else
-                    x[:-1] + [y] if x[-1][0] == y[0] else
-                    x + [y],
-                map(
-                    lambda z: (match.group(z), match.regs[z][1]),
-                    range(1, len(match.regs))),
-                [("", 0)]))[0]
+
+        # Find explictily provided prefix and/or suffix if present.
+        pre_suf = ["", ""]
+        if "prefix" in library and marker in library["prefix"]:
+            for prefix in library["prefix"][marker]:
+                if seq.startswith(prefix):
+                    pre_suf[0] = prefix
+                    seq = seq[len(prefix):]
+                    break
+        if "suffix" in library and marker in library["suffix"]:
+            for suffix in library["suffix"][marker]:
+                if seq.endswith(suffix):
+                    pre_suf[1] = suffix
+                    seq = seq[:-len(suffix)]
+                    break
+
+        # Find longest match of middle pattern.
+        middle = [(seq, len(pre_suf[0])+len(seq))]
+        if marker in library["regex_middle"]:
+            match = regex_longest_match(library["regex_middle"][marker], seq)
+            if match is not None and match.end()-match.start():
+                # TODO: If I did not have a prefix yet, but the
+                # canonical prefix ends with the first few blocks that
+                # we obtained in the match, move these blocks into the
+                # prefix.  Also do this with the suffix.
+                middle = [(match.group(i), match.end(i)+len(pre_suf[0]))
+                    for i in range(1, match.lastindex+1) if match.group(i)]
+                pre_suf[0] += seq[:match.start()]
+                pre_suf[1] = seq[match.end():] + pre_suf[1]
+                seq = match.group()
+
+        # Now construct parts.
+        parts = []
+        if pre_suf[0]:
+            parts.append((pre_suf[0], len(pre_suf[0])))
+        parts += middle
+        if pre_suf[1]:
+            parts.append((pre_suf[1], sum(map(len,pre_suf))+len(seq)))
+
+    seq = reduce(
+        lambda a, b: (a[0] + "%s(%i)" % (b[0], (b[1]-a[1])/len(b[0])), b[1]),
+        reduce(
+            lambda x, y: x[:-1] + [y] if x[-1][0] == y[0] else x + [y],
+            parts,
+            [("", 0)]))[0]
     return (seq, marker) if return_alias else seq
 #convert_sequence_raw_tssv
 
@@ -518,6 +573,11 @@ def convert_sequence_allelename_tssv(seq, library, marker):
                     library["aliases"][alias]["sequence"] + "[1]",
                     seq[len(library["aliases"][alias]["name"]):]])
                 break
+
+    # It should NOT be an alias now.
+    match = PAT_SEQ_ALLELENAME.match(seq)
+    if match is None or match.group(1) is not None:
+        raise ValueError("Invalid allele name '%s' encountered!" % seq)
 
     allele = seq.split("_")
 
@@ -563,35 +623,33 @@ def convert_sequence_allelename_tssv(seq, library, marker):
 def convert_sequence_raw_allelename(seq, library, marker):
     # We actually convert raw->allelename via TSSV format.
     seq, alias = convert_sequence_raw_tssv(seq, library, marker, True)
-    blocks = PAT_TSSV_BLOCK.findall(
-        convert_sequence_raw_tssv(seq, library, marker))
+    blocks = PAT_TSSV_BLOCK.findall(seq)
+
+    # Find prefix and suffix.
+    prefix = suffix = this_prefix = this_suffix = ""
+    remaining_blocks = len(blocks)
+    if "prefix" in library and marker in library["prefix"]:
+        prefix = library["prefix"][marker][0]
+        remaining_blocks -= 1
+    if "suffix" in library and marker in library["suffix"]:
+        suffix = library["suffix"][marker][0]
+        remaining_blocks -= 1
+    if remaining_blocks > 0 and prefix and blocks[0][1] == "1":
+        this_prefix = blocks[0][0]
+        blocks = blocks[1:]
+    if remaining_blocks > 0 and suffix and blocks[-1][1] == "1":
+        this_suffix = blocks[-1][0]
+        blocks = blocks[:-1]
 
     # Generate prefix/suffix variants.
-    # TODO: Handle missing/unrecognised prefix/suffix gracefully.
     length = 0
     variants = []
-    try:
-        if "prefix" in library and marker in library["prefix"]:
-            prefix = library["prefix"][marker][0]
-            if prefix:
-                if blocks[0][1] != "1":
-                    raise ValueError("Repeated prefix")
-                if prefix != blocks[0][0]:
-                    variants += call_variants(prefix, blocks[0][0], True)
-                length += len(blocks[0][0]) - len(prefix)
-                blocks = blocks[1:]
-        if "suffix" in library and marker in library["suffix"]:
-            suffix = library["suffix"][marker][0]
-            if suffix:
-                if blocks[-1][1] != "1":
-                    raise ValueError("Repeated suffix")
-                if suffix != blocks[-1][0]:
-                    variants += call_variants(suffix, blocks[-1][0], False)
-                length += len(blocks[-1][0]) - len(suffix)
-                blocks = blocks[:-1]
-    except IndexError:
-        raise ValueError("Missing prefix/suffix in '%s' allele '%s'!" %
-            (marker, seq))
+    if prefix != this_prefix:
+        variants += call_variants(prefix, this_prefix, True)
+        length += len(this_prefix) - len(prefix)
+    if suffix != this_suffix:
+        variants += call_variants(suffix, this_suffix, False)
+        length += len(this_suffix) - len(suffix)
 
     # We are ready to return the allele name of aliases.
     if alias != marker:

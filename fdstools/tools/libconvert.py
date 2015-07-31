@@ -83,12 +83,12 @@ def convert_library(infile, outfile, aliases=False):
                 if not flanks:
                     continue  # Worthless, no flanks.
 
-                prefixes = set()
-                suffixes = set()
+                prefixes = []
+                suffixes = []
                 if marker in library["prefix"]:
-                    prefixes.update(library["prefix"][marker])
+                    prefixes += library["prefix"][marker]
                 if marker in library["suffix"]:
-                    suffixes.update(library["suffix"][marker])
+                    suffixes += library["suffix"][marker]
                 middle = []
 
                 if marker in library["regex"]:
@@ -119,9 +119,9 @@ def convert_library(infile, outfile, aliases=False):
                 if marker in marker_aliases:
                     for alias in marker_aliases[marker]:
                         if alias in library["prefix"]:
-                            prefixes.update(library["prefix"][alias])
+                            prefixes += library["prefix"][alias]
                         if alias in library["suffix"]:
-                            suffixes.update(library["suffix"][alias])
+                            suffixes += library["suffix"][alias]
                         if marker not in library["regex"]:
                             middle.append((
                                 library["aliases"][alias]["sequence"],

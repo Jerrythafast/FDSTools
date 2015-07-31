@@ -45,6 +45,8 @@ def convert_sequences(infile, outfile, to_format, libfile=None,
     outfile.write("\t".join(column_names) + "\n")
     for line in infile:
         line = line.rstrip("\r\n").split("\t")
+        if line == [""]:
+            continue
         if colid_allele_out == -1:
             line.append("")
         marker = line[colid_marker] if fixed_marker is None else fixed_marker

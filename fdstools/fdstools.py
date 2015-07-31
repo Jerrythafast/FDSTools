@@ -70,7 +70,7 @@ def main():
         module.add_arguments(subparser)
         subparser.set_defaults(func=module.run)
     try:
-        args = parser.parse_args()
+        args, unknowns = parser.parse_known_args()
     except Exception as error:
         parser.error(error)
     try:
@@ -78,6 +78,7 @@ def main():
     except Exception as error:
         if args.debug:
             raise
+        # TODO: Politely inform the user about unknown arguments.
         __tools__[args.tool].error(error)
 #main
 
