@@ -389,6 +389,85 @@ def parse_library_ini(handle):
 
 
 def load_profiles(profilefile, library=None):
+    if profilefile == sys.stdin:
+        # Can't seek on pipes, so read it into a buffer first.
+        profilefile = StringIO(sys.stdin.read())
+    headline = profilefile.readline().rstrip("\r\n").split("\t")
+    profilefile.seek(0)
+    try:
+        get_column_ids(headline, "marker", "allele", "sequence", "fmean",
+            "rmean")
+    except ValueError:
+        try:
+            int(headline[1])
+        except:
+            raise ValueError(
+                "Invalid background noise profiles file: unable to determine "
+                "file format!")
+        return load_profiles_crosstab(profilefile, library)
+    return load_profiles_columnar(profilefile, library)
+#load_profiles
+
+
+def load_profiles_columnar(profilefile, library=None):
+    column_names = profilefile.readline().rstrip("\r\n").split("\t")
+    colid_marker, colid_allele, colid_sequence, colid_fmean, colid_rmean = \
+        get_column_ids(column_names, "marker", "allele", "sequence", "fmean",
+            "rmean")
+
+    profiles = {}
+    for line in profilefile:
+        line = line.rstrip("\r\n").split("\t")
+        if line == [""]:
+            continue
+        marker = line[colid_marker]
+        if marker not in profiles:
+            profiles[marker] = {
+                "m": set(),  # To be replaced by its length below.
+                "n": set(),  # To be replaced by its length below.
+                "seqs": [],
+                "forward": {},  # To be replaced by a list below.
+                "reverse": {}  # To be replaced by a list below.
+                }
+        allele = ensure_sequence_format(line[colid_allele], "raw",
+            library=library, marker=marker)
+        sequence = ensure_sequence_format(line[colid_sequence], "raw",
+            library=library, marker=marker)
+        if (allele, sequence) in profiles[marker]["forward"]:
+            raise ValueError(
+                "Invalid background noise profiles file: encountered "
+                "multiple values for marker '%s' allele '%s' sequence '%s'" %
+                (marker, allele, sequence))
+        profiles[marker]["forward"][allele,sequence] = float(line[colid_fmean])
+        profiles[marker]["reverse"][allele,sequence] = float(line[colid_rmean])
+        profiles[marker]["m"].update((allele, sequence))
+        profiles[marker]["n"].add(allele)
+
+    # Check completeness and reorder true alleles.
+    for marker in profiles:
+        profiles[marker]["seqs"] = list(profiles[marker]["n"]) + \
+            list(profiles[marker]["m"]-profiles[marker]["n"])
+        profiles[marker]["n"] = len(profiles[marker]["n"])
+        profiles[marker]["m"] = len(profiles[marker]["m"])
+        newprofiles = {"forward": [], "reverse": []}
+        for i in range(profiles[marker]["n"]):
+            allele = profiles[marker]["seqs"][i]
+            for direction in newprofiles:
+                newprofiles[direction].append([0] * profiles[marker]["m"])
+            for j in range(profiles[marker]["m"]):
+                sequence = profiles[marker]["seqs"][j]
+                if (allele, sequence) in profiles[marker]["forward"]:
+                    for direction in newprofiles:
+                        newprofiles[direction][i][j] = \
+                            profiles[marker][direction][allele, sequence]
+        profiles[marker]["forward"] = newprofiles["forward"]
+        profiles[marker]["reverse"] = newprofiles["reverse"]
+
+    return profiles
+#load_profiles_columnar
+
+
+def load_profiles_crosstab(profilefile, library=None):
     profiles = {}
 
     # Read the profile file without assuming it is sorted.
@@ -413,8 +492,8 @@ def load_profiles(profilefile, library=None):
                 "m": len(values),
                 "n": abs(num),
                 "seqs": [],
-                "forward": {},
-                "reverse": {}
+                "forward": {},  # To be replaced by a list below.
+                "reverse": {}  # To be replaced by a list below.
                 }
         elif len(values) != profiles[marker]["m"]:
             raise ValueError(
@@ -424,7 +503,7 @@ def load_profiles(profilefile, library=None):
         if num == 0:
             if profiles[marker]["seqs"]:
                 raise ValueError(
-                    "Invalid background profiles noise file: encountered "
+                    "Invalid background noise profiles file: encountered "
                     "multiple header lines for marker '%s'" % marker)
             values = map(
                 lambda seq: ensure_sequence_format(
@@ -435,7 +514,7 @@ def load_profiles(profilefile, library=None):
             direction = "forward" if num > 0 else "reverse"
             if abs(num) in profiles[marker][direction]:
                 raise ValueError(
-                    "Invalid background profiles noise file: encountered "
+                    "Invalid background noise profiles file: encountered "
                     "multiple %s profiles for marker '%s' allele %i" %
                     (direction, marker, abs(num)))
             values = map(float, values)
@@ -446,13 +525,13 @@ def load_profiles(profilefile, library=None):
         newprofiles = {"forward": [], "reverse": []}
         if not profiles[marker]["seqs"]:
             raise ValueError(
-                "Invalid background profiles noise file: missing header line "
+                "Invalid background noise profiles file: missing header line "
                 "for marker '%s'" % marker)
         for i in range(1, profiles[marker]["n"] + 1):
             for direction in newprofiles:
                 if i not in profiles[marker][direction]:
                     raise ValueError(
-                        "Invalid background profiles noise file: missing %s "
+                        "Invalid background noise profiles file: missing %s "
                         "profile for marker '%s' allele %i" %
                         (direction, marker, i))
                 newprofiles[direction].append(profiles[marker][direction][i])
@@ -460,7 +539,7 @@ def load_profiles(profilefile, library=None):
         profiles[marker]["reverse"] = newprofiles["reverse"]
 
     return profiles
-#load_profiles
+#load_profiles_crosstab
 
 
 def regex_longest_match(pattern, subject):
@@ -761,6 +840,34 @@ def nnls(A, C, B=None, max_iter=200, min_change=0.0001, debug=False):
 #nnls
 
 
+def adjust_stats(value, stats=None):
+    """
+    Adjust the given stats in place with the given observed value and
+    return the adjusted stats as well.  If no stats dict is given,
+    create a new stats dict with the following initial values:
+    {"n": 1, "min": value, "max": value, "mean": value, "m2": 0.0,
+     "variance": 0.0}
+    """
+    value += 0.0
+    if not stats:
+        return {"n": 1, "min": value, "max": value, "mean": value, "m2": 0.0,
+                "variance": 0.0}
+    stats["n"] += 1
+    delta = value - stats["mean"]
+    stats["mean"] += delta / stats["n"]
+    stats["m2"] += delta * (value - stats["mean"])
+    try:
+        stats["variance"] = stats["m2"] / (stats["n"] - 1)
+        stats["min"] = min(stats["min"], value)
+        stats["max"] = max(stats["max"], value)
+    except ZeroDivisionError:
+        stats["variance"] = 0
+        stats["min"] = value
+        stats["max"] = value
+    return stats
+#adjust_stats
+
+
 def get_column_ids(column_names, *names):
     """Find all names in column_names and return their indices."""
     result = []
@@ -768,7 +875,7 @@ def get_column_ids(column_names, *names):
         try:
             result.append(column_names.index(name))
         except ValueError:
-            raise Exception("Column not found in input file: %s" % name)
+            raise ValueError("Column not found in input file: %s" % name)
     if len(result) == 1:
         return result[0]
     return tuple(result)

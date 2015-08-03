@@ -74,11 +74,15 @@ def main():
     except Exception as error:
         parser.error(error)
     try:
+        if unknowns:
+            # Politely inform the user about unknown arguments.
+            __tools__[args.tool].error(
+                "The following arguments are not known. Please check spelling "
+                "and argument order: '%s'." % "', '".join(unknowns))
         args.func(args)
     except Exception as error:
         if args.debug:
             raise
-        # TODO: Politely inform the user about unknown arguments.
         __tools__[args.tool].error(error)
 #main
 

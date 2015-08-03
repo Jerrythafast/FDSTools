@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 """
-Estimate allele-centric background noise profiles.
+Estimate allele-centric background noise profiles (means).
 """
 import argparse
 import sys
@@ -445,8 +445,9 @@ def preprocess_data(data, min_sample_pct):
 
 def generate_profiles(filelist, tag_expr, tag_format, allelefile,
                       annotation_column, reportfile, min_pct, min_abs,
-                      min_samples, min_sample_pct, seqformat, library, marker,
-                      homozygotes, limit_reads, drop_samples):
+                      min_samples, min_sample_pct, seqformat, library,
+                      crosstab, marker, homozygotes, limit_reads,
+                      drop_samples):
     if reportfile:
         t0 = time.time()
 
@@ -489,7 +490,7 @@ def generate_profiles(filelist, tag_expr, tag_format, allelefile,
                     del allelelist[tag][marker]
 
     # Ensure minimum number of samples per allele.
-    allelelist = {tag: allelelist[tag] for tag in sample_tags}
+    allelelist = {tag: allelelist[tag] for tag in tags_to_files}
     ensure_min_samples(allelelist, min_samples)
 
     # Combine data from all samples.
@@ -507,6 +508,8 @@ def generate_profiles(filelist, tag_expr, tag_format, allelefile,
         reportfile.write("Data loading and filtering took %f seconds\n" %
                          (t1-t0))
 
+    if not crosstab:
+        print("\t".join(["marker", "allele", "sequence", "fmean", "rmean"]))
     for marker in data.keys():
         p = data[marker]["profiles"]
         profile_size = len(p["alleles"])
@@ -537,13 +540,24 @@ def generate_profiles(filelist, tag_expr, tag_format, allelefile,
             for i in range(profile_size):
                 profile[i] = round(profile[i], 3)
 
-        # TSV output (profiles in rows)
-        print("\t".join([marker, "0"] + map(str, p["alleles"])))
-        for i in range(p["true alleles"]):
-            print("\t".join(
-                [marker, str(i+1)] + map(str, p["profiles_forward"][i])))
-            print("\t".join(
-                [marker, str(-i-1)] + map(str, p["profiles_reverse"][i])))
+        if crosstab:
+            # Cross-tabular output (profiles in rows)
+            print("\t".join([marker, "0"] + p["alleles"]))
+            for i in range(p["true alleles"]):
+                print("\t".join(
+                    [marker, str(i+1)] + map(str, p["profiles_forward"][i])))
+                print("\t".join(
+                    [marker, str(-i-1)] + map(str, p["profiles_reverse"][i])))
+        else:
+            # Tab-separated columns format.
+            for i in range(p["true alleles"]):
+                for j in range(len(p["alleles"])):
+                    if not (p["profiles_forward"][i][j] +
+                            p["profiles_reverse"][i][j]):
+                        continue
+                    print("\t".join([marker, p["alleles"][i], p["alleles"][j]]+
+                        map(str, [p["profiles_forward"][i][j],
+                                  p["profiles_reverse"][i][j]])))
         del data[marker]
 #generate_profiles
 
@@ -579,6 +593,9 @@ def add_arguments(parser):
     parser.add_argument('-l', '--library', metavar="LIBRARY",
         type=argparse.FileType('r'),
         help="library file for sequence format conversion")
+    parser.add_argument('-C', '--cross-tabular', action="store_true",
+        help="if specified, a space-efficient cross-tabular output format is "
+             "used instead of the default tab-separated columns format")
     parser.add_argument('-M', '--marker', metavar="MARKER",
         help="work only on MARKER")
     parser.add_argument('-H', '--homozygotes', action="store_true",
@@ -600,8 +617,8 @@ def run(args):
                       args.allelelist, args.annotation_column, args.report,
                       args.min_pct, args.min_abs, args.min_samples,
                       args.min_sample_pct, args.sequence_format, args.library,
-                      args.marker, args.homozygotes, args.limit_reads,
-                      args.drop_samples)
+                      args.cross_tabular, args.marker, args.homozygotes,
+                      args.limit_reads, args.drop_samples)
 #run
 
 
