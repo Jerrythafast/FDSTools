@@ -105,8 +105,8 @@ def load_data(infile, colname_annotation=_DEF_COLNAME, library=None):
         columns[colid_allele] = PAT_TSSV_BLOCK.findall(columns[colid_allele])
 
         # String to integer conversion...
-        columns[colid_allele] = map(
-            lambda x: [x[0], int(x[1])], columns[colid_allele])
+        columns[colid_allele] = [[x[0], int(x[1])]
+                                 for x in columns[colid_allele]]
         columns[colid_total] = int(columns[colid_total])
 
         # Repeat unit deduplication (data may contain stuff like
@@ -324,16 +324,16 @@ def annotate_alleles(infile, outfile, stutter, min_reads=_DEF_MIN_READS,
             allelelist[iCurrent][-1] = "ALLELE"
         else:
             # Stutter peak detected.
-            allelelist[iCurrent][-1] = "STUTTER:%s" % ":".join(map(
-                lambda iOther: "%.1fx%i(%s)" % (
+            allelelist[iCurrent][-1] = "STUTTER:%s" % ":".join(
+                "%.1fx%i(%s)" % (
                     isStutterPeakOf[iOther][1],
                     iOther+1,
-                    "x".join(map(
-                        lambda block: "%i%+i" % (
+                    "x".join(
+                        "%i%+i" % (
                             block+1,
-                            isStutterPeakOf[iOther][0][block]),
-                        isStutterPeakOf[iOther][0]))),
-                isStutterPeakOf))
+                            isStutterPeakOf[iOther][0][block])
+                        for block in isStutterPeakOf[iOther][0]))
+                for iOther in isStutterPeakOf)
             print_db("%2i is a stutter peak of %s; occur=%i, maxOccur=%s" %
                      (iCurrent+1, isStutterPeakOf,
                       allelelist[iCurrent][colid_total],
@@ -341,13 +341,12 @@ def annotate_alleles(infile, outfile, stutter, min_reads=_DEF_MIN_READS,
 
     # Reconstruct the allele sequence and write out the findings.
     for i in range(len(allelelist)):
-        allelelist[i][colid_allele] = "".join(map(
-            lambda block: "%s(%i)" % tuple(block),
-            allelelist[i][colid_allele]))
+        allelelist[i][colid_allele] = "".join(
+            "%s(%i)" % tuple(block) for block in allelelist[i][colid_allele])
     outfile.write("\t".join(column_names))
     outfile.write("\n")
-    outfile.write("\n".join(map(
-        lambda allele: "\t".join(map(str, allele)), allelelist)))
+    outfile.write("\n".join(
+        "\t".join(map(str, allele)) for allele in allelelist))
     outfile.write("\n")
 #annotate_alleles
 
@@ -371,8 +370,8 @@ def stutter_def_arg(value):
     if ":" not in value:
         return {}
     try:
-        return {int(x[0]): float(x[1])
-                for x in map(lambda x: x.split(":"), value.split(","))}
+        return {int(y[0]): float(y[1])
+                for y in (x.split(":") for x in value.split(","))}
     except ValueError as e:
         raise argparse.ArgumentTypeError(
             "invalid stutter definition value: '%s' (%s)" % (value, str(e)))

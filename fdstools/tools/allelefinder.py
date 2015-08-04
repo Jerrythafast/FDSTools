@@ -203,7 +203,7 @@ def add_arguments(parser):
              "for which the value in this column does not start with ALLELE "
              "are ignored")
     parser.add_argument('-F', '--sequence-format', metavar="FORMAT",
-        choices=["raw", "tssv", "allelename"],
+        choices=("raw", "tssv", "allelename"),
         help="convert sequences to the specified format: one of %(choices)s "
              "(default: no conversion)")
     parser.add_argument('-l', '--library', metavar="LIBRARY",

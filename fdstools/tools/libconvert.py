@@ -112,8 +112,8 @@ def convert_library(infile, outfile, aliases=False):
                     if len(suffixes):
                         middle = middle[:-len(suffixes)]
                     if unmatched:
-                        middle = map(lambda x: (x[0], "0", x[2]), middle) + \
-                                 map(lambda x: (x, "0", "1"), unmatched)
+                        middle = [(x[0], "0", x[2]) for x in middle] + \
+                                 [(x, "0", "1") for x in unmatched]
 
                 # Add prefixes and suffixes of aliases.
                 if marker in marker_aliases:
@@ -137,7 +137,7 @@ def convert_library(infile, outfile, aliases=False):
 
             outfile.write("%s\t%s\t%s\t%s\n" % (
                 marker, flanks[0], flanks[1],
-                " ".join(map(lambda x: "%s %s %s" % x, pattern))))
+                " ".join("%s %s %s" % x for x in pattern)))
 
     else:
         # TSSV -> FDSTools
@@ -194,8 +194,8 @@ def convert_library(infile, outfile, aliases=False):
             ini.set("flanks", fmt%marker, ", ".join(library["flanks"][marker]))
         for marker in sorted(library["regex"]):
             blocks = pattern_reverse.findall(library["regex"][marker].pattern)
-            ini.set("repeat", fmt%marker, " ".join(map(
-                lambda x: "%s %s %s" % x, blocks)))
+            ini.set("repeat", fmt % marker,
+                    " ".join("%s %s %s" % x for x in blocks))
 
             # Try to infer block length from the regular expression.
             length_counts = {0: 0}

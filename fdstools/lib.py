@@ -240,7 +240,7 @@ def parse_library_tsv(handle):
       "regex_middle": {}
     }
     for line in handle:
-        line = map(lambda x: x.strip(), line.rstrip("\r\n").split("\t"))
+        line = [x.strip() for x in line.rstrip("\r\n").split("\t")]
         if line == [""]:
             continue
         if len(line) < 4:
@@ -258,8 +258,8 @@ def parse_library_tsv(handle):
             raise ValueError("STR definition '%s' of marker %s is invalid" %
                              (line[3], marker))
         library["flanks"][marker] = line[1:3]
-        library["regex_middle"][marker] = re.compile("".join(map(lambda x:
-            "(%s){%s,%s}" % x, PAT_STR_DEF_BLOCK.findall(line[3]))))
+        library["regex_middle"][marker] = re.compile("".join(
+            "(%s){%s,%s}" % x for x in PAT_STR_DEF_BLOCK.findall(line[3])))
         library["regex"][marker] = re.compile(
             "".join(["^", library["regex_middle"][marker].pattern, "$"]))
     return library
@@ -369,16 +369,16 @@ def parse_library_ini(handle):
         parts = []
         partsm = []
         if marker in library["prefix"]:
-            parts += map(lambda x: "(%s){0,1}" % x, library["prefix"][marker])
+            parts += ("(%s){0,1}" % x for x in library["prefix"][marker])
         if marker in library["aliases"]:
             parts.append("(%s){0,1}" % library["aliases"][marker]["sequence"])
             partsm.append("(%s){0,1}" % library["aliases"][marker]["sequence"])
         elif marker in library["regex"]:
-            partsm = map(lambda x: "(%s){%s,%s}" % x,
-                         PAT_STR_DEF_BLOCK.findall(library["regex"][marker]))
+            partsm = ("(%s){%s,%s}" % x for x in
+                      PAT_STR_DEF_BLOCK.findall(library["regex"][marker]))
             parts += partsm
         if marker in library["suffix"]:
-            parts += map(lambda x: "(%s){0,1}" % x, library["suffix"][marker])
+            parts += ("(%s){0,1}" % x for x in library["suffix"][marker])
         if parts:
             library["regex"][marker] = re.compile(
                 "".join(["^"] + parts + ["$"]))
@@ -505,10 +505,8 @@ def load_profiles_crosstab(profilefile, library=None):
                 raise ValueError(
                     "Invalid background noise profiles file: encountered "
                     "multiple header lines for marker '%s'" % marker)
-            values = map(
-                lambda seq: ensure_sequence_format(
-                    seq, "raw", library=library, marker=marker),
-                values)
+            values = [ensure_sequence_format(seq, "raw", library=library,
+                        marker=marker) for seq in values]
             profiles[marker]["seqs"] = values
         else:
             direction = "forward" if num > 0 else "reverse"
@@ -565,9 +563,8 @@ def detect_sequence_format(seq):
 
 
 def convert_sequence_tssv_raw(seq):
-    return "".join(map(
-        lambda block: block[0] * int(block[1]),
-        PAT_TSSV_BLOCK.findall(seq)))
+    return "".join(block[0] * int(block[1])
+                   for block in PAT_TSSV_BLOCK.findall(seq))
 #convert_sequence_tssv_raw
 
 
@@ -585,8 +582,8 @@ def convert_sequence_raw_tssv(seq, library, marker, return_alias=False):
     if match is None and marker in library["regex"]:
         match = library["regex"][marker].match(seq)
     if match is not None:
-        parts = [(match.group(i), match.end(i))
-                 for i in range(1, match.lastindex+1) if match.group(i)]
+        parts = ((match.group(i), match.end(i))
+                 for i in range(1, match.lastindex+1) if match.group(i))
 
     # Use heuristics if the sequence does not match the pattern.
     else:
@@ -615,8 +612,8 @@ def convert_sequence_raw_tssv(seq, library, marker, return_alias=False):
                 # canonical prefix ends with the first few blocks that
                 # we obtained in the match, move these blocks into the
                 # prefix.  Also do this with the suffix.
-                middle = [(match.group(i), match.end(i)+len(pre_suf[0]))
-                    for i in range(1, match.lastindex+1) if match.group(i)]
+                middle = ((match.group(i), match.end(i)+len(pre_suf[0]))
+                    for i in range(1, match.lastindex+1) if match.group(i))
                 pre_suf[0] += seq[:match.start()]
                 pre_suf[1] = seq[match.end():] + pre_suf[1]
                 seq = match.group()
@@ -695,7 +692,7 @@ def convert_sequence_allelename_tssv(seq, library, marker):
         blocks.append((block[0], int(block[1])))
     if suffix:
         blocks.append((suffix, 1))
-    return "".join(map(lambda block: "%s(%i)" % block, blocks))
+    return "".join("%s(%i)" % block for block in blocks)
 #convert_sequence_allelename_tssv
 
 
@@ -758,7 +755,7 @@ def convert_sequence_raw_allelename(seq, library, marker):
 def ensure_sequence_format(seq, to_format, from_format=None, library=None,
                            marker=None):
     """Convert seq to 'raw', 'tssv', or 'allelename' format."""
-    known_formats = ["raw", "tssv", "allelename"]
+    known_formats = ("raw", "tssv", "allelename")
     if to_format not in known_formats:
         raise ValueError("Unknown format '%s', choose from %s" %
                          (to_format, known_formats))
@@ -793,6 +790,16 @@ def ensure_sequence_format(seq, to_format, from_format=None, library=None,
         return seq
     return convert_sequence_raw_allelename(seq, library, marker)
 #ensure_sequence_format
+
+
+def reverse_complement(sequence):
+    """Return the reverse complement of the given DNA sequence."""
+    c = {"A": "T", "T": "A", "U": "A", "G": "C", "C": "G", "R": "Y", "Y": "R",
+         "K": "M", "M": "K", "B": "V", "V": "B", "D": "H", "H": "D",
+         "a": "t", "t": "a", "u": "a", "g": "c", "c": "g", "r": "y", "y": "r",
+         "k": "m", "m": "k", "b": "v", "v": "b", "d": "h", "h": "d"}
+    return "".join(c[x] if x in c else x for x in sequence[::-1])
+#reverse_complement
 
 
 def nnls(A, C, B=None, max_iter=200, min_change=0.0001, debug=False):

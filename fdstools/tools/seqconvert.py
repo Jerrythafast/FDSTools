@@ -5,7 +5,8 @@ Convert between raw sequences, TSSV-style sequences, and allele names.
 import argparse
 import sys
 
-from ..lib import get_column_ids, ensure_sequence_format, parse_library
+from ..lib import get_column_ids, ensure_sequence_format, parse_library,\
+                  reverse_complement
 
 __version__ = "0.1dev"
 
@@ -28,8 +29,11 @@ _DEF_COLNAME_ALLELE_OUT = "allele"
 def convert_sequences(infile, outfile, to_format, libfile=None,
                       fixed_marker=None, colname_marker=_DEF_COLNAME_MARKER,
                       colname_allele=_DEF_COLNAME_ALLELE,
-                      colname_allele_out=_DEF_COLNAME_ALLELE_OUT):
+                      colname_allele_out=_DEF_COLNAME_ALLELE_OUT,
+                      libfile2=None, revcomp_markers=[]):
+    libfile = libfile if libfile is not None else libfile2
     library = parse_library(libfile) if libfile is not None else None
+    library2 = parse_library(libfile2) if libfile2 is not None else library
     column_names = infile.readline().rstrip("\r\n").split("\t")
     colid_allele = get_column_ids(column_names, colname_allele)
     if library is None:
@@ -50,15 +54,26 @@ def convert_sequences(infile, outfile, to_format, libfile=None,
         if colid_allele_out == -1:
             line.append("")
         marker = line[colid_marker] if fixed_marker is None else fixed_marker
+
+        seq = line[colid_allele]
+        if library2 != library:
+            seq = ensure_sequence_format(
+                seq, "raw", marker=marker, library=library)
+            if marker in revcomp_markers:
+                seq = reverse_complement(seq)
+            # TODO: The current implementation assumes identical
+            # flanking sequences.  Introduce means to shift flanking
+            # sequence in/out of prefix and/or suffix.
+
         line[colid_allele_out] = ensure_sequence_format(
-            line[colid_allele], to_format, marker=marker, library=library)
+            seq, to_format, marker=marker, library=library2)
         outfile.write("\t".join(line) + "\n")
 #convert_sequences
 
 
 def add_arguments(parser):
     parser.add_argument('format', metavar="FORMAT",
-        choices=["raw", "tssv", "allelename"],
+        choices=("raw", "tssv", "allelename"),
         help="the format to convert to: one of %(choices)s")
     parser.add_argument('infile', nargs='?', metavar="IN", default=sys.stdin,
         type=argparse.FileType('r'),
@@ -84,6 +99,15 @@ def add_arguments(parser):
     parser.add_argument('-l', '--library', metavar="LIBRARY",
         type=argparse.FileType('r'),
         help="library file for sequence format conversion")
+    parser.add_argument('-L', '--library2', metavar="LIBRARY",
+        type=argparse.FileType('r'),
+        help="second library file to use for output; if specified, allele "
+             "names can be conveniently updated to fit this new library file")
+    parser.add_argument('-R', '--reverse-complement', metavar="MARKER",
+        nargs="+", default=[],
+        help="to be used togethwer with -L/--library2; specify the markers "
+             "for which the sequences are reverse-complemented in the new "
+             "library")
 #add_arguments
 
 
@@ -93,7 +117,8 @@ def run(args):
                          "of another program")
     convert_sequences(args.infile, args.outfile, args.format, args.library,
                       args.marker, args.marker_column, args.allele_column,
-                      args.output_column)
+                      args.output_column, args.library2,
+                      args.reverse_complement)
 #run
 
 

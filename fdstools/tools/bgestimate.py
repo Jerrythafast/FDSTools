@@ -9,9 +9,9 @@ import time
 import math
 #import numpy as np  # Only imported when actually running this tool.
 
-from ..lib import get_column_ids, pos_int_arg, get_tag, add_sample_files_args,\
+from ..lib import get_column_ids, pos_int_arg, add_sample_files_args,\
                   add_allele_detection_args, map_tags_to_files, nnls,\
-                  ensure_sequence_format, parse_allelelist
+                  ensure_sequence_format, parse_allelelist, parse_library
 
 __version__ = "0.1dev"
 
@@ -378,9 +378,8 @@ def add_sample_data(data, sample_data, sample_alleles, min_pct, min_abs):
                 data[marker]["allele_counts"][i] = [0] * len(p["alleles"])
                 p["true alleles"] += 1
             data[marker]["genotypes"][-1].append(i)
-            thresholds[marker][i] = map(
-                lambda x: math.ceil(x*min_pct/100.),
-                sample_data[marker, allele])
+            thresholds[marker][i] = [math.ceil(x*min_pct/100.) for x in
+                                     sample_data[marker, allele]]
 
     # Now enter the read counts into data and check the thresholds.
     for marker, allele in sample_data:
@@ -404,9 +403,9 @@ def add_sample_data(data, sample_data, sample_alleles, min_pct, min_abs):
         p["profiles_reverse"][-1][i] = sample_data[marker, allele][1]
 
         for gi in thresholds[marker]:
-            if sum([count >= max(min_abs, threshold)
-                    for count, threshold in
-                    zip(sample_data[marker, allele], thresholds[marker][gi])]):
+            if sum(count >= max(min_abs, threshold)
+                   for count, threshold in
+                   zip(sample_data[marker, allele], thresholds[marker][gi])):
                 data[marker]["allele_counts"][gi][i] += 1
 #add_sample_data
 
@@ -586,7 +585,7 @@ def add_arguments(parser):
              "product, as a percentage of the number of samples with a "
              "particular true allele (default: %(default)s)")
     #parser.add_argument('-F', '--sequence-format', metavar="FORMAT",
-    #    choices=["raw", "tssv", "allelename"],
+    #    choices=("raw", "tssv", "allelename"),
     #    help="convert sequences to the specified format: one of %(choices)s "
     #         "(default: no conversion)")
     parser.set_defaults(sequence_format="raw")  # Force raw sequences.

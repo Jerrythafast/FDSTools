@@ -83,13 +83,13 @@ def match_profile(column_names, data, profile, convert_to_raw, library,
         C2[0, i] = line[colid_reverse]
 
     # Compute corrected read counts.
-    A = nnls(np.hstack([P1, P2]).T, np.hstack([C1, C2]).T)
+    A = nnls(np.hstack([P1, P2]).T, np.hstack([C1, C2]).T).T
     np.fill_diagonal(P1, 0)
     np.fill_diagonal(P2, 0)
-    forward_noise = A.T * P1
-    reverse_noise = A.T * P2
-    forward_add = np.multiply(A, P1.sum(1)).T
-    reverse_add = np.multiply(A, P2.sum(1)).T
+    forward_noise = A * P1
+    reverse_noise = A * P2
+    forward_add = np.multiply(A, P1.sum(1))
+    reverse_add = np.multiply(A, P2.sum(1))
 
     j = 0
     for line in data:
@@ -170,7 +170,7 @@ def add_arguments(parser):
         default=sys.stdout, type=argparse.FileType('w'),
         help="the file to write the output to (default: write to stdout)")
     parser.add_argument('-F', '--sequence-format', metavar="FORMAT",
-        choices=["raw", "tssv", "allelename"],
+        choices=("raw", "tssv", "allelename"),
         help="convert sequences to the specified format: one of %(choices)s "
              "(default: no conversion)")
     parser.add_argument('-l', '--library', metavar="LIBRARY",

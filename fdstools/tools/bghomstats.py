@@ -6,12 +6,10 @@ Compute allele-centric statistics for background noise in homozygous samples
 import argparse
 import sys
 import random
-import time
-import math
 
-from ..lib import get_column_ids, pos_int_arg, get_tag, add_sample_files_args,\
+from ..lib import get_column_ids, pos_int_arg, add_sample_files_args,\
                   add_allele_detection_args, map_tags_to_files, adjust_stats,\
-                  ensure_sequence_format, parse_allelelist
+                  ensure_sequence_format, parse_allelelist, parse_library
 
 __version__ = "0.1dev"
 
@@ -97,7 +95,7 @@ def add_sample_data(data, sample_data, sample_alleles, min_pct, min_abs):
             # Sample does not participate in this marker.
             continue
         allele = sample_alleles[marker]
-        factors = map(lambda x: 100./x, sample_data[marker, allele])
+        factors = [100./x for x in sample_data[marker, allele]]
         if (marker, allele) not in data:
             data[marker, allele] = {}
         if sequence not in data[marker, allele]:
@@ -188,8 +186,8 @@ def compute_stats(filelist, tag_expr, tag_format, allelefile,
                      "rvariance"]))
     for marker, allele in data:
         for sequence in data[marker, allele]:
-            print("\t".join([marker, allele, sequence] + map(
-                lambda x: str(x) if abs(x) > 0.0000000001 else "0", [
+            print("\t".join([marker, allele, sequence] + [
+                str(x) if abs(x) > 0.0000000001 else "0" for x in (
                     data[marker, allele][sequence][0]["n"],
                     data[marker, allele][sequence][0]["min"],
                     data[marker, allele][sequence][0]["max"],
@@ -198,7 +196,7 @@ def compute_stats(filelist, tag_expr, tag_format, allelefile,
                     data[marker, allele][sequence][1]["min"],
                     data[marker, allele][sequence][1]["max"],
                     data[marker, allele][sequence][1]["mean"],
-                    data[marker, allele][sequence][1]["variance"]])))
+                    data[marker, allele][sequence][1]["variance"])]))
 #compute_stats
 
 
@@ -223,7 +221,7 @@ def add_arguments(parser):
              "product, as a percentage of the number of samples with a "
              "particular true allele (default: %(default)s)")
     parser.add_argument('-F', '--sequence-format', metavar="FORMAT",
-        choices=["raw", "tssv", "allelename"],
+        choices=("raw", "tssv", "allelename"),
         help="convert sequences to the specified format: one of %(choices)s "
              "(default: no conversion)")
     parser.add_argument('-l', '--library', metavar="LIBRARY",
