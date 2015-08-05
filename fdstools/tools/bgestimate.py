@@ -4,14 +4,14 @@ Estimate allele-centric background noise profiles (means).
 """
 import argparse
 import sys
-import random
 import time
 import math
 #import numpy as np  # Only imported when actually running this tool.
 
 from ..lib import get_column_ids, pos_int_arg, add_sample_files_args,\
                   add_allele_detection_args, map_tags_to_files, nnls,\
-                  ensure_sequence_format, parse_allelelist, parse_library
+                  ensure_sequence_format, parse_allelelist, parse_library,\
+                  get_sample_data
 
 __version__ = "0.1dev"
 
@@ -246,57 +246,6 @@ def solve_profile_mixture_single(samples, genotypes, n, variance=False,
 #solve_profile_mixture
 
 
-def get_sample_data(infile, data, annotation_column, seqformat, library):
-    """Add data from infile to data dict as [marker, allele]=reads."""
-    # Get column numbers.
-    column_names = infile.readline().rstrip("\r\n").split("\t")
-    colid_name, colid_allele, colid_forward, colid_reverse = \
-        get_column_ids(column_names, "name", "allele", "forward", "reverse")
-
-    # Also try to get allele column if we have one.
-    if annotation_column is not None:
-        try:
-            colid_annotation = get_column_ids(column_names, annotation_column)
-        except:
-            annotation_column = None
-
-    found_alleles = []
-    for line in infile:
-        line = line.rstrip("\r\n").split("\t")
-        marker = line[colid_name]
-        allele = ensure_sequence_format(line[colid_allele], seqformat, library)
-        if (annotation_column is not None and
-                line[colid_annotation].startswith("ALLELE")):
-            found_alleles.append(marker, allele)
-        data[marker, allele] = map(int, 
-            [line[colid_forward], line[colid_reverse]])
-
-    return found_alleles
-#get_sample_data
-
-
-def reduce_read_counts(data, limit_reads):
-    sum_reads = 0
-    for markerallele in data:
-        sum_reads += sum(data[markerallele])
-    if sum_reads <= limit_reads:
-        return
-
-    remove = sorted(random.sample(xrange(sum_reads), sum_reads - limit_reads))
-    i = 0
-    seen = 0
-    while i < len(remove) and seen > remove[i]:
-        # Skip the reads filtered out above.
-        i += 1
-    for markerallele in data:
-        for direction in (0, 1):
-            seen += data[markerallele][direction]
-            while i < len(remove) and seen > remove[i]:
-                data[markerallele][direction] -= 1
-                i += 1
-#reduce_read_counts
-
-
 def ensure_min_samples(allelelist, min_samples):
     if min_samples <= 1:
         return
@@ -455,41 +404,15 @@ def generate_profiles(filelist, tag_expr, tag_format, allelefile,
     allelelist = {} if allelefile is None \
                     else parse_allelelist(allelefile, seqformat, library)
 
-    tags_to_files = map_tags_to_files(filelist, tag_expr, tag_format)
-
-    # Randomly drop some samples.
-    sample_tags = tags_to_files.keys()
-    for tag in random.sample(xrange(len(sample_tags)),
-                             int(len(sample_tags) * drop_samples)):
-        del tags_to_files[sample_tags[tag]]
-
     # Read sample data.
     sample_data = {}
-    for tag in tags_to_files:
-        sample_data[tag] = {}
-        alleles = set()
-        for infile in tags_to_files[tag]:
-            alleles.update(get_sample_data(infile, sample_data[tag],
-                annotation_column, seqformat, library))
-        if tag not in allelelist:
-            allelelist[tag] = {}
-        for markerx, allele in alleles:
-            if markerx not in allelelist[tag]:
-                allelelist[tag][markerx] = set()
-            allelelist[tag][markerx].add(allele)
-        reduce_read_counts(sample_data[tag], limit_reads)
-        if marker:
-            if marker in allelelist[tag]:
-                allelelist[tag] = {marker: allelelist[tag][marker]}
-            else:
-                allelelist[tag] = {}
-        if homozygotes:
-            for marker in allelelist[tag].keys():
-                if len(allelelist[tag][marker]) > 1:
-                    del allelelist[tag][marker]
+    get_sample_data(map_tags_to_files(filelist, tag_expr, tag_format),
+                    lambda tag, data: sample_data.update({tag: data}),
+                    allelelist, annotation_column, seqformat, library, marker,
+                    homozygotes, limit_reads, drop_samples)
 
     # Ensure minimum number of samples per allele.
-    allelelist = {tag: allelelist[tag] for tag in tags_to_files}
+    allelelist = {tag: allelelist[tag] for tag in sample_data}
     ensure_min_samples(allelelist, min_samples)
 
     # Combine data from all samples.

@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 """
-Find dirty samples or recurring contaminating alleles.
+Find dirty reference samples or recurring contaminating alleles.
 """
 import argparse
 import sys
@@ -9,7 +9,7 @@ import sys
 from ..lib import get_column_ids, pos_int_arg, add_sample_files_args,\
                   add_allele_detection_args, map_tags_to_files, nnls,\
                   ensure_sequence_format, parse_allelelist, load_profiles,\
-                  parse_library
+                  parse_library, get_sample_data
 
 __version__ = "0.1dev"
 
@@ -19,36 +19,6 @@ __version__ = "0.1dev"
 # Default number of results per marker.
 # This value can be overridden by the -n command line option.
 _DEF_NUM = 5
-
-
-def get_sample_data(infile, data, annotation_column, library):
-    """Add data from infile to data dict as [marker, allele]=reads."""
-    # Get column numbers.
-    column_names = infile.readline().rstrip("\r\n").split("\t")
-    colid_name, colid_allele, colid_forward, colid_reverse = \
-        get_column_ids(column_names, "name", "allele", "forward", "reverse")
-
-    # Also try to get allele column if we have one.
-    if annotation_column is not None:
-        try:
-            colid_annotation = get_column_ids(column_names, annotation_column)
-        except:
-            annotation_column = None
-
-    found_alleles = []
-    for line in infile:
-        line = line.rstrip("\r\n").split("\t")
-        marker = line[colid_name]
-        allele = ensure_sequence_format(
-            line[colid_allele], "raw", library=library, marker=marker)
-        if (annotation_column is not None and
-                line[colid_annotation].startswith("ALLELE")):
-            found_alleles.append(marker, allele)
-        data[marker, allele] = map(int,
-            [line[colid_forward], line[colid_reverse]])
-
-    return found_alleles
-#get_sample_data
 
 
 def add_sample_data(data, sample_data, sample_tag, alleles):
@@ -96,24 +66,13 @@ def blame(filelist, tag_expr, tag_format, allelefile, annotation_column, mode,
         data[marker]["genotypes"] = []
         data[marker]["sample_tags"] = []
 
-    tags_to_files = map_tags_to_files(filelist, tag_expr, tag_format)
-
     # Read sample data.
-    for tag in tags_to_files:
-        sample_data = {}
-        alleles = set()
-        for infile in tags_to_files[tag]:
-            alleles.update(get_sample_data(
-                infile, sample_data, annotation_column, library))
-        if tag not in allelelist:
-            allelelist[tag] = {}
-        for marker, allele in alleles:
-            if marker not in allelelist[tag]:
-                allelelist[tag][marker] = set()
-            allelelist[tag][marker].add(allele)
-        allelelist[tag] = {marker: allelelist[tag][marker] for marker in data
-                           if marker in allelelist[tag]}
-        add_sample_data(data, sample_data, tag, allelelist[tag])
+    get_sample_data(
+        map_tags_to_files(filelist, tag_expr, tag_format),
+        lambda tag, sample_data: add_sample_data(
+            data, sample_data, tag,
+            {m: allelelist[tag][m] for m in data if m in allelelist[tag]}),
+        allelelist, annotation_column, "raw", library)
 
     print("\t".join(["marker",
                      "allele" if mode == "common" else "sample",

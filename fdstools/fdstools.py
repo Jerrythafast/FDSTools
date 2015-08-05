@@ -62,7 +62,8 @@ def main():
                 "tools")]):
         module = importer.find_module(prefix + name).load_module(prefix + name)
         subparser = subparsers.add_parser(
-            name, help=module.__doc__, description=module.__doc__,
+            name, help=module.__doc__.split("\n\n\n", 1)[0],
+            description=module.__doc__,
             version=version(parser.prog, name, module.__version__))
         __tools__[name] = subparser
         subparser.add_argument('-d', "--debug", action="store_true",

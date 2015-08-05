@@ -5,10 +5,10 @@ contaminations.
 """
 import argparse
 import sys
-import re
 
 from ..lib import get_column_ids, pos_int_arg, map_tags_to_files, \
-                  add_sample_files_args, ensure_sequence_format
+                  add_sample_files_args, ensure_sequence_format, \
+                  get_sample_data
 
 __version__ = "0.1dev"
 
@@ -43,43 +43,21 @@ _DEF_MAX_NOISY = 2
 def find_alleles(filelist, reportfile, tag_expr, tag_format, min_reads,
                  min_allele_pct, max_noise_pct, max_alleles, max_noisy,
                  stuttermark_column, seqformat, library):
-
     if seqformat is not None and library is not None:
         library = parse_library(library)
 
     print("\t".join(["sample", "marker", "total", "allele"]))
-    tags_to_files = map_tags_to_files(filelist, tag_expr, tag_format)
-    for tag in tags_to_files:
-        data = {}
-        for infile in tags_to_files[tag]:
-            get_sample_data(infile, data, stuttermark_column)
-        find_alleles_sample(data, reportfile, tag, min_reads, min_allele_pct,
-            max_noise_pct, max_alleles, max_noisy, seqformat, library)
+    allelelist = {}
+    get_sample_data(
+        map_tags_to_files(filelist, tag_expr, tag_format),
+        lambda tag, data: find_alleles_sample(
+            data if stuttermark_column is None
+                 else {key: data[key] for key in allelelist[tag]},
+            reportfile, tag, min_reads, min_allele_pct, max_noise_pct,
+            max_alleles, max_noisy, seqformat, library),
+        allelelist,
+        stuttermark_column)
 #find_alleles
-
-
-def get_sample_data(infile, data, stuttermark_column):
-    """Add data from infile to data dict as [marker, allele]=reads."""
-    # Get column numbers.
-    column_names = infile.readline().rstrip("\r\n").split("\t")
-    colid_total, colid_allele, colid_name = get_column_ids(column_names,
-        "total", "allele", "name")
-
-    # Also try to get stuttermark column if we have one.
-    if stuttermark_column is not None:
-        try:
-            colid_stuttermark = get_column_ids(column_names,
-                stuttermark_column)
-        except:
-            stuttermark_column = None
-
-    for line in infile:
-        line = line.rstrip("\r\n").split("\t")
-        if (stuttermark_column is not None and
-                not line[colid_stuttermark].startswith("ALLELE")):
-            continue
-        data[line[colid_name], line[colid_allele]] = int(line[colid_total])
-#get_sample_data
 
 
 def find_alleles_sample(data, reportfile, tag, min_reads, min_allele_pct,
@@ -89,7 +67,7 @@ def find_alleles_sample(data, reportfile, tag, min_reads, min_allele_pct,
     top_allele = {}
     alleles = {}
     for marker, allele in data:
-        reads = data[marker, allele]
+        reads = sum(data[marker, allele])
 
         if marker not in alleles:
             alleles[marker] = {allele: reads}

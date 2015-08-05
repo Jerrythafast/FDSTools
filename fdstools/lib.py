@@ -1,11 +1,10 @@
 #!/usr/bin/env python
 
-import re, sys, argparse
+import re, sys, argparse, random
 #import numpy as np  # Imported only when calling nnls()
 
 from ConfigParser import RawConfigParser, MissingSectionHeaderError
 from StringIO import StringIO
-from collections import defaultdict
 
 # Patterns that match entire sequences.
 PAT_SEQ_RAW = re.compile("^[ACGT]*$")
@@ -273,8 +272,8 @@ def parse_library_ini(handle):
       "suffix": {},
       "regex": {},
       "regex_middle": {},
-      "length_adjust": defaultdict(int),
-      "block_length": defaultdict(lambda: 4),
+      "length_adjust": {},
+      "block_length": {},
       "aliases": {}
     }
     markers = set()
@@ -735,12 +734,8 @@ def convert_sequence_raw_allelename(seq, library, marker):
     # TODO: perhaps produce a more intelligent name if there is exactly
     #       one alias with the same length
     blocknames = []
-    if "block_length" in library:
-        blocksize = library["block_length"][marker]
-    else:
-        blocksize = 4
-    if "length_adjust" in library:
-        length -= library["length_adjust"][marker]
+    blocksize = library.get("block_length", {}).get(marker, 4)
+    length -= library.get("length_adjust", {}).get(marker, 0)
     for block in blocks:
         blocknames.append("%s[%s]" % (block[0], block[1]))
         length += len(block[0]) * int(block[1])
@@ -873,6 +868,103 @@ def adjust_stats(value, stats=None):
         stats["max"] = value
     return stats
 #adjust_stats
+
+
+def read_sample_data_file(infile, data, annotation_column=None, seqformat=None,
+                          library=None, default_marker=None):
+    """Add data from infile to data dict as [marker, allele]=reads."""
+    # Get column numbers.
+    column_names = infile.readline().rstrip("\r\n").split("\t")
+    colid_allele, colid_forward, colid_reverse = \
+        get_column_ids(column_names, "allele", "forward", "reverse")
+
+    # Get marker name column if it exists.
+    try:
+        colid_name = get_column_ids(column_names, "name")
+    except:
+        colid_name = None
+
+    # Also try to get annotation column if we have one.
+    if annotation_column is not None:
+        try:
+            colid_annotation = get_column_ids(column_names, annotation_column)
+        except:
+            annotation_column = None
+
+    found_alleles = []
+    for line in infile:
+        line = line.rstrip("\r\n").split("\t")
+        marker = line[colid_name] if colid_name is not None else default_marker
+        allele = line[colid_allele] if seqformat is None \
+            else ensure_sequence_format(line[colid_allele], seqformat, library)
+        if (annotation_column is not None and
+                line[colid_annotation].startswith("ALLELE")):
+            found_alleles.append(marker, allele)
+        data[marker, allele] = map(int,
+            (line[colid_forward], line[colid_reverse]))
+
+    return found_alleles
+#read_sample_data_file
+
+
+def reduce_read_counts(data, limit_reads):
+    sum_reads = 0
+    for markerallele in data:
+        sum_reads += sum(data[markerallele])
+    if sum_reads <= limit_reads:
+        return
+
+    remove = sorted(random.sample(xrange(sum_reads), sum_reads - limit_reads))
+    i = 0
+    seen = 0
+    while i < len(remove) and seen > remove[i]:
+        # Skip the reads filtered out above.
+        i += 1
+    for markerallele in data:
+        for direction in (0, 1):
+            seen += data[markerallele][direction]
+            while i < len(remove) and seen > remove[i]:
+                data[markerallele][direction] -= 1
+                i += 1
+#reduce_read_counts
+
+
+def get_sample_data(tags_to_files, callback, allelelist=None,
+                    annotation_column=None, seqformat=None, library=None,
+                    marker=None, homozygotes=False, limit_reads=sys.maxint,
+                    drop_samples=0):
+    if drop_samples:
+        sample_tags = tags_to_files.keys()
+        for tag in random.sample(xrange(len(sample_tags)),
+                                 int(len(sample_tags) * drop_samples)):
+            del tags_to_files[sample_tags[tag]]
+
+    for tag in tags_to_files:
+        data = {}
+        alleles = set()
+        for infile in tags_to_files[tag]:
+            alleles.update(read_sample_data_file(infile, data,
+                annotation_column, seqformat, library, marker))
+        if limit_reads < sys.maxint:
+            reduce_read_counts(data, limit_reads)
+        if allelelist is not None:
+            if tag not in allelelist:
+                allelelist[tag] = {}
+            for markerx, allele in alleles:
+                if markerx not in allelelist[tag]:
+                    allelelist[tag][markerx] = set()
+                allelelist[tag][markerx].add(allele)
+            if marker:
+                if marker in allelelist[tag]:
+                    allelelist[tag] = {marker: allelelist[tag][marker]}
+                else:
+                    allelelist[tag] = {}
+            if homozygotes:
+                for marker in allelelist[tag].keys():
+                    if len(allelelist[tag][marker]) > 1:
+                        del allelelist[tag][marker]
+        callback(tag, data)
+#get_sample_data
 
 
 def get_column_ids(column_names, *names):
