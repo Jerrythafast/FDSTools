@@ -2,12 +2,37 @@
 """
 Mark potential stutter products by assuming a fixed maximum percentage
 of stutter product vs the parent allele.
+
+Stuttermark adds a new column (named 'annotation' by default) to the
+output.  The new column contains 'STUTTER' for possible stutter
+products, or 'ALLELE' otherwise.  Lines that were not evaluated are
+annotated as 'UNKNOWN'.  A sequence is considered a possible stutter
+product if its total read count is less than or equal to the maximum
+number of expected stutter reads.  The maximum number of stutter reads
+is computed by assuming a fixed percentage of stutter product compared
+to the originating allele.
+
+Stuttermark requires TSSV-style sequences as input (automatically
+converting sequences to this format if necessary) and detects possible
+stutter products by comparing sequences that have the same repeat blocks
+but different numbers of repeats for one or more of their blocks.
+
+The STUTTER annotation contains additional information.  For example:
+'STUTTER:146.6x1(2-1):10.4x2(2-1x9-1)'.  This is a stutter product for
+which at most 146.6 reads have come from the first sequence in the
+output file ('146.6x1') and at most 10.4 reads have come from the second
+sequence in the output file ('10.4x2').  This sequence differs from the
+first sequence in the output file by a loss of one repeat of the second
+repeat block ('2-1') and it differs from the second sequence by the loss
+of one repeat in the second block and one repeat in the ninth block
+('2-1x9-1').
 """
 import argparse
 import sys
 
 from ..lib import pos_int_arg, print_db, PAT_TSSV_BLOCK, get_column_ids, \
-                  ensure_sequence_format, parse_library
+                  ensure_sequence_format, parse_library, \
+                  add_sequence_format_args
 
 __version__ = "1.4"
 
@@ -395,25 +420,23 @@ def add_arguments(parser):
              "stutter may still be recognised as two -1 stutters stacked "
              "together.  NOTE: It may be necessary to specify this option as "
              "'-s=%(default)s' (note the equals sign instead of a space).")
-    parser.add_argument('-m', '--min-reads', metavar="N", type=pos_int_arg,
-        default=_DEF_MIN_READS,
+    parser.add_argument('-c', '--column-name', metavar="COLNAME",
+        default=_DEF_COLNAME,
+        help="name of the newly added column (default: '%(default)s')")
+    filtergroup = parser.add_argument_group("filtering options")
+    filtergroup.add_argument('-m', '--min-reads', metavar="N",
+        type=pos_int_arg, default=_DEF_MIN_READS,
         help="set minimum number of reads to evaluate (default: %(default)s)")
-    parser.add_argument('-n', '--min-repeats', metavar="N", type=pos_int_arg,
-        default=_DEF_MIN_REPEATS,
+    filtergroup.add_argument('-n', '--min-repeats', metavar="N",
+        type=pos_int_arg, default=_DEF_MIN_REPEATS,
         help="set minimum number of repeats of a block that can possibly "
              "stutter (default: %(default)s)")
-    parser.add_argument('-r', '--min-report', metavar="N", type=float,
+    filtergroup.add_argument('-r', '--min-report', metavar="N", type=float,
         default=_DEF_MIN_REPORT,
         help="alleles are only annotated as a stutter of some other allele if "
              "the expected number of stutter occurances of this other allele "
              "is above this value (default: %(default)s)")
-    parser.add_argument('-c', '--column-name', metavar="COLNAME",
-        default=_DEF_COLNAME,
-        help="name of the newly added column (default: '%(default)s')")
-    parser.add_argument('-l', '--library', metavar="LIBRARY",
-        type=argparse.FileType('r'),
-        help="library file for sequence format conversion if raw sequences or "
-             "allele names are given instead of TSSV-style sequences")
+    add_sequence_format_args(parser, "tssv", True)  # Force tssv seqs.
 #add_arguments
 
 

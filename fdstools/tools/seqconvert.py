@@ -1,6 +1,31 @@
 #!/usr/bin/env python
 """
 Convert between raw sequences, TSSV-style sequences, and allele names.
+
+FDSTools was built to be compatible with TSSV, which writes sequences of
+known STR alleles in a shortened form referred to as 'TSSV-style
+sequences'.  At the same time, FDSTools supports the creation of
+human-readable allele names which are more suitable for display.
+
+For example, the raw sequence
+'AGCGTAAGATAGATAGATAGATAGATAGATACCTACCTACCTCTAGCT' might be rewritten as
+the TSSV-style sequence 'AGCGTA(1)AGAT(6)ACCT(3)CTAGCT(1)', or as the
+allele name 'CE9_AGAT[6]ACCT[3]'.
+
+Seqconvert can be used to explicitly convert all sequences in a file to
+the same output format.  Conversions are done using a library file, see
+the help text of the libconvert tool for details.
+
+Seqconvert can also be used with two different library files to rewrite
+the allele names or TSSV-style sequences after a library update.
+Currently, the only limitation to this is that the ending position of
+the left flank and the starting position of the right flank must be the
+same.
+
+Note that FDSTools makes no assumptions about the sequence format in its
+input files; instead it automatically performs any required conversions
+while running any tool.  Explicitly running seqconvert is never a
+necessity; use this tool for your own convenience.
 """
 import argparse
 import sys

@@ -1,6 +1,11 @@
 #!/usr/bin/env python
 """
-Estimate allele-centric background noise profiles (means).
+Estimate allele-centric background noise profiles (means) from reference
+samples.
+
+Compute a profile of recurring background noise for each unique allele
+in the database of reference samples.  The profiles obtained can be used
+by bgcorrect to filter background noise from samples.
 """
 import argparse
 import sys
@@ -11,7 +16,8 @@ import math
 from ..lib import get_column_ids, pos_int_arg, add_sample_files_args,\
                   add_allele_detection_args, map_tags_to_files, nnls,\
                   ensure_sequence_format, parse_allelelist, parse_library,\
-                  get_sample_data
+                  get_sample_data, add_random_subsampling_args,\
+                  add_sequence_format_args, add_output_args
 
 __version__ = "0.1dev"
 
@@ -261,10 +267,10 @@ def ensure_min_samples(allelelist, min_samples):
             if marker not in allelelist[tag]:
                 continue
             for true_allele in allelelist[tag][marker]:
-                if true_allele not in true_alleles:
-                    true_alleles[true_allele] = 1
-                else:
+                try:
                     true_alleles[true_allele] += 1
+                except KeyError:
+                    true_alleles[true_allele] = 1
 
         # Drop any alleles that occur in less than min_samples samples
         # (by dropping the sample for this marker completely).
@@ -392,7 +398,7 @@ def preprocess_data(data, min_sample_pct):
 
 
 def generate_profiles(filelist, tag_expr, tag_format, allelefile,
-                      annotation_column, reportfile, min_pct, min_abs,
+                      annotation_column, outfile, reportfile, min_pct, min_abs,
                       min_samples, min_sample_pct, seqformat, library,
                       crosstab, marker, homozygotes, limit_reads,
                       drop_samples):
@@ -431,7 +437,8 @@ def generate_profiles(filelist, tag_expr, tag_format, allelefile,
                          (t1-t0))
 
     if not crosstab:
-        print("\t".join(["marker", "allele", "sequence", "fmean", "rmean"]))
+        outfile.write("\t".join(
+            ["marker", "allele", "sequence", "fmean", "rmean"]) + "\n")
     for marker in data.keys():
         p = data[marker]["profiles"]
         profile_size = len(p["alleles"])
@@ -464,12 +471,14 @@ def generate_profiles(filelist, tag_expr, tag_format, allelefile,
 
         if crosstab:
             # Cross-tabular output (profiles in rows)
-            print("\t".join([marker, "0"] + p["alleles"]))
+            outfile.write("\t".join([marker, "0"] + p["alleles"]) + "\n")
             for i in range(p["true alleles"]):
-                print("\t".join(
-                    [marker, str(i+1)] + map(str, p["profiles_forward"][i])))
-                print("\t".join(
-                    [marker, str(-i-1)] + map(str, p["profiles_reverse"][i])))
+                outfile.write("\t".join(
+                    [marker, str(i+1)] + map(str, p["profiles_forward"][i])) +
+                    "\n")
+                outfile.write("\t".join(
+                    [marker, str(-i-1)] + map(str, p["profiles_reverse"][i])) +
+                    "\n")
         else:
             # Tab-separated columns format.
             for i in range(p["true alleles"]):
@@ -477,57 +486,45 @@ def generate_profiles(filelist, tag_expr, tag_format, allelefile,
                     if not (p["profiles_forward"][i][j] +
                             p["profiles_reverse"][i][j]):
                         continue
-                    print("\t".join([marker, p["alleles"][i], p["alleles"][j]]+
+                    outfile.write("\t".join(
+                        [marker, p["alleles"][i], p["alleles"][j]] +
                         map(str, [p["profiles_forward"][i][j],
-                                  p["profiles_reverse"][i][j]])))
+                                  p["profiles_reverse"][i][j]])) + "\n")
         del data[marker]
 #generate_profiles
 
 
 def add_arguments(parser):
-    add_sample_files_args(parser)
-    add_allele_detection_args(parser)
-    parser.add_argument('-r', '--report', metavar="OUTFILE",
-        type=argparse.FileType("w"),
-        help="write a report to the given file")
-    parser.add_argument('-m', '--min-pct', metavar="PCT", type=float,
-        default=_DEF_THRESHOLD_PCT,
-        help="minimum amount of background to consider, as a percentage "
-             "of the highest allele (default: %4.2f)" % _DEF_THRESHOLD_PCT)
-    parser.add_argument('-n', '--min-abs', metavar="N", type=pos_int_arg,
-        default=_DEF_THRESHOLD_ABS,
-        help="minimum amount of background to consider, as an absolute "
-             "number of reads (default: %(default)s)")
-    parser.add_argument('-s', '--min-samples', metavar="N", type=pos_int_arg,
-        default=_DEF_MIN_SAMPLES,
-        help="require this minimum number of samples for each true allele "
-             "(default: %(default)s)")
-    parser.add_argument('-S', '--min-sample-pct', metavar="PCT", type=float,
-        default=_DEF_MIN_SAMPLE_PCT,
-        help="require this minimum number of samples for each background "
-             "product, as a percentage of the number of samples with a "
-             "particular true allele (default: %(default)s)")
-    #parser.add_argument('-F', '--sequence-format', metavar="FORMAT",
-    #    choices=("raw", "tssv", "allelename"),
-    #    help="convert sequences to the specified format: one of %(choices)s "
-    #         "(default: no conversion)")
-    parser.set_defaults(sequence_format="raw")  # Force raw sequences.
-    parser.add_argument('-l', '--library', metavar="LIBRARY",
-        type=argparse.FileType('r'),
-        help="library file for sequence format conversion")
+    add_output_args(parser)
     parser.add_argument('-C', '--cross-tabular', action="store_true",
         help="if specified, a space-efficient cross-tabular output format is "
              "used instead of the default tab-separated columns format")
-    parser.add_argument('-M', '--marker', metavar="MARKER",
+    add_allele_detection_args(parser)
+    filtergroup = parser.add_argument_group("filtering options")
+    filtergroup.add_argument('-m', '--min-pct', metavar="PCT", type=float,
+        default=_DEF_THRESHOLD_PCT,
+        help="minimum amount of background to consider, as a percentage "
+             "of the highest allele (default: %4.2f)" % _DEF_THRESHOLD_PCT)
+    filtergroup.add_argument('-n', '--min-abs', metavar="N", type=pos_int_arg,
+        default=_DEF_THRESHOLD_ABS,
+        help="minimum amount of background to consider, as an absolute "
+             "number of reads (default: %(default)s)")
+    filtergroup.add_argument('-s', '--min-samples', metavar="N",
+        type=pos_int_arg, default=_DEF_MIN_SAMPLES,
+        help="require this minimum number of samples for each true allele "
+             "(default: %(default)s)")
+    filtergroup.add_argument('-S', '--min-sample-pct', metavar="PCT",
+        type=float, default=_DEF_MIN_SAMPLE_PCT,
+        help="require this minimum number of samples for each background "
+             "product, as a percentage of the number of samples with a "
+             "particular true allele (default: %(default)s)")
+    filtergroup.add_argument('-M', '--marker', metavar="MARKER",
         help="work only on MARKER")
-    parser.add_argument('-H', '--homozygotes', action="store_true",
+    filtergroup.add_argument('-H', '--homozygotes', action="store_true",
         help="if specified, only homozygous samples will be considered")
-    parser.add_argument('-R', '--limit-reads', metavar="N", type=pos_int_arg,
-        default=sys.maxint,
-        help="simulate lower sequencing depth by randomly dropping reads down "
-             "to this maximum total number of reads for each sample")
-    parser.add_argument('-x', '--drop-samples', metavar="N", type=float,
-        default=0, help="randomly drop this fraction of input samples")
+    add_sequence_format_args(parser, "raw", True)  # Force raw seqs.
+    add_sample_files_args(parser)
+    add_random_subsampling_args(parser)
 #add_arguments
 
 
@@ -536,11 +533,12 @@ def run(args):
         raise ValueError("please specify an input file, or pipe in the output "
                          "of another program")
     generate_profiles(args.filelist, args.tag_expr, args.tag_format,
-                      args.allelelist, args.annotation_column, args.report,
-                      args.min_pct, args.min_abs, args.min_samples,
-                      args.min_sample_pct, args.sequence_format, args.library,
-                      args.cross_tabular, args.marker, args.homozygotes,
-                      args.limit_reads, args.drop_samples)
+                      args.allelelist, args.annotation_column, args.output,
+                      args.report, args.min_pct, args.min_abs,
+                      args.min_samples, args.min_sample_pct,
+                      args.sequence_format, args.library, args.cross_tabular,
+                      args.marker, args.homozygotes, args.limit_reads,
+                      args.drop_samples)
 #run
 
 

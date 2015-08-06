@@ -1,13 +1,19 @@
 #!/usr/bin/env python
 """
-Match background noise profiles to samples.
+Match background noise profiles (obtained from e.g., bgestimate) to
+samples.
+
+Six new columns are added to the output giving, for each sequence, the
+number of reads attributable to noise from other sequences (_noise
+columns) and the number of noise reads caused by the prescense of this
+sequence (_add columns).
 """
 import argparse
 import sys
 #import numpy as np  # Only imported when actually running this tool.
 
 from ..lib import parse_library, load_profiles, ensure_sequence_format, nnls, \
-                  get_column_ids
+                  get_column_ids, add_sequence_format_args
 
 __version__ = "0.1dev"
 
@@ -169,15 +175,10 @@ def add_arguments(parser):
     parser.add_argument('outfile', nargs='?', metavar="OUT",
         default=sys.stdout, type=argparse.FileType('w'),
         help="the file to write the output to (default: write to stdout)")
-    parser.add_argument('-F', '--sequence-format', metavar="FORMAT",
-        choices=("raw", "tssv", "allelename"),
-        help="convert sequences to the specified format: one of %(choices)s "
-             "(default: no conversion)")
-    parser.add_argument('-l', '--library', metavar="LIBRARY",
-        type=argparse.FileType('r'),
-        help="library file for sequence format conversion")
-    parser.add_argument('-M', '--marker', metavar="MARKER",
+    filtergroup = parser.add_argument_group("filtering options")
+    filtergroup.add_argument('-M', '--marker', metavar="MARKER",
         help="work only on MARKER")
+    add_sequence_format_args(parser)
 #add_arguments
 
 

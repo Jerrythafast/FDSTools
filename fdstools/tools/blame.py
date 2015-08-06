@@ -1,6 +1,15 @@
 #!/usr/bin/env python
 """
 Find dirty reference samples or recurring contaminating alleles.
+
+Match background noise profiles (as obtained from bgestimate) to the
+database of reference samples from which they were obtained to detect
+samples with unexpectedly high additional alleles.  The 'amount' column
+in the output lists the number of noise/contaminant reads per true
+allelic read.
+
+(The tool is called 'blame' because with default settings it might
+produce a DNA profile of an untidy laboratory worker.)
 """
 import argparse
 import sys
@@ -9,7 +18,7 @@ import sys
 from ..lib import get_column_ids, pos_int_arg, add_sample_files_args,\
                   add_allele_detection_args, map_tags_to_files, nnls,\
                   ensure_sequence_format, parse_allelelist, load_profiles,\
-                  parse_library, get_sample_data
+                  parse_library, get_sample_data, add_sequence_format_args
 
 __version__ = "0.1dev"
 
@@ -121,7 +130,6 @@ def add_arguments(parser):
     parser.add_argument('profiles', metavar="PROFILES",
         type=argparse.FileType('r'),
         help="file containing background noise profiles to match")
-    add_sample_files_args(parser)
     parser.add_argument("-m", "--mode", metavar="MODE", default="common",
         choices=("common", "highest", "dirtiest"),
         help="controls what kind of information is printed; 'common' (the "
@@ -130,18 +138,14 @@ def add_arguments(parser):
              "contaminant per marker, and 'dirtiest' prints the top N samples "
              "with the highest total amount of contaminants per marker")
     add_allele_detection_args(parser)
-    parser.add_argument('-n', '--num', metavar="N", type=pos_int_arg,
+    filtergroup = parser.add_argument_group("filtering options")
+    filtergroup.add_argument('-n', '--num', metavar="N", type=pos_int_arg,
         default=_DEF_NUM,
         help="print the top N results per marker (default: %(default)s)")
-    parser.add_argument('-F', '--sequence-format', metavar="FORMAT",
-        choices=("raw", "tssv", "allelename"), default="raw",
-        help="convert sequences to the specified format: one of %(choices)s "
-             "(default: %(default)s)")
-    parser.add_argument('-l', '--library', metavar="LIBRARY",
-        type=argparse.FileType('r'),
-        help="library file for sequence format conversion")
-    parser.add_argument('-M', '--marker', metavar="MARKER",
+    filtergroup.add_argument('-M', '--marker', metavar="MARKER",
         help="work only on MARKER")
+    add_sequence_format_args(parser, "raw")
+    add_sample_files_args(parser)
 #add_arguments
 
 

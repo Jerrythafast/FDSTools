@@ -1,7 +1,11 @@
 #!/usr/bin/env python
 """
-Compute allele-centric statistics for background noise in homozygous samples
-(min, max, mean, sample variance).
+Compute allele-centric statistics for background noise in homozygous
+reference samples (min, max, mean, sample variance).
+
+Compute a profile of recurring background noise for each unique allele
+in the database of reference samples.  The profiles obtained can be used
+by bgcorrect to filter background noise from samples.
 """
 import argparse
 import sys
@@ -9,7 +13,8 @@ import sys
 from ..lib import get_column_ids, pos_int_arg, add_sample_files_args,\
                   add_allele_detection_args, map_tags_to_files, adjust_stats,\
                   ensure_sequence_format, parse_allelelist, parse_library,\
-                  get_sample_data
+                  get_sample_data, add_sequence_format_args, add_output_args,\
+                  add_random_subsampling_args
 
 __version__ = "0.1dev"
 
@@ -84,7 +89,7 @@ def filter_data(data, min_samples, min_sample_pct):
 
 
 def compute_stats(filelist, tag_expr, tag_format, allelefile,
-                  annotation_column, min_pct, min_abs, min_samples,
+                  annotation_column, outfile, min_pct, min_abs, min_samples,
                   min_sample_pct, seqformat, library, marker, limit_reads,
                   drop_samples):
 
@@ -108,12 +113,12 @@ def compute_stats(filelist, tag_expr, tag_format, allelefile,
     # insignificant background products.
     filter_data(data, min_samples, min_sample_pct)
 
-    print("\t".join(["marker", "allele", "sequence", "n", "fmin", "fmax",
-                     "fmean", "fvariance", "rmin", "rmax", "rmean",
-                     "rvariance"]))
+    outfile.write("\t".join(["marker", "allele", "sequence", "n", "fmin",
+                     "fmax", "fmean", "fvariance", "rmin", "rmax", "rmean",
+                     "rvariance"]) + "\n")
     for marker, allele in data:
         for sequence in data[marker, allele]:
-            print("\t".join([marker, allele, sequence] + [
+            outfile.write("\t".join([marker, allele, sequence] + [
                 str(x) if abs(x) > 0.0000000001 else "0" for x in (
                     data[marker, allele][sequence][0]["n"],
                     data[marker, allele][sequence][0]["min"],
@@ -123,45 +128,38 @@ def compute_stats(filelist, tag_expr, tag_format, allelefile,
                     data[marker, allele][sequence][1]["min"],
                     data[marker, allele][sequence][1]["max"],
                     data[marker, allele][sequence][1]["mean"],
-                    data[marker, allele][sequence][1]["variance"])]))
+                    data[marker, allele][sequence][1]["variance"])]) + "\n")
 #compute_stats
 
 
 def add_arguments(parser):
-    add_sample_files_args(parser)
+    add_output_args(parser, False)
     add_allele_detection_args(parser)
-    parser.add_argument('-m', '--min-pct', metavar="PCT", type=float,
+    filtergroup = parser.add_argument_group("filtering options")
+    filtergroup.add_argument('-m', '--min-pct', metavar="PCT", type=float,
         default=_DEF_THRESHOLD_PCT,
         help="minimum amount of background to consider, as a percentage "
              "of the highest allele (default: %4.2f)" % _DEF_THRESHOLD_PCT)
-    parser.add_argument('-n', '--min-abs', metavar="N", type=pos_int_arg,
+    filtergroup.add_argument('-n', '--min-abs', metavar="N", type=pos_int_arg,
         default=_DEF_THRESHOLD_ABS,
         help="minimum amount of background to consider, as an absolute "
              "number of reads (default: %(default)s)")
-    parser.add_argument('-s', '--min-samples', metavar="N", type=pos_int_arg,
+    filtergroup.add_argument('-s', '--min-samples', metavar="N",
+        type=pos_int_arg,
         default=_DEF_MIN_SAMPLES,
         help="require this minimum number of samples for each true allele "
              "(default: %(default)s)")
-    parser.add_argument('-S', '--min-sample-pct', metavar="PCT", type=float,
+    filtergroup.add_argument('-S', '--min-sample-pct', metavar="PCT",
+        type=float,
         default=_DEF_MIN_SAMPLE_PCT,
         help="require this minimum number of samples for each background "
              "product, as a percentage of the number of samples with a "
              "particular true allele (default: %(default)s)")
-    parser.add_argument('-F', '--sequence-format', metavar="FORMAT",
-        choices=("raw", "tssv", "allelename"),
-        help="convert sequences to the specified format: one of %(choices)s "
-             "(default: no conversion)")
-    parser.add_argument('-l', '--library', metavar="LIBRARY",
-        type=argparse.FileType('r'),
-        help="library file for sequence format conversion")
-    parser.add_argument('-M', '--marker', metavar="MARKER",
+    filtergroup.add_argument('-M', '--marker', metavar="MARKER",
         help="work only on MARKER")
-    parser.add_argument('-R', '--limit-reads', metavar="N", type=pos_int_arg,
-        default=sys.maxint,
-        help="simulate lower sequencing depth by randomly dropping reads down "
-             "to this maximum total number of reads for each sample")
-    parser.add_argument('-x', '--drop-samples', metavar="N", type=float,
-        default=0, help="randomly drop this fraction of input samples")
+    add_sequence_format_args(parser)
+    add_sample_files_args(parser)
+    add_random_subsampling_args(parser)
 #add_arguments
 
 
@@ -170,10 +168,10 @@ def run(args):
         raise ValueError("please specify an input file, or pipe in the output "
                          "of another program")
     compute_stats(args.filelist, args.tag_expr, args.tag_format,
-                  args.allelelist, args.annotation_column, args.min_pct,
-                  args.min_abs, args.min_samples, args.min_sample_pct,
-                  args.sequence_format, args.library, args.marker,
-                  args.limit_reads, args.drop_samples)
+                  args.allelelist, args.annotation_column, args.output,
+                  args.min_pct, args.min_abs, args.min_samples,
+                  args.min_sample_pct, args.sequence_format, args.library,
+                  args.marker, args.limit_reads, args.drop_samples)
 #run
 
 

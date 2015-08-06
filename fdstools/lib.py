@@ -35,7 +35,7 @@ PAT_SPLIT = re.compile("[,; ]+")
 
 # Default regular expression to capture sample tags in file names.
 # This is the default of the -e command line option.
-DEF_TAG_EXPR = "^(.+?)(?:\.[^.]+)?$"
+DEF_TAG_EXPR = "^(.*?)(?:\.[^.]+)?$"
 
 # Default formatting template to write sample tags.
 # This is the default of the -f command line option.
@@ -960,9 +960,9 @@ def get_sample_data(tags_to_files, callback, allelelist=None,
                 else:
                     allelelist[tag] = {}
             if homozygotes:
-                for marker in allelelist[tag].keys():
-                    if len(allelelist[tag][marker]) > 1:
-                        del allelelist[tag][marker]
+                for markerx in allelelist[tag].keys():
+                    if len(allelelist[tag][markerx]) > 1:
+                        del allelelist[tag][markerx]
         callback(tag, data)
 #get_sample_data
 
@@ -1014,10 +1014,12 @@ def pos_int_arg(value):
 
 
 def add_allele_detection_args(parser):
-    parser.add_argument('-a', '--allelelist', metavar="ALLELEFILE",
+    group = parser.add_argument_group("allele detection options")
+    group.add_argument('-a', '--allelelist', metavar="ALLELEFILE",
         type=argparse.FileType('r'),
-        help="file containing a list of the true alleles of each sample")
-    parser.add_argument('-c', '--annotation-column', metavar="COLNAME",
+        help="file containing a list of the true alleles of each sample "
+             "(e.g., obtained from allelefinder)")
+    group.add_argument('-c', '--annotation-column', metavar="COLNAME",
         help="name of a column in the sample files, which contains a value "
              "beginning with 'ALLELE' for the true alleles of the sample")
 #add_allele_detection_args
@@ -1027,20 +1029,64 @@ def add_sample_files_args(parser):
     """Add arguments for opening sample files to the given parser."""
     parser.add_argument('filelist', nargs='*', metavar="FILE",
         default=[sys.stdin], type=argparse.FileType('r'),
-        help="the data file(s) to process (default: read from stdin)")
-    parser.add_argument('-e', '--tag-expr', metavar="REGEX", type=re.compile,
+        help="the sample data file(s) to process (default: read from stdin)")
+    group = parser.add_argument_group("sample tag parsing options")
+    group.add_argument('-e', '--tag-expr', metavar="REGEX", type=re.compile,
         default=DEF_TAG_EXPR,
         help="regular expression that captures (using one or more capturing "
              "groups) the sample tags from the file names; by default, the "
              "entire file name except for its extension (if any) is captured")
-    parser.add_argument('-f', '--tag-format', metavar="EXPR",
+    group.add_argument('-f', '--tag-format', metavar="EXPR",
         default=DEF_TAG_FORMAT,
         help="format of the sample tags produced; a capturing group reference "
              "like '\\n' refers to the n-th capturing group in the regular "
              "expression specified with -e/--tag-expr (the default of '\\1' "
              "simply uses the first capturing group); with a single sample, "
-             "you can enter the samle tag here explicitly")
-#add_sample_fils_args
+             "you can enter the sample tag here explicitly")
+#add_sample_files_args
+
+
+def add_output_args(parser, report=True):
+    group = parser.add_argument_group("output destination options")
+    group.add_argument('-o', '--output', metavar="FILE",
+        type=argparse.FileType('w'),
+        default=sys.stdout,
+        help="file to write output to (default: write to stdout)")
+    if report:
+        group.add_argument('-r', '--report', metavar="FILE",
+            type=argparse.FileType('w'),
+            default=sys.stderr,
+            help="file to write a report to (default: write to stderr)")
+#add_output_args
+
+
+def add_sequence_format_args(parser, default_format=None, force=False):
+    group = parser.add_argument_group("sequence format options")
+    if force:
+        group.set_defaults(sequence_format=default_format)
+    else:
+        group.add_argument('-F', '--sequence-format', metavar="FORMAT",
+            choices=("raw", "tssv", "allelename"),
+            default=default_format,
+            help="convert sequences to the specified format: one of "
+                 "%(choices)s (default: " + (
+                 "no conversion" if default_format is None else default_format)
+                 + ")")
+    group.add_argument('-l', '--library', metavar="LIBRARY",
+        type=argparse.FileType('r'),
+        help="library file for sequence format conversion")
+#add_sequence_format_args
+
+
+def add_random_subsampling_args(parser):
+    group = parser.add_argument_group("random subsampling options (advanced)")
+    group.add_argument('-R', '--limit-reads', metavar="N", type=pos_int_arg,
+        default=sys.maxint,
+        help="simulate lower sequencing depth by randomly dropping reads down "
+             "to this maximum total number of reads for each sample")
+    group.add_argument('-x', '--drop-samples', metavar="N", type=float,
+        default=0, help="randomly drop this fraction of input samples")
+#add_random_subsampling_args
 
 
 def get_tag(filename, tag_expr, tag_format):

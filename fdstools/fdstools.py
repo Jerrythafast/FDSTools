@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 
-import argparse, pkgutil, os
+import argparse, pkgutil, os, re, textwrap
 import tools
 
 from . import usage, version
@@ -35,11 +35,24 @@ class _VersionAction(argparse.Action):
 #_VersionAction
 
 
+class _HelpFormatter(argparse.HelpFormatter):
+    _pat_paragraph_delim = re.compile("\n\n+")
+    def _fill_text(self, text, width, indent):
+        # Reflow (wrap) description text, but maintain paragraphs.
+        return "\n\n".join(
+            textwrap.fill(self._whitespace_matcher.sub(" ", p).strip(), width,
+                          initial_indent=indent, subsequent_indent=indent)
+            for p in self._pat_paragraph_delim.split(text))
+    #_fill_text
+#_HelpFormatter
+
+
 def main():
     """
     Main entry point.
     """
-    parser = argparse.ArgumentParser(add_help=False, description=usage[0])
+    parser = argparse.ArgumentParser(formatter_class=_HelpFormatter,
+                                     add_help=False, description=usage[0])
     parser.version = version(parser.prog)
     parser.add_argument('-h', '--help', action=_HelpAction,
                         default=argparse.SUPPRESS, nargs=argparse.REMAINDER,
@@ -62,7 +75,9 @@ def main():
                 "tools")]):
         module = importer.find_module(prefix + name).load_module(prefix + name)
         subparser = subparsers.add_parser(
-            name, help=module.__doc__.split("\n\n\n", 1)[0],
+            name,
+            formatter_class=_HelpFormatter,
+            help=module.__doc__.split("\n\n", 1)[0],
             description=module.__doc__,
             version=version(parser.prog, name, module.__version__))
         __tools__[name] = subparser

@@ -2,6 +2,32 @@
 """
 Convert between TSSV (tab-separated) and FDSTools (ini-style) library
 formats.  When no input is given, an empty FDSTools library is produced.
+
+FDSTools uses library files to convert sequences to allele names and
+vice versa.  Because FDSTools was made to work with the output of TSSV,
+it has been made compatible with TSSV's library files as well.  The TSSV
+library format is much less suitable for the generation of allele names,
+which makes FDSTools libraries the recommended choice.  The libconvert
+tool can be used to create a compatible TSSV library.
+
+In FDSTools, sequences of STR alleles are split up into three parts: a
+prefix, the STR, and a suffix.  The prefix and suffix are optional and
+are meant to fill the gap between the STR and the primer binding sites.
+The primer binding sites are called 'flanks' in the library file.
+
+Allele names typically consist of an allele number compatible with those
+obtained from Capillary Electrophoresis (CE), followed by the STR
+sequence in a shortened form and any substitutions or other variants
+that occur in the prefix and suffix.  The first prefix/suffix in the
+library file is used as the reference sequence for calling variants.
+
+Special alleles, such as the 'X' and 'Y' allele from the Amelogenin
+gender test, may be given an explicit allele name by specifying an Alias
+in the FDSTools library file.
+
+Run libconvert without any arguments to obtain a default FDSTools
+library to start with.  The default library contains commentary lines
+that explain the use of each section in more detail.
 """
 import argparse
 import sys
@@ -41,12 +67,13 @@ def convert_library(infile, outfile, aliases=False):
         for alias in library["aliases"]:
             marker = library["aliases"][alias]["marker"]
             markers.add(marker)
-            if marker not in marker_aliases:
-                marker_aliases[marker] = [alias]
-            else:
+            try:
                 marker_aliases[marker].append(alias)
+            except KeyError:
+                marker_aliases[marker] = [alias]
 
         for marker in sorted(markers):
+            pattern = []
             if marker in library["aliases"] and not aliases:
                 # Ignore this alias, it will be merged into its marker.
                 continue
@@ -158,7 +185,7 @@ def convert_library(infile, outfile, aliases=False):
         ini.set("flanks", "; Specify two comma-separated values: left flank "
                           "and right flank.")
         ini.add_section("prefix")
-        ini.set("prefix", "; Specify all possible prefix sequences separated "
+        ini.set("prefix", "; Specify all known prefix sequences separated "
                           "by commas. The first sequence")
         ini.set("prefix", "; listed is used as the reference sequence when "
                           "generating allele names. The")
@@ -167,7 +194,7 @@ def convert_library(infile, outfile, aliases=False):
         ini.set("prefix", "; from allele names. Deviations from the reference "
                           "are expressed as variants.")
         ini.add_section("suffix")
-        ini.set("suffix", "; Specify all possible suffix sequences separated "
+        ini.set("suffix", "; Specify all known suffix sequences separated "
                           "by commas. The first sequence")
         ini.set("suffix", "; listed is used as the reference sequence when "
                           "generating allele names. The")
@@ -184,8 +211,8 @@ def convert_library(infile, outfile, aliases=False):
         ini.set("length_adjust", "; of the sequence (prefix+repeat+suffix) "
                                  "minus the adjustment specified here.")
         ini.add_section("block_length")
-        ini.set("block_length", "; Specify the core repeat unit length. The "
-                                "default length is 4.")
+        ini.set("block_length", "; Specify the core repeat unit length of "
+                                "each marker. The default length is 4.")
 
         # Enter flanking sequences and STR definitions.
         fmt = "%%-%is" % reduce(max, map(len,
