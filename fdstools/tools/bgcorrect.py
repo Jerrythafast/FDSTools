@@ -9,11 +9,11 @@ columns) and the number of noise reads caused by the prescense of this
 sequence (_add columns).
 """
 import argparse
-import sys
 #import numpy as np  # Only imported when actually running this tool.
 
 from ..lib import parse_library, load_profiles, ensure_sequence_format, nnls, \
-                  get_column_ids, add_sequence_format_args
+                  get_column_ids, add_sequence_format_args, \
+                  add_input_output_args, get_input_output_files
 
 __version__ = "0.1dev"
 
@@ -141,12 +141,7 @@ def match_profile(column_names, data, profile, convert_to_raw, library,
 #match_profile
 
 
-def match_profiles(profilefile, infile, outfile, libfile, seqformat, marker):
-    library = parse_library(libfile) if libfile else None
-    profiles = load_profiles(profilefile, library)
-    if marker:
-        profiles = {marker: profiles[marker]} if marker in profiles else {}
-
+def match_profiles(infile, outfile, profiles, library, seqformat):
     column_names, data = get_sample_data(
         infile, convert_to_raw=seqformat=="raw", library=library)
     colid_allele = get_column_ids(column_names, "allele")
@@ -168,13 +163,7 @@ def add_arguments(parser):
     parser.add_argument('profiles', metavar="PROFILES",
         type=argparse.FileType('r'),
         help="file containing background noise profiles to match")
-    parser.add_argument('infile', nargs='?', metavar="IN", default=sys.stdin,
-        type=argparse.FileType('r'),
-        help="the tab-separated data file to process (default: read from "
-             "stdin)")
-    parser.add_argument('outfile', nargs='?', metavar="OUT",
-        default=sys.stdout, type=argparse.FileType('w'),
-        help="the file to write the output to (default: write to stdout)")
+    add_input_output_args(parser, True, True, False)
     filtergroup = parser.add_argument_group("filtering options")
     filtergroup.add_argument('-M', '--marker', metavar="MARKER",
         help="work only on MARKER")
@@ -183,11 +172,24 @@ def add_arguments(parser):
 
 
 def run(args):
-    if args.infile.isatty() and args.outfile.isatty():
+    gen = get_input_output_files(args, True, True)
+    if not gen:
         raise ValueError("please specify an input file, or pipe in the output "
                          "of another program")
-    match_profiles(args.profiles, args.infile, args.outfile, args.library,
-                   args.sequence_format, args.marker)
+
+    # Read library and profiles once.
+    library = parse_library(args.library) if args.library else None
+    profiles = load_profiles(args.profiles, library)
+    if args.marker:
+        profiles = {args.marker: profiles[args.marker]} \
+                   if args.marker in profiles else {}
+
+    for tag, infiles, outfile in gen:
+        # TODO: Aggregate data from all infiles of each sample.
+        # This tool now only works properly with one infile per sample!
+        for infile in infiles:
+            match_profiles(infile, outfile, profiles, library,
+                           args.sequence_format)
 #run
 
 

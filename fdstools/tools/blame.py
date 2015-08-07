@@ -12,13 +12,12 @@ allelic read.
 produce a DNA profile of an untidy laboratory worker.)
 """
 import argparse
-import sys
 #import numpy as np  # Only imported when actually running this tool.
 
-from ..lib import get_column_ids, pos_int_arg, add_sample_files_args,\
-                  add_allele_detection_args, map_tags_to_files, nnls,\
-                  ensure_sequence_format, parse_allelelist, load_profiles,\
-                  parse_library, get_sample_data, add_sequence_format_args
+from ..lib import pos_int_arg, add_input_output_args, get_input_output_files,\
+                  add_allele_detection_args, nnls, ensure_sequence_format,\
+                  parse_allelelist, load_profiles, add_sequence_format_args,\
+                  parse_library, get_sample_data
 
 __version__ = "0.1dev"
 
@@ -60,7 +59,7 @@ def add_sample_data(data, sample_data, sample_tag, alleles):
 #add_sample_data
 
 
-def blame(filelist, tag_expr, tag_format, allelefile, annotation_column, mode,
+def blame(samples_in, outfile, allelefile, annotation_column, mode,
           profilefile, num, seqformat, libfile, marker):
     import numpy as np
     library = parse_library(libfile) if libfile else None
@@ -77,15 +76,15 @@ def blame(filelist, tag_expr, tag_format, allelefile, annotation_column, mode,
 
     # Read sample data.
     get_sample_data(
-        map_tags_to_files(filelist, tag_expr, tag_format),
+        samples_in,
         lambda tag, sample_data: add_sample_data(
             data, sample_data, tag,
             {m: allelelist[tag][m] for m in data if m in allelelist[tag]}),
         allelelist, annotation_column, "raw", library)
 
-    print("\t".join(["marker",
+    outfile.write("\t".join(["marker",
                      "allele" if mode == "common" else "sample",
-                     "amount"]))
+                     "amount"]) + "\n")
     for marker in data:
         if not data[marker]["sample_tags"]:
             continue
@@ -111,9 +110,9 @@ def blame(filelist, tag_expr, tag_format, allelefile, annotation_column, mode,
             for i in np.argsort(A)[:-num-1:-1]:  # Print the top N.
                 if A[i] == 0:
                     break
-                print("\t".join([marker, ensure_sequence_format(
+                outfile.write("\t".join([marker, ensure_sequence_format(
                     data[marker]["seqs"][i], seqformat, library=library,
-                    marker=marker), str(A[i])]))
+                    marker=marker), str(A[i])]) + "\n")
         else:
             # The rows with the highest maxima/sums correspond to the
             # samples with the highest amounts of contaminant/s.
@@ -121,8 +120,8 @@ def blame(filelist, tag_expr, tag_format, allelefile, annotation_column, mode,
             for i in np.argsort(A)[:-num-1:-1]:  # Print the top N.
                 if A[i] == 0:
                     break
-                print("\t".join(
-                    [marker, data[marker]["sample_tags"][i], str(A[i])]))
+                outfile.write("\t".join(
+                    [marker, data[marker]["sample_tags"][i], str(A[i])])+"\n")
 #blame
 
 
@@ -137,6 +136,7 @@ def add_arguments(parser):
              "'highest' prints the top N samples with the highest single "
              "contaminant per marker, and 'dirtiest' prints the top N samples "
              "with the highest total amount of contaminants per marker")
+    add_input_output_args(parser)
     add_allele_detection_args(parser)
     filtergroup = parser.add_argument_group("filtering options")
     filtergroup.add_argument('-n', '--num', metavar="N", type=pos_int_arg,
@@ -145,17 +145,17 @@ def add_arguments(parser):
     filtergroup.add_argument('-M', '--marker', metavar="MARKER",
         help="work only on MARKER")
     add_sequence_format_args(parser, "raw")
-    add_sample_files_args(parser)
 #add_arguments
 
 
 def run(args):
-    if args.filelist == [sys.stdin] and sys.stdin.isatty():
+    files = get_input_output_files(args)
+    if not files:
         raise ValueError("please specify an input file, or pipe in the output "
                          "of another program")
-    blame(args.filelist, args.tag_expr, args.tag_format, args.allelelist,
-          args.annotation_column, args.mode, args.profiles, args.num,
-          args.sequence_format, args.library, args.marker)
+    blame(files[0], files[1], args.allelelist, args.annotation_column,
+          args.mode, args.profiles, args.num, args.sequence_format,
+          args.library, args.marker)
 #run
 
 

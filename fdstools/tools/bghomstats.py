@@ -8,12 +8,10 @@ in the database of reference samples.  The profiles obtained can be used
 by bgcorrect to filter background noise from samples.
 """
 import argparse
-import sys
 
-from ..lib import get_column_ids, pos_int_arg, add_sample_files_args,\
-                  add_allele_detection_args, map_tags_to_files, adjust_stats,\
-                  ensure_sequence_format, parse_allelelist, parse_library,\
-                  get_sample_data, add_sequence_format_args, add_output_args,\
+from ..lib import pos_int_arg, add_input_output_args, get_input_output_files,\
+                  add_allele_detection_args, parse_allelelist, parse_library,\
+                  get_sample_data, add_sequence_format_args, adjust_stats,\
                   add_random_subsampling_args
 
 __version__ = "0.1dev"
@@ -88,10 +86,9 @@ def filter_data(data, min_samples, min_sample_pct):
 #filter_data
 
 
-def compute_stats(filelist, tag_expr, tag_format, allelefile,
-                  annotation_column, outfile, min_pct, min_abs, min_samples,
-                  min_sample_pct, seqformat, library, marker, limit_reads,
-                  drop_samples):
+def compute_stats(samples_in, outfile, allelefile, annotation_column, min_pct,
+                  min_abs, min_samples, min_sample_pct, seqformat, library,
+                  marker, limit_reads, drop_samples):
 
     # Parse library and allele list.
     library = parse_library(library) if library is not None else None
@@ -101,7 +98,7 @@ def compute_stats(filelist, tag_expr, tag_format, allelefile,
     # Read sample data.
     data = {}
     get_sample_data(
-        map_tags_to_files(filelist, tag_expr, tag_format),
+        samples_in,
         lambda tag, sample_data: add_sample_data(
             data, sample_data,
             {m: allelelist[tag][m].pop() for m in allelelist[tag]},
@@ -133,7 +130,7 @@ def compute_stats(filelist, tag_expr, tag_format, allelefile,
 
 
 def add_arguments(parser):
-    add_output_args(parser, False)
+    add_input_output_args(parser)
     add_allele_detection_args(parser)
     filtergroup = parser.add_argument_group("filtering options")
     filtergroup.add_argument('-m', '--min-pct', metavar="PCT", type=float,
@@ -158,17 +155,16 @@ def add_arguments(parser):
     filtergroup.add_argument('-M', '--marker', metavar="MARKER",
         help="work only on MARKER")
     add_sequence_format_args(parser)
-    add_sample_files_args(parser)
     add_random_subsampling_args(parser)
 #add_arguments
 
 
 def run(args):
-    if args.filelist == [sys.stdin] and sys.stdin.isatty():
+    files = get_input_output_files(args)
+    if not files:
         raise ValueError("please specify an input file, or pipe in the output "
                          "of another program")
-    compute_stats(args.filelist, args.tag_expr, args.tag_format,
-                  args.allelelist, args.annotation_column, args.output,
+    compute_stats(files[0], files[1], args.allelelist, args.annotation_column,
                   args.min_pct, args.min_abs, args.min_samples,
                   args.min_sample_pct, args.sequence_format, args.library,
                   args.marker, args.limit_reads, args.drop_samples)

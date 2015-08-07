@@ -32,6 +32,7 @@ that explain the use of each section in more detail.
 import argparse
 import sys
 import re
+import os.path
 
 from ..lib import parse_library
 from ConfigParser import RawConfigParser
@@ -246,7 +247,6 @@ def convert_library(infile, outfile, aliases=False):
 
 def add_arguments(parser):
     parser.add_argument('infile', nargs='?', metavar="IN", default=sys.stdin,
-        type=argparse.FileType('r'),
         help="input library file, the format is automatically detected "
              "(default: read from stdin)")
     parser.add_argument('outfile', nargs='?', metavar="OUT",
@@ -260,9 +260,19 @@ def add_arguments(parser):
 
 
 def run(args):
-    if args.infile.isatty():
+    if (args.infile != sys.stdin and args.outfile == sys.stdout
+            and not os.path.exists(args.infile)):
+        # One filename given, and it does not exist.  Assume outfile.
+        args.outfile = open(args.infile, 'w')
+        args.infile = sys.stdin
+
+    if args.infile != sys.stdin:
+        # Open the specified input file.
+        args.infile = open(args.infile, 'r')
+    elif args.infile.isatty():
         # No input given.  Produce a default FDSTools library.
         args.infile = StringIO(_DEFAULT_LIBRARY)
+
     convert_library(args.infile, args.outfile, args.aliases)
 #run
 

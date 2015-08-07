@@ -25,14 +25,15 @@ sequence in the output file ('10.4x2').  This sequence differs from the
 first sequence in the output file by a loss of one repeat of the second
 repeat block ('2-1') and it differs from the second sequence by the loss
 of one repeat in the second block and one repeat in the ninth block
-('2-1x9-1').
+('2-1x9-1').  (If this allele would have more than 157 reads, it would
+be annotated as 'ALLELE' instead.)
 """
 import argparse
-import sys
 
 from ..lib import pos_int_arg, print_db, PAT_TSSV_BLOCK, get_column_ids, \
-                  ensure_sequence_format, parse_library, \
-                  add_sequence_format_args
+                  add_input_output_args, get_input_output_files, \
+                  ensure_sequence_format, add_sequence_format_args, \
+                  parse_library
 
 __version__ = "1.4"
 
@@ -154,7 +155,7 @@ def load_data(infile, colname_annotation=_DEF_COLNAME, library=None):
 
 def annotate_alleles(infile, outfile, stutter, min_reads=_DEF_MIN_READS,
                      min_repeats=_DEF_MIN_REPEATS, min_report=_DEF_MIN_REPORT,
-                     colname_annotation=_DEF_COLNAME, libfile=None,
+                     colname_annotation=_DEF_COLNAME, library=None,
                      debug=False):
     """
     Read data from the file handle infile and write annotated data to
@@ -219,7 +220,6 @@ def annotate_alleles(infile, outfile, stutter, min_reads=_DEF_MIN_READS,
     :arg debug: If True, print debug output to stdout.
     :type debug: bool
     """
-    library = parse_library(libfile) if libfile is not None else None
     column_names, allelelist = load_data(infile, colname_annotation, library)
     colid_total, colid_allele, = get_column_ids(column_names,
         "total", "allele")
@@ -404,13 +404,7 @@ def stutter_def_arg(value):
 
 
 def add_arguments(parser):
-    parser.add_argument('infile', nargs='?', metavar="IN", default=sys.stdin,
-        type=argparse.FileType('r'),
-        help="the tab-separated data file to process (default: read from "
-             "stdin)")
-    parser.add_argument('outfile', nargs='?', metavar="OUT",
-        default=sys.stdout, type=argparse.FileType('w'),
-        help="the file to write the output to (default: write to stdout)")
+    add_input_output_args(parser, True, True, False)
     parser.add_argument('-s', '--stutter', metavar="DEF", type=stutter_def_arg,
         default=_DEF_STUTTERDEF,
         help="Define maximum expected stutter percentages.  The default value "
@@ -441,12 +435,21 @@ def add_arguments(parser):
 
 
 def run(args):
-    if args.infile.isatty() and args.outfile.isatty():
+    gen = get_input_output_files(args, True, True)
+    if not gen:
         raise ValueError("please specify an input file, or pipe in the output "
                          "of another program")
-    annotate_alleles(args.infile, args.outfile, args.stutter,
-                     args.min_reads, args.min_repeats, args.min_report,
-                     args.column_name, args.library, args.debug)
+
+    # Read library once.
+    library = parse_library(args.library) if args.library is not None else None
+
+    for tag, infiles, outfile in gen:
+        # TODO: Aggregate data from all infiles of each sample.
+        # This tool now only works properly with one infile per sample!
+        for infile in infiles:
+            annotate_alleles(infile, outfile, args.stutter, args.min_reads,
+                             args.min_repeats, args.min_report,
+                             args.column_name, library, args.debug)
 #run
 
 

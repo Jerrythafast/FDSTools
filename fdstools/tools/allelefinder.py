@@ -11,11 +11,10 @@ called for this marker.  If this happens for multiple markers in one
 sample, no alleles are called for this sample at all.
 """
 import argparse
-import sys
 
-from ..lib import get_column_ids, pos_int_arg, map_tags_to_files, \
-                  add_sample_files_args, ensure_sequence_format, \
-                  get_sample_data, add_sequence_format_args, add_output_args
+from ..lib import pos_int_arg, add_input_output_args, get_input_output_files, \
+                  ensure_sequence_format, get_sample_data, \
+                  add_sequence_format_args
 
 __version__ = "0.1dev"
 
@@ -47,16 +46,16 @@ _DEF_MAX_ALLELES = 2
 _DEF_MAX_NOISY = 2
 
 
-def find_alleles(filelist, outfile, reportfile, tag_expr, tag_format,
-                 min_reads, min_allele_pct, max_noise_pct, max_alleles,
-                 max_noisy, stuttermark_column, seqformat, library):
+def find_alleles(samples_in, outfile, reportfile, min_reads, min_allele_pct,
+                 max_noise_pct, max_alleles, max_noisy, stuttermark_column,
+                 seqformat, library):
     if seqformat is not None and library is not None:
         library = parse_library(library)
 
     outfile.write("\t".join(["sample", "marker", "total", "allele"]) + "\n")
     allelelist = {}
     get_sample_data(
-        map_tags_to_files(filelist, tag_expr, tag_format),
+        samples_in,
         lambda tag, data: find_alleles_sample(
             data if stuttermark_column is None
                  else {key: data[key] for key in allelelist[tag]},
@@ -152,7 +151,7 @@ def find_alleles_sample(data, outfile, reportfile, tag, min_reads,
 
 
 def add_arguments(parser):
-    add_output_args(parser)
+    add_input_output_args(parser, False, False, True)
     filtergroup = parser.add_argument_group("filtering options")
     filtergroup.add_argument('-m', '--min-allele-pct', metavar="PCT",
         type=float, default=_DEF_MIN_ALLELE_PCT,
@@ -180,19 +179,19 @@ def add_arguments(parser):
              "for which the value in this column does not start with ALLELE "
              "are ignored")
     add_sequence_format_args(parser)
-    add_sample_files_args(parser)
 #add_arguments
 
 
 def run(args):
-    if args.filelist == [sys.stdin] and sys.stdin.isatty():
+    files = get_input_output_files(args)
+    if not files:
         raise ValueError("please specify an input file, or pipe in the output "
                          "of another program")
 
-    find_alleles(args.filelist, args.output, args.report, args.tag_expr,
-                 args.tag_format, args.min_reads, args.min_allele_pct,
-                 args.max_noise_pct, args.max_alleles, args.max_noisy,
-                 args.stuttermark_column, args.sequence_format, args.library)
+    find_alleles(files[0], files[1], args.report, args.min_reads,
+                 args.min_allele_pct, args.max_noise_pct, args.max_alleles,
+                 args.max_noisy, args.stuttermark_column, args.sequence_format,
+                 args.library)
 #run
 
 

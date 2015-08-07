@@ -28,10 +28,10 @@ while running any tool.  Explicitly running seqconvert is never a
 necessity; use this tool for your own convenience.
 """
 import argparse
-import sys
 
 from ..lib import get_column_ids, ensure_sequence_format, parse_library,\
-                  reverse_complement
+                  reverse_complement, add_input_output_args,\
+                  get_input_output_files
 
 __version__ = "0.1dev"
 
@@ -51,14 +51,11 @@ _DEF_COLNAME_ALLELE = "allele"
 _DEF_COLNAME_ALLELE_OUT = "allele"
 
 
-def convert_sequences(infile, outfile, to_format, libfile=None,
+def convert_sequences(infile, outfile, to_format, library=None,
                       fixed_marker=None, colname_marker=_DEF_COLNAME_MARKER,
                       colname_allele=_DEF_COLNAME_ALLELE,
                       colname_allele_out=_DEF_COLNAME_ALLELE_OUT,
-                      libfile2=None, revcomp_markers=[]):
-    libfile = libfile if libfile is not None else libfile2
-    library = parse_library(libfile) if libfile is not None else None
-    library2 = parse_library(libfile2) if libfile2 is not None else library
+                      library2=None, revcomp_markers=[]):
     column_names = infile.readline().rstrip("\r\n").split("\t")
     colid_allele = get_column_ids(column_names, colname_allele)
     if library is None:
@@ -100,13 +97,7 @@ def add_arguments(parser):
     parser.add_argument('format', metavar="FORMAT",
         choices=("raw", "tssv", "allelename"),
         help="the format to convert to: one of %(choices)s")
-    parser.add_argument('infile', nargs='?', metavar="IN", default=sys.stdin,
-        type=argparse.FileType('r'),
-        help="the tab-separated data file to process (default: read from "
-             "stdin)")
-    parser.add_argument('outfile', nargs='?', metavar="OUT",
-        default=sys.stdout, type=argparse.FileType('w'),
-        help="the file to write the output to (default: write to stdout)")
+    add_input_output_args(parser, True, True, False)
     parser.add_argument('-m', '--marker-column', metavar="COLNAME",
         default=_DEF_COLNAME_MARKER,
         help="name of the column that contains the marker name "
@@ -115,7 +106,7 @@ def add_arguments(parser):
         default=_DEF_COLNAME_ALLELE,
         help="name of the column that contains the allele "
              "(default: '%(default)s')")
-    parser.add_argument('-o', '--output-column', metavar="COLNAME",
+    parser.add_argument('-c', '--output-column', metavar="COLNAME",
         default=_DEF_COLNAME_ALLELE_OUT,
         help="name of the column to write the output to "
              "(default: '%(default)s')")
@@ -137,13 +128,23 @@ def add_arguments(parser):
 
 
 def run(args):
-    if args.infile.isatty() and args.outfile.isatty():
+    gen = get_input_output_files(args, True, True)
+    if not gen:
         raise ValueError("please specify an input file, or pipe in the output "
                          "of another program")
-    convert_sequences(args.infile, args.outfile, args.format, args.library,
-                      args.marker, args.marker_column, args.allele_column,
-                      args.output_column, args.library2,
-                      args.reverse_complement)
+
+    # Read libraries once.
+    libfile = args.library if args.library is not None else args.library2
+    library = parse_library(libfile) if libfile is not None else None
+    library2 = parse_library(args.library2) if args.library2 is not None \
+                                            else library
+
+    for tag, infiles, outfile in gen:
+        for infile in infiles:  # Should be just one, but whatever.
+            convert_sequences(infile, outfile, args.format, library,
+                              args.marker, args.marker_column,
+                              args.allele_column, args.output_column, library2,
+                              args.reverse_complement)
 #run
 
 

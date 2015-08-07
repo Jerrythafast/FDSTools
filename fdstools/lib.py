@@ -41,6 +41,11 @@ DEF_TAG_EXPR = "^(.*?)(?:\.[^.]+)?$"
 # This is the default of the -f command line option.
 DEF_TAG_FORMAT = "\\1"
 
+# Default formatting template to construct output file names for batch
+# processing.  \1 and \2 refer to sample tag and tool name.
+# This is the default for the -o command line option with batch support.
+DEF_OUTFILE_FORMAT = "\\1-\\2.out"
+
 
 def call_variants(template, sequence, reverse_indices=False, cache=True,
                   debug=False):
@@ -1025,39 +1030,15 @@ def add_allele_detection_args(parser):
 #add_allele_detection_args
 
 
-def add_sample_files_args(parser):
-    """Add arguments for opening sample files to the given parser."""
-    parser.add_argument('filelist', nargs='*', metavar="FILE",
-        default=[sys.stdin], type=argparse.FileType('r'),
-        help="the sample data file(s) to process (default: read from stdin)")
-    group = parser.add_argument_group("sample tag parsing options")
-    group.add_argument('-e', '--tag-expr', metavar="REGEX", type=re.compile,
-        default=DEF_TAG_EXPR,
-        help="regular expression that captures (using one or more capturing "
-             "groups) the sample tags from the file names; by default, the "
-             "entire file name except for its extension (if any) is captured")
-    group.add_argument('-f', '--tag-format', metavar="EXPR",
-        default=DEF_TAG_FORMAT,
-        help="format of the sample tags produced; a capturing group reference "
-             "like '\\n' refers to the n-th capturing group in the regular "
-             "expression specified with -e/--tag-expr (the default of '\\1' "
-             "simply uses the first capturing group); with a single sample, "
-             "you can enter the sample tag here explicitly")
-#add_sample_files_args
-
-
-def add_output_args(parser, report=True):
-    group = parser.add_argument_group("output destination options")
-    group.add_argument('-o', '--output', metavar="FILE",
-        type=argparse.FileType('w'),
-        default=sys.stdout,
-        help="file to write output to (default: write to stdout)")
-    if report:
-        group.add_argument('-r', '--report', metavar="FILE",
-            type=argparse.FileType('w'),
-            default=sys.stderr,
-            help="file to write a report to (default: write to stderr)")
-#add_output_args
+def add_random_subsampling_args(parser):
+    group = parser.add_argument_group("random subsampling options (advanced)")
+    group.add_argument('-R', '--limit-reads', metavar="N", type=pos_int_arg,
+        default=sys.maxint,
+        help="simulate lower sequencing depth by randomly dropping reads down "
+             "to this maximum total number of reads for each sample")
+    group.add_argument('-x', '--drop-samples', metavar="N", type=float,
+        default=0, help="randomly drop this fraction of input samples")
+#add_random_subsampling_args
 
 
 def add_sequence_format_args(parser, default_format=None, force=False):
@@ -1078,15 +1059,80 @@ def add_sequence_format_args(parser, default_format=None, force=False):
 #add_sequence_format_args
 
 
-def add_random_subsampling_args(parser):
-    group = parser.add_argument_group("random subsampling options (advanced)")
-    group.add_argument('-R', '--limit-reads', metavar="N", type=pos_int_arg,
-        default=sys.maxint,
-        help="simulate lower sequencing depth by randomly dropping reads down "
-             "to this maximum total number of reads for each sample")
-    group.add_argument('-x', '--drop-samples', metavar="N", type=float,
-        default=0, help="randomly drop this fraction of input samples")
-#add_random_subsampling_args
+def add_input_output_args(parser, single_in=False, batch_support=False,
+                          report_out=False):
+    """Add arguments for opening sample files to the given parser."""
+    # Input file options group.
+    if not single_in:
+        parser.add_argument('infiles', nargs='*', metavar="FILE",
+            default=[sys.stdin], type=argparse.FileType('r'),
+            help="the sample data file(s) to process (default: read from "
+                 "stdin)")
+    elif not batch_support:
+        parser.add_argument('infile', nargs='?', metavar="IN",
+            default=sys.stdin, type=argparse.FileType('r'),
+            help="the sample data file to process (default: read from stdin)")
+    else:
+        mutex = parser.add_argument_group(
+                    "input file options").add_mutually_exclusive_group()
+        mutex.add_argument('infile', nargs='?', metavar="IN",
+            default=sys.stdin, type=argparse.FileType('r'),
+            help="single sample data file to process (default: read from "
+                 "stdin)")
+        mutex.add_argument("-i", "--input", dest="infiles", nargs="+",
+            metavar="IN", type=argparse.FileType('r'),
+            help="multiple sample data files to process (use with "
+                 "-o/--output)")
+
+    # Output file options group.
+    group = parser.add_argument_group("output file options")
+    if batch_support and single_in:
+        mutex = group.add_mutually_exclusive_group()
+        mutex.add_argument('outfile', nargs='?', metavar="OUT",
+            default=sys.stdout,
+            help="the file to write the output to (default: write to stdout)")
+        mutex.add_argument('-o', '--output', dest="outfiles", nargs="+",
+            metavar="OUT",
+            help="list of names of output files to match with input files "
+                 "specified with -i/--input, or a format string to construct "
+                 "file names from sample tags; e.g., the default value is "
+                 "'\\1-%s.out', which expands to 'sampletag-%s.out'" %
+                    ((parser.prog.rsplit(" ", 1)[-1],)*2))
+    elif batch_support:
+        group.add_argument('-o', '--output', dest="outfiles", nargs="+",
+            metavar="OUT",
+            default=[sys.stdout],
+            help="a single file name to write all output to (default: write "
+                 "to stdout) OR a list of names of output files to match with "
+                 "input files OR a format string to construct file names from "
+                 "sample tags; e.g., the value '\\1-%s.out' expands to "
+                 "'sampletag-%s.out'" % ((parser.prog.rsplit(" ", 1)[-1],)*2))
+    else:
+        group.add_argument('-o', '--output', dest="outfile", metavar="FILE",
+            type=argparse.FileType('w'),
+            default=sys.stdout,
+            help="file to write output to (default: write to stdout)")
+    if report_out:
+        group.add_argument('-r', '--report', metavar="FILE",
+            type=argparse.FileType('w'),
+            default=sys.stderr,
+            help="file to write a report to (default: write to stderr)")
+
+    # Sample tag parsing options group.
+    group = parser.add_argument_group("sample tag parsing options")
+    group.add_argument('-e', '--tag-expr', metavar="REGEX", type=re.compile,
+        default=DEF_TAG_EXPR,
+        help="regular expression that captures (using one or more capturing "
+             "groups) the sample tags from the file names; by default, the "
+             "entire file name except for its extension (if any) is captured")
+    group.add_argument('-f', '--tag-format', metavar="EXPR",
+        default=DEF_TAG_FORMAT,
+        help="format of the sample tags produced; a capturing group reference "
+             "like '\\n' refers to the n-th capturing group in the regular "
+             "expression specified with -e/--tag-expr (the default of '\\1' "
+             "simply uses the first capturing group); with a single sample, "
+             "you can enter the sample tag here explicitly")
+#add_input_output_args
 
 
 def get_tag(filename, tag_expr, tag_format):
@@ -1098,16 +1144,74 @@ def get_tag(filename, tag_expr, tag_format):
 #get_tag
 
 
-def map_tags_to_files(filelist, tag_expr, tag_format):
-    tags_to_files = {}
-    for infile in filelist:
-        tag = get_tag(infile.name, tag_expr, tag_format)
-        if tag not in tags_to_files:
-            tags_to_files[tag] = [infile]
-        else:
-            tags_to_files[tag].append(infile)
-    return tags_to_files
-#map_tags_to_files
+def get_input_output_files(args, single=False, batch_support=False):
+    if single and not batch_support:
+        # One infile, one outfile.  Return 2-tuple (infile, outfile).
+        if args.infile.isatty():
+            return False  # No input specified.
+        return args.infile, args.outfile
+
+
+    if not single and not batch_support:
+        # N infiles, one outfile.  Return 2-tuple ({tag: infiles}, out).
+        infiles = args.infiles if "infiles" in args \
+                  and args.infiles is not None else [args.infile]
+        if len(infiles) == 1 and infiles[0].isatty():
+            return False  # No input specified.
+
+        tags_to_files = {}
+        for infile in infiles:
+            tag = get_tag(infile.name, args.tag_expr, args.tag_format)
+            try:
+                tags_to_files[tag].append(infile)
+            except KeyError:
+                tags_to_files[tag] = [infile]
+        return tags_to_files, args.outfile
+
+
+    if single and batch_support:
+        # N infiles, N outfiles.  Return generator of (tag, [ins], out).
+        # Each yielded tuple should cause a separate run of the tool.
+        infiles = args.infiles if "infiles" in args \
+                  and args.infiles is not None else [args.infile]
+        if len(infiles) == 1 and infiles[0].isatty():
+            return False  # No input specified.
+
+        outfiles = args.outfiles if "outfiles" in args \
+                   and args.outfiles is not None else [args.outfile]
+        if len(outfiles) > 1 and len(outfiles) != len(infiles):
+            raise ValueError(
+                "Number of input files (%i) is not equal to number of output "
+                "files (%i)." % (len(infiles), len(outfiles)))
+
+        tags = [get_tag(infile.name, args.tag_expr, args.tag_format)
+                for infile in infiles]
+
+        if len(outfiles) == 1:
+            outfile = outfiles[0]
+            if outfile == sys.stdout and len(set(tags)) == 1:
+                # Write output of single sample to stdout.
+                return ((tag, infiles, outfile) for tag in set(tags))
+
+            # Write output of each sample to its own outfile.
+            if outfile == sys.stdout:
+                outfile = DEF_OUTFILE_FORMAT
+            return ((tag,
+                    [infiles[i] for i in range(len(tags)) if tags[i]==tag],
+                    open(outfile.replace("\\1", tag).replace("\\2",
+                         args.tool), "w")) for tag in set(tags))
+
+        # Link each output file to each input file.
+        # Treating files with the same sample tag as separate samples.
+        return ((tags[i], [infiles[i]], open(outfiles[i], 'w'))
+                for i in range(len(tags)))
+
+    if not single and batch_support:
+        # N infiles, one or N outfiles.
+        # If one outfile, return ({tag: [infiles]}, outfile).
+        # If N outfiles, return generator of (tag, [infiles], outfile).
+        raise NotImplementedError("Multi-input with optional multi-output not supported yet.")
+#get_input_output_files
 
 
 def print_db(text, debug):

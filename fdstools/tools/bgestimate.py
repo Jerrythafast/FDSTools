@@ -13,11 +13,10 @@ import time
 import math
 #import numpy as np  # Only imported when actually running this tool.
 
-from ..lib import get_column_ids, pos_int_arg, add_sample_files_args,\
-                  add_allele_detection_args, map_tags_to_files, nnls,\
-                  ensure_sequence_format, parse_allelelist, parse_library,\
-                  get_sample_data, add_random_subsampling_args,\
-                  add_sequence_format_args, add_output_args
+from ..lib import pos_int_arg, add_input_output_args, get_input_output_files,\
+                  add_allele_detection_args, nnls, add_sequence_format_args,\
+                  parse_allelelist, parse_library, get_sample_data, \
+                  add_random_subsampling_args
 
 __version__ = "0.1dev"
 
@@ -397,11 +396,10 @@ def preprocess_data(data, min_sample_pct):
 #preprocess_data
 
 
-def generate_profiles(filelist, tag_expr, tag_format, allelefile,
-                      annotation_column, outfile, reportfile, min_pct, min_abs,
-                      min_samples, min_sample_pct, seqformat, library,
-                      crosstab, marker, homozygotes, limit_reads,
-                      drop_samples):
+def generate_profiles(samples_in, outfile, reportfile, allelefile,
+                      annotation_column, min_pct, min_abs, min_samples,
+                      min_sample_pct, seqformat, library, crosstab, marker,
+                      homozygotes, limit_reads, drop_samples):
     if reportfile:
         t0 = time.time()
 
@@ -412,7 +410,7 @@ def generate_profiles(filelist, tag_expr, tag_format, allelefile,
 
     # Read sample data.
     sample_data = {}
-    get_sample_data(map_tags_to_files(filelist, tag_expr, tag_format),
+    get_sample_data(samples_in,
                     lambda tag, data: sample_data.update({tag: data}),
                     allelelist, annotation_column, seqformat, library, marker,
                     homozygotes, limit_reads, drop_samples)
@@ -495,7 +493,7 @@ def generate_profiles(filelist, tag_expr, tag_format, allelefile,
 
 
 def add_arguments(parser):
-    add_output_args(parser)
+    add_input_output_args(parser, False, False, True)
     parser.add_argument('-C', '--cross-tabular', action="store_true",
         help="if specified, a space-efficient cross-tabular output format is "
              "used instead of the default tab-separated columns format")
@@ -523,18 +521,17 @@ def add_arguments(parser):
     filtergroup.add_argument('-H', '--homozygotes', action="store_true",
         help="if specified, only homozygous samples will be considered")
     add_sequence_format_args(parser, "raw", True)  # Force raw seqs.
-    add_sample_files_args(parser)
     add_random_subsampling_args(parser)
 #add_arguments
 
 
 def run(args):
-    if args.filelist == [sys.stdin] and sys.stdin.isatty():
+    files = get_input_output_files(args)
+    if not files:
         raise ValueError("please specify an input file, or pipe in the output "
                          "of another program")
-    generate_profiles(args.filelist, args.tag_expr, args.tag_format,
-                      args.allelelist, args.annotation_column, args.output,
-                      args.report, args.min_pct, args.min_abs,
+    generate_profiles(files[0], files[1], args.report, args.allelelist,
+                      args.annotation_column, args.min_pct, args.min_abs,
                       args.min_samples, args.min_sample_pct,
                       args.sequence_format, args.library, args.cross_tabular,
                       args.marker, args.homozygotes, args.limit_reads,
