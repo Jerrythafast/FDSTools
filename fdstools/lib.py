@@ -875,6 +875,17 @@ def adjust_stats(value, stats=None):
 #adjust_stats
 
 
+def get_repeat_pattern(seq):
+    """Return compiled regular expression that finds repeats of seq."""
+    return re.compile("".join(             # For AGAT, one obtains:
+        ["(?:" * (len(seq)-1)] +           # (?:(?:(?:
+        ["%s)?" % x for x in seq[1:]] +    # G)?A)?T)?
+        ["(?:", seq, ")+"] +               # (?AGAT)+
+        ["(?:%s" % x for x in seq[:-1]] +  # (?:A(?:G(?:A
+        [")?" * (len(seq)-1)]))            # )?)?)?
+#get_repeat_pattern
+
+
 def read_sample_data_file(infile, data, annotation_column=None, seqformat=None,
                           library=None, default_marker=None):
     """Add data from infile to data dict as [marker, allele]=reads."""
@@ -1032,7 +1043,7 @@ def add_allele_detection_args(parser):
 
 def add_random_subsampling_args(parser):
     group = parser.add_argument_group("random subsampling options (advanced)")
-    group.add_argument('-R', '--limit-reads', metavar="N", type=pos_int_arg,
+    group.add_argument('-Q', '--limit-reads', metavar="N", type=pos_int_arg,
         default=sys.maxint,
         help="simulate lower sequencing depth by randomly dropping reads down "
              "to this maximum total number of reads for each sample")
@@ -1113,7 +1124,7 @@ def add_input_output_args(parser, single_in=False, batch_support=False,
             default=sys.stdout,
             help="file to write output to (default: write to stdout)")
     if report_out:
-        group.add_argument('-r', '--report', metavar="FILE",
+        group.add_argument('-R', '--report', metavar="FILE",
             type=argparse.FileType('w'),
             default=sys.stderr,
             help="file to write a report to (default: write to stderr)")

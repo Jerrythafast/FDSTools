@@ -40,6 +40,16 @@ _DEF_MIN_SAMPLE_PCT = 80.
 
 
 def add_sample_data(data, sample_data, sample_alleles, min_pct, min_abs):
+    # Check presence of all alleles.
+    for marker in sample_alleles:
+        allele = sample_alleles[marker]
+        if (marker, allele) not in sample_data:
+            raise ValueError(
+                "Missing allele %s of marker %s!" % (allele, marker))
+        elif 0 in sample_data[marker, allele]:
+            raise ValueError(
+                "Allele %s of marker %s has 0 reads!" % (allele, marker))
+
     # Enter the read counts into data and check the thresholds.
     for marker, sequence in sample_data:
         if marker not in sample_alleles:
@@ -55,9 +65,9 @@ def add_sample_data(data, sample_data, sample_alleles, min_pct, min_abs):
             data[marker, allele][sequence][direction] = adjust_stats(
                 sample_data[marker, sequence][direction] * factors[direction],
                 data[marker, allele][sequence][direction])
-        if sum([count >= min_abs and count*factor >= min_pct
-                for count, factor in
-                zip(sample_data[marker, sequence], factors)]):
+        if sum(count >= min_abs and count*factor >= min_pct
+               for count, factor in
+               zip(sample_data[marker, sequence], factors)):
             data[marker, allele][sequence][2] += 1
 #add_sample_data
 
