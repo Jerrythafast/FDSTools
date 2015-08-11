@@ -30,7 +30,10 @@ _DEF_THRESHOLD_ABS = 1
 # Default minimum number of samples for each true allele.
 # This value can be overridden by the -s command line option.
 _DEF_MIN_SAMPLES = 1
-# TODO: add option to require minimum number of alleles (or lengths)
+
+# Default minimum number of different repeat lengths per fit.
+# This value can be overridden by the -L command line option.
+_DEF_MIN_LENGTHS = 5
 
 # Default degree of polynomials to fit.
 # This value can be overridden by the -D command line option.
@@ -84,7 +87,6 @@ def get_unique_repeats(maxlen, out=None, prefix=""):
 
 
 def compute_fit(lengths, observed_amounts, degree):
-    import numpy as np
     fit = np.polyfit(lengths, observed_amounts, degree, None, True)
     if fit[2] == degree + 1:
         return fit[0]
@@ -93,7 +95,6 @@ def compute_fit(lengths, observed_amounts, degree):
 
 
 def test_fit(fit, lengths, observed_amounts):
-    import numpy as np
     p = np.poly1d(fit)
     pp = p.deriv()
     max_x = lengths.max()
@@ -119,11 +120,11 @@ def test_fit(fit, lengths, observed_amounts):
 
 def print_fit(outfile, fit, lengths, seq, marker, stutter_fold, direction,
               lower_bound, r2):
-    # TODO: scientific, 3 digits
     if lower_bound < max(lengths):
-        outfile.write("\t".join(map(str,
-            [seq, marker, stutter_fold, lower_bound, min(lengths),
-             max(lengths), direction, r2] + fit.tolist())) + "\n")
+        outfile.write("%s\t%s\t%+i\t%i\t%i\t%i\t%s\t%0.3f\t" %
+            (seq, marker, stutter_fold, lower_bound, min(lengths),
+             max(lengths), direction, r2))
+        outfile.write("\t".join("%.3e" % x for x in fit.tolist()) + "\n")
 #print_fit
 
 
@@ -179,8 +180,8 @@ def filter_data(data, min_samples):
 
 
 def fit_stutter(samples_in, outfile, allelefile, annotation_column, min_pct,
-                min_abs, min_samples, library, min_r2, degree, same_shape,
-                ignore_zeros, max_unit_length, raw_outfile, marker,
+                min_abs, min_lengths, min_samples, library, min_r2, degree,
+                same_shape, ignore_zeros, max_unit_length, raw_outfile, marker,
                 limit_reads, drop_samples):
 
     # Parse library and allele list.
@@ -221,8 +222,8 @@ def fit_stutter(samples_in, outfile, allelefile, annotation_column, min_pct,
         stutter_fold = -1
         while True:
             if fit_stutter_model(outfile, raw_outfile, data, library, seq,
-                    patterns[seq], min_r2, degree, same_shape, ignore_zeros,
-                    stutter_fold):
+                    patterns[seq], min_r2, min_lengths, degree, same_shape,
+                    ignore_zeros, stutter_fold):
                 stutter_fold += 1 if stutter_fold > 0 else -1
             elif stutter_fold < 0:
                 stutter_fold = 1
@@ -232,8 +233,8 @@ def fit_stutter(samples_in, outfile, allelefile, annotation_column, min_pct,
 
 
 def fit_stutter_model(outfile, raw_outfile, data, library, seq, patterns,
-                      min_r2, degree, same_shape, ignore_zeros, stutter_fold):
-    import numpy as np
+                      min_r2, min_lengths, degree, same_shape, ignore_zeros,
+                      stutter_fold):
     success = False
 
     stutlen = len(seq) * abs(stutter_fold)
@@ -286,12 +287,12 @@ def fit_stutter_model(outfile, raw_outfile, data, library, seq, patterns,
                 # should be included in the analysis but it is not.
                 if stutter_fold > 0:
                     variant = "%+i.1->%s" % (
-                        position + stutlen - len(flanks[0]),
-                        full_allele[position:position+stutlen])
+                        end - len(flanks[0]),
+                        full_allele[position:end])
                 else:
                     variant = "%+i%s>-" % (
                         position + 1 - len(flanks[0]),
-                        full_allele[position:position+stutlen])
+                        full_allele[position:end])
                 for sample in data["alleles"][marker][allele]:
                     amount = [0., 0.]  # Reads per 100 reads of allele.
                     for sequence in data["samples"][sample, marker]:
@@ -325,6 +326,8 @@ def fit_stutter_model(outfile, raw_outfile, data, library, seq, patterns,
         # Compute per-marker fit for this marker.
         if raw_outfile == outfile or same_shape:
             continue
+        if len(set(lengths)) < min_lengths:
+            continue
         lengths = np.array(lengths)
         for i in (0, 1):
             if not observed_amounts[:, i].any():
@@ -334,6 +337,8 @@ def fit_stutter_model(outfile, raw_outfile, data, library, seq, patterns,
                 this_lengths = lengths[observed_amounts[:, i] > 0]
                 this_amounts = observed_amounts[
                     observed_amounts[:, i] > 0, i]
+                if len(set(this_lengths)) < min_lengths:
+                    continue
             else:
                 this_lengths = lengths
                 this_amounts = observed_amounts[:, i]
@@ -370,6 +375,8 @@ def fit_stutter_model(outfile, raw_outfile, data, library, seq, patterns,
     all_observed_amounts = np.array(all_observed_amounts)
     if raw_outfile == outfile or not all_observed_amounts.any():
         return success
+    if len(set(all_lengths)) < min_lengths:
+        return success
     all_lengths = np.array(all_lengths)
     if same_shape:
         markers = np.array(markers)
@@ -382,6 +389,8 @@ def fit_stutter_model(outfile, raw_outfile, data, library, seq, patterns,
             this_lengths = all_lengths[all_observed_amounts[:, i] > 0]
             this_amounts = all_observed_amounts[
                 all_observed_amounts[:, i] > 0, i]
+            if len(set(this_lengths)) < min_lengths:
+                continue
             if same_shape:
                 this_markers = []
                 this_from_markers = []
@@ -448,6 +457,10 @@ def add_arguments(parser):
         default=_DEF_THRESHOLD_ABS,
         help="minimum amount of background to consider, as an absolute "
              "number of reads (default: %(default)s)")
+    filtergroup.add_argument('-L', '--min-lengths', metavar="N",
+        type=pos_int_arg, default=_DEF_MIN_LENGTHS,
+        help="require this minimum number of unique repeat lengths "
+             "(default: %(default)s)")
     filtergroup.add_argument('-s', '--min-samples', metavar="N",
         type=pos_int_arg, default=_DEF_MIN_SAMPLES,
         help="require this minimum number of samples for each true allele "
@@ -481,15 +494,19 @@ def add_arguments(parser):
 
 
 def run(args):
+    # Import numpy now.
+    import numpy as np
+    global np
+
     files = get_input_output_files(args)
     if not files:
         raise ValueError("please specify an input file, or pipe in the output "
                          "of another program")
     fit_stutter(files[0], files[1], args.allelelist, args.annotation_column,
-                args.min_pct, args.min_abs, args.min_samples, args.library,
-                args.min_r2, args.degree, args.same_shape, args.ignore_zeros,
-                args.max_unit_length, args.raw_outfile, args.marker,
-                args.limit_reads, args.drop_samples)
+                args.min_pct, args.min_abs, args.min_lengths, args.min_samples,
+                args.library, args.min_r2, args.degree, args.same_shape,
+                args.ignore_zeros, args.max_unit_length, args.raw_outfile,
+                args.marker, args.limit_reads, args.drop_samples)
 #run
 
 

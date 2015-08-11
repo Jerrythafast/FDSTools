@@ -81,7 +81,6 @@ def solve_profile_mixture_single(samples, genotypes, n, variance=False,
     If reportfile is a writable handle, diagnostic/progress information
     is written to it.
     """
-    import numpy as np
     num_samples = len(samples)
     profile_size = len(samples[0])
 
@@ -526,6 +525,10 @@ def add_arguments(parser):
 
 
 def run(args):
+    # Import numpy now.
+    import numpy as np
+    global np
+
     files = get_input_output_files(args)
     if not files:
         raise ValueError("please specify an input file, or pipe in the output "

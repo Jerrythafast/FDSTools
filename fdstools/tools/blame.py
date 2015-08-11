@@ -61,7 +61,6 @@ def add_sample_data(data, sample_data, sample_tag, alleles):
 
 def blame(samples_in, outfile, allelefile, annotation_column, mode,
           profilefile, num, seqformat, libfile, marker):
-    import numpy as np
     library = parse_library(libfile) if libfile else None
     allelelist = {} if allelefile is None \
                     else parse_allelelist(allelefile, "raw", library)
@@ -149,6 +148,10 @@ def add_arguments(parser):
 
 
 def run(args):
+    # Import numpy now.
+    import numpy as np
+    global np
+
     files = get_input_output_files(args)
     if not files:
         raise ValueError("please specify an input file, or pipe in the output "

@@ -46,16 +46,14 @@ _DEF_COLNAME_MARKER = "name"
 # This value can be overridden by the -a command line option.
 _DEF_COLNAME_ALLELE = "allele"
 
-# Default name of the column to write the output to.
-# This value can be overridden by the -o command line option.
-_DEF_COLNAME_ALLELE_OUT = "allele"
-
 
 def convert_sequences(infile, outfile, to_format, library=None,
                       fixed_marker=None, colname_marker=_DEF_COLNAME_MARKER,
                       colname_allele=_DEF_COLNAME_ALLELE,
-                      colname_allele_out=_DEF_COLNAME_ALLELE_OUT,
+                      colname_allele_out=None,
                       library2=None, revcomp_markers=[]):
+    if colname_allele_out is None:
+        colname_allele_out = colname_allele
     column_names = infile.readline().rstrip("\r\n").split("\t")
     colid_allele = get_column_ids(column_names, colname_allele)
     if library is None:
@@ -107,9 +105,8 @@ def add_arguments(parser):
         help="name of the column that contains the allele "
              "(default: '%(default)s')")
     parser.add_argument('-c', '--output-column', metavar="COLNAME",
-        default=_DEF_COLNAME_ALLELE_OUT,
         help="name of the column to write the output to "
-             "(default: '%(default)s')")
+             "(default: same as --allele-column')")
     parser.add_argument('-M', '--marker', metavar="MARKER",
         help="assume the specified marker for all sequences")
     parser.add_argument('-l', '--library', metavar="LIBRARY",

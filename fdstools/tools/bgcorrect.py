@@ -56,7 +56,6 @@ def get_sample_data(infile, convert_to_raw=False, library=None):
 
 def match_profile(column_names, data, profile, convert_to_raw, library,
                   marker):
-    import numpy as np
     (colid_name, colid_allele, colid_forward, colid_reverse, colid_total,
      colid_forward_noise, colid_reverse_noise, colid_total_noise,
      colid_forward_add, colid_reverse_add, colid_total_add) = get_column_ids(
@@ -172,6 +171,10 @@ def add_arguments(parser):
 
 
 def run(args):
+    # Import numpy now.
+    import numpy as np
+    global np
+
     gen = get_input_output_files(args, True, True)
     if not gen:
         raise ValueError("please specify an input file, or pipe in the output "

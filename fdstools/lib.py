@@ -46,6 +46,12 @@ DEF_TAG_FORMAT = "\\1"
 # This is the default for the -o command line option with batch support.
 DEF_OUTFILE_FORMAT = "\\1-\\2.out"
 
+# IUPAC Table of complementary bases.
+COMPL = {"A": "T", "T": "A", "U": "A", "G": "C", "C": "G", "R": "Y", "Y": "R",
+         "K": "M", "M": "K", "B": "V", "V": "B", "D": "H", "H": "D",
+         "a": "t", "t": "a", "u": "a", "g": "c", "c": "g", "r": "y", "y": "r",
+         "k": "m", "m": "k", "b": "v", "v": "b", "d": "h", "h": "d"}
+
 
 def call_variants(template, sequence, reverse_indices=False, cache=True,
                   debug=False):
@@ -794,11 +800,7 @@ def ensure_sequence_format(seq, to_format, from_format=None, library=None,
 
 def reverse_complement(sequence):
     """Return the reverse complement of the given DNA sequence."""
-    c = {"A": "T", "T": "A", "U": "A", "G": "C", "C": "G", "R": "Y", "Y": "R",
-         "K": "M", "M": "K", "B": "V", "V": "B", "D": "H", "H": "D",
-         "a": "t", "t": "a", "u": "a", "g": "c", "c": "g", "r": "y", "y": "r",
-         "k": "m", "m": "k", "b": "v", "v": "b", "d": "h", "h": "d"}
-    return "".join(c[x] if x in c else x for x in sequence[::-1])
+    return "".join(COMPL[x] if x in COMPL else x for x in reversed(sequence))
 #reverse_complement
 
 
