@@ -914,7 +914,8 @@ def read_sample_data_file(infile, data, annotation_column=None, seqformat=None,
         line = line.rstrip("\r\n").split("\t")
         marker = line[colid_name] if colid_name is not None else default_marker
         allele = line[colid_allele] if seqformat is None \
-            else ensure_sequence_format(line[colid_allele], seqformat, library)
+            else ensure_sequence_format(line[colid_allele], seqformat,
+                                        library=library, marker=marker)
         if (annotation_column is not None and
                 line[colid_annotation].startswith("ALLELE")):
             found_alleles.append(marker, allele)

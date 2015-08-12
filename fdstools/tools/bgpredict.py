@@ -10,7 +10,7 @@ import sys
 from operator import mul
 
 from ..lib import get_column_ids, reverse_complement, get_repeat_pattern,\
-                  mutate_sequence,\
+                  mutate_sequence, parse_library,\
                   PAT_SEQ_RAW, ensure_sequence_format, add_sequence_format_args
 
 __version__ = "0.1dev"
@@ -40,7 +40,7 @@ _DEF_THRESHOLD_PCT = 0.5
 _DEF_MIN_R2 = 0.8
 
 
-def parse_stuttermodel(stuttermodel, min_r2=0):
+def parse_stuttermodel(stuttermodel, min_r2=0, use_all_data=False):
     column_names = stuttermodel.readline().rstrip("\r\n").split("\t")
     (colid_unit, colid_marker, colid_stutter, colid_lbound, colid_direction,
      colid_r2) = get_column_ids(column_names, "unit", "marker", "stutter",
@@ -94,8 +94,19 @@ def parse_stuttermodel(stuttermodel, min_r2=0):
             "lbound": lbound,
             "r2": r2,
             "pat": repeat_patterns[seq],
-            "func": lambda x: 0. if x < lbound else max(0.,
-                sum(coefs[i] * x**(degree-i) for i in range(len(coefs))))}
+            "func": lambda x, lbound=lbound,coefs=coefs,degree=degree:
+                0. if x < lbound else max(0.,
+                    sum(coefs[i] * x**(degree-i) for i in range(len(coefs))))}
+
+    # Extend marker-specific models with "All data" fits where possible.
+    if use_all_data and "All data" in model:
+        for marker in model:
+            if marker == "All data":
+                continue
+            for key in model["All data"]:
+                if key not in model[marker]:
+                    model[marker][key] = model["All data"][key]
+
     return model
 #parse_stuttermodel
 
@@ -129,7 +140,7 @@ def get_all_stutters(allele, flanks, model, min_pct):
             stutters.append({
                 "seq": seq,
                 "stutlen": stutlen,
-                "start": min(0, start-len(flanks[0])),
+                "start": max(0, start-len(flanks[0])),
                 "end":min(len(full_allele)-len(flanks[1]), end)-len(flanks[0]),
                 "fold": stutter_fold,
                 "amount": amount/100.})
@@ -161,20 +172,27 @@ def get_relative_frequencies(stutters, combinations):
     A = np.array([reduce(mul, (s["amount"] for s in combo))
                   for combo in combinations])
     C = np.array([[s in c for c in combinations] for s in stutters])
-    for iterations in xrange(1000): #TODO: get good stopcond
+    S = np.array([stutter["amount"] for stutter in stutters])
+    prev_score = cur_score = sys.float_info.max
+    for iterations in xrange(200):  # Max 200 iterations should suffice.
         for i in range(len(stutters)):
             A[C[i]] *= stutters[i]["amount"] / A[C[i]].sum()
+        prev_score = cur_score
+        cur_score = np.square(S - A.dot(C.T)).sum()
+        score_change = (prev_score-cur_score)/prev_score
+        if abs(cur_score) < 1e-20 or score_change < 1e-10:
+            # We have converged (usually within 5 iterations).
+            break
     return A.tolist()
 #get_relative_frequencies
 
 
-def predict_profiles(stuttermodel, seqsfile, outfile,
-                     marker_column, allele_column, default_marker,
-                     crosstab, min_pct, min_r2, library):
-
+def predict_profiles(stuttermodel, seqsfile, outfile, marker_column,
+                     allele_column, default_marker, use_all_data, crosstab,
+                     min_pct, min_r2, seqformat, library):
     # Parse library and stutter model file.
     library = parse_library(library) if library is not None else None
-    model = parse_stuttermodel(stuttermodel, min_r2)
+    model = parse_stuttermodel(stuttermodel, min_r2, use_all_data)
 
     # Read list of sequences.
     seqlist = {}
@@ -188,8 +206,13 @@ def predict_profiles(stuttermodel, seqsfile, outfile,
         line = line.rstrip("\r\n").split("\t")
         marker = line[colid_name] if colid_name is not None else default_marker
         if marker not in model:
-            continue
-        sequence = ensure_sequence_format(line[colid_allele], "raw", library)
+            if use_all_data and "All data" in model:
+                # No marker-specific model available, use "All data".
+                model[marker] = model["All data"]
+            else:
+                continue
+        sequence = ensure_sequence_format(line[colid_allele], "raw",
+                                          library=library, marker=marker)
         try:
             seqlist[marker].append(sequence)
         except KeyError:
@@ -212,39 +235,60 @@ def predict_profiles(stuttermodel, seqsfile, outfile,
                  for j in range(len(seqlist[marker]))]}
         if library and "flanks" in library and marker in library["flanks"]:
             flanks = library["flanks"][marker]
+            flanks_r = map(reverse_complement, reversed(flanks))
         else:
             flanks = ["", ""]
+            flanks_r = flanks
         for ai in range(len(seqlist[marker])):
-            # TODO: repeat this part for reverse
             allele = seqlist[marker][ai]
-            stutters = get_all_stutters(allele, flanks, model[marker], min_pct)
-            combinations = get_all_combinations(stutters)
-            frequencies = get_relative_frequencies(stutters, combinations)
-            for i in range(len(combinations)):
-                freq = frequencies[i] * 100.
-                if freq < min_pct:
-                    continue
-                sequence = mutate_sequence(allele, [
-                    "%+i.1->%s" %
-                        (s["end"], allele[s["end"]-s["stutlen"]:s["end"]])
-                    if s["fold"] > 0 else
-                        "%+i%s>-" % (s["end"]-s["stutlen"]+1,
-                            allele[s["end"]-s["stutlen"]:s["end"]])
-                    for s in combinations[i]])
-                try:
-                    si = p["alleles"].index(sequence)
-                except ValueError:
-                    p["alleles"].append(sequence)
-                    for profile in p["profiles_forward"]:
-                        profile.append(0)
-                    for profile in p["profiles_reverse"]:
-                        profile.append(0)
-                    si = -1
-                p["profiles_forward"][ai][si] = freq
+            for rc in (False, True):
+                if rc:
+                    allele = reverse_complement(allele)
+                stutters = get_all_stutters(allele, flanks_r if rc else flanks,
+                                            model[marker], min_pct)
+                combinations = get_all_combinations(stutters)
+                frequencies = get_relative_frequencies(stutters, combinations)
+                for i in range(len(combinations)):
+                    freq = frequencies[i] * 100.
+                    if freq < min_pct:
+                        continue
+                    sequence = mutate_sequence(allele, [
+                        "%+i.1->%s" %
+                            (s["end"], allele[s["end"]-s["stutlen"]:s["end"]])
+                        if s["fold"] > 0 else
+                            "%+i%s>-" % (s["end"]-s["stutlen"]+1,
+                                allele[s["end"]-s["stutlen"]:s["end"]])
+                        for s in combinations[i]])
+                    if rc:
+                        sequence = reverse_complement(sequence)
+                    try:
+                        si = p["alleles"].index(sequence)
+                    except ValueError:
+                        p["alleles"].append(sequence)
+                        for profile in p["profiles_forward"]:
+                            profile.append(0)
+                        for profile in p["profiles_reverse"]:
+                            profile.append(0)
+                        si = -1
+                    if rc:
+                        p["profiles_reverse"][ai][si] = freq
+                    else:
+                        p["profiles_forward"][ai][si] = freq
+
+        # Round to 3 digits to get rid of funny rounding effects.
+        # This method is not that precise anyway.
+        for profile in p["profiles_forward"]:
+            for i in range(len(profile)):
+                profile[i] = round(profile[i], 3)
+        for profile in p["profiles_reverse"]:
+            for i in range(len(profile)):
+                profile[i] = round(profile[i], 3)
 
         if crosstab:
-            # Cross-tabular output (profiles in rows)
-            outfile.write("\t".join([marker, "0"] + p["alleles"]) + "\n")
+            # Cross-tabular output (profiles in rows).
+            outfile.write("\t".join([marker, "0"] +
+                [ensure_sequence_format(seq, seqformat, library=library,
+                    marker=marker) for seq in p["alleles"]]) + "\n")
             for i in range(p["true alleles"]):
                 outfile.write("\t".join(
                     [marker, str(i+1)] + map(str, p["profiles_forward"][i])) +
@@ -259,15 +303,16 @@ def predict_profiles(stuttermodel, seqsfile, outfile,
                     if not (p["profiles_forward"][i][j] +
                             p["profiles_reverse"][i][j]):
                         continue
-                    outfile.write("\t".join(
-                        [marker, p["alleles"][i], p["alleles"][j]] +
+                    outfile.write("\t".join([marker] +
+                        [ensure_sequence_format(seq, seqformat,
+                            library=library, marker=marker)
+                         for seq in (p["alleles"][i], p["alleles"][j])] +
                         map(str, [p["profiles_forward"][i][j],
                                   p["profiles_reverse"][i][j]])) + "\n")
 #predict_profiles
 
 
 def add_arguments(parser):
-    # TODO: Add something to enable using the "All data" fits if needed.
     parser.add_argument('stuttermodel', metavar="STUT",
         type=argparse.FileType("r"),
         help="file containing a trained stutter model")
@@ -288,6 +333,10 @@ def add_arguments(parser):
              "(default: '%(default)s')")
     parser.add_argument('-M', '--marker', metavar="MARKER",
         help="assume the specified marker for all sequences")
+    parser.add_argument('-A', '--use-all-data', action="store_true",
+        help="if specified, the 'All data' model is used to predict stutter "
+             "whenever no marker-specific model is available for a certain "
+             "repeat unit")
     parser.add_argument('-C', '--cross-tabular', action="store_true",
         help="if specified, a space-efficient cross-tabular output format is "
              "used instead of the default tab-separated columns format")
@@ -310,8 +359,8 @@ def run(args):
 
     predict_profiles(args.stuttermodel, args.seqs, args.outfile,
                      args.marker_column, args.allele_column, args.marker,
-                     args.cross_tabular, args.min_pct, args.min_r2,
-                     args.library)
+                     args.use_all_data, args.cross_tabular, args.min_pct,
+                     args.min_r2, args.sequence_format, args.library)
 #run
 
 

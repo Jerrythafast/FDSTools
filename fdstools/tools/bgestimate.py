@@ -467,7 +467,7 @@ def generate_profiles(samples_in, outfile, reportfile, allelefile,
                 profile[i] = round(profile[i], 3)
 
         if crosstab:
-            # Cross-tabular output (profiles in rows)
+            # Cross-tabular output (profiles in rows).
             outfile.write("\t".join([marker, "0"] + p["alleles"]) + "\n")
             for i in range(p["true alleles"]):
                 outfile.write("\t".join(

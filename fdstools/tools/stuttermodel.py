@@ -6,12 +6,11 @@ import argparse
 import re
 #import numpy as np  # Only imported when actually running this tool.
 
-from ..lib import get_column_ids, pos_int_arg, add_input_output_args,\
-                  add_allele_detection_args, adjust_stats,\
-                  ensure_sequence_format, parse_allelelist, parse_library,\
-                  get_sample_data, add_sequence_format_args,\
-                  add_random_subsampling_args, get_input_output_files,\
-                  reverse_complement, call_variants, get_repeat_pattern
+from ..lib import pos_int_arg, add_input_output_args, get_input_output_files,\
+                  add_allele_detection_args, parse_allelelist, parse_library,\
+                  get_sample_data, add_sequence_format_args, call_variants,\
+                  add_random_subsampling_args, reverse_complement,\
+                  get_repeat_pattern
 
 __version__ = "0.1dev"
 
