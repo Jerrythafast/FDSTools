@@ -1,6 +1,6 @@
 from setuptools import setup, find_packages
 
-requires = []
+requires = ["numpy"]
 
 # Python 2.6 does not include the argparse module.
 try:
@@ -21,6 +21,9 @@ import fdstools as distmeta
 x = setup(
     name="fdstools",
     packages=find_packages(),
+    package_data={
+        "fdstools": ["vis/*", "vis/*/*"]
+    },
     version=distmeta.__version__,
     install_requires=requires,
     description="Forensic DNA Sequencing Tools",

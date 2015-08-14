@@ -1,0 +1,359 @@
+{
+  "width": 600,
+  "height": 10,
+  "data": [
+    {
+      "name": "table",
+      "values": "sample_data_file_contents_here",
+      "format": {
+        "type": "tsv",
+        "parse": {
+          "forward": "number",
+          "total": "number",
+          "total_noise": "number",
+          "total_add": "number"
+        }
+      },
+      "transform": [
+        {
+          "type": "formula",
+          "field": "total_corr",
+          "expr": "datum.total_noise? datum.total-datum.total_noise : datum.total"
+        },
+        {
+          "type": "formula",
+          "field": "total_add",
+          "expr": "datum.total_add? datum.total_corr+datum.total_add : datum.total_corr"
+        },
+        {
+          "type": "filter",
+          "test": "max(datum.total, datum.total_add) > 15"
+        },
+        {
+          "type": "formula",
+          "field": "shared",
+          "expr": "max(0, datum.total_corr)"
+        },
+        {
+          "type": "formula",
+          "field": "corr_shared",
+          "expr": "min(datum.total, datum.total_add)"
+        },
+        {
+          "type": "formula",
+          "field": "corr_decreased",
+          "expr": "max(datum.total, datum.corr_shared)"
+        },
+        {
+          "type": "formula",
+          "field": "corr_increased",
+          "expr": "max(datum.corr_shared, datum.total_add)"
+        },
+        {
+          "type": "formula",
+          "field": "forwardpct",
+          "expr": "100.0 / datum.total * datum.forward"
+        },
+        {
+          "type": "sort",
+          "by": ["name", "allele", "-total_add", "-total_corr", "-total"]
+        }
+      ]
+    },
+    {
+      "name": "markercounts",
+      "source": "table",
+      "transform": [
+        {
+          "type": "aggregate",
+          "groupby": ["name"],
+          "summarize": {"*": "count"}
+        }
+      ]
+    },
+    {
+      "name": "markerpadding",
+      "source": "markercounts",
+      "transform": [
+        {
+          "type": "cross",
+          "with": "markercounts"
+        },
+        {
+          "type": "filter",
+          "test": "datum.b.name < datum.a.name"
+        },
+        {
+          "type": "aggregate",
+          "groupby": ["a.name"],
+          "summarize": [{"field": "*", "ops": ["count"], "as": ["cumulpadding"]}]
+        },
+        {
+          "type": "formula",
+          "field": "name",
+          "expr": "datum['a.name']"
+        }
+      ]
+    },
+    {
+      "name": "markeroffsets",
+      "source": "markercounts",
+      "transform": [
+        {
+          "type": "cross",
+          "with": "table"
+        },
+        {
+          "type": "filter",
+          "test": "datum.b.name < datum.a.name"
+        },
+        {
+          "type": "aggregate",
+          "groupby": ["a.name"],
+          "summarize": [{"field": "*", "ops": ["count"], "as": ["cumulcount"]}]
+        },
+        {
+          "type": "formula",
+          "field": "name",
+          "expr": "datum['a.name']"
+        }
+      ]
+    },
+    {
+      "name": "yscale",
+      "source": "markercounts",
+      "transform": [
+        {
+          "type": "zip",
+          "with": "markerpadding",
+          "as": "paddingobj",
+          "key": "name",
+          "withKey": "name",
+          "default": {"cumulpadding": 0}
+        },
+        {
+          "type": "zip",
+          "with": "markeroffsets",
+          "as": "offsetobj",
+          "key": "name",
+          "withKey": "name",
+          "default": {"cumulcount": 0}
+        },
+        {
+          "type": "formula",
+          "field": "barheight",
+          "expr": "15"
+        },
+        {
+          "type": "formula",
+          "field": "markeroffset",
+          "expr": "70"
+        },
+        {
+          "type": "formula",
+          "field": "offset",
+          "expr": "datum.barheight*datum.offsetobj.cumulcount + datum.markeroffset*datum.paddingobj.cumulpadding"
+        },
+        {
+          "type": "formula",
+          "field": "end",
+          "expr": "datum.offset + datum.barheight*datum.count"
+        }
+      ]
+    }
+  ],
+  "scales": [
+    {
+      "name": "c",
+      "type": "ordinal",
+      "range": ["#5e3c99", "#b2abd2", "#fdb863", "#e66101"],
+      "domain": ["Shared base", "Correction removed", "Correction shared", "Correction added"]
+    }
+  ],
+  "marks": [
+    {
+      "type": "text",
+      "from": {
+        "data": "yscale"
+      },
+      "properties": {
+        "enter": {
+          "x": {"field": {"group": "width"}, "mult": 0.5},
+          "y": {"field": "offset"},
+          "fontWeight": {"value": "bold"},
+          "text": {"field": "name"},
+          "align": {"value": "center"},
+          "baseline": {"value": "bottom"},
+          "fill": {"value": "black"}
+        }
+      }
+    },
+    {
+      "type": "group",
+      "from": {
+        "data": "table",
+        "transform": [
+          {
+            "type": "facet",
+            "groupby": ["name"]
+          },
+          {
+            "type": "zip",
+            "with": "yscale",
+            "as": "markerscale",
+            "key": "name",
+            "withKey": "name"
+          }
+        ]
+      },
+      "properties": {
+        "enter": {
+          "x": {"value": 0},
+          "width": {"field": {"group": "width"}},
+          "y": {"field": "markerscale.offset"},
+          "y2": {"field": "markerscale.end"},
+          "stroke": {"value": "#dddddd"}
+        }
+      },
+      "scales": [
+        {
+          "name": "x",
+          "range": "width",
+          "domain": {"field": ["total", "total_corr", "total_add"]}
+        },
+        {
+          "name": "y",
+          "type": "ordinal",
+          "range": "height",
+          "domain": {"field": "allele"}
+        }
+      ],
+      "axes": [
+        {
+          "type": "x",
+          "scale": "x",
+          "grid": true,
+          "layer": "back",
+          "title": "Number of reads",
+          "properties": {
+            "labels": {
+              "align": {"value": "right"},
+              "baseline": {"value": "middle"},
+              "dy": {"value": 3},
+              "angle": {"value": -25}
+            },
+            "title": {
+              "dy": {"value": 5}
+            }
+          }
+        },
+        {
+          "type": "y",
+          "scale": "y"
+        }
+      ],
+      "legends": [
+        {
+          "fill": "c",
+          "properties": {
+            "symbols": {
+              "size": {"value": 100},
+              "stroke": {"value": "transparent"},
+              "fillOpacity": {"value": 0.8}
+            }
+          }
+        }
+      ],
+      "marks": [
+        {
+          "type": "rect",
+          "properties": {
+            "enter": {
+              "x": {"scale": "x", "value": 0},
+              "x2": {"scale": "x", "field": "shared"},
+              "y": {"scale": "y", "field": "allele", "offset": 1},
+              "height": {"scale": "y", "band": true, "offset": -2},
+              "fill": {"scale": "c", "value": "Shared base"},
+              "fillOpacity": {"value": 0.8}
+            }
+          }
+        },
+        {
+          "type": "rect",
+          "properties": {
+            "enter": {
+              "x": {"scale": "x", "field": "corr_shared"},
+              "x2": {"scale": "x", "field": "corr_decreased"},
+              "y": {"scale": "y", "field": "allele", "offset": 1},
+              "height": {"scale": "y", "band": true, "offset": -2},
+              "fill": {"scale": "c", "value": "Correction removed"},
+              "fillOpacity": {"value": 0.8}
+            }
+          }
+        },
+        {
+          "type": "rect",
+          "properties": {
+            "enter": {
+              "x": {"scale": "x", "field": "total_corr"},
+              "x2": {"scale": "x", "field": "corr_shared"},
+              "y": {"scale": "y", "field": "allele", "offset": 1},
+              "height": {"scale": "y", "band": true, "offset": -2},
+              "fill": {"scale": "c", "value": "Correction shared"},
+              "fillOpacity": {"value": 0.8}
+            }
+          }
+        },
+        {
+          "type": "rect",
+          "properties": {
+            "enter": {
+              "x": {"scale": "x", "field": "corr_shared"},
+              "x2": {"scale": "x", "field": "corr_increased"},
+              "y": {"scale": "y", "field": "allele", "offset": 1},
+              "height": {"scale": "y", "band": true, "offset": -2},
+              "fill": {"scale": "c", "value": "Correction added"},
+              "fillOpacity": {"value": 0.8}
+            }
+          }
+        },
+        {
+          "type": "group",
+          "from": {
+            "transform": [{"type": "facet", "groupby": ["allele"]}]
+          },
+          "properties": {
+            "enter": {
+              "x": {"value": 0},
+              "width": {"field": {"group": "width"}},
+              "y": {"scale": "y", "field": "key", "offset": 1},
+              "height": {"scale": "y", "band": true, "offset": -2}
+            }
+          },
+          "scales": [
+            {
+              "name": "balance",
+              "range": "height",
+              "nice": false,
+              "domain": [0, 100]
+            }
+          ],
+          "marks": [
+            {
+              "type": "rect",
+              "properties": {
+                "enter": {
+                  "x": {"scale": "x", "value": 0},
+                  "x2": {"scale": "x", "field": "total"},
+                  "y": {"scale": "balance", "field": "forwardpct", "offset": -0.5},
+                  "y2": {"scale": "balance", "field": "forwardpct", "offset": 0.5},
+                  "fill": {"value": "black"}
+                }
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

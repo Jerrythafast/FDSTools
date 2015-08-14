@@ -1,0 +1,157 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <meta charset="UTF-8">
+        <title>Sample Visualisation</title/>
+        <!-- BEGIN_EXTERNAL_SCRIPTS -->
+        <script src="http://vega.github.io/vega-editor/vendor/d3.min.js"></script>
+        <script src="http://vega.github.io/vega/vega.min.js"></script>
+        <script type="text/javascript">
+            var graph_spec = false;
+            vg.util.load({url: "samplevis.json"}, function(err, result){
+                graph_spec = JSON.parse(result);
+            })
+        </script>
+        <!-- END_EXTERNAL_SCRIPTS -->
+        <style>
+            * {
+                font-family: Helvetica Neue, Helvetica, Arial, sans-serif;
+            }
+            body {
+                margin: 0px
+            }
+            div.options {
+                position: absolute;
+                margin: 5px;
+                background-color: rgba(128, 128, 255, 0.5);
+                z-index: 10;
+            }
+            div.view {
+                position: absolute;
+                overflow: auto;
+                bottom: 0px;
+                top: 0px;
+                padding-top: 150px;
+                left: 0px;
+                right: 0px;
+                text-align: right;
+            }
+        </style>
+    </head>
+    <body>
+        <div class="options">
+            <strong>Options</strong><br>
+            Open sample data file: <input id="fileselect" type="file"> (or drag a file onto this page)<br>
+            Axis scale: <input type="radio" name="scale" value="linear" id="scaleLinear" checked> Linear
+            <input type="radio" name="scale" value="sqrt" id="scaleLog"> Square root<br>
+            Render as: <input type="radio" name="renderer" value="canvas" id="renderCanvas"> Canvas
+            <input type="radio" name="renderer" value="svg" id="renderSVG" checked> SVG<br>
+            <a id="saveLink" href="javascript:void(saveImage())" style="display: none">Save image</a>
+        </div>
+        <div id="vis" class="view"></div>
+    </body>
+    <script type="text/javascript">
+        function parse(){
+            vg.parse.spec(graph_spec, function(chart){
+                var rendererName = "canvas";
+                if(document.getElementById("renderSVG").checked)
+                    rendererName="svg";
+                graph = chart({el:"#vis",renderer:rendererName});
+                graph.update();
+                document.getElementById("saveLink").style.display = "inline";
+
+                //Scroll to the right; the graph is more interesting than the long labels.
+                var visdiv = document.getElementById("vis");
+                visdiv.scrollLeft = visdiv.scrollWidth;
+            });
+        }
+
+        function setScale(value){
+            if(!graph_spec)
+                return;
+            for(i in graph_spec["marks"])
+                if(graph_spec["marks"][i]["scales"])
+                    for(j in graph_spec["marks"][i]["scales"])
+                        if(graph_spec["marks"][i]["scales"][j]["name"] == "x" || graph_spec["marks"][i]["scales"][j]["name"] == "xpct"){
+                            graph_spec["marks"][i]["scales"][j]["type"] = value;
+                        }
+
+            if(graph)
+                parse();
+            return;
+        }
+
+        function setRenderer(value){
+            if(graph)
+                graph.renderer(value);
+        }
+
+        //Load the data (input is a fileList object; only the first file is loaded).
+        function loadDataset(fileList){
+            if(!graph_spec)
+                return;
+            var reader = new FileReader();
+            reader.onload = function(theFile){
+                graph_spec["data"][0]["values"] = reader.result;
+                parse();
+            };
+            reader.readAsText(fileList[0]);
+        }
+
+        //Allow files to be dragged onto the page.
+        document.addEventListener('dragover', function(evt){
+            evt.stopPropagation();
+            evt.preventDefault();
+        }, false);
+        document.addEventListener('drop', function(evt){
+            evt.stopPropagation();
+            evt.preventDefault();
+            loadDataset(evt.dataTransfer.files);
+        }, false);
+
+        //Handle files from the file input.
+        document.getElementById("fileselect").addEventListener('change', function(){
+            loadDataset(document.getElementById("fileselect").files);
+        }, false);
+
+        //Update graph when rendering mode or axis scale is changed.
+        document.getElementById("renderCanvas").addEventListener('change', function(){
+            setRenderer(this.value);
+        }, false);
+        document.getElementById("renderSVG").addEventListener('change', function(){
+            setRenderer(this.value);
+        }, false);
+        document.getElementById("scaleLinear").addEventListener('change', function(){
+            setScale(this.value);
+        }, false);
+        document.getElementById("scaleLog").addEventListener('change', function(){
+            setScale(this.value);
+        }, false);
+
+        //Save image function.
+        function saveImage(){
+            var link = document.getElementById("saveLink");
+            if(document.getElementById("renderSVG").checked){
+                var svg = document.querySelector("svg.marks");
+                svg.setAttribute("xmlns", "http://www.w3.org/2000/svg"); //Vega does not set this for us
+                link.setAttribute("href", "data:image/svg+xml," + encodeURIComponent(svg.outerHTML));
+                link.setAttribute("download", "graph.svg");
+            }
+            else{
+                link.setAttribute("href", document.getElementsByClassName('marks')[0].toDataURL());
+                link.setAttribute("download", "graph.png");
+            }
+            link.click();
+            link.setAttribute("href", "javascript:void(saveImage())");
+            return false;
+        }
+
+        //Apply current values to graph_spec.
+        if(graph_spec){
+            if(document.getElementById("scaleLinear").checked)
+                setScale(document.getElementById("scaleLinear").value);
+            else
+                setScale(document.getElementById("scaleLog").value);
+        }
+    </script>
+</html>

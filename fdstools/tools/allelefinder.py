@@ -5,7 +5,7 @@ contaminations.
 
 In each sample, the sequences with the highest read counts of each
 marker are called alleles, with a user-defined maximum number of alleles
-par marker.  The allele balance is kept within given bounds.  If the
+per marker.  The allele balance is kept within given bounds.  If the
 highest non-allelic sequence exceeds a given limit, no alleles are
 called for this marker.  If this happens for multiple markers in one
 sample, no alleles are called for this sample at all.
@@ -156,16 +156,17 @@ def add_arguments(parser):
     filtergroup.add_argument('-m', '--min-allele-pct', metavar="PCT",
         type=float, default=_DEF_MIN_ALLELE_PCT,
         help="call heterozygous if the second allele is at least this "
-             "percentage of the highest allele (default: %(default)s)")
+             "percentage of the highest allele of a marker "
+             "(default: %(default)s)")
     filtergroup.add_argument('-M', '--max-noise-pct', metavar="PCT",
         type=float, default=_DEF_MAX_NOISE_PCT,
         help="a sample is considered contaminated/unsuitable for a marker if "
              "the highest non-allelic sequence is at least this percentage of "
-             "the highest allele (default: %(default)s)")
+             "the highest allele of that marker (default: %(default)s)")
     filtergroup.add_argument('-n', '--min-reads', metavar="N",
         type=pos_int_arg, default=_DEF_MIN_READS,
         help="require at least this number of reads for the highest allele "
-             "(default: %(default)s)")
+             "of each marker (default: %(default)s)")
     filtergroup.add_argument('-a', '--max-alleles', metavar="N",
         type=pos_int_arg, default=_DEF_MAX_ALLELES,
         help="allow no more than this number of alleles per marker (default: "
