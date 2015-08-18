@@ -3,7 +3,7 @@
   "height": 10,
   "data": [
     {
-      "name": "table",
+      "name": "raw",
       "values": "sample_data_file_contents_here",
       "format": {
         "type": "tsv",
@@ -26,8 +26,53 @@
           "expr": "datum.total_add? datum.total_corr+datum.total_add : datum.total_corr"
         },
         {
+          "type": "formula",
+          "field": "amplitude",
+          "expr": "max(abs(datum.total), abs(datum.total_add))"
+        }
+      ]
+    },
+    {
+      "name": "maxima",
+      "source": "raw",
+      "transform": [
+        {
+          "type": "aggregate",
+          "groupby": ["name"],
+          "summarize": {"amplitude": "max"}
+        }
+      ]
+    },
+    {
+      "name": "table",
+      "source": "raw",
+      "transform": [
+        {
+          "type": "lookup",
+          "on": "maxima",
+          "onKey": "name",
+          "keys": ["name"],
+          "as": ["aggr"],
+          "default": {"max_amplitude": 0}
+        },
+        {
+          "type": "formula",
+          "field": "amplitude_threshold",
+          "expr": "5"
+        },
+        {
+          "type": "formula",
+          "field": "amplitude_pct_threshold",
+          "expr": "0.5"
+        },
+        {
+          "type": "formula",
+          "field": "amplitude_pct",
+          "expr": "datum.aggr.max_amplitude? (datum.amplitude/datum.aggr.max_amplitude*100) : 100"
+        },
+        {
           "type": "filter",
-          "test": "max(datum.total, datum.total_add) > 15"
+          "test": "datum.amplitude > datum.amplitude_threshold && datum.amplitude_pct > datum.amplitude_pct_threshold"
         },
         {
           "type": "formula",
@@ -124,24 +169,24 @@
       "source": "markercounts",
       "transform": [
         {
-          "type": "zip",
-          "with": "markerpadding",
-          "as": "paddingobj",
-          "key": "name",
-          "withKey": "name",
+          "type": "lookup",
+          "on": "markerpadding",
+          "onKey": "name",
+          "keys": ["name"],
+          "as": ["paddingobj"],
           "default": {"cumulpadding": 0}
         },
         {
-          "type": "zip",
-          "with": "markeroffsets",
-          "as": "offsetobj",
-          "key": "name",
-          "withKey": "name",
+          "type": "lookup",
+          "on": "markeroffsets",
+          "onKey": "name",
+          "keys": ["name"],
+          "as": ["offsetobj"],
           "default": {"cumulcount": 0}
         },
         {
           "type": "formula",
-          "field": "barheight",
+          "field": "barwidth",
           "expr": "15"
         },
         {
@@ -152,12 +197,12 @@
         {
           "type": "formula",
           "field": "offset",
-          "expr": "datum.barheight*datum.offsetobj.cumulcount + datum.markeroffset*datum.paddingobj.cumulpadding"
+          "expr": "datum.barwidth*datum.offsetobj.cumulcount + datum.markeroffset*datum.paddingobj.cumulpadding"
         },
         {
           "type": "formula",
           "field": "end",
-          "expr": "datum.offset + datum.barheight*datum.count"
+          "expr": "datum.offset + datum.barwidth*datum.count"
         }
       ]
     }
@@ -198,11 +243,11 @@
             "groupby": ["name"]
           },
           {
-            "type": "zip",
-            "with": "yscale",
-            "as": "markerscale",
-            "key": "name",
-            "withKey": "name"
+            "type": "lookup",
+            "on": "yscale",
+            "onKey": "name",
+            "keys": ["name"],
+            "as": ["markerscale"]
           }
         ]
       },

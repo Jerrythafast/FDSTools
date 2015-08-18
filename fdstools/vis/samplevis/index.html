@@ -1,62 +1,67 @@
 <!DOCTYPE html>
 <html>
-    <head>
-        <meta charset="UTF-8">
-        <title>Sample Visualisation</title/>
-        <!-- BEGIN_EXTERNAL_SCRIPTS -->
-        <script src="http://vega.github.io/vega-editor/vendor/d3.min.js"></script>
-        <script src="http://vega.github.io/vega/vega.min.js"></script>
-        <script type="text/javascript">
-            var graph_spec = false;
-            vg.util.load({url: "samplevis.json"}, function(err, result){
-                graph_spec = JSON.parse(result);
-            })
-        </script>
-        <!-- END_EXTERNAL_SCRIPTS -->
-        <style>
-            * {
-                font-family: Helvetica Neue, Helvetica, Arial, sans-serif;
-            }
-            body {
-                margin: 0px
-            }
-            div.options {
-                position: absolute;
-                margin: 5px;
-                background-color: rgba(128, 128, 255, 0.5);
-                z-index: 10;
-            }
-            div.view {
-                position: absolute;
-                overflow: auto;
-                bottom: 0px;
-                top: 0px;
-                padding-top: 150px;
-                left: 0px;
-                right: 0px;
-                text-align: right;
-            }
-        </style>
-    </head>
-    <body>
-        <div class="options">
-            <strong>Options</strong><br>
-            Open sample data file: <input id="fileselect" type="file"> (or drag a file onto this page)<br>
+<head>
+    <meta charset="UTF-8">
+    <title>Sample Visualisation - FDSTools</title/>
+    <!-- BEGIN_LIBRARIES -->
+    <script src="http://vega.github.io/vega-editor/vendor/d3.min.js"></script>
+    <script src="http://vega.github.io/vega/vega.min.js"></script>
+    <!-- END_LIBRARIES -->
+    <style>
+        * {
+            font-family: Helvetica Neue, Helvetica, Arial, sans-serif;
+        }
+        body {
+            margin: 0px
+        }
+        div.options {
+            position: absolute;
+            margin: 5px;
+            background-color: rgba(128, 128, 255, 0.5);
+            z-index: 10;
+        }
+        #optionsheader{
+            cursor: pointer;
+        }
+        #optionsheader:hover{
+            border-bottom: 1px dashed black;
+        }
+        div#vis {
+            position: absolute;
+            overflow: auto;
+            bottom: 0px;
+            top: 0px;
+            right: 0px;
+            left: 0px;
+            text-align: right;
+        }
+    </style>
+</head>
+<body>
+    <div class="options">
+        <strong id="optionsheader">Options</strong><br>
+        <div id="options">
+            <span id="fileselectspan" style="display: none">
+                Open sample data file (or drag a file onto this page): <input id="fileselect" type="file"><br>
+            </span>
+            Display options: bar width <input type="text" value="15" id="barwidth" size="2">px; marker spacing <input type="text" value="70" id="markeroffset" size="3">px<br>
+            Filtering: require at least <input type="text" value="15" id="minN" size="3"> reads and at least <input type="text" value="0.5" id="minP" size="3">% of highest allele per marker<br>
             Axis scale: <input type="radio" name="scale" value="linear" id="scaleLinear" checked> Linear
             <input type="radio" name="scale" value="sqrt" id="scaleLog"> Square root<br>
             Render as: <input type="radio" name="renderer" value="canvas" id="renderCanvas"> Canvas
             <input type="radio" name="renderer" value="svg" id="renderSVG" checked> SVG<br>
             <a id="saveLink" href="javascript:void(saveImage())" style="display: none">Save image</a>
         </div>
-        <div id="vis" class="view"></div>
-    </body>
+    </div>
+    <div id="vis"></div>
     <script type="text/javascript">
+        var graph = false;
         function parse(){
             vg.parse.spec(graph_spec, function(chart){
                 var rendererName = "canvas";
                 if(document.getElementById("renderSVG").checked)
                     rendererName="svg";
-                graph = chart({el:"#vis",renderer:rendererName});
+                graph = chart({el: "#vis", renderer: rendererName});
                 graph.update();
                 document.getElementById("saveLink").style.display = "inline";
 
@@ -78,7 +83,37 @@
 
             if(graph)
                 parse();
-            return;
+        }
+
+        function setDataFormulaTransformValue(dataname, fieldname, value){
+            if(!graph_spec)
+                return false;
+            for(i in graph_spec["data"]){
+                if(graph_spec["data"][i]["name"] == dataname){
+                    for(j in graph_spec["data"][i]["transform"]){
+                        if(graph_spec["data"][i]["transform"][j]["type"] == "formula" && graph_spec["data"][i]["transform"][j]["field"] == fieldname){
+                            graph_spec["data"][i]["transform"][j]["expr"] = "" + value;
+                            return true;
+                        }
+                    }
+                }
+            }
+            return false;
+        }
+
+        function getDataFormulaTransformValue(dataname, fieldname){
+            if(!graph_spec)
+                return false;
+            for(i in graph_spec["data"]){
+                if(graph_spec["data"][i]["name"] == dataname){
+                    for(j in graph_spec["data"][i]["transform"]){
+                        if(graph_spec["data"][i]["transform"][j]["type"] == "formula" && graph_spec["data"][i]["transform"][j]["field"] == fieldname){
+                            return graph_spec["data"][i]["transform"][j]["expr"];
+                        }
+                    }
+                }
+            }
+            return false;
         }
 
         function setRenderer(value){
@@ -98,36 +133,6 @@
             reader.readAsText(fileList[0]);
         }
 
-        //Allow files to be dragged onto the page.
-        document.addEventListener('dragover', function(evt){
-            evt.stopPropagation();
-            evt.preventDefault();
-        }, false);
-        document.addEventListener('drop', function(evt){
-            evt.stopPropagation();
-            evt.preventDefault();
-            loadDataset(evt.dataTransfer.files);
-        }, false);
-
-        //Handle files from the file input.
-        document.getElementById("fileselect").addEventListener('change', function(){
-            loadDataset(document.getElementById("fileselect").files);
-        }, false);
-
-        //Update graph when rendering mode or axis scale is changed.
-        document.getElementById("renderCanvas").addEventListener('change', function(){
-            setRenderer(this.value);
-        }, false);
-        document.getElementById("renderSVG").addEventListener('change', function(){
-            setRenderer(this.value);
-        }, false);
-        document.getElementById("scaleLinear").addEventListener('change', function(){
-            setScale(this.value);
-        }, false);
-        document.getElementById("scaleLog").addEventListener('change', function(){
-            setScale(this.value);
-        }, false);
-
         //Save image function.
         function saveImage(){
             var link = document.getElementById("saveLink");
@@ -146,12 +151,100 @@
             return false;
         }
 
-        //Apply current values to graph_spec.
-        if(graph_spec){
+        function onLoadSpec(single_sample){
+            //Allow files to be dragged onto the page.
+            if(!single_sample){
+                document.addEventListener('dragover', function(evt){
+                    evt.stopPropagation();
+                    evt.preventDefault();
+                }, false);
+                document.addEventListener('drop', function(evt){
+                    evt.stopPropagation();
+                    evt.preventDefault();
+                    loadDataset(evt.dataTransfer.files);
+                }, false);
+
+                //Handle files from the file input.
+                document.getElementById("fileselect").addEventListener('change', function(){
+                    loadDataset(document.getElementById("fileselect").files);
+                }, false);
+                document.getElementById("fileselectspan").style.display = "inline";
+            }
+
+            //Update graph when rendering mode or axis scale is changed.
+            document.getElementById("renderCanvas").addEventListener('change', function(){
+                setRenderer(this.value);
+            }, false);
+            document.getElementById("renderSVG").addEventListener('change', function(){
+                setRenderer(this.value);
+            }, false);
+            document.getElementById("scaleLinear").addEventListener('change', function(){
+                setScale(this.value);
+            }, false);
+            document.getElementById("scaleLog").addEventListener('change', function(){
+                setScale(this.value);
+            }, false);
+            document.getElementById("barwidth").addEventListener('keyup', function(){
+                var value = parseFloat(this.value);
+                if(isNaN(value))
+                    return;
+                if(setDataFormulaTransformValue("yscale", "barwidth", value) && graph)
+                    parse();
+            }, false);
+            document.getElementById("markeroffset").addEventListener('keyup', function(){
+                var value = parseFloat(this.value);
+                if(isNaN(value))
+                    return;
+                if(setDataFormulaTransformValue("yscale", "markeroffset", value) && graph)
+                    parse();
+            }, false);
+            document.getElementById("minN").addEventListener('keyup', function(){
+                var value = parseFloat(this.value);
+                if(isNaN(value))
+                    return;
+                if(setDataFormulaTransformValue("table", "amplitude_threshold", value) && graph)
+                    parse();
+            }, false);
+            document.getElementById("minP").addEventListener('keyup', function(){
+                var value = parseFloat(this.value);
+                if(isNaN(value))
+                    return;
+                if(setDataFormulaTransformValue("table", "amplitude_pct_threshold", value) && graph)
+                    parse();
+            }, false);
+
+            //Toggle options visibility.
+            document.getElementById("optionsheader").addEventListener('click', function(){
+                var opts = document.getElementById("options");
+                if(opts.style.display == "none")
+                    document.getElementById("options").style.display = "block";
+                else
+                    document.getElementById("options").style.display = "none";
+            }, false);
+
+            //Sync graph_spec and display.
             if(document.getElementById("scaleLinear").checked)
                 setScale(document.getElementById("scaleLinear").value);
             else
                 setScale(document.getElementById("scaleLog").value);
+            document.getElementById("barwidth").value = getDataFormulaTransformValue("yscale", "barwidth");
+            document.getElementById("markeroffset").value = getDataFormulaTransformValue("yscale", "markeroffset");
+            document.getElementById("minN").value = getDataFormulaTransformValue("table", "amplitude_threshold");
+            document.getElementById("minP").value = getDataFormulaTransformValue("table", "amplitude_pct_threshold");
+            if(single_sample){
+                document.getElementById("options").style.display = "none";
+                parse();
+            }
         }
     </script>
+    <!-- BEGIN_LOAD_SCRIPT -->
+    <script type="text/javascript">
+        var graph_spec = false;
+        vg.util.load({url: "samplevis.json"}, function(err, result){
+            graph_spec = JSON.parse(result);
+            onLoadSpec(false);
+        });
+    </script>
+    <!-- END_LOAD_SCRIPT -->
+</body>
 </html>
