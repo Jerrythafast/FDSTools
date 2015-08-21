@@ -214,6 +214,12 @@ def convert_library(infile, outfile, aliases=False):
         ini.add_section("block_length")
         ini.set("block_length", "; Specify the core repeat unit length of "
                                 "each marker. The default length is 4.")
+        ini.add_section("max_expected_copies")
+        ini.set("max_expected_copies", "; Specify the maximum expected number "
+                                       "copies (i.e., alleles) for each "
+                                       "marker.")
+        ini.set("max_expected_copies", "; The default is 2. Specify 1 "
+                                       "here for markers on the Y chromosome.")
 
         # Enter flanking sequences and STR definitions.
         fmt = "%%-%is" % reduce(max, map(len,
@@ -237,6 +243,9 @@ def convert_library(infile, outfile, aliases=False):
                 length_counts, key=lambda x: -length_counts[x])[0]
             if block_length != 0 and block_length < 10:
                 ini.set("block_length", fmt%marker, block_length)
+
+            # Write max_expected_copies=2 for all markers explicitly.
+            ini.set("max_expected_copies", fmt%marker, 2)
 
             # TODO: I could also do some fiddling for prefix/suffix...
 

@@ -2,7 +2,7 @@
 <html>
 <head>
     <meta charset="UTF-8">
-    <title>Sample Visualisation - FDSTools</title/>
+    <title>Background Noise Profile Visualisation - FDSTools</title/>
     <!-- BEGIN_LIBRARIES -->
     <script src="http://vega.github.io/vega-editor/vendor/d3.min.js"></script>
     <script src="http://vega.github.io/vega/vega.min.js"></script>
@@ -44,12 +44,16 @@
             <span id="fileselectspan" style="display: none">
                 Open sample data file (or drag a file onto this page): <input id="fileselect" type="file"><br>
             </span>
-            Display options: bar width <input type="text" value="15" id="barwidth" size="2">px; marker spacing <input type="text" value="70" id="subgraphoffset" size="3">px<br>
-            Filtering: require at least <input type="text" value="15" id="minN" size="3"> reads and at least <input type="text" value="0.5" id="minP" size="3">% of highest allele per marker<br>
+            <!--
+            Select marker: <select id="markers"></select><br>
+            Select allele: <select id="alleles"></select><br> -->
+            Display options: bar width <input type="text" value="15" id="barwidth" size="2">px; subgraph spacing <input type="text" value="70" id="subgraphoffset" size="3">px<br>
+            Filtering: minimum noise ratio <input type="text" value="0.5" id="minP" size="3">%<br>
             Axis scale: <input type="radio" name="scale" value="linear" id="scaleLinear" checked> Linear
-            <input type="radio" name="scale" value="sqrt" id="scaleLog"> Square root<br>
+            <input type="radio" name="scale" value="log" id="scaleLog"> Logarithmic<br>
             Render as: <input type="radio" name="renderer" value="canvas" id="renderCanvas"> Canvas
-            <input type="radio" name="renderer" value="svg" id="renderSVG" checked> SVG<br>
+            <input type="radio" name="renderer" value="svg" id="renderSVG" checked> SVG
+            <br>
             <a id="saveLink" href="javascript:void(saveImage())" style="display: none">Save image</a>
         </div>
     </div>
@@ -79,9 +83,8 @@
                     for(j in graph_spec["marks"][i]["scales"])
                         if(graph_spec["marks"][i]["scales"][j]["name"] == "x")
                             graph_spec["marks"][i]["scales"][j]["type"] = value;
-
-            if(graph)
-                parse();
+            setDataFormulaTransformValue("table", "low", value == "log"? "0.001" : "0");
+            parse();
         }
 
         function setDataFormulaTransformValue(dataname, fieldname, value){
@@ -197,18 +200,11 @@
                 if(setDataFormulaTransformValue("yscale", "subgraphoffset", value) && graph)
                     parse();
             }, false);
-            document.getElementById("minN").addEventListener('keyup', function(){
-                var value = parseFloat(this.value);
-                if(isNaN(value))
-                    return;
-                if(setDataFormulaTransformValue("table", "amplitude_threshold", value) && graph)
-                    parse();
-            }, false);
             document.getElementById("minP").addEventListener('keyup', function(){
                 var value = parseFloat(this.value);
                 if(isNaN(value))
                     return;
-                if(setDataFormulaTransformValue("table", "amplitude_pct_threshold", value) && graph)
+                if(setDataFormulaTransformValue("table", "filter_threshold", value) && graph)
                     parse();
             }, false);
 
@@ -228,8 +224,7 @@
                 setScale(document.getElementById("scaleLog").value);
             document.getElementById("barwidth").value = getDataFormulaTransformValue("yscale", "barwidth");
             document.getElementById("subgraphoffset").value = getDataFormulaTransformValue("yscale", "subgraphoffset");
-            document.getElementById("minN").value = getDataFormulaTransformValue("table", "amplitude_threshold");
-            document.getElementById("minP").value = getDataFormulaTransformValue("table", "amplitude_pct_threshold");
+            document.getElementById("minP").value = getDataFormulaTransformValue("table", "filter_threshold");
             if(has_data){
                 document.getElementById("options").style.display = "none";
                 parse();
@@ -239,7 +234,7 @@
     <!-- BEGIN_LOAD_SCRIPT -->
     <script type="text/javascript">
         var graph_spec = false;
-        vg.util.load({url: "samplevis.json"}, function(err, result){
+        vg.util.load({url: "profilevis.json"}, function(err, result){
             graph_spec = JSON.parse(result);
             onLoadSpec(false);
         });

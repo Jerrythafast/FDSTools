@@ -108,7 +108,7 @@ def create_visualisation(vistype, infile, outfile, vega, online, tidy,
         set_data_formula_transform_value(
             spec, "yscale", "barwidth", bar_width)
         set_data_formula_transform_value(
-            spec, "yscale", "markeroffset", padding)
+            spec, "yscale", "subgraphoffset", padding)
         set_data_formula_transform_value(
             spec, "table", "amplitude_threshold", min_abs)
         set_data_formula_transform_value(
@@ -210,6 +210,11 @@ def run(args):
         # One filename given, and it does not exist.  Assume outfile.
         args.outfile = open(args.infile, 'w')
         args.infile = None
+
+    if args.outfile.isatty():
+        raise ValueError("Please specify a file name to write the %s to." %
+                         ("Vega graph specification (JSON format)" if args.vega
+                          else "HTML document"))
 
     if args.infile is not None and args.infile != sys.stdin:
         # Open the specified input file.

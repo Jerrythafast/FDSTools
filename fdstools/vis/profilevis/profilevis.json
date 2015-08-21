@@ -4,104 +4,61 @@
   "data": [
     {
       "name": "raw",
-      "values": "sample_data_file_contents_here",
+      "values": "VALUES HERE",
       "format": {
         "type": "tsv",
         "parse": {
-          "forward": "number",
-          "total": "number",
-          "total_noise": "number",
-          "total_add": "number"
+          "fmean": "number",
+          "rmean": "number"
         }
-      },
-      "transform": [
-        {
-          "type": "formula",
-          "field": "total_corr",
-          "expr": "datum.total_noise? datum.total-datum.total_noise : datum.total"
-        },
-        {
-          "type": "formula",
-          "field": "total_add",
-          "expr": "datum.total_add? datum.total_corr+datum.total_add : datum.total_corr"
-        },
-        {
-          "type": "formula",
-          "field": "amplitude",
-          "expr": "max(abs(datum.total), abs(datum.total_add))"
-        }
-      ]
-    },
-    {
-      "name": "maxima",
-      "source": "raw",
-      "transform": [
-        {
-          "type": "aggregate",
-          "groupby": ["name"],
-          "summarize": {"amplitude": "max"}
-        }
-      ]
+      }
     },
     {
       "name": "table",
       "source": "raw",
       "transform": [
         {
-          "type": "lookup",
-          "on": "maxima",
-          "onKey": "name",
-          "keys": ["name"],
-          "as": ["aggr"],
-          "default": {"max_amplitude": 0}
-        },
-        {
           "type": "formula",
-          "field": "amplitude_threshold",
-          "expr": "5"
-        },
-        {
-          "type": "formula",
-          "field": "amplitude_pct_threshold",
+          "field": "filter_threshold",
           "expr": "0.5"
         },
         {
-          "type": "formula",
-          "field": "amplitude_pct",
-          "expr": "datum.aggr.max_amplitude? (datum.amplitude/datum.aggr.max_amplitude*100) : 100"
-        },
-        {
           "type": "filter",
-          "test": "datum.amplitude > datum.amplitude_threshold && datum.amplitude_pct > datum.amplitude_pct_threshold"
+          "test": "datum.fmean+datum.rmean < 200 && max(datum.fmean, datum.rmean) > datum.filter_threshold"
         },
         {
           "type": "formula",
-          "field": "shared",
-          "expr": "max(0, datum.total_corr)"
+          "field": "low",
+          "expr": "0"
         },
         {
           "type": "formula",
-          "field": "corr_shared",
-          "expr": "min(datum.total, datum.total_add)"
+          "field": "fmean",
+          "expr": "max(datum.fmean, datum.low)"
         },
         {
           "type": "formula",
-          "field": "corr_decreased",
-          "expr": "max(datum.total, datum.corr_shared)"
+          "field": "rmean",
+          "expr": "max(datum.rmean, datum.low)"
         },
         {
           "type": "formula",
-          "field": "corr_increased",
-          "expr": "max(datum.corr_shared, datum.total_add)"
+          "field": "flabel",
+          "expr": "indexof(''+round(datum.fmean*10)/10, '.') == -1? ((round(datum.fmean*10)/10) + '.0') : slice((round(datum.fmean*10)/10)+'0', 0, indexof((round(datum.fmean*10)/10) + '.', '.')+2)"
         },
         {
           "type": "formula",
-          "field": "forwardpct",
-          "expr": "100.0 / datum.total * datum.forward"
+          "field": "rlabel",
+          "expr": "indexof(''+round(datum.rmean*10)/10, '.') == -1? ((round(datum.rmean*10)/10) + '.0') : slice((round(datum.rmean*10)/10)+'0', 0, indexof((round(datum.rmean*10)/10) + '.', '.')+2)"
+        },
+        {
+          "type": "formula",
+          "field": "name",
+          "expr": "datum.marker + ' ' + datum.allele"
         },
         {
           "type": "sort",
-          "by": ["name", "allele", "-total_add", "-total_corr", "-total"]
+          "by": ["name", "sequence"]
         }
       ]
     },
@@ -197,12 +154,12 @@
         {
           "type": "formula",
           "field": "offset",
-          "expr": "datum.barwidth*datum.offsetobj.cumulcount + datum.subgraphoffset*datum.paddingobj.cumulpadding"
+          "expr": "2*datum.barwidth*datum.offsetobj.cumulcount + datum.subgraphoffset*datum.paddingobj.cumulpadding"
         },
         {
           "type": "formula",
           "field": "end",
-          "expr": "datum.offset + datum.barwidth*datum.count"
+          "expr": "datum.offset + 2*datum.barwidth*datum.count"
         }
       ]
     }
@@ -211,8 +168,8 @@
     {
       "name": "c",
       "type": "ordinal",
-      "range": ["#5e3c99", "#b2abd2", "#fdb863", "#e66101"],
-      "domain": ["Shared base", "Correction removed", "Correction shared", "Correction added"]
+      "range": ["#5e3c99", "#e66101"],
+      "domain": ["Forward reads", "Reverse reads"]
     }
   ],
   "marks": [
@@ -264,32 +221,28 @@
         {
           "name": "x",
           "type": "linear",
+          "nice": true,
           "range": "width",
-          "domain": {"field": ["total", "total_corr", "total_add"]}
+          "domain": {"data": "table", "field": ["low", "fmean", "rmean"]}
         },
         {
           "name": "y",
           "type": "ordinal",
           "range": "height",
-          "domain": {"field": "allele"}
+          "domain": {"field": "sequence"}
         }
       ],
       "axes": [
         {
           "type": "x",
           "scale": "x",
+          "format": "s",
           "grid": true,
           "layer": "back",
-          "title": "Number of reads",
+          "title": "Noise ratio (%)",
           "properties": {
-            "labels": {
-              "align": {"value": "right"},
-              "baseline": {"value": "middle"},
-              "dy": {"value": 3},
-              "angle": {"value": -25}
-            },
             "title": {
-              "dy": {"value": 5}
+              "dy": {"value": -5}
             }
           }
         },
@@ -312,76 +265,37 @@
       ],
       "marks": [
         {
-          "type": "rect",
-          "properties": {
-            "enter": {
-              "x": {"scale": "x", "value": 0},
-              "x2": {"scale": "x", "field": "shared"},
-              "y": {"scale": "y", "field": "allele", "offset": 1},
-              "height": {"scale": "y", "band": true, "offset": -2},
-              "fill": {"scale": "c", "value": "Shared base"},
-              "fillOpacity": {"value": 0.8}
-            }
-          }
-        },
-        {
-          "type": "rect",
-          "properties": {
-            "enter": {
-              "x": {"scale": "x", "field": "corr_shared"},
-              "x2": {"scale": "x", "field": "corr_decreased"},
-              "y": {"scale": "y", "field": "allele", "offset": 1},
-              "height": {"scale": "y", "band": true, "offset": -2},
-              "fill": {"scale": "c", "value": "Correction removed"},
-              "fillOpacity": {"value": 0.8}
-            }
-          }
-        },
-        {
-          "type": "rect",
-          "properties": {
-            "enter": {
-              "x": {"scale": "x", "field": "total_corr"},
-              "x2": {"scale": "x", "field": "corr_shared"},
-              "y": {"scale": "y", "field": "allele", "offset": 1},
-              "height": {"scale": "y", "band": true, "offset": -2},
-              "fill": {"scale": "c", "value": "Correction shared"},
-              "fillOpacity": {"value": 0.8}
-            }
-          }
-        },
-        {
-          "type": "rect",
-          "properties": {
-            "enter": {
-              "x": {"scale": "x", "field": "corr_shared"},
-              "x2": {"scale": "x", "field": "corr_increased"},
-              "y": {"scale": "y", "field": "allele", "offset": 1},
-              "height": {"scale": "y", "band": true, "offset": -2},
-              "fill": {"scale": "c", "value": "Correction added"},
-              "fillOpacity": {"value": 0.8}
-            }
-          }
-        },
-        {
           "type": "group",
           "from": {
-            "transform": [{"type": "facet", "groupby": ["allele"]}]
+            "transform": [
+              {
+                "type": "facet",
+                "groupby": ["sequence"]
+              }
+            ]
           },
           "properties": {
             "enter": {
               "x": {"value": 0},
-              "width": {"field": {"group": "width"}},
               "y": {"scale": "y", "field": "key", "offset": 1},
+              "width": {"field": {"group": "width"}},
               "height": {"scale": "y", "band": true, "offset": -2}
             }
           },
           "scales": [
             {
-              "name": "balance",
+              "name": "bars",
+              "type": "ordinal",
               "range": "height",
-              "nice": false,
-              "domain": [0, 100]
+              "domain": ["Forward reads", "Reverse reads"]
+            },
+            {
+              "name": "labels",
+              "type": "ordinal",
+              "range": "height",
+              "points": "true",
+              "padding": 1,
+              "domain": ["Forward reads", "Reverse reads"]
             }
           ],
           "marks": [
@@ -389,11 +303,53 @@
               "type": "rect",
               "properties": {
                 "enter": {
-                  "x": {"scale": "x", "value": 0},
-                  "x2": {"scale": "x", "field": "total"},
-                  "y": {"scale": "balance", "field": "forwardpct", "offset": -0.5},
-                  "y2": {"scale": "balance", "field": "forwardpct", "offset": 0.5},
-                  "fill": {"value": "black"}
+                  "x": {"scale": "x", "field": "low"},
+                  "x2": {"scale": "x", "field": "fmean"},
+                  "y": {"scale": "bars", "value": "Forward reads"},
+                  "height": {"scale": "bars", "band": true},
+                  "fill": {"scale": "c", "value": "Forward reads"},
+                  "fillOpacity": {"value": 0.8}
+                }
+              }
+            },
+            {
+              "type": "text",
+              "properties": {
+                "enter": {
+                  "x": {"scale": "x", "field": "fmean", "offset": 5},
+                  "y": {"scale": "labels", "value": "Forward reads"},
+                  "fontWeight": {"value": "bold"},
+                  "text": {"field": "flabel"},
+                  "align": {"value": "left"},
+                  "baseline": {"value": "middle"},
+                  "fill": {"value": "#000000"}
+                }
+              }
+            },
+            {
+              "type": "rect",
+              "properties": {
+                "enter": {
+                  "x": {"scale": "x", "field": "low"},
+                  "x2": {"scale": "x", "field": "rmean"},
+                  "y": {"scale": "bars", "value": "Reverse reads"},
+                  "height": {"scale": "bars", "band": true},
+                  "fill": {"scale": "c", "value": "Reverse reads"},
+                  "fillOpacity": {"value": 0.8}
+                }
+              }
+            },
+            {
+              "type": "text",
+              "properties": {
+                "enter": {
+                  "x": {"scale": "x", "field": "rmean", "offset": 5},
+                  "y": {"scale": "labels", "value": "Reverse reads"},
+                  "fontWeight": {"value": "bold"},
+                  "text": {"field": "rlabel"},
+                  "align": {"value": "left"},
+                  "baseline": {"value": "middle"},
+                  "fill": {"value": "#000000"}
                 }
               }
             }

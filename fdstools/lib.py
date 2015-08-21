@@ -285,6 +285,7 @@ def parse_library_ini(handle):
       "regex_middle": {},
       "length_adjust": {},
       "block_length": {},
+      "max_expected_copies": {},
       "aliases": {}
     }
     markers = set()
@@ -295,7 +296,8 @@ def parse_library_ini(handle):
     for section in ini.sections():
         for marker in ini.options(section):
             value = ini.get(section, marker)
-            if section == "flanks":
+            section_low = section.lower()
+            if section_low == "flanks":
                 values = PAT_SPLIT.split(value)
                 if len(values) != 2:
                     raise ValueError(
@@ -308,7 +310,7 @@ def parse_library_ini(handle):
                             (value, marker))
                 library["flanks"][marker] = values
                 markers.add(marker)
-            elif section == "prefix":
+            elif section_low == "prefix":
                 values = PAT_SPLIT.split(value)
                 for value in values:
                     if PAT_SEQ_RAW.match(value) is None:
@@ -317,7 +319,7 @@ def parse_library_ini(handle):
                             (value, marker))
                 library["prefix"][marker] = values
                 markers.add(marker)
-            elif section == "suffix":
+            elif section_low == "suffix":
                 values = PAT_SPLIT.split(value)
                 for value in values:
                     if PAT_SEQ_RAW.match(value) is None:
@@ -326,7 +328,7 @@ def parse_library_ini(handle):
                             (value, marker))
                 library["suffix"][marker] = values
                 markers.add(marker)
-            elif section == "length_adjust":
+            elif section_low == "length_adjust":
                 try:
                     value = int(value)
                 except:
@@ -335,7 +337,7 @@ def parse_library_ini(handle):
                         "integer" % (value, marker))
                 library["length_adjust"][marker] = value
                 markers.add(marker)
-            elif section == "block_length":
+            elif section_low == "block_length":
                 try:
                     value = int(value)
                 except:
@@ -344,7 +346,16 @@ def parse_library_ini(handle):
                         % (value, marker))
                 library["block_length"][marker] = value
                 markers.add(marker)
-            elif section == "aliases":
+            elif section_low == "max_expected_copies":
+                try:
+                    value = int(value)
+                except:
+                    raise ValueError(
+                        "Maximum number of expected copies '%s' of marker %s "
+                        "is not a valid integer" % (value, marker))
+                library["max_expected_copies"][marker] = value
+                markers.add(marker)
+            elif section_low == "aliases":
                 values = PAT_SPLIT.split(value)
                 if len(values) != 3:
                     raise ValueError("Alias %s does not have 3 values, but %i"
@@ -363,7 +374,7 @@ def parse_library_ini(handle):
                     "name": values[2]
                 }
                 markers.add(marker)
-            elif section == "repeat":
+            elif section_low == "repeat":
                 if PAT_STR_DEF.match(value) is None:
                     raise ValueError(
                         "STR definition '%s' of marker %s is invalid" %
@@ -384,8 +395,8 @@ def parse_library_ini(handle):
             parts.append("(%s){0,1}" % library["aliases"][marker]["sequence"])
             partsm.append("(%s){0,1}" % library["aliases"][marker]["sequence"])
         elif marker in library["regex"]:
-            partsm = ("(%s){%s,%s}" % x for x in
-                      PAT_STR_DEF_BLOCK.findall(library["regex"][marker]))
+            partsm = ["(%s){%s,%s}" % x for x in
+                      PAT_STR_DEF_BLOCK.findall(library["regex"][marker])]
             parts += partsm
         if marker in library["suffix"]:
             parts += ("(%s){0,1}" % x for x in library["suffix"][marker])
@@ -622,8 +633,8 @@ def convert_sequence_raw_tssv(seq, library, marker, return_alias=False):
                 # canonical prefix ends with the first few blocks that
                 # we obtained in the match, move these blocks into the
                 # prefix.  Also do this with the suffix.
-                middle = ((match.group(i), match.end(i)+len(pre_suf[0]))
-                    for i in range(1, match.lastindex+1) if match.group(i))
+                middle = [(match.group(i), match.end(i)+len(pre_suf[0]))
+                    for i in range(1, match.lastindex+1) if match.group(i)]
                 pre_suf[0] += seq[:match.start()]
                 pre_suf[1] = seq[match.end():] + pre_suf[1]
                 seq = match.group()
@@ -716,10 +727,12 @@ def convert_sequence_raw_allelename(seq, library, marker):
     remaining_blocks = len(blocks)
     if "prefix" in library and marker in library["prefix"]:
         prefix = library["prefix"][marker][0]
-        remaining_blocks -= 1
+        if prefix and blocks[0][1] == "1":
+            remaining_blocks -= 1
     if "suffix" in library and marker in library["suffix"]:
         suffix = library["suffix"][marker][0]
-        remaining_blocks -= 1
+        if suffix and blocks[-1][1] == "1":
+            remaining_blocks -= 1
     if remaining_blocks > 0 and prefix and blocks[0][1] == "1":
         this_prefix = blocks[0][0]
         blocks = blocks[1:]
@@ -739,11 +752,12 @@ def convert_sequence_raw_allelename(seq, library, marker):
 
     # We are ready to return the allele name of aliases.
     if alias != marker:
-        return "_".join([library["aliases"][marker]["name"]] + variants)
+        return "_".join([library["aliases"][alias]["name"]] + variants)
 
     # Compute CE allele number for the other alleles.
     # TODO: perhaps produce a more intelligent name if there is exactly
-    #       one alias with the same length
+    #       1 alias with the same length, or only 1 alias sequence is
+    #       contained somewhere within the allele.
     blocknames = []
     blocksize = library.get("block_length", {}).get(marker, 4)
     length -= library.get("length_adjust", {}).get(marker, 0)

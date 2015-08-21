@@ -13,7 +13,7 @@ sample, no alleles are called for this sample at all.
 import argparse
 
 from ..lib import pos_int_arg, add_input_output_args, get_input_output_files, \
-                  ensure_sequence_format, get_sample_data, \
+                  ensure_sequence_format, get_sample_data, parse_library, \
                   add_sequence_format_args
 
 __version__ = "0.1dev"
@@ -37,10 +37,6 @@ _DEF_MIN_ALLELE_PCT = 30.0
 # This value can be overridden by the -M command line option.
 _DEF_MAX_NOISE_PCT = 10.0
 
-# Default maximum number of alleles to expect for each marker.
-# This value can be overridden by the -a command line option.
-_DEF_MAX_ALLELES = 2
-
 # Default maximum number of noisy markers allowed per sample.
 # This value can be overridden by the -x command line option.
 _DEF_MAX_NOISY = 2
@@ -49,8 +45,7 @@ _DEF_MAX_NOISY = 2
 def find_alleles(samples_in, outfile, reportfile, min_reads, min_allele_pct,
                  max_noise_pct, max_alleles, max_noisy, stuttermark_column,
                  seqformat, library):
-    if seqformat is not None and library is not None:
-        library = parse_library(library)
+    library = parse_library(library) if library is not None else {}
 
     outfile.write("\t".join(["sample", "marker", "total", "allele"]) + "\n")
     allelelist = {}
@@ -108,13 +103,14 @@ def find_alleles_sample(data, outfile, reportfile, tag, min_reads,
                     (tag, marker, top_allele[marker]))
             alleles[marker] = {}
             continue
-        if len(alleles[marker]) > max_alleles:
+        expect = get_max_expected_alleles(max_alleles, marker, library)
+        if len(alleles[marker]) > expect:
             allele_order = sorted(alleles[marker],
                                   key=lambda x: -alleles[marker][x])
-            top_noise[marker] = [allele_order[max_alleles],
-                alleles[marker][allele_order[max_alleles]]]
+            top_noise[marker] = [allele_order[expect],
+                alleles[marker][allele_order[expect]]]
             alleles[marker] = {x: alleles[marker][x]
-                               for x in allele_order[:max_alleles]}
+                               for x in allele_order[:expect]}
         if top_noise[marker][1] > top_allele[marker]*(max_noise_pct/100.):
             reportfile.write(
                 "Sample %s is not suitable for marker %s:\n"
@@ -150,6 +146,15 @@ def find_alleles_sample(data, outfile, reportfile, tag, min_reads,
 #find_alleles_sample
 
 
+def get_max_expected_alleles(max_alleles, marker, library):
+    if max_alleles is not None:
+        return max_alleles
+    if "max_expected_copies" in library:
+        return library["max_expected_copies"].get(marker, 2)
+    return 2
+#get_max_expected_alleles
+
+
 def add_arguments(parser):
     add_input_output_args(parser, False, False, True)
     filtergroup = parser.add_argument_group("filtering options")
@@ -168,9 +173,10 @@ def add_arguments(parser):
         help="require at least this number of reads for the highest allele "
              "of each marker (default: %(default)s)")
     filtergroup.add_argument('-a', '--max-alleles', metavar="N",
-        type=pos_int_arg, default=_DEF_MAX_ALLELES,
-        help="allow no more than this number of alleles per marker (default: "
-             "%(default)s)")
+        type=pos_int_arg,
+        help="allow no more than this number of alleles per marker; if "
+             "unspecified, the amounts given in the library file are used, "
+             "which have a default value of 2")
     filtergroup.add_argument('-x', '--max-noisy', metavar="N",
         type=pos_int_arg, default=_DEF_MAX_NOISY,
         help="entirely reject a sample if more than this number of markers "
