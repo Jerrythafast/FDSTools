@@ -116,7 +116,7 @@ def add_arguments(parser):
         type=argparse.FileType('r'),
         help="second library file to use for output; if specified, allele "
              "names can be conveniently updated to fit this new library file")
-    parser.add_argument('-R', '--reverse-complement', metavar="MARKER",
+    parser.add_argument('-r', '--reverse-complement', metavar="MARKER",
         nargs="+", default=[],
         help="to be used togethwer with -L/--library2; specify the markers "
              "for which the sequences are reverse-complemented in the new "

@@ -76,6 +76,15 @@
         },
         {
           "type": "formula",
+          "field": "filter_marker",
+          "expr": "'.*'"
+        },
+        {
+          "type": "filter",
+          "test": "test('^' + datum.filter_marker + '$', datum.name)"
+        },
+        {
+          "type": "formula",
           "field": "shared",
           "expr": "max(0, datum.total_corr)"
         },

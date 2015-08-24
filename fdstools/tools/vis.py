@@ -56,6 +56,14 @@ _DEF_BAR_WIDTH = 15
 # This value can be overridden by the -p command line option.
 _DEF_SUBGRAPH_PADDING = 70
 
+# Default graph width in pixels.
+# This value can be overridden by the -w command line option.
+_DEF_WIDTH = 600
+
+# Default marker name matching regular expression.
+# This value can be overridden by the -M command line option.
+_DEF_MARKER_REGEX = ".*"
+
 # Default data file that Vega will read when -V/--vega is specified
 # without providing data to embed in the file.
 # It is currently impossible to override this value.
@@ -91,7 +99,7 @@ def set_data_formula_transform_value(spec, dataname, fieldname, value):
 
 
 def create_visualisation(vistype, infile, outfile, vega, online, tidy,
-                         min_abs, min_pct, bar_width, padding):
+                         min_abs, min_pct, bar_width, padding, marker, width):
     # Get graph spec.
     spec = json.load(resource_stream(
         "fdstools", "vis/%svis/%svis.json" % (vistype, vistype)))
@@ -104,15 +112,19 @@ def create_visualisation(vistype, infile, outfile, vega, online, tidy,
         spec["data"][0]["url"] = _DEF_DATA_FILENAME
 
     # Apply settings.
+    spec["width"] = width
+    set_data_formula_transform_value(spec, "yscale", "barwidth", bar_width)
+    set_data_formula_transform_value(spec, "yscale", "subgraphoffset", padding)
+    set_data_formula_transform_value(
+        spec, "table", "filter_marker", "'" + marker + "'")
     if vistype == "sample":
-        set_data_formula_transform_value(
-            spec, "yscale", "barwidth", bar_width)
-        set_data_formula_transform_value(
-            spec, "yscale", "subgraphoffset", padding)
         set_data_formula_transform_value(
             spec, "table", "amplitude_threshold", min_abs)
         set_data_formula_transform_value(
             spec, "table", "amplitude_pct_threshold", min_pct)
+    elif vistype == "profile":
+        set_data_formula_transform_value(
+            spec, "table", "filter_threshold", min_pct)
 
     # Stringify spec.
     if tidy:
@@ -156,8 +168,11 @@ def create_visualisation(vistype, infile, outfile, vega, online, tidy,
 
 
 def add_arguments(parser):
-    parser.add_argument('type', metavar="TYPE", choices=("sample",),
-        help="the type of data to visualise: one of %(choices)s")
+    parser.add_argument('type', metavar="TYPE", choices=("sample", "profile"),
+        help="the type of data to visualise; use 'sample' to visualise "
+             "sample data files and BGCorrect output; use 'profile' to "
+             "visualise background noise profiles obtained with BGEstimate, "
+             "BGHomStats, and BGPredict")
     parser.add_argument('infile', metavar="IN", nargs="?",
         help="file containing the data to embed in the visualisation file; if "
              "not specified, HTML visualisation files will contain a file "
@@ -180,24 +195,36 @@ def add_arguments(parser):
     parser.add_argument('-t', '--tidy', action="store_true",
         help="tidily indent the generated JSON")
 
-    samplevis = parser.add_argument_group("sample visualisation options",
-        description="used when TYPE=sample")
-    samplevis.add_argument('-n', '--min-abs', metavar="N", type=pos_int_arg,
+    visgroup = parser.add_argument_group("visualisation options",
+        description="words in [brackets] indicate applicable visualisation "
+                    "types")
+    visgroup.add_argument('-n', '--min-abs', metavar="N", type=pos_int_arg,
         default=_DEF_THRESHOLD_ABS,
-        help="only show alleles with this minimum number of reads (default: "
-             "%(default)s)")
-    samplevis.add_argument('-m', '--min-pct', metavar="PCT", type=float,
+        help="[sample] only show sequences with this minimum number of reads "
+             "(default: %(default)s)")
+    visgroup.add_argument('-m', '--min-pct', metavar="PCT", type=float,
         default=_DEF_THRESHOLD_PCT,
-        help="only show alleles with at least this percentage of the number "
-             "of reads of the highest allele of a marker (default: "
-             "%(default)s)")
-    samplevis.add_argument('-b', '--bar-width', metavar="N", type=pos_int_arg,
+        help="[sample, profile] for sample: only show sequences with at least "
+             "this percentage of the number of reads of the highest allele of "
+             "a marker; for profile: at least this percentage of the true "
+             "allele (default: %(default)s)")
+    visgroup.add_argument('-M', '--marker', metavar="REGEX",
+        default=_DEF_MARKER_REGEX,
+        help="[sample, profile] only show graphs for the markers that match "
+             "the given regular expression; the default value '%(default)s' "
+             "matches any marker name")
+    visgroup.add_argument('-b', '--bar-width', metavar="N", type=pos_int_arg,
         default=_DEF_BAR_WIDTH,
-        help="width of the bars in pixels (default: %(default)s)")
-    samplevis.add_argument('-p', '--padding', metavar="N", type=pos_int_arg,
+        help="[sample, profile] width of the bars in pixels (default: "
+             "%(default)s)")
+    visgroup.add_argument('-p', '--padding', metavar="N", type=pos_int_arg,
         default=_DEF_SUBGRAPH_PADDING,
-        help="amount of padding (in pixels) between graphs of different "
-             "markers (default: %(default)s)")
+        help="[sample, profile] amount of padding (in pixels) between graphs "
+             "of different markers (default: %(default)s)")
+    visgroup.add_argument('-w', '--width', metavar="N", type=pos_int_arg,
+        default=_DEF_WIDTH,
+        help="[sample, profile] width of the graph area in pixels (default: "
+             "%(default)s)")
 #add_arguments
 
 
@@ -222,7 +249,7 @@ def run(args):
 
     create_visualisation(args.type, args.infile, args.outfile, args.vega,
                          args.online, args.tidy, args.min_abs, args.min_pct,
-                         args.bar_width, args.padding)
+                         args.bar_width, args.padding, args.marker, args.width)
 #run
 
 

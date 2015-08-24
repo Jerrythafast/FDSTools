@@ -28,6 +28,15 @@
         },
         {
           "type": "formula",
+          "field": "filter_marker",
+          "expr": "'.*'"
+        },
+        {
+          "type": "filter",
+          "test": "test('^' + datum.filter_marker + '$', datum.marker)"
+        },
+        {
+          "type": "formula",
           "field": "low",
           "expr": "0"
         },
@@ -236,7 +245,7 @@
         {
           "type": "x",
           "scale": "x",
-          "format": "s",
+          "format": ".1r",
           "grid": true,
           "layer": "back",
           "title": "Noise ratio (%)",
