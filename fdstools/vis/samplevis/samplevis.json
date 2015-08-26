@@ -72,7 +72,7 @@
         },
         {
           "type": "filter",
-          "test": "datum.amplitude > datum.amplitude_threshold && datum.amplitude_pct > datum.amplitude_pct_threshold"
+          "test": "datum.amplitude >= datum.amplitude_threshold && datum.amplitude_pct >= datum.amplitude_pct_threshold"
         },
         {
           "type": "formula",
@@ -131,7 +131,7 @@
       "transform": [
         {
           "type": "cross",
-          "with": "barcounts"
+          "diagonal": false
         },
         {
           "type": "filter",

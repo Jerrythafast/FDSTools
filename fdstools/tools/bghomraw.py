@@ -7,8 +7,7 @@ import argparse
 
 from ..lib import pos_int_arg, add_input_output_args, get_input_output_files,\
                   add_allele_detection_args, parse_allelelist, parse_library,\
-                  get_sample_data, add_sequence_format_args, adjust_stats,\
-                  add_random_subsampling_args
+                  get_sample_data, add_sequence_format_args
 
 __version__ = "0.1dev"
 

@@ -117,7 +117,7 @@ def create_visualisation(vistype, infile, outfile, vega, online, tidy,
     set_data_formula_transform_value(spec, "yscale", "subgraphoffset", padding)
     set_data_formula_transform_value(
         spec, "table", "filter_marker", "'" + marker + "'")
-    if vistype == "sample":
+    if vistype == "sample" or vistype == "bgraw":
         set_data_formula_transform_value(
             spec, "table", "amplitude_threshold", min_abs)
         set_data_formula_transform_value(
@@ -168,11 +168,13 @@ def create_visualisation(vistype, infile, outfile, vega, online, tidy,
 
 
 def add_arguments(parser):
-    parser.add_argument('type', metavar="TYPE", choices=("sample", "profile"),
+    parser.add_argument('type', metavar="TYPE",
+        choices=("sample", "profile", "bgraw"),
         help="the type of data to visualise; use 'sample' to visualise "
              "sample data files and BGCorrect output; use 'profile' to "
              "visualise background noise profiles obtained with BGEstimate, "
-             "BGHomStats, and BGPredict")
+             "BGHomStats, and BGPredict; use 'bgraw' to visualise raw "
+             "background noise data obtained with BGHomRaw")
     parser.add_argument('infile', metavar="IN", nargs="?",
         help="file containing the data to embed in the visualisation file; if "
              "not specified, HTML visualisation files will contain a file "
@@ -200,31 +202,31 @@ def add_arguments(parser):
                     "types")
     visgroup.add_argument('-n', '--min-abs', metavar="N", type=pos_int_arg,
         default=_DEF_THRESHOLD_ABS,
-        help="[sample] only show sequences with this minimum number of reads "
-             "(default: %(default)s)")
+        help="[sample, bgraw] only show sequences with this minimum number of "
+             "reads (default: %(default)s)")
     visgroup.add_argument('-m', '--min-pct', metavar="PCT", type=float,
         default=_DEF_THRESHOLD_PCT,
-        help="[sample, profile] for sample: only show sequences with at least "
-             "this percentage of the number of reads of the highest allele of "
-             "a marker; for profile: at least this percentage of the true "
-             "allele (default: %(default)s)")
+        help="[sample, profile, bgraw] for sample: only show sequences with "
+             "at least this percentage of the number of reads of the highest "
+             "allele of a marker; for profile and bgraw: at least this "
+             "percentage of the true allele (default: %(default)s)")
     visgroup.add_argument('-M', '--marker', metavar="REGEX",
         default=_DEF_MARKER_REGEX,
-        help="[sample, profile] only show graphs for the markers that match "
-             "the given regular expression; the default value '%(default)s' "
-             "matches any marker name")
+        help="[sample, profile, bgraw] only show graphs for the markers that "
+             "match the given regular expression; the default value "
+             "'%(default)s' matches any marker name")
     visgroup.add_argument('-b', '--bar-width', metavar="N", type=pos_int_arg,
         default=_DEF_BAR_WIDTH,
-        help="[sample, profile] width of the bars in pixels (default: "
+        help="[sample, profile, bgraw] width of the bars in pixels (default: "
              "%(default)s)")
     visgroup.add_argument('-p', '--padding', metavar="N", type=pos_int_arg,
         default=_DEF_SUBGRAPH_PADDING,
-        help="[sample, profile] amount of padding (in pixels) between graphs "
-             "of different markers (default: %(default)s)")
+        help="[sample, profile, bgraw] amount of padding (in pixels) between "
+             "graphs of different markers/alleles (default: %(default)s)")
     visgroup.add_argument('-w', '--width', metavar="N", type=pos_int_arg,
         default=_DEF_WIDTH,
-        help="[sample, profile] width of the graph area in pixels (default: "
-             "%(default)s)")
+        help="[sample, profile, bgraw] width of the graph area in pixels "
+             "(default: %(default)s)")
 #add_arguments
 
 

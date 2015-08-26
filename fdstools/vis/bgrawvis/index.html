@@ -2,7 +2,7 @@
 <html>
 <head>
     <meta charset="UTF-8">
-    <title>Background Noise Profile Visualisation - FDSTools</title/>
+    <title>Background Noise Visualisation - FDSTools</title/>
     <!-- BEGIN_LIBRARIES -->
     <script src="http://vega.github.io/vega-editor/vendor/d3.min.js"></script>
     <script src="http://vega.github.io/vega/vega.min.js"></script>
@@ -42,12 +42,13 @@
         <strong id="optionsheader">Options</strong><br>
         <div id="options">
             <span id="fileselectspan" style="display: none">
-                Open background noise profiles file (or drag a file onto this page): <input id="fileselect" type="file"><br>
+                Open raw background noise data file (or drag a file onto this page): <input id="fileselect" type="file"><br>
             </span>
             Display options: graph width <input type="text" value="600" id="graphwidth" size="3">px;
-                bar width <input type="text" value="15" id="barwidth" size="2">px;
+                sequence spacing <input type="text" value="15" id="barwidth" size="2">px;
                 subgraph spacing <input type="text" value="70" id="subgraphoffset" size="3">px<br>
-            Filtering: minimum noise ratio <input type="text" value="0.5" id="minP" size="3">%; marker <input type="text" id="markerFilter" size="10" title="Supports regular expression syntax: e.g., use '.*' to match anything."><br>
+            Filtering: require at least <input type="text" value="15" id="minN" size="3"> reads and at least <input type="text" value="0.5" id="minP" size="3">% of highest allele per marker<br>
+            Filtering: marker <input type="text" id="markerFilter" size="10" title="Supports regular expression syntax: e.g., use '.*' to match anything."><br>
             Axis scale: <input type="radio" name="scale" value="linear" id="scaleLinear" checked> Linear
             <input type="radio" name="scale" value="log" id="scaleLog"> Logarithmic<br>
             Render as: <input type="radio" name="renderer" value="canvas" id="renderCanvas"> Canvas
@@ -81,10 +82,9 @@
                 if(graph_spec["marks"][i]["scales"])
                     for(j in graph_spec["marks"][i]["scales"])
                         if(graph_spec["marks"][i]["scales"][j]["name"] == "x"){
-                            graph_spec["marks"][i]["scales"][j]["format"] = (value == "log"? ".1r" : "g");
                             graph_spec["marks"][i]["scales"][j]["type"] = value;
+                            graph_spec["marks"][i]["scales"][j]["format"] = (value == "log"? ".1r" : "g");
                         }
-            setDataFormulaTransformValue("table", "low", value == "log"? "0.001" : "0");
 
             if(graph)
                 parse();
@@ -157,8 +157,8 @@
         }
 
         function onLoadSpec(has_data){
+            //Allow files to be dragged onto the page.
             if(!has_data){
-                //Allow files to be dragged onto the page.
                 document.addEventListener('dragover', function(evt){
                     evt.stopPropagation();
                     evt.preventDefault();
@@ -211,11 +211,18 @@
                 if(setDataFormulaTransformValue("yscale", "subgraphoffset", value) && graph)
                     parse();
             }, false);
+            document.getElementById("minN").addEventListener('change', function(){
+                var value = parseFloat(this.value);
+                if(isNaN(value))
+                    return;
+                if(setDataFormulaTransformValue("table", "amplitude_threshold", value) && graph)
+                    parse();
+            }, false);
             document.getElementById("minP").addEventListener('change', function(){
                 var value = parseFloat(this.value);
                 if(isNaN(value))
                     return;
-                if(setDataFormulaTransformValue("table", "filter_threshold", value) && graph)
+                if(setDataFormulaTransformValue("table", "amplitude_pct_threshold", value) && graph)
                     parse();
             }, false);
             document.getElementById("markerFilter").addEventListener('change', function(){
@@ -241,7 +248,8 @@
             document.getElementById("graphwidth").value = graph_spec["width"];
             document.getElementById("barwidth").value = getDataFormulaTransformValue("yscale", "barwidth");
             document.getElementById("subgraphoffset").value = getDataFormulaTransformValue("yscale", "subgraphoffset");
-            document.getElementById("minP").value = getDataFormulaTransformValue("table", "filter_threshold");
+            document.getElementById("minN").value = getDataFormulaTransformValue("table", "amplitude_threshold");
+            document.getElementById("minP").value = getDataFormulaTransformValue("table", "amplitude_pct_threshold");
             if(has_data){
                 document.getElementById("options").style.display = "none";
                 parse();
@@ -251,7 +259,7 @@
     <!-- BEGIN_LOAD_SCRIPT -->
     <script type="text/javascript">
         var graph_spec = false;
-        vg.util.load({url: "profilevis.json"}, function(err, result){
+        vg.util.load({url: "bgrawvis.json"}, function(err, result){
             graph_spec = JSON.parse(result);
             onLoadSpec(false);
         });
