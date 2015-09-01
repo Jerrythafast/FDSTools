@@ -53,7 +53,8 @@ def find_alleles(samples_in, outfile, reportfile, min_reads, min_allele_pct,
         samples_in,
         lambda tag, data: find_alleles_sample(
             data if stuttermark_column is None
-                 else {key: data[key] for key in allelelist[tag]},
+                 else {key: data[key] for key in data if key[0] in
+                       allelelist[tag]},
             outfile, reportfile, tag, min_reads, min_allele_pct, max_noise_pct,
             max_alleles, max_noisy, seqformat, library),
         allelelist,

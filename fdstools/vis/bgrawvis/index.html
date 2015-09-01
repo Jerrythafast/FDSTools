@@ -10,20 +10,34 @@
     <style>
         * {
             font-family: Helvetica Neue, Helvetica, Arial, sans-serif;
+            font-size: 10pt;
         }
         body {
-            margin: 0px
+            margin: 0px;
         }
         div.options {
             position: absolute;
-            margin: 5px;
-            background-color: rgba(128, 128, 255, 0.5);
+            padding: 5px;
+            background-color: rgba(255, 255, 255, 0.8);
             z-index: 10;
         }
-        #optionsheader{
-            cursor: pointer;
+        table.optiongroup {
+            padding: 10px 0px 0px 0px;
+            margin: 0px;
+            border-spacing: 0px;
+            border: none;
         }
-        #optionsheader:hover{
+        table.optiongroup td {
+            padding-right: 10px;
+        }
+        table.optiongroup th {
+            text-align: left;
+            font-weight: bold;
+            padding-top: 5px;
+        }
+        #optionsheader {
+            cursor: pointer;
+            font-variant: small-caps;
             border-bottom: 1px dashed black;
         }
         div#vis {
@@ -41,19 +55,65 @@
     <div class="options">
         <strong id="optionsheader">Options</strong><br>
         <div id="options">
-            <span id="fileselectspan" style="display: none">
-                Open raw background noise data file (or drag a file onto this page): <input id="fileselect" type="file"><br>
-            </span>
-            Display options: graph width <input type="text" value="600" id="graphwidth" size="3">px;
-                sequence spacing <input type="text" value="15" id="barwidth" size="2">px;
-                subgraph spacing <input type="text" value="70" id="subgraphoffset" size="3">px<br>
-            Filtering: require at least <input type="text" value="15" id="minN" size="3"> reads and at least <input type="text" value="0.5" id="minP" size="3">% of highest allele per marker<br>
-            Filtering: marker <input type="text" id="markerFilter" size="10" title="Supports regular expression syntax: e.g., use '.*' to match anything."><br>
-            Axis scale: <input type="radio" name="scale" value="linear" id="scaleLinear" checked> Linear
-            <input type="radio" name="scale" value="log" id="scaleLog"> Logarithmic<br>
-            Render as: <input type="radio" name="renderer" value="canvas" id="renderCanvas"> Canvas
-            <input type="radio" name="renderer" value="svg" id="renderSVG" checked> SVG
-            <br>
+            <table class="optiongroup" id="fileselectgroup" style="display: none">
+                <tr>
+                    <th>Input file</th>
+                </tr>
+                <tr>
+                    <td>Raw background noise data file:</td>
+                </tr>
+                <tr>
+                    <td><input id="fileselect" type="file"></td>
+                </tr>
+                <tr>
+                    <td>(or drag a file onto this page)</td>
+                </tr>
+            </table>
+            <table class="optiongroup">
+                <tr>
+                    <th colspan="2">Filtering options</th>
+                </tr>
+                <tr>
+                    <td>Require at least</td>
+                    <td><input type="text" value="15" id="minN" size="3"> reads</td>
+                </tr>
+                <tr>
+                    <td>Require at least</td>
+                    <td><input type="text" value="0.5" id="minP" size="3">% of highest allele per marker</td>
+                </tr>
+                <tr>
+                    <td>Marker name</td>
+                    <td><input type="text" id="markerFilter" size="10" title="Supports regular expression syntax: e.g., use '.*' to match anything."></td>
+                </tr>
+            </table>
+            <table class="optiongroup">
+                <tr>
+                    <th colspan="3">Display options</th>
+                </tr>
+                <tr>
+                    <td>Graph width</td>
+                    <td colspan="2"><input type="text" value="600" id="graphwidth" size="3"> px</td>
+                </tr>
+                <tr>
+                    <td>Sequence spacing</td>
+                    <td colspan="2"><input type="text" value="15" id="barwidth" size="3"> px</td>
+                </tr>
+                <tr>
+                    <td>Subgraph spacing</td>
+                    <td colspan="2"><input type="text" value="70" id="subgraphoffset" size="3"> px</td>
+                </tr>
+                <tr>
+                    <td>Axis scale</td>
+                    <td><input type="radio" name="scale" value="linear" id="scaleLinear" checked> Linear</td>
+                    <td><input type="radio" name="scale" value="log" id="scaleLog"> Logarithmic
+                    </td>
+                </tr>
+                <tr>
+                    <td>Render as:</td>
+                    <td><input type="radio" name="renderer" value="svg" id="renderSVG" checked> SVG</td>
+                    <td><input type="radio" name="renderer" value="canvas" id="renderCanvas"> Canvas</td>
+                </tr>
+            </table>
             <a id="saveLink" href="javascript:void(saveImage())" style="display: none">Save image</a>
         </div>
     </div>
@@ -81,13 +141,22 @@
             for(i in graph_spec["marks"])
                 if(graph_spec["marks"][i]["scales"])
                     for(j in graph_spec["marks"][i]["scales"])
-                        if(graph_spec["marks"][i]["scales"][j]["name"] == "x"){
+                        if(graph_spec["marks"][i]["scales"][j]["name"] == "x")
                             graph_spec["marks"][i]["scales"][j]["type"] = value;
-                            graph_spec["marks"][i]["scales"][j]["format"] = (value == "log"? ".1r" : "g");
-                        }
 
             if(graph)
                 parse();
+        }
+
+        function getScale(){
+            if(!graph_spec)
+                return "linear";
+            for(i in graph_spec["marks"])
+                if(graph_spec["marks"][i]["scales"])
+                    for(j in graph_spec["marks"][i]["scales"])
+                        if(graph_spec["marks"][i]["scales"][j]["name"] == "x")
+                            return graph_spec["marks"][i]["scales"][j]["type"];
+            return "linear";
         }
 
         function setDataFormulaTransformValue(dataname, fieldname, value){
@@ -157,8 +226,8 @@
         }
 
         function onLoadSpec(has_data){
-            //Allow files to be dragged onto the page.
             if(!has_data){
+                //Allow files to be dragged onto the page.
                 document.addEventListener('dragover', function(evt){
                     evt.stopPropagation();
                     evt.preventDefault();
@@ -173,7 +242,7 @@
                 document.getElementById("fileselect").addEventListener('change', function(){
                     loadDataset(document.getElementById("fileselect").files);
                 }, false);
-                document.getElementById("fileselectspan").style.display = "inline";
+                document.getElementById("fileselectgroup").style.display = "table";
             }
 
             //Update graph when rendering mode or axis scale is changed.
@@ -240,10 +309,14 @@
             }, false);
 
             //Sync graph_spec and display.
-            if(document.getElementById("scaleLinear").checked)
-                setScale(document.getElementById("scaleLinear").value);
-            else
-                setScale(document.getElementById("scaleLog").value);
+            if(getScale() == "linear"){
+                document.getElementById("scaleLinear").checked = true;
+                document.getElementById("scaleLog").checked = false;
+            }
+            else{
+                document.getElementById("scaleLinear").checked = false;
+                document.getElementById("scaleLog").checked = true;
+            }
             document.getElementById("markerFilter").value = getDataFormulaTransformValue("table", "filter_marker").replace(/^(['"]?)(.*(?=\1$))\1$/, '$2');
             document.getElementById("graphwidth").value = graph_spec["width"];
             document.getElementById("barwidth").value = getDataFormulaTransformValue("yscale", "barwidth");

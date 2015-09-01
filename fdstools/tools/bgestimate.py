@@ -505,7 +505,8 @@ def add_arguments(parser):
     filtergroup.add_argument('-n', '--min-abs', metavar="N", type=pos_int_arg,
         default=_DEF_THRESHOLD_ABS,
         help="minimum amount of background to consider, as an absolute "
-             "number of reads (default: %(default)s)")
+             "number of reads for at least one orientation (default: "
+             "%(default)s)")
     filtergroup.add_argument('-s', '--min-samples', metavar="N",
         type=pos_int_arg, default=_DEF_MIN_SAMPLES,
         help="require this minimum number of samples for each true allele "

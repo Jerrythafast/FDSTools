@@ -138,14 +138,14 @@
           "test": "datum.b.name < datum.a.name"
         },
         {
-          "type": "aggregate",
-          "groupby": ["a.name"],
-          "summarize": [{"field": "*", "ops": ["count"], "as": ["cumulpadding"]}]
-        },
-        {
           "type": "formula",
           "field": "name",
-          "expr": "datum['a.name']"
+          "expr": "datum.a.name"
+        },
+        {
+          "type": "aggregate",
+          "groupby": ["name"],
+          "summarize": [{"field": "*", "ops": ["count"], "as": ["cumulpadding"]}]
         }
       ]
     },
@@ -162,14 +162,14 @@
           "test": "datum.b.name < datum.a.name"
         },
         {
-          "type": "aggregate",
-          "groupby": ["a.name"],
-          "summarize": [{"field": "*", "ops": ["count"], "as": ["cumulcount"]}]
-        },
-        {
           "type": "formula",
           "field": "name",
-          "expr": "datum['a.name']"
+          "expr": "datum.a.name"
+        },
+        {
+          "type": "aggregate",
+          "groupby": ["name"],
+          "summarize": [{"field": "*", "ops": ["count"], "as": ["cumulcount"]}]
         }
       ]
     },

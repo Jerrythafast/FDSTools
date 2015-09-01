@@ -3,10 +3,11 @@
 Match background noise profiles (obtained from e.g., bgestimate) to
 samples.
 
-Six new columns are added to the output giving, for each sequence, the
+Nine new columns are added to the output giving, for each sequence, the
 number of reads attributable to noise from other sequences (_noise
 columns) and the number of noise reads caused by the prescense of this
-sequence (_add columns).
+sequence (_add columns), as well as the resulting number of reads after
+correction (_corrected columns: original minus _noise plus _add).
 """
 import argparse
 #import numpy as np  # Only imported when actually running this tool.
@@ -30,6 +31,9 @@ def get_sample_data(infile, convert_to_raw=False, library=None):
     column_names.append("forward_add")
     column_names.append("reverse_add")
     column_names.append("total_add")
+    column_names.append("forward_corrected")
+    column_names.append("reverse_corrected")
+    column_names.append("total_corrected")
     colid_name, colid_allele, colid_forward, colid_reverse = get_column_ids(
         column_names, "name", "allele", "forward", "reverse")
     data = {}
@@ -47,6 +51,9 @@ def get_sample_data(infile, convert_to_raw=False, library=None):
         cols.append(0)
         cols.append(0)
         cols.append(0)
+        cols.append(int(cols[colid_forward]))
+        cols.append(int(cols[colid_reverse]))
+        cols.append(int(cols[colid_forward]) + int(cols[colid_reverse]))
         if marker not in data:
             data[marker] = []
         data[marker].append(cols)
@@ -58,10 +65,13 @@ def match_profile(column_names, data, profile, convert_to_raw, library,
                   marker):
     (colid_name, colid_allele, colid_forward, colid_reverse, colid_total,
      colid_forward_noise, colid_reverse_noise, colid_total_noise,
-     colid_forward_add, colid_reverse_add, colid_total_add) = get_column_ids(
+     colid_forward_add, colid_reverse_add, colid_total_add,
+     colid_forward_corrected, colid_reverse_corrected,
+     colid_total_corrected) = get_column_ids(
         column_names, "name", "allele", "forward", "reverse", "total",
         "forward_noise", "reverse_noise", "total_noise", "forward_add",
-        "reverse_add", "total_add")
+        "reverse_add", "total_add", "forward_corrected", "reverse_corrected",
+        "total_corrected")
 
     # Enter profiles into P.
     P1 = np.matrix(profile["forward"])
@@ -106,10 +116,16 @@ def match_profile(column_names, data, profile, convert_to_raw, library,
         line[colid_forward_noise] = forward_noise[0, i]
         line[colid_reverse_noise] = reverse_noise[0, i]
         line[colid_total_noise] = forward_noise[0, i] + reverse_noise[0, i]
+        line[colid_forward_corrected] -= line[colid_forward_noise]
+        line[colid_reverse_corrected] -= line[colid_reverse_noise]
+        line[colid_total_corrected] -= line[colid_total_noise]
         if i < profile["n"]:
             line[colid_forward_add] = forward_add[0, i]
             line[colid_reverse_add] = reverse_add[0, i]
             line[colid_total_add] = forward_add[0, i] + reverse_add[0, i]
+            line[colid_forward_corrected] += line[colid_forward_add]
+            line[colid_reverse_corrected] += line[colid_reverse_add]
+            line[colid_total_corrected] += line[colid_total_add]
 
     # Add sequences that are in the profile but not in the sample.
     for i in range(profile["m"]):
@@ -128,10 +144,16 @@ def match_profile(column_names, data, profile, convert_to_raw, library,
             line[colid_forward_noise] = forward_noise[0, i]
             line[colid_reverse_noise] = reverse_noise[0, i]
             line[colid_total_noise] = forward_noise[0, i] + reverse_noise[0, i]
+            line[colid_forward_corrected] = -line[colid_forward_noise]
+            line[colid_reverse_corrected] = -line[colid_reverse_noise]
+            line[colid_total_corrected] = -line[colid_total_noise]
             if i < profile["n"]:
                 line[colid_forward_add] = forward_add[0, i]
                 line[colid_reverse_add] = reverse_add[0, i]
                 line[colid_total_add] = forward_add[0, i] + reverse_add[0, i]
+                line[colid_forward_corrected] += line[colid_forward_add]
+                line[colid_reverse_corrected] += line[colid_reverse_add]
+                line[colid_total_corrected] += line[colid_total_add]
             else:
                 line[colid_forward_add] = 0
                 line[colid_reverse_add] = 0

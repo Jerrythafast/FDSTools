@@ -3,7 +3,7 @@
   "height": 10,
   "data": [
     {
-      "name": "raw",
+      "name": "table",
       "values": "VALUES HERE",
       "format": {
         "type": "tsv",
@@ -11,12 +11,12 @@
           "fmean": "number",
           "rmean": "number"
         }
-      }
-    },
-    {
-      "name": "table",
-      "source": "raw",
+      },
       "transform": [
+        {
+          "type": "filter",
+          "test": "datum.allele != datum.sequence"
+        },
         {
           "type": "formula",
           "field": "filter_threshold",
@@ -24,7 +24,7 @@
         },
         {
           "type": "filter",
-          "test": "datum.fmean+datum.rmean < 200 && max(datum.fmean, datum.rmean) >= datum.filter_threshold"
+          "test": "max(datum.fmean, datum.rmean) >= datum.filter_threshold"
         },
         {
           "type": "formula",
@@ -95,14 +95,14 @@
           "test": "datum.b.name < datum.a.name"
         },
         {
-          "type": "aggregate",
-          "groupby": ["a.name"],
-          "summarize": [{"field": "*", "ops": ["count"], "as": ["cumulpadding"]}]
-        },
-        {
           "type": "formula",
           "field": "name",
-          "expr": "datum['a.name']"
+          "expr": "datum.a.name"
+        },
+        {
+          "type": "aggregate",
+          "groupby": ["name"],
+          "summarize": [{"field": "*", "ops": ["count"], "as": ["cumulpadding"]}]
         }
       ]
     },
@@ -119,14 +119,14 @@
           "test": "datum.b.name < datum.a.name"
         },
         {
-          "type": "aggregate",
-          "groupby": ["a.name"],
-          "summarize": [{"field": "*", "ops": ["count"], "as": ["cumulcount"]}]
-        },
-        {
           "type": "formula",
           "field": "name",
-          "expr": "datum['a.name']"
+          "expr": "datum.a.name"
+        },
+        {
+          "type": "aggregate",
+          "groupby": ["name"],
+          "summarize": [{"field": "*", "ops": ["count"], "as": ["cumulcount"]}]
         }
       ]
     },
@@ -245,7 +245,6 @@
         {
           "type": "x",
           "scale": "x",
-          "format": "g",
           "grid": true,
           "layer": "back",
           "title": "Noise ratio (%)",

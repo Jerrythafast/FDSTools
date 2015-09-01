@@ -131,7 +131,7 @@ def compute_ratios(samples_in, outfile, allelefile, annotation_column, min_pct,
         for sequence in data[marker, allele]:
             for i in range(len(data[marker, allele][sequence]["tag"])):
                 outfile.write("\t".join([
-                    data[marker, allele][sequence]["tag"][0], marker, allele,
+                    data[marker, allele][sequence]["tag"][i], marker, allele,
                     sequence] + [
                     str(x) if abs(x) > 0.0000000001 else "0" for x in (
                         data[marker, allele][sequence]["forward"][i],

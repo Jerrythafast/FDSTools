@@ -98,8 +98,23 @@ def set_data_formula_transform_value(spec, dataname, fieldname, value):
 #set_data_formula_transform_value
 
 
-def create_visualisation(vistype, infile, outfile, vega, online, tidy,
-                         min_abs, min_pct, bar_width, padding, marker, width):
+def set_axis_scale(spec, scalename, value):
+    success = False
+    for marks in spec["marks"]:
+        if "scales" not in marks:
+            continue
+        for scale in marks["scales"]:
+            if scale["name"] != scalename:
+                continue
+            scale["type"] = value;
+            success = True
+    return success
+#set_axis_scale
+
+
+def create_visualisation(vistype, infile, outfile, vega, online, tidy, min_abs,
+                         min_pct, bar_width, padding, marker, width,
+                         log_scale):
     # Get graph spec.
     spec = json.load(resource_stream(
         "fdstools", "vis/%svis/%svis.json" % (vistype, vistype)))
@@ -125,6 +140,14 @@ def create_visualisation(vistype, infile, outfile, vega, online, tidy,
     elif vistype == "profile":
         set_data_formula_transform_value(
             spec, "table", "filter_threshold", min_pct)
+        set_data_formula_transform_value(
+            spec, "table", "low", "0.001" if log_scale else "0")
+    if not log_scale:
+        set_axis_scale(spec, "x", "linear")
+    elif vistype == "sample":
+        set_axis_scale(spec, "x", "sqrt")
+    else:
+        set_axis_scale(spec, "x", "log")
 
     # Stringify spec.
     if tidy:
@@ -215,6 +238,9 @@ def add_arguments(parser):
         help="[sample, profile, bgraw] only show graphs for the markers that "
              "match the given regular expression; the default value "
              "'%(default)s' matches any marker name")
+    visgroup.add_argument('-L', '--log-scale', action="store_true",
+        help="[sample, profile, bgraw] use logarithmic scale (for sample: "
+             "square root scale) instead of linear scale")
     visgroup.add_argument('-b', '--bar-width', metavar="N", type=pos_int_arg,
         default=_DEF_BAR_WIDTH,
         help="[sample, profile, bgraw] width of the bars in pixels (default: "
@@ -251,7 +277,8 @@ def run(args):
 
     create_visualisation(args.type, args.infile, args.outfile, args.vega,
                          args.online, args.tidy, args.min_abs, args.min_pct,
-                         args.bar_width, args.padding, args.marker, args.width)
+                         args.bar_width, args.padding, args.marker, args.width,
+                         args.log_scale)
 #run
 
 

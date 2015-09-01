@@ -10,7 +10,7 @@ from StringIO import StringIO
 PAT_SEQ_RAW = re.compile("^[ACGT]*$")
 PAT_SEQ_TSSV = re.compile("^(?:[ACGT]+\(\d+\))*$")
 PAT_SEQ_ALLELENAME = re.compile(  # First line: n_ACT[m] or alias.
-    "^(?:(?:(?:CE)?\d+(?:\.\d+)?_(?:[ACGT]+\[\d+\])+)|((?!_).+?))"
+    "^(?:(?:(?:CE)?-?\d+(?:\.\d+)?_(?:[ACGT]+\[\d+\])*)|((?!_).+?))"
     "(?:_[-+]\d+(?:\.1)?(?P<a>(?:(?<=\.1)-)|(?<!\.1)[ACGT]+)>"  # _+3A>
         "(?!(?P=a))(?:[ACTG]+|-))*$")  # Portion of variants after '>'.
 
@@ -603,8 +603,8 @@ def convert_sequence_raw_tssv(seq, library, marker, return_alias=False):
     if match is None and marker in library["regex"]:
         match = library["regex"][marker].match(seq)
     if match is not None:
-        parts = ((match.group(i), match.end(i))
-                 for i in range(1, match.lastindex+1) if match.group(i))
+        parts = ((match.group(i), match.end(i)) for i in range(1, 1 if
+            match.lastindex is None else match.lastindex+1) if match.group(i))
 
     # Use heuristics if the sequence does not match the pattern.
     else:
@@ -727,11 +727,11 @@ def convert_sequence_raw_allelename(seq, library, marker):
     remaining_blocks = len(blocks)
     if "prefix" in library and marker in library["prefix"]:
         prefix = library["prefix"][marker][0]
-        if prefix and blocks[0][1] == "1":
+        if prefix and remaining_blocks > 0 and blocks[0][1] == "1":
             remaining_blocks -= 1
     if "suffix" in library and marker in library["suffix"]:
         suffix = library["suffix"][marker][0]
-        if suffix and blocks[-1][1] == "1":
+        if suffix and remaining_blocks > 0 and blocks[-1][1] == "1":
             remaining_blocks -= 1
     if remaining_blocks > 0 and prefix and blocks[0][1] == "1":
         this_prefix = blocks[0][0]
@@ -932,7 +932,7 @@ def read_sample_data_file(infile, data, annotation_column=None, seqformat=None,
                                         library=library, marker=marker)
         if (annotation_column is not None and
                 line[colid_annotation].startswith("ALLELE")):
-            found_alleles.append(marker, allele)
+            found_alleles.append((marker, allele))
         data[marker, allele] = map(int,
             (line[colid_forward], line[colid_reverse]))
 
