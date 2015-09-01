@@ -280,21 +280,3 @@ def run(args):
                          args.bar_width, args.padding, args.marker, args.width,
                          args.log_scale)
 #run
-
-
-def main():
-    """
-    Main entry point.
-    """
-    parser = argparse.ArgumentParser(
-        description=__doc__)
-    try:
-        add_arguments(parser)
-        run(parser.parse_args())
-    except OSError as error:
-        parser.error(error)
-#main
-
-
-if __name__ == "__main__":
-    main()

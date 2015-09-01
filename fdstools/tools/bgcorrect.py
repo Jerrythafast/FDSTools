@@ -211,26 +211,9 @@ def run(args):
 
     for tag, infiles, outfile in gen:
         # TODO: Aggregate data from all infiles of each sample.
-        # This tool now only works properly with one infile per sample!
-        for infile in infiles:
-            match_profiles(infile, outfile, profiles, library,
-                           args.sequence_format)
+        if len(infiles) > 1:
+            raise ValueError(
+                "multiple input files for sample '%s' specified " % tag)
+        match_profiles(infiles[0], outfile, profiles, library,
+                       args.sequence_format)
 #run
-
-
-def main():
-    """
-    Main entry point.
-    """
-    parser = argparse.ArgumentParser(
-        description=__doc__)
-    try:
-        add_arguments(parser)
-        run(parser.parse_args())
-    except OSError as error:
-        parser.error(error)
-#main
-
-
-if __name__ == "__main__":
-    main()

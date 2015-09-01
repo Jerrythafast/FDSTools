@@ -5,10 +5,11 @@ reference samples (min, max, mean, sample variance).
 
 Compute a profile of recurring background noise for each unique allele
 in the database of reference samples.  The profiles obtained can be used
-by bgcorrect to filter background noise from samples.
+by bgcorrect to filter background noise from samples.  If many reference
+samples are heterozygous (as is usually the case with forensic STR
+markers), it is preferable to use bgestimate instead, since it can
+handle heterozygous samples as well.
 """
-import argparse
-
 from ..lib import pos_int_arg, add_input_output_args, get_input_output_files,\
                   add_allele_detection_args, parse_allelelist, parse_library,\
                   get_sample_data, add_sequence_format_args, adjust_stats,\
@@ -179,21 +180,3 @@ def run(args):
                   args.min_sample_pct, args.sequence_format, args.library,
                   args.marker, args.limit_reads, args.drop_samples)
 #run
-
-
-def main():
-    """
-    Main entry point.
-    """
-    parser = argparse.ArgumentParser(
-        description=__doc__)
-    try:
-        add_arguments(parser)
-        run(parser.parse_args())
-    except OSError as error:
-        parser.error(error)
-#main
-
-
-if __name__ == "__main__":
-    main()

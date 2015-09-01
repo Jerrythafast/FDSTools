@@ -10,7 +10,9 @@ It is convenient to pipe the output of bgpredict and/or bgestimate
 into bgmerge to merge that with an existing file containing background
 profiles.  Specify '-' as one of the input files to read from stdin
 (i.e., read input from a pipe).  If only one input file is specified,
-'-' is implicitly used as the second input file.
+'-' is implicitly used as the second input file.  Note that as a result,
+in case of conflicting values, the value in the specified input file
+will take precedence over the value in the data that was piped in.
 
 Example: fdstools bgpredict ... | fdstools bgmerge old.txt > out.txt
 """
@@ -105,21 +107,3 @@ def run(args):
     merge_profiles(args.infiles, args.outfile, args.cross_tabular,
                    args.sequence_format, args.library)
 #run
-
-
-def main():
-    """
-    Main entry point.
-    """
-    parser = argparse.ArgumentParser(
-        description=__doc__)
-    try:
-        add_arguments(parser)
-        run(parser.parse_args())
-    except OSError as error:
-        parser.error(error)
-#main
-
-
-if __name__ == "__main__":
-    main()

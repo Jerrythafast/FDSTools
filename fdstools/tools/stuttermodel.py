@@ -1,6 +1,10 @@
 #!/usr/bin/env python
 """
-Train a stutter prediction model using homozygous samples.
+Train a stutter prediction model using homozygous reference samples.
+
+The model obtained from this tool can be used by bgpredict to predict
+background noise profiles of alleles for which no reference samples are
+available.
 """
 import argparse
 import re
@@ -507,21 +511,3 @@ def run(args):
                 args.ignore_zeros, args.max_unit_length, args.raw_outfile,
                 args.marker, args.limit_reads, args.drop_samples)
 #run
-
-
-def main():
-    """
-    Main entry point.
-    """
-    parser = argparse.ArgumentParser(
-        description=__doc__)
-    try:
-        add_arguments(parser)
-        run(parser.parse_args())
-    except OSError as error:
-        parser.error(error)
-#main
-
-
-if __name__ == "__main__":
-    main()

@@ -7,7 +7,6 @@ Compute a profile of recurring background noise for each unique allele
 in the database of reference samples.  The profiles obtained can be used
 by bgcorrect to filter background noise from samples.
 """
-import argparse
 import sys
 import time
 import math
@@ -541,21 +540,3 @@ def run(args):
                       args.marker, args.homozygotes, args.limit_reads,
                       args.drop_samples)
 #run
-
-
-def main():
-    """
-    Main entry point.
-    """
-    parser = argparse.ArgumentParser(
-        description=__doc__)
-    try:
-        add_arguments(parser)
-        run(parser.parse_args())
-    except OSError as error:
-        parser.error(error)
-#main
-
-
-if __name__ == "__main__":
-    main()

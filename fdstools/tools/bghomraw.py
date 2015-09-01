@@ -2,9 +2,11 @@
 """
 Compute noise ratios for all noise detected in homozygous reference
 samples.
-"""
-import argparse
 
+With this tool, separate data points are produced for each sample, which
+can be visualised using "fdstools vis bgraw".  Use bghomstats or
+bgestimate to compute aggregate statistics on noise instead.
+"""
 from ..lib import pos_int_arg, add_input_output_args, get_input_output_files,\
                   add_allele_detection_args, parse_allelelist, parse_library,\
                   get_sample_data, add_sequence_format_args
@@ -183,21 +185,3 @@ def run(args):
                    args.min_sample_pct, args.sequence_format, args.library,
                    args.marker)
 #run
-
-
-def main():
-    """
-    Main entry point.
-    """
-    parser = argparse.ArgumentParser(
-        description=__doc__)
-    try:
-        add_arguments(parser)
-        run(parser.parse_args())
-    except OSError as error:
-        parser.error(error)
-#main
-
-
-if __name__ == "__main__":
-    main()

@@ -2,6 +2,24 @@
 """
 Predict background profiles of new alleles based on a model of stutter
 occurrence obtained from stuttermodel.
+
+This tool can be used to compute background noise profiles for alleles
+for which no reference samples are available.  The profiles are
+predicted using a model of stutter occurrence that must have been
+created previously using stuttermodel.  A list of sequences should be
+given; bgpredict will predict a background noise profile for each of the
+provided sequences separately.  The prediction is based completely on
+the provided stutter model.
+
+The predicted background noise profiles obtained from bgpredict can be
+combined with the output of bgestimate and/or bghomstats using bgmerge.
+
+It is possible to use an entire forensic case sample as the SEQS input
+argument of bgpredict to obtain a predicted background noise profile for
+each sequence detected in the sample.  When the background noise
+profiles thus obtained are combined with those obtained from bgestimate,
+bgcorrect may subsequently produce 'cleaner' results if the sample
+contained alleles for which no reference samples were available.
 """
 import argparse
 import sys
@@ -362,21 +380,3 @@ def run(args):
                      args.use_all_data, args.cross_tabular, args.min_pct,
                      args.min_r2, args.sequence_format, args.library)
 #run
-
-
-def main():
-    """
-    Main entry point.
-    """
-    parser = argparse.ArgumentParser(
-        description=__doc__)
-    try:
-        add_arguments(parser)
-        run(parser.parse_args())
-    except OSError as error:
-        parser.error(error)
-#main
-
-
-if __name__ == "__main__":
-    main()

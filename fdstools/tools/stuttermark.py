@@ -446,26 +446,10 @@ def run(args):
     for tag, infiles, outfile in gen:
         # TODO: Aggregate data from all infiles of each sample.
         # This tool now only works properly with one infile per sample!
-        for infile in infiles:
-            annotate_alleles(infile, outfile, args.stutter, args.min_reads,
-                             args.min_repeats, args.min_report,
-                             args.column_name, library, args.debug)
+        if len(infiles) > 1:
+            raise ValueError(
+                "multiple input files for sample '%s' specified " % tag)
+        annotate_alleles(infiles[0], outfile, args.stutter, args.min_reads,
+                         args.min_repeats, args.min_report, args.column_name,
+                         library, args.debug)
 #run
-
-
-def main():
-    """
-    Main entry point.
-    """
-    parser = argparse.ArgumentParser(
-        description=__doc__)
-    try:
-        add_arguments(parser)
-        run(parser.parse_args())
-    except OSError as error:
-        parser.error(error)
-#main
-
-
-if __name__ == "__main__":
-    main()

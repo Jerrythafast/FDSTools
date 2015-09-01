@@ -9,9 +9,14 @@ per marker.  The allele balance is kept within given bounds.  If the
 highest non-allelic sequence exceeds a given limit, no alleles are
 called for this marker.  If this happens for multiple markers in one
 sample, no alleles are called for this sample at all.
-"""
-import argparse
 
+The allele list obtained from allelefinder should always be checked
+carefully before using it as the input of various other tools operating
+on reference samples.  These tools rely heavily on the correctness of
+this file to do their job.  One may use the allelefinder report
+(-R/--report output argument) and the blame tool to get a quick overview
+of what might be wrong.
+"""
 from ..lib import pos_int_arg, add_input_output_args, get_input_output_files, \
                   ensure_sequence_format, get_sample_data, parse_library, \
                   add_sequence_format_args
@@ -201,21 +206,3 @@ def run(args):
                  args.max_noisy, args.stuttermark_column, args.sequence_format,
                  args.library)
 #run
-
-
-def main():
-    """
-    Main entry point.
-    """
-    parser = argparse.ArgumentParser(
-        description=__doc__)
-    try:
-        add_arguments(parser)
-        run(parser.parse_args())
-    except OSError as error:
-        parser.error(error)
-#main
-
-
-if __name__ == "__main__":
-    main()
