@@ -194,7 +194,7 @@
 
         //Load the data (input is a fileList object; only the first file is loaded).
         function loadDataset(fileList){
-            if(!graph_spec)
+            if(!graph_spec || !fileList || !fileList.length)
                 return;
             var reader = new FileReader();
             reader.onload = function(theFile){

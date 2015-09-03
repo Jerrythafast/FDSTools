@@ -1,0 +1,522 @@
+{
+  "width": 600,
+  "height": 10,
+  "data": [
+    {
+      "name": "fitfunctions",
+      "values": "VALUES HERE",
+      "format": {
+        "type": "tsv",
+        "parse": {
+          "lbound": "number",
+          "stutter": "number",
+          "min": "number",
+          "max": "number",
+          "a": "number",
+          "b": "number",
+          "c": "number",
+          "d": "number",
+          "e": "number",
+          "f": "number",
+          "g": "number",
+          "h": "number",
+          "i": "number",
+          "j": "number"
+        }
+      },
+      "transform": [
+        {
+          "type": "formula",
+          "field": "subgraph",
+          "expr": "(datum.stutter > 0? '+' : '') + datum.stutter + ' stutter in ' + datum.unit + ' repeats'"
+        }
+      ]
+    },
+    {
+      "name": "subgraphpadding",
+      "source": "fitfunctions",
+      "transform": [
+        {
+          "type": "cross",
+          "diagonal": false
+        },
+        {
+          "type": "filter",
+          "test": "length(datum.b.unit) < length(datum.a.unit) || (length(datum.b.unit) == length(datum.a.unit) && datum.b.unit < datum.a.unit) || (datum.b.unit == datum.a.unit && datum.b.stutter < datum.a.stutter)"
+        },
+        {
+          "type": "formula",
+          "field": "subgraph",
+          "expr": "datum.a.subgraph"
+        },
+        {
+          "type": "aggregate",
+          "groupby": ["subgraph"],
+          "summarize": [{"field": "b.subgraph", "ops": ["distinct"], "as": ["cumulpadding"]}]
+        }
+      ]
+    },
+    {
+      "name": "yscale",
+      "source": "fitfunctions",
+      "transform": [
+        {
+          "type": "aggregate",
+          "groupby": ["subgraph"],
+          "summarize": []
+        },
+        {
+          "type": "lookup",
+          "on": "subgraphpadding",
+          "onKey": "subgraph",
+          "keys": ["subgraph"],
+          "as": ["paddingobj"],
+          "default": {"cumulpadding": 0}
+        },
+        {
+          "type": "formula",
+          "field": "graphheight",
+          "expr": "400"
+        },
+        {
+          "type": "formula",
+          "field": "subgraphoffset",
+          "expr": "70"
+        },
+        {
+          "type": "formula",
+          "field": "offset",
+          "expr": "(datum.graphheight+datum.subgraphoffset)*datum.paddingobj.cumulpadding"
+        },
+        {
+          "type": "formula",
+          "field": "end",
+          "expr": "datum.offset + datum.graphheight"
+        }
+      ]
+    },
+    {
+      "name": "lengths",
+      "values": [
+        0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,26,
+        27,28,29,30,31,32,33,34,35,36,37,38,39,40,41,42,43,44,45,46,47,48,49,50
+      ]
+    },
+    {
+      "name": "table",
+      "source": "fitfunctions",
+      "transform": [
+        {
+          "type": "aggregate",
+          "summarize": {"max": "max"}
+        },
+        {
+          "type": "formula",
+          "field": "amount",
+          "expr": "ceil(sqrt(datum.max_max+1))"
+        },
+        {
+          "type": "cross",
+          "with": "lengths"
+        },
+        {
+          "type": "filter",
+          "test": "datum.b.data < datum.a.amount"
+        },
+        {
+          "type": "cross"
+        },
+        {
+          "type": "formula",
+          "field": "length",
+          "expr": "datum.a.a.amount * datum.a.b.data + datum.b.b.data"
+        },
+        {
+          "type": "filter",
+          "test": "datum.length <= datum.a.a.max_max"
+        },
+        {
+          "type": "cross",
+          "with": "fitfunctions",
+          "output": {
+            "left": "len",
+            "right": "func"
+          }
+        },
+        {
+          "type": "formula",
+          "field": "length",
+          "expr": "datum.len.length"
+        },
+        {
+          "type": "filter",
+          "test": "datum.func.lbound <= datum.length && datum.func.max >= datum.length"
+        },
+        {
+          "type": "formula",
+          "field": "value",
+          "expr": "max(0, datum.func.a + datum.func.b*datum.length + datum.func.c*pow(datum.length, 2) + datum.func.d*pow(datum.length, 3) + datum.func.e*pow(datum.length, 4) + datum.func.f*pow(datum.length, 5) + datum.func.g*pow(datum.length, 6) + datum.func.h*pow(datum.length, 7) + datum.func.i*pow(datum.length, 8) + datum.func.j*pow(datum.length, 9))"
+        },
+        {
+          "type": "formula",
+          "field": "markerdirection",
+          "expr": "datum.func.marker + ' ' + datum.func.direction"
+        },
+        {
+          "type": "formula",
+          "field": "subgraph",
+          "expr": "datum.func.subgraph"
+        },
+        {
+          "type": "sort",
+          "by": ["markerdirection", "length"]
+        }
+      ]
+    }
+  ],
+  "marks": [
+    {
+      "type": "text",
+      "from": {
+        "data": "yscale"
+      },
+      "properties": {
+        "enter": {
+          "x": {"field": {"group": "width"}, "mult": 0.5},
+          "y": {"field": "offset"},
+          "fontWeight": {"value": "bold"},
+          "text": {"field": "subgraph"},
+          "align": {"value": "center"},
+          "baseline": {"value": "bottom"},
+          "fill": {"value": "black"}
+        }
+      }
+    },
+    {
+      "type": "group",
+      "from": {
+        "data": "table",
+        "transform": [
+          {
+            "type": "facet",
+            "groupby": ["subgraph"]
+          },
+          {
+            "type": "lookup",
+            "on": "yscale",
+            "onKey": "subgraph",
+            "keys": ["subgraph"],
+            "as": ["subgraphscale"]
+          }
+        ]
+      },
+      "properties": {
+        "enter": {
+          "x": {"value": 0},
+          "width": {"field": {"group": "width"}},
+          "y": {"field": "subgraphscale.offset"},
+          "y2": {"field": "subgraphscale.end"},
+          "stroke": {"value": "#dddddd"}
+        }
+      },
+      "scales": [
+        {
+          "name": "x",
+          "type": "linear",
+          "nice": true,
+          "range": "width",
+          "domain": {"field": "length"}
+        },
+        {
+          "name": "y",
+          "type": "linear",
+          "nice": true,
+          "range": "height",
+          "domain": {"field": "value"}
+        },
+        {
+          "name": "c",
+          "type": "ordinal",
+          "range": "category20",
+          "domain": {"field": "markerdirection"}
+        }
+      ],
+      "axes": [
+        {
+          "type": "x",
+          "scale": "x",
+          "grid": true,
+          "layer": "back",
+          "tickSize": 0,
+          "properties": {
+            "labels": {
+              "fontSize": {"value": 0}
+            }
+          }
+        },
+        {
+          "type": "x",
+          "scale": "x",
+          "tickSizeEnd": 0,
+          "title": "Length of repeat (bp)",
+          "properties": {
+            "title": {
+              "dy": {"value": -5}
+            }
+          }
+        },
+        {
+          "type": "y",
+          "scale": "y",
+          "grid": true,
+          "layer": "back",
+          "title": "Noise ratio (%)"
+        }
+      ],
+      "legends": [
+        {
+          "fill": "c",
+          "properties": {
+            "symbols": {
+              "size": {"value": 100},
+              "stroke": {"value": "transparent"},
+              "fillOpacity": {"value": 0.8}
+            }
+          }
+        }
+      ],
+      "marks": [
+        {
+          "type": "group",
+          "from": {
+            "transform": [
+              {"type": "facet", "groupby": ["markerdirection"]}
+            ]
+          },
+          "marks": [
+            {
+              "type": "line",
+              "properties": {
+                "enter": {
+                  "interpolate": {"value": "linear"},
+                  "x": {"scale": "x", "field": "length"},
+                  "y": {"scale": "y", "field": "value"},
+                  "stroke": {"scale": "c", "field": "markerdirection"}
+                },
+                "update": {
+                  "strokeWidth": {"value": 1.5},
+                  "strokeOpacity": {"value": 0.8}
+                },
+                "hover": {
+                  "strokeWidth": {"value": 4.5},
+                  "strokeOpacity": {"value": 1}
+                }
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "DISABLED": {"data": [
+    {
+      "name": "points",
+      "url": "points-m050-n1-f1.tsv",
+      "format": {
+        "type": "tsv",
+        "parse": {
+          "length": "number",
+          "forward": "number",
+          "reverse": "number"
+        }
+      },
+      "transform": [
+        {
+          "type": "filter",
+          "test": "d.data.unit=='AGAT'"
+        },
+        {
+          "type": "filter",
+          "test": "true"
+        },
+        {
+          "type": "formula",
+          "field": "length",
+          "expr": "d.data.length+random()*0.8-0.4"
+        },
+        {
+          "type": "formula",
+          "field": "markerf",
+          "expr": "d.data.marker+' forward'"
+        },
+        {
+          "type": "formula",
+          "field": "markerr",
+          "expr": "d.data.marker+' reverse'"
+        },
+        {
+          "type": "formula",
+          "field": "valuef",
+          "expr": "100*d.data.forward"
+        },
+        {
+          "type": "formula",
+          "field": "valuer",
+          "expr": "100*d.data.reverse"
+        },
+        {
+          "type": "sort",
+          "by": ["data.marker", "data.length"]
+        }
+      ]
+    },
+    {
+      "name": "fromprofiles",
+      "url": "fromprofiles-m050-n1-s2-f1.tsv",
+      "format": {
+        "type": "tsv",
+        "parse": {
+          "length": "number",
+          "forward": "number",
+          "reverse": "number"
+        }
+      },
+      "transform": [
+        {
+          "type": "filter",
+          "test": "d.data.unit=='AGAT'"
+        },
+        {
+          "type": "filter",
+          "test": "true"
+        },
+        {
+          "type": "formula",
+          "field": "length",
+          "expr": "d.data.length+random()*0.8-0.4"
+        },
+        {
+          "type": "formula",
+          "field": "markerf",
+          "expr": "d.data.marker+' forward'"
+        },
+        {
+          "type": "formula",
+          "field": "markerr",
+          "expr": "d.data.marker+' reverse'"
+        },
+        {
+          "type": "sort",
+          "by": ["data.marker", "data.length"]
+        }
+      ]
+    }
+  ],
+  "marks": [
+    {
+      "type": "group",
+      "from": {
+        "data": "points",
+        "transform": [
+          {"type": "facet", "keys": ["data.marker"]}
+        ]
+      },
+      "marks": [
+        {
+          "type": "symbol",
+          "properties": {
+            "enter": {
+              "x": {"scale": "x", "field": "length"},
+              "y": {"scale": "y", "field": "valuef"},
+              "fill": {"scale": "c", "field": "markerf"}
+            },
+            "update": {
+              "size": {"value": 50},
+              "stroke": {"value": "transparent"},
+              "fillOpacity": {"value": 0.7}
+            },
+            "hover": {
+              "size": {"value": 150},
+              "stroke": {"value": "white"},
+              "fillOpacity": {"value": 1}
+            }
+          }
+        },
+        {
+          "type": "symbol",
+          "properties": {
+            "enter": {
+              "x": {"scale": "x", "field": "length"},
+              "y": {"scale": "y", "field": "valuer"},
+              "fill": {"scale": "c", "field": "markerr"}
+            },
+            "update": {
+              "size": {"value": 50},
+              "stroke": {"value": "transparent"},
+              "fillOpacity": {"value": 0.7}
+            },
+            "hover": {
+              "size": {"value": 150},
+              "stroke": {"value": "white"},
+              "fillOpacity": {"value": 1}
+            }
+          }
+        }
+      ]
+    },
+    {
+      "type": "group",
+      "from": {
+        "data": "fromprofiles",
+        "transform": [
+          {"type": "facet", "keys": ["data.marker"]}
+        ]
+      },
+      "marks": [
+        {
+          "type": "symbol",
+          "properties": {
+            "enter": {
+              "x": {"scale": "x", "field": "length"},
+              "y": {"scale": "y", "field": "data.forward"},
+              "fill": {"scale": "c", "field": "markerf"},
+              "shape": {"value": "diamond"}
+            },
+            "update": {
+              "size": {"value": 150},
+              "stroke": {"value": "transparent"},
+              "fillOpacity": {"value": 0.7}
+            },
+            "hover": {
+              "size": {"value": 450},
+              "stroke": {"value": "white"},
+              "fillOpacity": {"value": 1}
+            }
+          }
+        },
+        {
+          "type": "symbol",
+          "properties": {
+            "enter": {
+              "x": {"scale": "x", "field": "length"},
+              "y": {"scale": "y", "field": "data.reverse"},
+              "fill": {"scale": "c", "field": "markerr"},
+              "shape": {"value": "diamond"}
+            },
+            "update": {
+              "size": {"value": 150},
+              "stroke": {"value": "transparent"},
+              "fillOpacity": {"value": 0.7}
+            },
+            "hover": {
+              "size": {"value": 450},
+              "stroke": {"value": "white"},
+              "fillOpacity": {"value": 1}
+            }
+          }
+        }
+      ]
+    }
+  ]
+}
+}

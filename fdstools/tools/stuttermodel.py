@@ -127,7 +127,8 @@ def print_fit(outfile, fit, lengths, seq, marker, stutter_fold, direction,
         outfile.write("%s\t%s\t%+i\t%i\t%i\t%i\t%s\t%0.3f\t" %
             (seq, marker, stutter_fold, lower_bound, min(lengths),
              max(lengths), direction, r2))
-        outfile.write("\t".join("%.3e" % x for x in fit.tolist()) + "\n")
+        outfile.write("\t".join("%.3e" % x for x in reversed(fit.tolist())) +
+                      "\n")
 #print_fit
 
 

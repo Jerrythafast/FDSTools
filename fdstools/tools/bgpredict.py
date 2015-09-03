@@ -88,7 +88,8 @@ def parse_stuttermodel(stuttermodel, min_r2=0, use_all_data=False):
         r2 = float(line[colid_r2])
         if r2 < min_r2:
             continue
-        coefs = [float(line[colid_coef]) for colid_coef in colids_coefs]
+        coefs = [float(line[colid_coef])
+                 for colid_coef in reversed(colids_coefs)]
         if marker not in model:
             model[marker] = {}
         if not seq or not PAT_SEQ_RAW.match(seq):

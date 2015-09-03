@@ -2,9 +2,10 @@
 <html>
 <head>
     <meta charset="UTF-8">
-    <title>Background Noise Visualisation - FDSTools</title/>
+    <title>Stutter Model Visualisation - FDSTools</title/>
     <!-- BEGIN_LIBRARIES -->
     <script src="http://vega.github.io/vega-editor/vendor/d3.min.js"></script>
+    <!--<script src="../vega.js"></script>-->
     <script src="http://vega.github.io/vega/vega.min.js"></script>
     <!-- END_LIBRARIES -->
     <style>
@@ -91,22 +92,12 @@
                     <th colspan="3">Display options</th>
                 </tr>
                 <tr>
-                    <td>Graph width</td>
-                    <td colspan="2"><input type="text" value="600" id="graphwidth" size="3"> px</td>
-                </tr>
-                <tr>
-                    <td>Sequence spacing</td>
-                    <td colspan="2"><input type="text" value="15" id="barwidth" size="3"> px</td>
+                    <td>Graph dimensions</td>
+                    <td colspan="2"><input type="text" value="400" id="graphheight" size="3">x<input type="text" value="600" id="graphwidth" size="3"> px</td>
                 </tr>
                 <tr>
                     <td>Subgraph spacing</td>
                     <td colspan="2"><input type="text" value="70" id="subgraphoffset" size="3"> px</td>
-                </tr>
-                <tr>
-                    <td>Axis scale</td>
-                    <td><input type="radio" name="scale" value="linear" id="scaleLinear" checked> Linear</td>
-                    <td><input type="radio" name="scale" value="log" id="scaleLog"> Logarithmic
-                    </td>
                 </tr>
                 <tr>
                     <td>Render as:</td>
@@ -116,7 +107,58 @@
             </table>
             <a id="saveLink" href="javascript:void(saveImage())" style="display: none">Save image</a>
         </div>
-    </div>
+    </div> <!--
+            Select unit:
+                <select id="units">
+                    <option>A</option>
+                    <option>C</option>
+                    <option>AC</option>
+                    <option>AG</option>
+                    <option>AT</option>
+                    <option>AAC</option>
+                    <option>AAG</option>
+                    <option>ACT</option>
+                    <option>AGC</option>
+                    <option>AGG</option>
+                    <option>ATC</option>
+                    <option>AAAG</option>
+                    <option>AACG</option>
+                    <option>AAGG</option>
+                    <option>AATC</option>
+                    <option>AATG</option>
+                    <option>ACAG</option>
+                    <option>ACCT</option>
+                    <option selected>AGAT</option>
+                    <option>AGGC</option>
+                    <option>AGGG</option>
+                    <option>ATCC</option>
+                    <option>AAAAG</option>
+                    <option>AATCT</option>
+                </select>
+            Stutter type:
+                <select id="fold">
+                    <option value="f2">-2 stutter</option>
+                    <option value="f1" selected>-1 stutter</option>
+                    <option value="pf1">+1 stutter</option>
+                    <option value="pf2">+2 stutter</option>
+                </select>
+                <input type="checkbox" name="filterMarker" value="All data" checked>Show fit to all homozygotes data
+                <input type="checkbox" id="showMarkerFits" checked>Show fits per marker<br>
+            Show:
+                <input type="checkbox" id="showPoints" checked>Raw homozygotes data (as circles),
+                <input type="checkbox" id="showFromProfiles" checked>Profile means (as diamonds and for AGAT only);
+                Dithering: <select id="dither">
+                    <option value="0.0">Off</option>
+                    <option>0.1</option>
+                    <option>0.2</option>
+                    <option>0.3</option>
+                    <option>0.4</option>
+                    <option selected>0.5</option>
+                    <option>0.6</option>
+                    <option>0.7</option>
+                    <option>0.8</option>
+                    <option>0.9</option>
+                </select> -->
     <div id="vis"></div>
     <script type="text/javascript">
         var graph = false;
@@ -133,30 +175,6 @@
                 var visdiv = document.getElementById("vis");
                 visdiv.scrollLeft = visdiv.scrollWidth;
             });
-        }
-
-        function setScale(value){
-            if(!graph_spec)
-                return;
-            for(i in graph_spec["marks"])
-                if(graph_spec["marks"][i]["scales"])
-                    for(j in graph_spec["marks"][i]["scales"])
-                        if(graph_spec["marks"][i]["scales"][j]["name"] == "x")
-                            graph_spec["marks"][i]["scales"][j]["type"] = value;
-
-            if(graph)
-                parse();
-        }
-
-        function getScale(){
-            if(!graph_spec)
-                return "linear";
-            for(i in graph_spec["marks"])
-                if(graph_spec["marks"][i]["scales"])
-                    for(j in graph_spec["marks"][i]["scales"])
-                        if(graph_spec["marks"][i]["scales"][j]["name"] == "x")
-                            return graph_spec["marks"][i]["scales"][j]["type"];
-            return "linear";
         }
 
         function setDataFormulaTransformValue(dataname, fieldname, value){
@@ -245,18 +263,12 @@
                 document.getElementById("fileselectgroup").style.display = "table";
             }
 
-            //Update graph when rendering mode or axis scale is changed.
+            //Update graph when rendering mode is changed.
             document.getElementById("renderCanvas").addEventListener('change', function(){
                 setRenderer(this.value);
             }, false);
             document.getElementById("renderSVG").addEventListener('change', function(){
                 setRenderer(this.value);
-            }, false);
-            document.getElementById("scaleLinear").addEventListener('change', function(){
-                setScale(this.value);
-            }, false);
-            document.getElementById("scaleLog").addEventListener('change', function(){
-                setScale(this.value);
             }, false);
             document.getElementById("graphwidth").addEventListener('change', function(){
                 var value = parseFloat(this.value);
@@ -266,11 +278,11 @@
                 if(graph)
                     parse();
             }, false);
-            document.getElementById("barwidth").addEventListener('change', function(){
+            document.getElementById("graphheight").addEventListener('change', function(){
                 var value = parseFloat(this.value);
                 if(isNaN(value))
                     return;
-                if(setDataFormulaTransformValue("yscale", "barwidth", value) && graph)
+                if(setDataFormulaTransformValue("yscale", "graphheight", value) && graph)
                     parse();
             }, false);
             document.getElementById("subgraphoffset").addEventListener('change', function(){
@@ -309,17 +321,9 @@
             }, false);
 
             //Sync graph_spec and display.
-            if(getScale() == "linear"){
-                document.getElementById("scaleLinear").checked = true;
-                document.getElementById("scaleLog").checked = false;
-            }
-            else{
-                document.getElementById("scaleLinear").checked = false;
-                document.getElementById("scaleLog").checked = true;
-            }
-            document.getElementById("markerFilter").value = getDataFormulaTransformValue("table", "filter_marker").replace(/^(['"]?)(.*(?=\1$))\1$/, '$2');
+            //FIXME: document.getElementById("markerFilter").value = getDataFormulaTransformValue("table", "filter_marker").replace(/^(['"]?)(.*(?=\1$))\1$/, '$2');
             document.getElementById("graphwidth").value = graph_spec["width"];
-            document.getElementById("barwidth").value = getDataFormulaTransformValue("yscale", "barwidth");
+            document.getElementById("graphheight").value = getDataFormulaTransformValue("yscale", "graphheight");
             document.getElementById("subgraphoffset").value = getDataFormulaTransformValue("yscale", "subgraphoffset");
             document.getElementById("minN").value = getDataFormulaTransformValue("table", "amplitude_threshold");
             document.getElementById("minP").value = getDataFormulaTransformValue("table", "amplitude_pct_threshold");
@@ -332,7 +336,7 @@
     <!-- BEGIN_LOAD_SCRIPT -->
     <script type="text/javascript">
         var graph_spec = false;
-        vg.util.load({url: "bgrawvis.json"}, function(err, result){
+        vg.util.load({url: "stuttermodelvis.json"}, function(err, result){
             graph_spec = JSON.parse(result);
             onLoadSpec(false);
         });

@@ -1,0 +1,98 @@
+Inclusion of tools developed during the project into FDSTools:
+PRIO    OLD TOOL NAME       DESCRIPTION
+------- ------------------- ---------------------------------------------------
+LOW     distance-plot       Check stability of profiles by subsampling
+LOW     qq-plot             Draw Q-Q plot vs normal/lognormal distributions
+LOW     stuttercheck        Sort-of stuttermodel using profiles as input
+LOW     substitutioncheck   Sort-of substitutionmodel using profiles as input
+DONE    gen-allele-names    Convert TSSV-style sequences to allelenames
+DONE    stuttermark         Mark stutter products in sample
+DONE    analyze-background  BGEstimate: generate background profiles
+DONE    profilemark         BGCorrect: find and correct for noise in samples
+DONE    gen-bg-profiles     Compute statistics on noise in homozygous samples
+DONE    blame               Find dirty samples in the reference database
+DONE    allelenames-update  Convert allele names from one library to another
+DONE    polyfit-repeat-len  Stuttermodel: predict stutter from sequence
+DONE    common-background   Compute noise ratios in homozygous samples
+DROP    alleles-convert     Convert allele names using lookup table
+DROP    block-dedup         Remove duplicate blocks in TSSV-style sequences
+DROP    graphgen            Create bar graph from a sample's data
+DROP    find-true-alleles   Check whether the true alleles are detected
+DROP    allele-graph        Create a graph of allele co-occurrence
+DROP    ambiguity           Find potentially ambiguous allele combinations
+DROP    strandbias          Find strand bias in the data
+DROP    annotate-alleles    Annotate true alleles in sample based on allelelist
+
+Visualisations:
+MIDDLE  trends              Fit repeat length vs stutter amount
+LOW     allelegraph         Homozygosity/heterozygosity
+LOW     blame               Common alleles
+LOW     qqplot              Q-Q plot of normal/lognormal distribution
+LOW     stability           Profile distance vs amount of subsampling
+DONE    samplevis           Sample data
+DONE    profiles            Background profiles
+DONE    bg                  Dotplots of noise ratios in homozygous samples
+
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Argument group order:
+input file options          bgcorrect,seqconvert,stuttermark
+output file options         allelefinder,bgcorrect,bgestimate,bghomstats,blame,seqconvert,stuttermark,stuttermodel
+sample tag parsing options  allelefinder,bgcorrect,bgestimate,bghomstats,blame,seqconvert,stuttermark,stuttermodel
+allele detection options    bgestimate,bghomstats,blame,stuttermodel
+filtering options           allelefinder,bgcorrect,bgestimate,bghomstats,bgpredict,blame,stuttermark,stuttermodel
+sequence format options     allelefinder,bgcorrect,bgestimate,bghomstats,bgpredict,blame,stuttermark,stuttermodel
+random subsampling options  bgestimate,bghomstats,stuttermodel
+visualisation options       vis
+
+Input/output of tools:      INPUT           OUTPUT
+allelefinder    list of sample files        *single output + report
+bgcorrect       bg file + single sample (b) single sample (batches supported)
+bgestimate      list of sample files        single output + report
+bghomraw        list of sample files        single output
+bghomstats      list of sample files        single output
+bgmerge^        list of bg files            single output
+bgpredict^      model + seqfile             single output
+blame           bg file + list of samples   single output
+libconvert^     single input library        single output
+seqconvert      single sample file (batch)  single sample (batches supported)
+stuttermark     single sample file (batch)  single sample (batches supported)
+stuttermodel    list of sample files        single output
+vis^            single sample (optional)    single output
+*TODO: add option to change single output to multi-out (batch_process=True)
+^does not use add_args functions (bgmodel/predict use sequence_format_args)
+
+Input/output conventions:
+* Write single output to sys.stdout by default, allow changing by -o
+* Write report (if applicable) to sys.stderr by default, allow changing by -R
+* For multi-in to single-out: list input files as positionals
+* For single-in: provide [IN], [OUT] positionals (defaulting IN to sys.stdin)
+* Single-in batch support via -i/-o; mutex with positionals!
+  (if len(-o) == len(-i), map infile->outfile; if len(-o) == 1,
+   map sample->outfile by rewriting tag)
+* Multi-in to multi-out: allow multiple values in -o option (currently unused)
+
+Reserved option letters:
+-h  Help (used globally)
+-v  Version (used globally)
+-d  Debug (used globally)
+-i  Batch input files
+-o  Output files
+-R  Report file
+-F  Target sequence format
+-l  Library
+-e  Sample tag extraction pattern
+-f  Sample tag format
+
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+To-do:
+* Adjust BGEstimate so that it computes forward and reverse in one go.  To do
+  this, double the number of columns in P and C and put the forward profile in
+  the left half and the reverse profile in the right half.  The benefit of this
+  is that this ensures the same A is used for both strands, that is, the
+  estimated allele balance is the same.
+* Adjust BGEstimate so that it takes strand bias in the allele itself into
+  account as well.
+* Perhaps there should be a version of BGEstimate that makes a profile for each
+  genotype instead of each allele.  This allows for the detection of hybrids.
