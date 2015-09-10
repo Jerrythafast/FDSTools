@@ -27,6 +27,25 @@
       "transform": [
         {
           "type": "formula",
+          "field": "filter_unit",
+          "expr": "'.*'"
+        },
+        {
+          "type": "formula",
+          "field": "filter_marker",
+          "expr": "'.*'"
+        },
+        {
+          "type": "formula",
+          "field": "show_all_data",
+          "expr": "true"
+        },
+        {
+          "type": "filter",
+          "test": "(datum.marker != 'All data' && test('^' + datum.filter_unit + '$', datum.unit) && test('^' + datum.filter_marker + '$', datum.marker)) || (datum.marker == 'All data' && datum.show_all_data)"
+        },
+        {
+          "type": "formula",
           "field": "subgraph",
           "expr": "(datum.stutter > 0? '+' : '') + datum.stutter + ' stutter in ' + datum.unit + ' repeats'"
         }

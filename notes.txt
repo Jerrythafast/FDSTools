@@ -24,14 +24,15 @@ DROP    strandbias          Find strand bias in the data
 DROP    annotate-alleles    Annotate true alleles in sample based on allelelist
 
 Visualisations:
-MIDDLE  trends              Fit repeat length vs stutter amount
-LOW     allelegraph         Homozygosity/heterozygosity
+LOW     allelegraph         Homozygosity/heterozygosity*
 LOW     blame               Common alleles
 LOW     qqplot              Q-Q plot of normal/lognormal distribution
 LOW     stability           Profile distance vs amount of subsampling
 DONE    samplevis           Sample data
 DONE    profiles            Background profiles
 DONE    bg                  Dotplots of noise ratios in homozygous samples
+DONE    trends              Fit repeat length vs stutter amount
+*Blocking issue: https://github.com/vega/vega/issues/338
 
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
@@ -96,3 +97,4 @@ To-do:
   account as well.
 * Perhaps there should be a version of BGEstimate that makes a profile for each
   genotype instead of each allele.  This allows for the detection of hybrids.
+* Add plotting of raw data points to StuttermodelVis.

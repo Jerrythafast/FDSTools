@@ -105,7 +105,7 @@
                     </td>
                 </tr>
                 <tr>
-                    <td>Render as:</td>
+                    <td>Renderer</td>
                     <td><input type="radio" name="renderer" value="svg" id="renderSVG" checked> SVG</td>
                     <td><input type="radio" name="renderer" value="canvas" id="renderCanvas"> Canvas</td>
                 </tr>
@@ -116,6 +116,7 @@
     <div id="vis"></div>
     <script type="text/javascript">
         var graph = false;
+        var fileName = "graph";
         function parse(){
             vg.parse.spec(graph_spec, function(chart){
                 var rendererName = "canvas";
@@ -189,7 +190,7 @@
 
         function setRenderer(value){
             if(graph)
-                graph.renderer(value);
+                graph.renderer(value).update();
         }
 
         //Load the data (input is a fileList object; only the first file is loaded).
@@ -197,7 +198,11 @@
             if(!graph_spec || !fileList || !fileList.length)
                 return;
             var reader = new FileReader();
-            reader.onload = function(theFile){
+            reader.onload = function(e){
+                if(fileList && fileList.length && fileList[0].name)
+                    fileName = fileList[0].name.substr(0, fileList[0].name.lastIndexOf("."));
+                else
+                    fileName = "graph";
                 graph_spec["data"][0]["values"] = reader.result;
                 parse();
             };
@@ -207,16 +212,9 @@
         //Save image function.
         function saveImage(){
             var link = document.getElementById("saveLink");
-            if(document.getElementById("renderSVG").checked){
-                var svg = document.querySelector("svg.marks");
-                svg.setAttribute("xmlns", "http://www.w3.org/2000/svg"); //Vega does not set this for us
-                link.setAttribute("href", "data:image/svg+xml," + encodeURIComponent(svg.outerHTML));
-                link.setAttribute("download", "graph.svg");
-            }
-            else{
-                link.setAttribute("href", document.getElementsByClassName('marks')[0].toDataURL());
-                link.setAttribute("download", "graph.png");
-            }
+            var imageType = document.getElementById("renderSVG").checked? "svg": "png";
+            link.setAttribute("href", graph.toImageURL(imageType));
+            link.setAttribute("download", fileName + "." + imageType);
             link.click();
             link.setAttribute("href", "javascript:void(saveImage())");
             return false;

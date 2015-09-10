@@ -5,7 +5,6 @@
     <title>Stutter Model Visualisation - FDSTools</title/>
     <!-- BEGIN_LIBRARIES -->
     <script src="http://vega.github.io/vega-editor/vendor/d3.min.js"></script>
-    <!--<script src="../vega.js"></script>-->
     <script src="http://vega.github.io/vega/vega.min.js"></script>
     <!-- END_LIBRARIES -->
     <style>
@@ -61,7 +60,7 @@
                     <th>Input file</th>
                 </tr>
                 <tr>
-                    <td>Raw background noise data file:</td>
+                    <td>Stutter model file:</td>
                 </tr>
                 <tr>
                     <td><input id="fileselect" type="file"></td>
@@ -75,16 +74,20 @@
                     <th colspan="2">Filtering options</th>
                 </tr>
                 <tr>
-                    <td>Require at least</td>
-                    <td><input type="text" value="15" id="minN" size="3"> reads</td>
-                </tr>
+                    <td>Repeat unit</td>
+                    <td><input type="text" value=".*" id="unitFilter" size="20"></td>
+                </tr><!--
                 <tr>
-                    <td>Require at least</td>
-                    <td><input type="text" value="0.5" id="minP" size="3">% of highest allele per marker</td>
-                </tr>
+                    <td>Stutter amount</td>
+                    <td><input type="text" value="" id="foldFilter" size="3"></td>
+                </tr>-->
                 <tr>
                     <td>Marker name</td>
                     <td><input type="text" id="markerFilter" size="20" title="Supports regular expression syntax: e.g., use '.*' to match anything."></td>
+                </tr>
+                <tr>
+                    <td>Fit to all data</td>
+                    <td><input type="checkbox" id="allDataFilter" checked> show</td>
                 </tr>
             </table>
             <table class="optiongroup">
@@ -93,14 +96,14 @@
                 </tr>
                 <tr>
                     <td>Graph dimensions</td>
-                    <td colspan="2"><input type="text" value="400" id="graphheight" size="3">x<input type="text" value="600" id="graphwidth" size="3"> px</td>
+                    <td colspan="2"><input type="text" value="400" id="graphheight" size="3"> x <input type="text" value="600" id="graphwidth" size="3"> px</td>
                 </tr>
                 <tr>
                     <td>Subgraph spacing</td>
                     <td colspan="2"><input type="text" value="70" id="subgraphoffset" size="3"> px</td>
                 </tr>
                 <tr>
-                    <td>Render as:</td>
+                    <td>Renderer</td>
                     <td><input type="radio" name="renderer" value="svg" id="renderSVG" checked> SVG</td>
                     <td><input type="radio" name="renderer" value="canvas" id="renderCanvas"> Canvas</td>
                 </tr>
@@ -108,42 +111,6 @@
             <a id="saveLink" href="javascript:void(saveImage())" style="display: none">Save image</a>
         </div>
     </div> <!--
-            Select unit:
-                <select id="units">
-                    <option>A</option>
-                    <option>C</option>
-                    <option>AC</option>
-                    <option>AG</option>
-                    <option>AT</option>
-                    <option>AAC</option>
-                    <option>AAG</option>
-                    <option>ACT</option>
-                    <option>AGC</option>
-                    <option>AGG</option>
-                    <option>ATC</option>
-                    <option>AAAG</option>
-                    <option>AACG</option>
-                    <option>AAGG</option>
-                    <option>AATC</option>
-                    <option>AATG</option>
-                    <option>ACAG</option>
-                    <option>ACCT</option>
-                    <option selected>AGAT</option>
-                    <option>AGGC</option>
-                    <option>AGGG</option>
-                    <option>ATCC</option>
-                    <option>AAAAG</option>
-                    <option>AATCT</option>
-                </select>
-            Stutter type:
-                <select id="fold">
-                    <option value="f2">-2 stutter</option>
-                    <option value="f1" selected>-1 stutter</option>
-                    <option value="pf1">+1 stutter</option>
-                    <option value="pf2">+2 stutter</option>
-                </select>
-                <input type="checkbox" name="filterMarker" value="All data" checked>Show fit to all homozygotes data
-                <input type="checkbox" id="showMarkerFits" checked>Show fits per marker<br>
             Show:
                 <input type="checkbox" id="showPoints" checked>Raw homozygotes data (as circles),
                 <input type="checkbox" id="showFromProfiles" checked>Profile means (as diamonds and for AGAT only);
@@ -162,6 +129,7 @@
     <div id="vis"></div>
     <script type="text/javascript">
         var graph = false;
+        var fileName = "graph";
         function parse(){
             vg.parse.spec(graph_spec, function(chart){
                 var rendererName = "canvas";
@@ -210,7 +178,7 @@
 
         function setRenderer(value){
             if(graph)
-                graph.renderer(value);
+                graph.renderer(value).update();
         }
 
         //Load the data (input is a fileList object; only the first file is loaded).
@@ -218,7 +186,11 @@
             if(!graph_spec || !fileList || !fileList.length)
                 return;
             var reader = new FileReader();
-            reader.onload = function(theFile){
+            reader.onload = function(e){
+                if(fileList && fileList.length && fileList[0].name)
+                    fileName = fileList[0].name.substr(0, fileList[0].name.lastIndexOf("."));
+                else
+                    fileName = "graph";
                 graph_spec["data"][0]["values"] = reader.result;
                 parse();
             };
@@ -228,16 +200,9 @@
         //Save image function.
         function saveImage(){
             var link = document.getElementById("saveLink");
-            if(document.getElementById("renderSVG").checked){
-                var svg = document.querySelector("svg.marks");
-                svg.setAttribute("xmlns", "http://www.w3.org/2000/svg"); //Vega does not set this for us
-                link.setAttribute("href", "data:image/svg+xml," + encodeURIComponent(svg.outerHTML));
-                link.setAttribute("download", "graph.svg");
-            }
-            else{
-                link.setAttribute("href", document.getElementsByClassName('marks')[0].toDataURL());
-                link.setAttribute("download", "graph.png");
-            }
+            var imageType = document.getElementById("renderSVG").checked? "svg": "png";
+            link.setAttribute("href", graph.toImageURL(imageType));
+            link.setAttribute("download", fileName + "." + imageType);
             link.click();
             link.setAttribute("href", "javascript:void(saveImage())");
             return false;
@@ -292,22 +257,16 @@
                 if(setDataFormulaTransformValue("yscale", "subgraphoffset", value) && graph)
                     parse();
             }, false);
-            document.getElementById("minN").addEventListener('change', function(){
-                var value = parseFloat(this.value);
-                if(isNaN(value))
-                    return;
-                if(setDataFormulaTransformValue("table", "amplitude_threshold", value) && graph)
-                    parse();
-            }, false);
-            document.getElementById("minP").addEventListener('change', function(){
-                var value = parseFloat(this.value);
-                if(isNaN(value))
-                    return;
-                if(setDataFormulaTransformValue("table", "amplitude_pct_threshold", value) && graph)
+            document.getElementById("unitFilter").addEventListener('change', function(){
+                if(setDataFormulaTransformValue("fitfunctions", "filter_unit", "'" + this.value + "'") && graph)
                     parse();
             }, false);
             document.getElementById("markerFilter").addEventListener('change', function(){
-                if(setDataFormulaTransformValue("table", "filter_marker", "'" + this.value + "'") && graph)
+                if(setDataFormulaTransformValue("fitfunctions", "filter_marker", "'" + this.value + "'") && graph)
+                    parse();
+            }, false);
+            document.getElementById("allDataFilter").addEventListener('change', function(){
+                if(setDataFormulaTransformValue("fitfunctions", "show_all_data", this.checked? "true": "false") && graph)
                     parse();
             }, false);
 
@@ -321,12 +280,12 @@
             }, false);
 
             //Sync graph_spec and display.
-            //FIXME: document.getElementById("markerFilter").value = getDataFormulaTransformValue("table", "filter_marker").replace(/^(['"]?)(.*(?=\1$))\1$/, '$2');
+            document.getElementById("unitFilter").value = getDataFormulaTransformValue("fitfunctions", "filter_unit").replace(/^(['"]?)(.*(?=\1$))\1$/, '$2');
+            document.getElementById("markerFilter").value = getDataFormulaTransformValue("fitfunctions", "filter_marker").replace(/^(['"]?)(.*(?=\1$))\1$/, '$2');
+            document.getElementById("allDataFilter").checked = getDataFormulaTransformValue("fitfunctions", "show_all_data") == "true";
             document.getElementById("graphwidth").value = graph_spec["width"];
             document.getElementById("graphheight").value = getDataFormulaTransformValue("yscale", "graphheight");
             document.getElementById("subgraphoffset").value = getDataFormulaTransformValue("yscale", "subgraphoffset");
-            document.getElementById("minN").value = getDataFormulaTransformValue("table", "amplitude_threshold");
-            document.getElementById("minP").value = getDataFormulaTransformValue("table", "amplitude_pct_threshold");
             if(has_data){
                 document.getElementById("options").style.display = "none";
                 parse();

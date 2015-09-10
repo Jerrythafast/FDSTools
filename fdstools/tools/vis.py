@@ -60,9 +60,17 @@ _DEF_SUBGRAPH_PADDING = 70
 # This value can be overridden by the -w command line option.
 _DEF_WIDTH = 600
 
+# Default graph height in pixels.
+# This value can be overridden by the -H command line option.
+_DEF_HEIGHT = 400
+
 # Default marker name matching regular expression.
 # This value can be overridden by the -M command line option.
 _DEF_MARKER_REGEX = ".*"
+
+# Default repeat unit matching regular expression.
+# This value can be overridden by the -U command line option.
+_DEF_UNIT_REGEX = ".*"
 
 # Default data file that Vega will read when -V/--vega is specified
 # without providing data to embed in the file.
@@ -113,8 +121,8 @@ def set_axis_scale(spec, scalename, value):
 
 
 def create_visualisation(vistype, infile, outfile, vega, online, tidy, min_abs,
-                         min_pct, bar_width, padding, marker, width,
-                         log_scale):
+                         min_pct, bar_width, padding, marker, width, height,
+                         log_scale, repeat_unit, no_alldata):
     # Get graph spec.
     spec = json.load(resource_stream(
         "fdstools", "vis/%svis/%svis.json" % (vistype, vistype)))
@@ -126,13 +134,26 @@ def create_visualisation(vistype, infile, outfile, vega, online, tidy, min_abs,
         del spec["data"][0]["values"]
         spec["data"][0]["url"] = _DEF_DATA_FILENAME
 
-    # Apply settings.
+    # Apply width, height, and padding settings.
     spec["width"] = width
-    set_data_formula_transform_value(spec, "yscale", "barwidth", bar_width)
+    if vistype == "stuttermodel":
+        set_data_formula_transform_value(spec, "yscale", "graphheight", height)
+    else:
+        set_data_formula_transform_value(spec, "yscale", "barwidth", bar_width)
     set_data_formula_transform_value(spec, "yscale", "subgraphoffset", padding)
     set_data_formula_transform_value(
-        spec, "table", "filter_marker", "'" + marker + "'")
-    if vistype == "sample" or vistype == "bgraw":
+        spec,
+        "fitfunctions" if vistype == "stuttermodel" else "table",
+        "filter_marker", "'" + marker + "'")
+
+    # Apply type-specific settings.
+    if vistype == "stuttermodel":
+        set_data_formula_transform_value(
+            spec, "fitfunctions", "filter_unit", "'" + repeat_unit + "'")
+        set_data_formula_transform_value(
+            spec, "fitfunctions", "show_all_data",
+            "false" if no_alldata else "true")
+    elif vistype == "sample" or vistype == "bgraw":
         set_data_formula_transform_value(
             spec, "table", "amplitude_threshold", min_abs)
         set_data_formula_transform_value(
@@ -142,12 +163,15 @@ def create_visualisation(vistype, infile, outfile, vega, online, tidy, min_abs,
             spec, "table", "filter_threshold", min_pct)
         set_data_formula_transform_value(
             spec, "table", "low", "0.001" if log_scale else "0")
-    if not log_scale:
-        set_axis_scale(spec, "x", "linear")
-    elif vistype == "sample":
-        set_axis_scale(spec, "x", "sqrt")
-    else:
-        set_axis_scale(spec, "x", "log")
+
+    # Apply axis scale settings.
+    if vistype != "stuttermodel":
+        if not log_scale:
+            set_axis_scale(spec, "x", "linear")
+        elif vistype == "sample":
+            set_axis_scale(spec, "x", "sqrt")
+        else:
+            set_axis_scale(spec, "x", "log")
 
     # Stringify spec.
     if tidy:
@@ -192,12 +216,14 @@ def create_visualisation(vistype, infile, outfile, vega, online, tidy, min_abs,
 
 def add_arguments(parser):
     parser.add_argument('type', metavar="TYPE",
-        choices=("sample", "profile", "bgraw"),
+        choices=("sample", "profile", "bgraw", "stuttermodel"),
         help="the type of data to visualise; use 'sample' to visualise "
-             "sample data files and BGCorrect output; use 'profile' to "
-             "visualise background noise profiles obtained with BGEstimate, "
-             "BGHomStats, and BGPredict; use 'bgraw' to visualise raw "
-             "background noise data obtained with BGHomRaw")
+             "sample data files and bgcorrect output; use 'profile' to "
+             "visualise background noise profiles obtained with bgestimate, "
+             "bghomstats, and bgpredict; use 'bgraw' to visualise raw "
+             "background noise data obtained with bghomraw; use "
+             "'stuttermodel' to visualise models of stutter obtained from "
+             "stuttermodel")
     parser.add_argument('infile', metavar="IN", nargs="?",
         help="file containing the data to embed in the visualisation file; if "
              "not specified, HTML visualisation files will contain a file "
@@ -235,9 +261,14 @@ def add_arguments(parser):
              "percentage of the true allele (default: %(default)s)")
     visgroup.add_argument('-M', '--marker', metavar="REGEX",
         default=_DEF_MARKER_REGEX,
-        help="[sample, profile, bgraw] only show graphs for the markers that "
-             "match the given regular expression; the default value "
-             "'%(default)s' matches any marker name")
+        help="[sample, profile, bgraw, stuttermodel] only show graphs for the "
+             "markers that match the given regular expression; the default "
+             "value '%(default)s' matches any marker name")
+    visgroup.add_argument('-U', '--repeat-unit', metavar="REGEX",
+        default=_DEF_UNIT_REGEX,
+        help="[stuttermodel] only show graphs for the repeat units that match "
+             "the given regular expression; the default value '%(default)s' "
+             "matches any repeat unit sequence")
     visgroup.add_argument('-L', '--log-scale', action="store_true",
         help="[sample, profile, bgraw] use logarithmic scale (for sample: "
              "square root scale) instead of linear scale")
@@ -247,12 +278,19 @@ def add_arguments(parser):
              "%(default)s)")
     visgroup.add_argument('-p', '--padding', metavar="N", type=pos_int_arg,
         default=_DEF_SUBGRAPH_PADDING,
-        help="[sample, profile, bgraw] amount of padding (in pixels) between "
-             "graphs of different markers/alleles (default: %(default)s)")
+        help="[sample, profile, bgraw, stuttermodel] amount of padding (in "
+             "pixels) between graphs of different markers/alleles (default: "
+             "%(default)s)")
     visgroup.add_argument('-w', '--width', metavar="N", type=pos_int_arg,
         default=_DEF_WIDTH,
-        help="[sample, profile, bgraw] width of the graph area in pixels "
-             "(default: %(default)s)")
+        help="[sample, profile, bgraw, stuttermodel] width of the graph area "
+             "in pixels (default: %(default)s)")
+    visgroup.add_argument('-H', '--height', metavar="N", type=pos_int_arg,
+        default=_DEF_HEIGHT,
+        help="[stuttermodel] height of the graph area in pixels (default: "
+             "%(default)s)")
+    visgroup.add_argument('-A', '--no-alldata', action="store_true",
+        help="[stuttermodel] if specified, show only marker-specific fits")
 #add_arguments
 
 
@@ -278,5 +316,6 @@ def run(args):
     create_visualisation(args.type, args.infile, args.outfile, args.vega,
                          args.online, args.tidy, args.min_abs, args.min_pct,
                          args.bar_width, args.padding, args.marker, args.width,
-                         args.log_scale)
+                         args.height, args.log_scale, args.repeat_unit,
+                         args.no_alldata)
 #run
