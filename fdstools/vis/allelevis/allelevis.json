@@ -1,0 +1,152 @@
+{
+  "width": 500,
+  "height": 500,
+  "data": [
+    {
+      "name": "raw",
+      "values": "VALUES HERE",
+      "format": {
+        "type": "tsv"
+      },
+      "transform": [
+        {
+          "type": "formula",
+          "field": "samplemarker",
+          "expr": "datum.sample + datum.marker"
+        },
+        {
+          "type": "formula",
+          "field": "markerallele",
+          "expr": "datum.marker + datum.allele"
+        },
+        {
+          "type": "formula",
+          "field": "samplemarkerallele",
+          "expr": "datum.samplemarker + datum.allele"
+        }
+      ]
+    },
+    {
+      "name": "homozygotes",
+      "source": "raw",
+      "transform": [
+        {
+          "type": "aggregate",
+          "groupby": ["samplemarker"],
+          "summarize": {"allele": "distinct"}
+        },
+        {
+          "type": "filter",
+          "test": "datum.distinct_allele == 1"
+        },
+        {
+          "type": "lookup",
+          "on": "raw",
+          "onKey": "samplemarker",
+          "keys": ["samplemarker"],
+          "as": ["alleleobj"]
+        },
+        {
+          "type": "formula",
+          "field": "markerallele",
+          "expr": "datum.alleleobj.markerallele"
+        },
+        {
+          "type": "aggregate",
+          "groupby": ["markerallele"],
+          "summarize": {"*": "count"}
+        }
+      ]
+    },
+    {
+      "name": "nodes",
+      "source": "raw",
+      "transform": [
+        {
+          "type": "aggregate",
+          "groupby": ["marker", "allele"],
+          "summarize": {"*": "count"}
+        },
+        {
+          "type": "formula",
+          "field": "markerallele",
+          "expr": "datum.marker + datum.allele"
+        },
+        {
+          "type": "lookup",
+          "on": "homozygotes",
+          "onKey": "markerallele",
+          "keys": ["markerallele"],
+          "as": ["homcountobj"],
+          "default": {"count": 0}
+        },
+        {
+          "type": "formula",
+          "field": "homCount",
+          "expr": "datum.homcountobj.count"
+        }
+      ]
+    },
+    {
+      "name": "edges",
+      "source": "nodes",
+      "transform": [
+        {
+          "type": "cross",
+          "with": "raw",
+          "output": {"left": "source", "right": "samples"}
+        },
+        {
+          "type": "filter",
+          "test": "datum.source.markerallele == datum.samples.markerallele"
+        },
+        {
+          "type": "cross",
+          "with": "nodes",
+          "output": {"left": "a", "right": "target"}
+        },
+        {
+          "type": "filter",
+          "test": "datum.a.source.marker == datum.target.marker && datum.a.source.allele < datum.target.allele"
+        },
+        {
+          "type": "formula",
+          "field": "samplemarkerallele",
+          "expr": "datum.a.samples.sample + datum.target.marker + datum.target.allele"
+        },
+        {
+          "type": "lookup",
+          "on": "raw",
+          "onKey": "samplemarkerallele",
+          "keys": ["samplemarkerallele"],
+          "as": ["targetsample"],
+          "default": {"sample": "NOTFOUND"}
+        },
+        {
+          "type": "filter",
+          "test": "datum.targetsample.sample != 'NOTFOUND'"
+        },
+        {
+          "type": "formula",
+          "field": "source",
+          "expr": "datum.a.source._id"
+        },
+        {
+          "type": "formula",
+          "field": "target",
+          "expr": "datum.target._id"
+        },
+        {
+          "type": "formula",
+          "field": "sampletag",
+          "expr": "datum.targetsample.sample"
+        },
+        {
+          "type": "aggregate",
+          "groupby": ["source", "target"],
+          "summarize": {"*": "count"}
+        }
+      ]
+    }
+  ]
+}
