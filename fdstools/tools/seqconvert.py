@@ -27,7 +27,7 @@ input files; instead it automatically performs any required conversions
 while running any tool.  Explicitly running seqconvert is never a
 necessity; use this tool for your own convenience.
 """
-import argparse
+import argparse, sys
 
 from ..lib import get_column_ids, ensure_sequence_format, parse_library,\
                   reverse_complement, add_input_output_args,\
@@ -110,10 +110,10 @@ def add_arguments(parser):
     parser.add_argument('-M', '--marker', metavar="MARKER",
         help="assume the specified marker for all sequences")
     parser.add_argument('-l', '--library', metavar="LIBRARY",
-        type=argparse.FileType('r'),
+        type=parse_library,
         help="library file for sequence format conversion")
     parser.add_argument('-L', '--library2', metavar="LIBRARY",
-        type=argparse.FileType('r'),
+        type=parse_library,
         help="second library file to use for output; if specified, allele "
              "names can be conveniently updated to fit this new library file")
     parser.add_argument('-r', '--reverse-complement', metavar="MARKER",
@@ -130,16 +130,16 @@ def run(args):
         raise ValueError("please specify an input file, or pipe in the output "
                          "of another program")
 
-    # Read libraries once.
-    libfile = args.library if args.library is not None else args.library2
-    library = parse_library(libfile) if libfile is not None else None
-    library2 = parse_library(args.library2) if args.library2 is not None \
-                                            else library
+    library = args.library if args.library is not None else args.library2
+    library2 = args.library2 if args.library2 is not None else library
 
     for tag, infiles, outfile in gen:
         for infile in infiles:  # Should be just one, but whatever.
+            infile = sys.stdin if infile == "-" else open(infile, "r")
             convert_sequences(infile, outfile, args.format, library,
                               args.marker, args.marker_column,
                               args.allele_column, args.output_column, library2,
                               args.reverse_complement)
+            if infile != sys.stdin:
+                infile.close()
 #run

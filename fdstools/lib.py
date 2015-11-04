@@ -9,29 +9,47 @@ from StringIO import StringIO
 # Patterns that match entire sequences.
 PAT_SEQ_RAW = re.compile("^[ACGT]*$")
 PAT_SEQ_TSSV = re.compile("^(?:[ACGT]+\(\d+\))*$")
-PAT_SEQ_ALLELENAME = re.compile(  # First line: n_ACT[m] or alias.
+PAT_SEQ_ALLELENAME_STR = re.compile(  # First line: n_ACT[m] or alias.
     "^(?:(?:(?:CE)?-?\d+(?:\.\d+)?_(?:[ACGT]+\[\d+\])*)|((?!_).+?))"
     "(?:_[-+]\d+(?:\.1)?(?P<a>(?:(?<=\.1)-)|(?<!\.1)[ACGT]+)>"  # _+3A>
         "(?!(?P=a))(?:[ACTG]+|-))*$")  # Portion of variants after '>'.
+PAT_SEQ_ALLELENAME_SNP = re.compile(
+    "^REF$|^(?:(?:(?<=^)|(?<!^) )"  # 'REF' or space-separated variants.
+    "\d+(?:\.1)?(?P<a>(?:(?<=\.1)-)|(?<!\.1)[ACGT]+)>"
+        "(?!(?P=a))(?:[ACTG]+|-))+$")  # Portion of variants after '>'.
+PAT_SEQ_ALLELENAME_MT = re.compile(
+    "^REF$|^(?:(?:(?<=^)|(?<!^) )"  # 'REF' or space-separated variants.
+    "(?:(?P<a>[ACGT])|-?)\d+(?(a)|(?:\.\d+)?)(?:[ACGT-]|del))+$")
 
 # Patterns that match blocks of TSSV-style sequences and allele names.
 PAT_TSSV_BLOCK = re.compile("([ACGT]+)\((\d+)\)")
 PAT_ALLELENAME_BLOCK = re.compile("([ACGT]+)\[(\d+)\]")
 PAT_ALIAS = re.compile("^(?!_).+$")
 
-# Pattern that matches a single prefix/suffix variant.
-PAT_VARIANT = re.compile(
-    "^([-+]\d+)(?:\.1)?"  # Position number
-    "(?P<a>(?:(?<=\.1)-)|(?<!\.1)[ACGT]+)>"  # From part
-    "(?!(?P=a))([ACTG]+|-)$")  # To part
+# Patterns that match a single variant.
+PAT_VARIANT_STR = re.compile(
+    "^(?P<pos>[-+]\d+)(?:\.(?P<ins>1))?"
+    "(?P<old>(?:(?<=\.1)-)|(?<!\.1)[ACGT]+)>"
+    "(?!(?P=old))(?P<new>[ACTG]+|-)$")
+PAT_VARIANT_SNP = re.compile(
+    "^(?P<pos>\d+)(?:\.(?P<ins>1))?"
+    "(?P<old>(?:(?<=\.1)-)|(?<!\.1)[ACGT]+)>"
+    "(?!(?P=old))(?P<new>[ACTG]+|-)$")
+PAT_VARIANT_MT = re.compile(
+    "^(?P<old>(?P<a>[ACGT])|-?)"
+    "(?P<pos>\d+)(?(a)|(?:\.(?P<ins>\d+))?)"
+    "(?P<new>[ACGT-]|del)$")
 
 # Patterns that match (parts of) an STR definition.
-PAT_STR_DEF = re.compile(
-    "^(?:[ACGT]+\s+\d+\s+\d+(?:\s+[ACGT]+\s+\d+\s+\d+)*)?$")
+PAT_STR_DEF = re.compile("^(?:(?:(?<=^)|(?<!^)\s+)[ACGT]+\s+\d+\s+\d+)*$")
 PAT_STR_DEF_BLOCK = re.compile("([ACGT]+)\s+(\d+)\s+(\d+)")
 
 # Pattern to split a comma-, semicolon-, or space-separated list.
-PAT_SPLIT = re.compile("[,; ]+")
+PAT_SPLIT = re.compile("\s*[,; \t]\s*")
+
+# Pattern that matches a chromosome name/number.
+PAT_CHROMOSOME = re.compile(
+    "^(?:[Cc][Hh][Rr](?:[Oo][Mm])?)?([1-9XYM]|1\d|2[0-2])$")
 
 # Default regular expression to capture sample tags in file names.
 # This is the default of the -e command line option.
@@ -53,14 +71,26 @@ COMPL = {"A": "T", "T": "A", "U": "A", "G": "C", "C": "G", "R": "Y", "Y": "R",
          "k": "m", "m": "k", "b": "v", "v": "b", "d": "h", "h": "d"}
 
 
-def call_variants(template, sequence, reverse_indices=False, cache=True,
+def call_variants(template, sequence, location="suffix", cache=True,
                   debug=False):
     """
     Perform a global alignment of sequence to template and return a
-    list of variants detected.  All variants are given as substitutions
-    in the form posX>Y, where the first base in the template is pos=1.
-    Set reverse_indices to True to count from right to left instead.
-    Insertions and deletions are pos.1->Y and posX>-, respectively.
+    list of variants detected.  The format (nomenclature) of the
+    returned variants depends on the location argument.
+
+    If location is "suffix" (the default), all variants are given as
+    substitutions in the form posX>Y, where the first base in the
+    template is pos=1.  With location set to "prefix", bases are counted
+    from right to left instead.  Insertions and deletions are written as
+    pos.1->Y and posX>-, respectively.
+
+    If location is a tuple ("M", position) with any integer for the
+    position, variants are written following the mtDNA nomenclature
+    guidelines.  The given position is that of the first base in the
+    template.
+
+    If location is a tuple ("chromosome name", position), a
+    NotImplementedError is raised.
 
     By default, the results of this function are cached.  Set cache to
     False to suppress caching the result and reduce memory usage.
@@ -70,9 +100,9 @@ def call_variants(template, sequence, reverse_indices=False, cache=True,
     """
     # Saving the results in a cache to avoid repeating alignments.
     try:
-        return call_variants.cache[template, sequence, reverse_indices]
+        return call_variants.cache[template, sequence, location]
     except KeyError:
-        pass
+        cache_key = location
 
     row_offset = len(template) + 1
     matrix_match = [0] * row_offset * (len(sequence)+1)
@@ -83,6 +113,20 @@ def call_variants(template, sequence, reverse_indices=False, cache=True,
     MISMATCH_SCORE = -1
     GAP_OPEN_SCORE = -10
     GAP_EXTEND_SCORE = -1
+    variant_format = "%i%s>%s"
+
+    if location == "prefix":
+        location = ("prefix", -len(template))
+    elif location == "suffix":
+        # Include plus signs for position numbers.
+        variant_format = "%+i%s>%s"
+        location = ("suffix", 1)
+    elif type(location) != tuple or len(location) != 2:
+        raise ValueError("Unknown location %r. It should be 'prefix', "
+            "'suffix', or a two-tuple (chromosome, position)" % location)
+    elif location[0] == "M":
+        # No need to avoid gaps in mtDNA notation.
+        GAP_OPEN_SCORE = -1
 
     for i in range(len(matrix_match)):
         x = i % row_offset
@@ -155,14 +199,25 @@ def call_variants(template, sequence, reverse_indices=False, cache=True,
         if i == 0 or template[x - 1] == sequence[y - 1]:
             # Match.  Flush variants.
             if variant_template or variant_sequence:
-                if variant_template == 0:
+                if location[0] == "M":
+                    # MtDNA variants are one-base-at-a-time.
+                    for j in range(
+                            max(variant_template, variant_sequence)-1, -1, -1):
+                        variants.append("%s%i%s%s" % (
+                            template[x+j] if j < variant_template else "",#"-",
+                            x + min(j, variant_template-1) + location[1],
+                            ".%i" % (j-variant_template+1)
+                                if j >= variant_template else "",
+                            sequence[x+j] if j < variant_sequence else "del"))
+                elif variant_template == 0:
                     # Insertions: "-131.1->C" instead of "-130->C".
-                    variants.append("%+i.1->%s" % (
-                        x - int(reverse_indices) * row_offset,
+                    variants.append(variant_format % (
+                        x - 1 + location[1],
+                        ".1-",
                         sequence[y:y+variant_sequence]))
                 else:
-                    variants.append("%+i%s>%s" % (
-                        (x + 1) - int(reverse_indices) * row_offset,
+                    variants.append(variant_format % (
+                        x + location[1],
                         template[x:x+variant_template],
                         sequence[y:y+variant_sequence] or "-"))
                 variant_template = 0
@@ -173,65 +228,93 @@ def call_variants(template, sequence, reverse_indices=False, cache=True,
             variant_sequence += 1
         i -= 1 + row_offset
 
-    # If reverse_indices=False, we need to reverse the output instead.
-    if not reverse_indices:
+    # Variants were called from right to left.  Reverse their order.
+    if location[0] != "prefix":
         variants.reverse()
 
     # Store the result in the cache.
     if cache:
-        call_variants.cache[template, sequence, reverse_indices] = variants
+        call_variants.cache[template, sequence, cache_key] = variants
     return variants
 #call_variants
 call_variants.cache = {}
 
 
-def mutate_sequence(sequence, variants):
+def mutate_sequence(seq, variants, location=None):
     """Apply the given variants to the given sequence."""
-    if not sequence and len(variants) > 1:
-        raise ValueError("With an empty sequence, only a single variant is "
-                         "possible: an insertion '+0.1->x' or '-1.1->x'.")
-    sequence = list(sequence)
+    if type(location) != tuple or len(location) != 2:
+        pattern = PAT_VARIANT_STR
+        offset = 1
+    elif location[0] == "M":
+        pattern = PAT_VARIANT_MT
+        offset = location[1]
+    else:
+        pattern = PAT_VARIANT_SNP
+        offset = location[1]
+
+    seq = [[]] + [[base] for base in seq]
     for variant in variants:
-        vm = PAT_VARIANT.match(variant)
+        vm = pattern.match(variant)
         if vm is None:
             raise ValueError("Unrecognised variant '%s'" % variant)
-        pos = int(vm.group(1))
-        old = vm.group(2)
-        new = vm.group(3)
+        pos = int(vm.group("pos"))
+        ins = int(vm.group("ins") or 0)
+        old = vm.group("old")
+        new = vm.group("new")
         if old == "-":
             old = ""
-        if new == "-":
+        if new == "-" or new == "del":
             new = ""
         if pos < 0:
-            pos += len(sequence) + 1
-        if pos == 0 and len(sequence) == 0:
-            # Insertion into empty sequence.
-            return new
-        if old != "".join(sequence[pos-1:pos+len(old)-1]):
-            raise ValueError("Incorrect original sequence in variant '%s'; "
-                             "should be '%s'!" % (variant,
-                               "".join(sequence[pos-1:pos+len(old)-1]) or "-"))
-        sequence[pos-1:pos+len(old)-1] = [""] * len(old)
-        if pos:
-            sequence[pos-1] += new
+            pos += len(seq) + 1
+        pos -= offset - 1
+        if pos < 0 or (pos == 0 and not ins) or pos > len(seq):
+            raise ValueError(
+                "Position of variant '%s' is outside sequence range (%i-%i)" %
+                    (variant, offset, offset+len(seq)-2))
+        if (not ins and old and old != "".join("".join(x[:1])
+                for x in seq[pos:pos+len(old)])):
+            raise ValueError(
+                "Incorrect original sequence in variant '%s'; should be '%s'!"
+                % (variant, "".join("".join(x[:1])
+                    for x in seq[pos:pos+len(old)])))
+        elif not ins and not old:
+            # MtDNA substitution with reference base omitted.
+            old = "".join("".join(x[:1]) for x in seq[pos:pos+len(new)])
+        if not ins:
+            # Remove old bases, retaining those inserted between/after.
+            seq[pos:pos+len(old)] = [
+                [""] + x[1:] for x in seq[pos:pos+len(old)]]
+            # Place new entirely in the position of the first old base.
+            seq[pos][0] = new
         else:
-            # Insertion at the beginning of the sequence
-            sequence[0] = new + sequence[0]
-    return "".join(sequence)
+            # Insert new exactly ins positions after pos.
+            while len(seq[pos]) <= ins:
+                seq[pos].append("")
+            seq[pos][ins] = new
+    return "".join("".join(x) for x in seq)
 #mutate_sequence
 
 
-def parse_library(handle):
-    if handle == sys.stdin:
+def parse_library(libfile, stream=False):
+    if not stream:
+        libfile = sys.stdin if libfile == "-" else open(libfile, "r")
+    if libfile == sys.stdin:
         # Can't seek on pipes, so read it into a buffer first.
-        handle = StringIO(sys.stdin.read())
+        libfile = StringIO(sys.stdin.read())
     try:
-        return parse_library_ini(handle)
+        library = parse_library_ini(libfile)
+        if not stream:
+            libfile.close()
+        return library
     except MissingSectionHeaderError:
         # Not an ini file.
         pass
-    handle.seek(0)
-    return parse_library_tsv(handle)
+    libfile.seek(0)
+    library = parse_library_tsv(libfile)
+    if not stream and libfile != sys.stdin:
+        libfile.close()
+    return library
 #parse_library
 
 
@@ -283,6 +366,8 @@ def parse_library_ini(handle):
       "suffix": {},
       "regex": {},
       "regex_middle": {},
+      "nostr_reference": {},
+      "genome_position": {},
       "length_adjust": {},
       "block_length": {},
       "max_expected_copies": {},
@@ -311,6 +396,9 @@ def parse_library_ini(handle):
                 library["flanks"][marker] = values
                 markers.add(marker)
             elif section_low == "prefix":
+                if marker in library["nostr_reference"]:
+                    raise ValueError(
+                        "A prefix was defined for non-STR marker %s" % marker)
                 values = PAT_SPLIT.split(value)
                 for value in values:
                     if PAT_SEQ_RAW.match(value) is None:
@@ -320,6 +408,9 @@ def parse_library_ini(handle):
                 library["prefix"][marker] = values
                 markers.add(marker)
             elif section_low == "suffix":
+                if marker in library["nostr_reference"]:
+                    raise ValueError(
+                        "A suffix was defined for non-STR marker %s" % marker)
                 values = PAT_SPLIT.split(value)
                 for value in values:
                     if PAT_SEQ_RAW.match(value) is None:
@@ -327,6 +418,27 @@ def parse_library_ini(handle):
                             "Suffix sequence '%s' of marker %s is invalid" %
                             (value, marker))
                 library["suffix"][marker] = values
+                markers.add(marker)
+            elif section_low == "genome_position":
+                values = PAT_SPLIT.split(value)
+                if len(values) != 2:
+                    raise ValueError(
+                        "Invalid genome position '%s' for marker %s. Expected "
+                        "a chromosome name and a position number." %
+                        (value, marker))
+                chromosome = PAT_CHROMOSOME.match(values[0])
+                if chromosome is None:
+                    raise ValueError(
+                        "Invalid chromosome '%s' for marker %s." %
+                        (values[0], marker))
+                try:
+                    position = int(values[1])
+                except:
+                    raise ValueError(
+                        "Position '%s' of marker %s is not a valid integer" %
+                        (values[1], marker))
+                library["genome_position"][marker] = (chromosome.group(1),
+                    position)
                 markers.add(marker)
             elif section_low == "length_adjust":
                 try:
@@ -375,12 +487,39 @@ def parse_library_ini(handle):
                 }
                 markers.add(marker)
             elif section_low == "repeat":
+                if marker in library["nostr_reference"]:
+                    raise ValueError(
+                        "Marker %s was encountered in both [repeat] and "
+                        "[no_repeat] sections" % marker)
                 if PAT_STR_DEF.match(value) is None:
                     raise ValueError(
                         "STR definition '%s' of marker %s is invalid" %
                         (value, marker))
                 library["regex"][marker] = value
                 markers.add(marker)
+            elif section_low == "no_repeat":
+                if marker in library["regex"]:
+                    raise ValueError(
+                        "Marker %s was encountered in both [repeat] and "
+                        "[no_repeat] sections" % marker)
+                if marker in library["prefix"] or marker in library["suffix"]:
+                    raise ValueError(
+                        "A prefix or suffix was defined for non-STR marker %s"
+                        % marker)
+                if PAT_SEQ_RAW.match(value) is None:
+                    raise ValueError(
+                        "Reference sequence '%s' of marker %s is invalid" %
+                        (value, marker))
+                library["nostr_reference"][marker] = value
+                markers.add(marker)
+
+    # Sanity check: prohibit prefix/suffix for aliases of non-STRs.
+    for alias in library["aliases"]:
+        if library["aliases"][alias]["marker"] in library["nostr_reference"] \
+                and (alias in library["prefix"] or alias in library["suffix"]):
+            raise ValueError(
+                "A prefix or suffix was defined for alias %s of non-STR "
+                "marker %s" % (alias, library["aliases"][alias]["marker"]))
 
     # Compile regular expressions.
     # NOTE: The libconvert tool expects "(seq){num,num}" blocks ONLY!
@@ -577,7 +716,8 @@ def detect_sequence_format(seq):
         return 'raw'
     if PAT_SEQ_TSSV.match(seq):
         return 'tssv'
-    if PAT_SEQ_ALLELENAME.match(seq):
+    if PAT_SEQ_ALLELENAME_STR.match(seq) or PAT_SEQ_ALLELENAME_MT.match(seq) \
+            or PAT_SEQ_ALLELENAME_SNP.match(seq):
         return 'allelename'
     raise ValueError("Unrecognised sequence format")
 #detect_sequence_format
@@ -629,15 +769,75 @@ def convert_sequence_raw_tssv(seq, library, marker, return_alias=False):
         if marker in library["regex_middle"]:
             match = regex_longest_match(library["regex_middle"][marker], seq)
             if match is not None and match.end()-match.start():
-                # TODO: If I did not have a prefix yet, but the
-                # canonical prefix ends with the first few blocks that
-                # we obtained in the match, move these blocks into the
-                # prefix.  Also do this with the suffix.
-                middle = [(match.group(i), match.end(i)+len(pre_suf[0]))
-                    for i in range(1, match.lastindex+1) if match.group(i)]
-                pre_suf[0] += seq[:match.start()]
-                pre_suf[1] = seq[match.end():] + pre_suf[1]
-                seq = match.group()
+
+                # If this allele does not match the prefix of this
+                # marker, but the canonical prefix of the marker ends
+                # with the same sequence as the start of our match, we
+                # move that portion of the match into the prefix.
+                # Then, we do the same thing with the suffix.
+                matched = match.group()
+                start = match.start()
+                end = match.end()
+                modified = False
+                if (not pre_suf[0] and "prefix" in library
+                        and marker in library["prefix"]):
+                    ref = library["prefix"][marker][0]
+                    i = min(len(ref), len(matched))
+                    while i > 0:
+                        if ref.endswith(matched[:i]):
+                            start += i
+                            matched = matched[i:]
+                            modified = True
+                            break
+                        i -= 1
+                if (not pre_suf[1] and "suffix" in library
+                        and marker in library["suffix"]):
+                    ref = library["suffix"][marker][0]
+                    i = min(len(ref), len(matched))
+                    while i > 0:
+                        if ref.startswith(matched[-i:]):
+                            end -= i
+                            matched = matched[:-i]
+                            modified = True
+                            break
+                        i -= 1
+                if modified:
+                    from_start = start-match.start()
+                    from_end = match.end()-end
+                    middle = reduce(
+                        lambda x, i: (
+                            x[0] + [match.group(i)] *
+                                ((match.end(i)-x[1])/len(match.group(i))),
+                            match.end(i)) if match.group(i) else x,
+                        range(1, match.lastindex+1), ([], match.start()))[0]
+                    while from_start:
+                        if from_start < len(middle[0]):
+                            middle[0] = middle[0][from_start:]
+                            break
+                        else:
+                            from_start -= len(middle[0])
+                            middle = middle[1:]
+                    while from_end:
+                        if from_end < len(middle[-1]):
+                            middle[-1] = middle[-1][:-from_end]
+                            break
+                        else:
+                            from_end -= len(middle[-1])
+                            middle = middle[:-1]
+                    if middle:
+                        middle = reduce(
+                            lambda x, y: (x[:-1] if x[-1][0] == y else x) +
+                                [(y, x[-1][1]+len(y))], middle[1:],
+                                [(middle[0], start+len(middle[0]))])
+
+                else:
+                    # No trickery with prefix or suffix was done.
+                    middle = [(match.group(i), match.end(i)+len(pre_suf[0]))
+                        for i in range(1, match.lastindex+1) if match.group(i)]
+
+                pre_suf[0] += seq[:start]
+                pre_suf[1] = seq[end:] + pre_suf[1]
+                seq = matched
 
         # Now construct parts.
         parts = []
@@ -659,11 +859,13 @@ def convert_sequence_raw_tssv(seq, library, marker, return_alias=False):
 
 def convert_sequence_allelename_tssv(seq, library, marker):
     # Check whether there is an alias for this sequence.
+    alias_of = None
     if "aliases" in library:
         for alias in library["aliases"]:
             if library["aliases"][alias]["marker"] == marker and (
                     seq == library["aliases"][alias]["name"] or
                     seq.startswith(library["aliases"][alias]["name"] + "_")):
+                alias_of = marker
                 marker = alias
                 seq = "".join([
                     "0_",
@@ -671,22 +873,47 @@ def convert_sequence_allelename_tssv(seq, library, marker):
                     seq[len(library["aliases"][alias]["name"]):]])
                 break
 
-    # It should NOT be an alias now.
-    match = PAT_SEQ_ALLELENAME.match(seq)
+    nameformat = None
+    if PAT_SEQ_ALLELENAME_MT.match(seq) is not None:
+        nameformat = "MtDNA"
+    elif PAT_SEQ_ALLELENAME_SNP.match(seq) is not None:
+        nameformat = "SNP"
+    if nameformat is not None:
+        # MtDNA and SNP markers.
+        try:
+            reference = library["nostr_reference"][marker]
+        except KeyError:
+            raise ValueError(
+                "%s allele '%s' found for marker %s, but "
+                "no reference sequence was found in the library" %
+                (nameformat, seq, marker))
+        if seq == "REF":
+            return reference + "(1)"
+        return mutate_sequence(reference, seq.split(),
+            library["genome_position"].get(marker,
+                ("M" if nameformat == "MtDNA" else "", 1))) + "(1)"
+
+    # Note: aliases of mtDNA and SNP markers end up here as well.
+    # It should NOT look like an alias now, however.
+    match = PAT_SEQ_ALLELENAME_STR.match(seq)
     if match is None or match.group(1) is not None:
         raise ValueError("Invalid allele name '%s' encountered!" % seq)
 
     allele = seq.split("_")
 
     # Get and mutate prefix and suffix.
-    if "prefix" in library and marker in library["prefix"]:
-        prefix = library["prefix"][marker][0]
-    else:
-        prefix = ""
-    if "suffix" in library and marker in library["suffix"]:
-        suffix = library["suffix"][marker][0]
-    else:
-        suffix = ""
+    prefix = ""
+    suffix = ""
+    if "prefix" in library:
+        if marker in library["prefix"]:
+            prefix = library["prefix"][marker][0]
+        elif alias_of is not None and alias_of in library["prefix"]:
+            prefix = library["prefix"][alias_of][0]
+    if "suffix" in library:
+        if marker in library["suffix"]:
+            suffix = library["suffix"][marker][0]
+        elif alias_of is not None and alias_of in library["suffix"]:
+            suffix = library["suffix"][alias_of][0]
     variants = [[], []]
     for variant in allele[2:]:
         if variant[0] == "-":
@@ -722,15 +949,31 @@ def convert_sequence_raw_allelename(seq, library, marker):
     seq, alias = convert_sequence_raw_tssv(seq, library, marker, True)
     blocks = PAT_TSSV_BLOCK.findall(seq)
 
+    if marker in library["nostr_reference"]:
+        # Handle non-STR markers here.
+        if alias != marker:
+            return library["aliases"][alias]["name"]
+        if library["nostr_reference"][marker] == blocks[0][0]:
+            return "REF"
+        return " ".join(
+            call_variants(library["nostr_reference"][marker], blocks[0][0],
+                library["genome_position"].get(marker, "suffix")))
+
     # Find prefix and suffix.
     prefix = suffix = this_prefix = this_suffix = ""
     remaining_blocks = len(blocks)
-    if "prefix" in library and marker in library["prefix"]:
-        prefix = library["prefix"][marker][0]
+    if "prefix" in library:
+        if alias in library["prefix"]:
+            prefix = library["prefix"][alias][0]
+        elif marker in library["prefix"]:
+            prefix = library["prefix"][marker][0]
         if prefix and remaining_blocks > 0 and blocks[0][1] == "1":
             remaining_blocks -= 1
-    if "suffix" in library and marker in library["suffix"]:
-        suffix = library["suffix"][marker][0]
+    if "suffix" in library:
+        if alias in library["suffix"]:
+            suffix = library["suffix"][alias][0]
+        elif marker in library["suffix"]:
+            suffix = library["suffix"][marker][0]
         if suffix and remaining_blocks > 0 and blocks[-1][1] == "1":
             remaining_blocks -= 1
     if remaining_blocks > 0 and prefix and blocks[0][1] == "1":
@@ -744,10 +987,10 @@ def convert_sequence_raw_allelename(seq, library, marker):
     length = 0
     variants = []
     if prefix != this_prefix:
-        variants += call_variants(prefix, this_prefix, True)
+        variants += call_variants(prefix, this_prefix, "prefix")
         length += len(this_prefix) - len(prefix)
     if suffix != this_suffix:
-        variants += call_variants(suffix, this_suffix, False)
+        variants += call_variants(suffix, this_suffix, "suffix")
         length += len(this_suffix) - len(suffix)
 
     # We are ready to return the allele name of aliases.
@@ -976,8 +1219,11 @@ def get_sample_data(tags_to_files, callback, allelelist=None,
         data = {}
         alleles = set()
         for infile in tags_to_files[tag]:
+            infile = sys.stdin if infile == "-" else open(infile, "r")
             alleles.update(read_sample_data_file(infile, data,
                 annotation_column, seqformat, library, marker))
+            if infile != sys.stdin:
+                infile.close()
         if limit_reads < sys.maxint:
             reduce_read_counts(data, limit_reads)
         if allelelist is not None:
@@ -1082,7 +1328,7 @@ def add_sequence_format_args(parser, default_format=None, force=False):
                  "no conversion" if default_format is None else default_format)
                  + ")")
     group.add_argument('-l', '--library', metavar="LIBRARY",
-        type=argparse.FileType('r'),
+        type=parse_library,
         help="library file for sequence format conversion")
 #add_sequence_format_args
 
@@ -1093,22 +1339,22 @@ def add_input_output_args(parser, single_in=False, batch_support=False,
     # Input file options group.
     if not single_in:
         parser.add_argument('infiles', nargs='*', metavar="FILE",
-            default=[sys.stdin], type=argparse.FileType('r'),
+            default=["-"],
             help="the sample data file(s) to process (default: read from "
                  "stdin)")
     elif not batch_support:
         parser.add_argument('infile', nargs='?', metavar="IN",
-            default=sys.stdin, type=argparse.FileType('r'),
+            default="-",
             help="the sample data file to process (default: read from stdin)")
     else:
         mutex = parser.add_argument_group(
                     "input file options").add_mutually_exclusive_group()
         mutex.add_argument('infile', nargs='?', metavar="IN",
-            default=sys.stdin, type=argparse.FileType('r'),
+            default="-",
             help="single sample data file to process (default: read from "
                  "stdin)")
         mutex.add_argument("-i", "--input", dest="infiles", nargs="+",
-            metavar="IN", type=argparse.FileType('r'),
+            metavar="IN",
             help="multiple sample data files to process (use with "
                  "-o/--output)")
 
@@ -1175,21 +1421,19 @@ def get_tag(filename, tag_expr, tag_format):
 def get_input_output_files(args, single=False, batch_support=False):
     if single and not batch_support:
         # One infile, one outfile.  Return 2-tuple (infile, outfile).
-        if args.infile.isatty():
+        if args.infile == "-" and sys.stdin.isatty():
             return False  # No input specified.
         return args.infile, args.outfile
 
 
     if not single and not batch_support:
         # N infiles, one outfile.  Return 2-tuple ({tag: infiles}, out).
-        infiles = args.infiles if "infiles" in args \
-                  and args.infiles is not None else [args.infile]
-        if len(infiles) == 1 and infiles[0].isatty():
+        if args.infiles == ["-"] and sys.stdin.isatty():
             return False  # No input specified.
 
         tags_to_files = {}
-        for infile in infiles:
-            tag = get_tag(infile.name, args.tag_expr, args.tag_format)
+        for infile in args.infiles:
+            tag = get_tag(infile, args.tag_expr, args.tag_format)
             try:
                 tags_to_files[tag].append(infile)
             except KeyError:
@@ -1202,7 +1446,7 @@ def get_input_output_files(args, single=False, batch_support=False):
         # Each yielded tuple should cause a separate run of the tool.
         infiles = args.infiles if "infiles" in args \
                   and args.infiles is not None else [args.infile]
-        if len(infiles) == 1 and infiles[0].isatty():
+        if infiles == ["-"] and sys.stdin.isatty():
             return False  # No input specified.
 
         outfiles = args.outfiles if "outfiles" in args \
@@ -1212,7 +1456,7 @@ def get_input_output_files(args, single=False, batch_support=False):
                 "Number of input files (%i) is not equal to number of output "
                 "files (%i)." % (len(infiles), len(outfiles)))
 
-        tags = [get_tag(infile.name, args.tag_expr, args.tag_format)
+        tags = [get_tag(infile, args.tag_expr, args.tag_format)
                 for infile in infiles]
 
         if len(outfiles) == 1:
@@ -1238,7 +1482,8 @@ def get_input_output_files(args, single=False, batch_support=False):
         # N infiles, one or N outfiles.
         # If one outfile, return ({tag: [infiles]}, outfile).
         # If N outfiles, return generator of (tag, [infiles], outfile).
-        raise NotImplementedError("Multi-input with optional multi-output not supported yet.")
+        raise NotImplementedError(
+            "Multi-input with optional multi-output not supported yet.")
 #get_input_output_files
 
 

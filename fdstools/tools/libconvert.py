@@ -15,6 +15,12 @@ prefix, the STR, and a suffix.  The prefix and suffix are optional and
 are meant to fill the gap between the STR and the primer binding sites.
 The primer binding sites are called 'flanks' in the library file.
 
+For non-STR markers, FDSTools library files simply contain the reference
+sequence of the region between the flanks.  All markers in TSSV library
+files are assumed to be STR markers, but the libconvert tool will
+include the non-STR markers on a best-effort basis when converting to
+the TSSV format.
+
 Allele names typically consist of an allele number compatible with those
 obtained from Capillary Electrophoresis (CE), followed by the STR
 sequence in a shortened form and any substitutions or other variants
@@ -44,14 +50,13 @@ __version__ = "0.1dev"
 # If no input is given, convert the following to FDSTools format.
 _DEFAULT_LIBRARY = "\t".join([
     "MyMarker",
-    "ACTAGCTAGCGCTA",
-    "GCTCGATCGATCGA",
-    "TGAT 0 2 AGAT 3 20 ACCT 0 5"])
-
+    "CTGTTTCTGAGTTTCAAGTATGTCTGAG",
+    "TTACATGCTCGTGCACCTTATGGAGGGG",
+    "GT 0 4 AGGGGA 1 1 GTGA 0 5 GT 8 25"])
 
 def convert_library(infile, outfile, aliases=False):
     pattern_reverse = re.compile("\(([ACGT]+)\)\{(\d+),(\d+)\}")
-    library = parse_library(infile)
+    library = parse_library(infile, stream=True)
     if "aliases" in library:
         # FDSTools -> TSSV
         markers = set()
@@ -62,6 +67,8 @@ def convert_library(infile, outfile, aliases=False):
         for marker in library["suffix"]:
             markers.add(marker)
         for marker in library["regex"]:
+            markers.add(marker)
+        for marker in library["nostr_reference"]:
             markers.add(marker)
 
         marker_aliases = {}
@@ -91,13 +98,15 @@ def convert_library(infile, outfile, aliases=False):
                     pattern = pattern_reverse.findall(
                         library["regex"][marker].pattern)
             elif aliases or marker not in marker_aliases:
-                # Normal marker, or separtely from its aliases.
+                # Normal marker, or separately from its aliases.
                 if marker not in library["flanks"]:
                     continue  # Worthless, no flanks.
                 flanks = library["flanks"][marker]
                 if marker in library["regex"]:
                     pattern = pattern_reverse.findall(
                         library["regex"][marker].pattern)
+                elif marker in library["nostr_reference"]:
+                    pattern = [(library["nostr_reference"][marker], "1", "1")]
             else:
                 # Merge marker with its aliases.
                 flanks = False
@@ -142,6 +151,9 @@ def convert_library(infile, outfile, aliases=False):
                     if unmatched:
                         middle = [(x[0], "0", x[2]) for x in middle] + \
                                  [(x, "0", "1") for x in unmatched]
+                elif marker in library["nostr_reference"]:
+                    middle = [(library["nostr_reference"][marker],
+                        "0" if marker in marker_aliases else "1", "1")]
 
                 # Add prefixes and suffixes of aliases.
                 if marker in marker_aliases:
@@ -175,51 +187,100 @@ def convert_library(infile, outfile, aliases=False):
         # Create sections.  Most of them will be empty but we will put
         # comments in them to explain how to use them.
         ini.add_section("aliases")
-        ini.set("aliases", "; Specify three comma-separated values: marker "
-                            "name, sequence, and allele name.")
-        ini.set("aliases", "; You may use the alias name to specify flanks, "
-                           "prefix, and suffix for this")
-        ini.set("aliases", "; allele specifically. You cannot specify a "
-                           "repeat structure for an alias.")
-        ini.set("aliases", ";MyAlias = MyMarker, AGCTAGC, MySpecialAlleleName")
+        ini.set("aliases",
+                "; Specify three comma-separated values: marker name, "
+                "sequence, and allele name.")
+        ini.set("aliases",
+                "; You may use the alias name to specify flanks, prefix, and "
+                "suffix for this")
+        ini.set("aliases",
+                "; allele specifically. You cannot specify a repeat structure "
+                "for an alias.")
+        ini.set("aliases",
+                ";MyAlias = MyMarker, AGCTAGC, MySpecialAlleleName")
         ini.add_section("flanks")
-        ini.set("flanks", "; Specify two comma-separated values: left flank "
-                          "and right flank.")
+        ini.set("flanks",
+                "; Specify two comma-separated values: left flank and right "
+                "flank.")
         ini.add_section("prefix")
-        ini.set("prefix", "; Specify all known prefix sequences separated "
-                          "by commas. The first sequence")
-        ini.set("prefix", "; listed is used as the reference sequence when "
-                          "generating allele names. The")
-        ini.set("prefix", "; prefix is the sequence between the left flank "
-                          "and the repeat and is omitted")
-        ini.set("prefix", "; from allele names. Deviations from the reference "
-                          "are expressed as variants.")
+        ini.set("prefix",
+                "; Specify all known prefix sequences separated by commas. "
+                "The first sequence")
+        ini.set("prefix",
+                "; listed is used as the reference sequence when generating "
+                "allele names. The")
+        ini.set("prefix",
+                "; prefix is the sequence between the left flank and the "
+                "repeat and is omitted")
+        ini.set("prefix",
+                "; from allele names. Deviations from the reference are "
+                "expressed as variants.")
         ini.add_section("suffix")
-        ini.set("suffix", "; Specify all known suffix sequences separated "
-                          "by commas. The first sequence")
-        ini.set("suffix", "; listed is used as the reference sequence when "
-                          "generating allele names. The")
-        ini.set("suffix", "; suffix is the sequence between the repeat and "
-                          "the right flank.")
+        ini.set("suffix",
+                "; Specify all known suffix sequences separated by commas. "
+                "The first sequence")
+        ini.set("suffix",
+                "; listed is used as the reference sequence when generating "
+                "allele names. The")
+        ini.set("suffix",
+                "; suffix is the sequence between the repeat and the right "
+                "flank.")
         ini.add_section("repeat")
-        ini.set("repeat", "; Specify the STR repeat structure in "
-                          "space-separated triples of sequence,")
-        ini.set("repeat", "; minimum number of repeats, and maximum number of "
-                          "repeats.")
+        ini.set("repeat",
+                "; Specify the STR repeat structure in space-separated "
+                "triples of sequence,")
+        ini.set("repeat",
+                "; minimum number of repeats, and maximum number of repeats.")
+        ini.add_section("no_repeat")
+        ini.set("no_repeat",
+                "; Specify the reference sequence for non-STR markers.")
+        ini.set("no_repeat",
+                ";MySNPMarker = TTTTAACACAAAAAATTTAAAATAAGAAGAATAAATAGTGCTTGCTTT")
+        ini.set("no_repeat",
+                ";MyMtMarker  = AACCCCCCCT")
+        ini.add_section("genome_position")
+        ini.set("genome_position",
+                "; Specify the chromosome number and position of the first "
+                "base after the first")
+        ini.set("genome_position",
+                "; flank of each marker. Specify 'M' as the chromosome name "
+                "for markers on")
+        ini.set("genome_position",
+                "; mitochondrial DNA. Allele names generated for these "
+                "markers will follow mtDNA")
+        ini.set("genome_position",
+                "; nomenclature guidelines.")
+        ini.set("genome_position",
+                ";MyMarker    = 9, 36834400")
+        ini.set("genome_position",
+                ";MySNPMarker = X, 21214600")
+        ini.set("genome_position",
+                ";MyMtMarker  = M, 301")
         ini.add_section("length_adjust")
-        ini.set("length_adjust", "; When generating allele names, the CE "
-                                 "allele number is based on the length")
-        ini.set("length_adjust", "; of the sequence (prefix+repeat+suffix) "
-                                 "minus the adjustment specified here.")
+        ini.set("length_adjust",
+                "; When generating allele names for STR alleles, the CE "
+                "allele number is based")
+        ini.set("length_adjust",
+                "; on the length of the sequence (prefix+repeat+suffix) minus "
+                "the adjustment")
+        ini.set("length_adjust",
+                "; specified here.")
         ini.add_section("block_length")
-        ini.set("block_length", "; Specify the core repeat unit length of "
-                                "each marker. The default length is 4.")
+        ini.set("block_length",
+                "; Specify the core repeat unit length of each marker. The "
+                "default length is 4.")
         ini.add_section("max_expected_copies")
-        ini.set("max_expected_copies", "; Specify the maximum expected number "
-                                       "copies (i.e., alleles) for each "
-                                       "marker.")
-        ini.set("max_expected_copies", "; The default is 2. Specify 1 "
-                                       "here for markers on the Y chromosome.")
+        ini.set("max_expected_copies",
+                "; Specify the maximum expected number of copies (i.e., "
+                "alleles) for each")
+        ini.set("max_expected_copies",
+                "; marker in a single reference sample (only used for "
+                "allelefinder). The default")
+        ini.set("max_expected_copies",
+                "; is 2. Specify 1 here for haploid markers (i.e., those on "
+                "mitochondrial DNA or")
+        ini.set("max_expected_copies",
+                "; on the Y chromosome).")
 
         # Enter flanking sequences and STR definitions.
         fmt = "%%-%is" % reduce(max, map(len,

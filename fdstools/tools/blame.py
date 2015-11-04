@@ -17,7 +17,7 @@ import argparse
 from ..lib import pos_int_arg, add_input_output_args, get_input_output_files,\
                   add_allele_detection_args, nnls, ensure_sequence_format,\
                   parse_allelelist, load_profiles, add_sequence_format_args,\
-                  parse_library, get_sample_data
+                  get_sample_data
 
 __version__ = "0.1dev"
 
@@ -60,8 +60,7 @@ def add_sample_data(data, sample_data, sample_tag, alleles):
 
 
 def blame(samples_in, outfile, allelefile, annotation_column, mode,
-          profilefile, num, seqformat, libfile, marker):
-    library = parse_library(libfile) if libfile else None
+          profilefile, num, seqformat, library, marker):
     allelelist = {} if allelefile is None \
                     else parse_allelelist(allelefile, "raw", library)
     data = load_profiles(profilefile, library)

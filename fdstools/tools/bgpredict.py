@@ -28,7 +28,7 @@ import sys
 from operator import mul
 
 from ..lib import get_column_ids, reverse_complement, get_repeat_pattern,\
-                  mutate_sequence, parse_library,\
+                  mutate_sequence,\
                   PAT_SEQ_RAW, ensure_sequence_format, add_sequence_format_args
 
 __version__ = "0.1dev"
@@ -209,8 +209,7 @@ def get_relative_frequencies(stutters, combinations):
 def predict_profiles(stuttermodel, seqsfile, outfile, marker_column,
                      allele_column, default_marker, use_all_data, crosstab,
                      min_pct, min_r2, seqformat, library):
-    # Parse library and stutter model file.
-    library = parse_library(library) if library is not None else None
+    # Parse stutter model file.
     model = parse_stuttermodel(stuttermodel, min_r2, use_all_data)
 
     # Read list of sequences.

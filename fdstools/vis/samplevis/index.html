@@ -2,7 +2,7 @@
 <html>
 <head>
     <meta charset="UTF-8">
-    <title>Sample Visualisation - FDSTools</title/>
+    <title>Sample Visualisation - FDSTools</title>
     <!-- BEGIN_LIBRARIES -->
     <script src="http://vega.github.io/vega-editor/vendor/d3.min.js"></script>
     <script src="http://vega.github.io/vega/vega.min.js"></script>
@@ -220,6 +220,7 @@
             link.setAttribute("download", fileName + "." + imageType);
             link.click();
             link.setAttribute("href", "javascript:void(saveImage())");
+            link.removeAttribute("download");
             return false;
         }
 

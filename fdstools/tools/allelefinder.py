@@ -18,7 +18,7 @@ this file to do their job.  One may use the allelefinder report
 of what might be wrong.
 """
 from ..lib import pos_int_arg, add_input_output_args, get_input_output_files, \
-                  ensure_sequence_format, get_sample_data, parse_library, \
+                  ensure_sequence_format, get_sample_data, \
                   add_sequence_format_args
 
 __version__ = "0.1dev"
@@ -50,7 +50,7 @@ _DEF_MAX_NOISY = 2
 def find_alleles(samples_in, outfile, reportfile, min_reads, min_allele_pct,
                  max_noise_pct, max_alleles, max_noisy, stuttermark_column,
                  seqformat, library):
-    library = parse_library(library) if library is not None else {}
+    library = library if library is not None else {}
 
     outfile.write("\t".join(["sample", "marker", "total", "allele"]) + "\n")
     allelelist = {}

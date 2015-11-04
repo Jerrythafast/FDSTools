@@ -8,7 +8,7 @@ can be visualised using "fdstools vis bgraw".  Use bghomstats or
 bgestimate to compute aggregate statistics on noise instead.
 """
 from ..lib import pos_int_arg, add_input_output_args, get_input_output_files,\
-                  add_allele_detection_args, parse_allelelist, parse_library,\
+                  add_allele_detection_args, parse_allelelist,\
                   get_sample_data, add_sequence_format_args
 
 __version__ = "0.1dev"
@@ -108,8 +108,7 @@ def compute_ratios(samples_in, outfile, allelefile, annotation_column, min_pct,
                    min_abs, min_samples, min_sample_pct, seqformat, library,
                    marker):
 
-    # Parse library and allele list.
-    library = parse_library(library) if library is not None else None
+    # Parse allele list.
     allelelist = {} if allelefile is None \
                     else parse_allelelist(allelefile, seqformat, library)
 

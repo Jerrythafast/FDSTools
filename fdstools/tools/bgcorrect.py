@@ -9,10 +9,10 @@ columns) and the number of noise reads caused by the prescense of this
 sequence (_add columns), as well as the resulting number of reads after
 correction (_corrected columns: original minus _noise plus _add).
 """
-import argparse
+import argparse, sys
 #import numpy as np  # Only imported when actually running this tool.
 
-from ..lib import parse_library, load_profiles, ensure_sequence_format, nnls, \
+from ..lib import load_profiles, ensure_sequence_format, nnls, \
                   get_column_ids, add_sequence_format_args, \
                   add_input_output_args, get_input_output_files
 
@@ -203,8 +203,7 @@ def run(args):
                          "of another program")
 
     # Read library and profiles once.
-    library = parse_library(args.library) if args.library else None
-    profiles = load_profiles(args.profiles, library)
+    profiles = load_profiles(args.profiles, args.library)
     if args.marker:
         profiles = {args.marker: profiles[args.marker]} \
                    if args.marker in profiles else {}
@@ -214,6 +213,9 @@ def run(args):
         if len(infiles) > 1:
             raise ValueError(
                 "multiple input files for sample '%s' specified " % tag)
-        match_profiles(infiles[0], outfile, profiles, library,
+        infile = sys.stdin if infiles[0] == "-" else open(infiles[0], "r")
+        match_profiles(infile, outfile, profiles, args.library,
                        args.sequence_format)
+        if infile != sys.stdin:
+            infile.close()
 #run

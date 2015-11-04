@@ -1,6 +1,6 @@
 """
 Tools for characterisation and filtering of PCR stutter artefacts and other
-systemic noise in Next Generation Sequencing data of forensic STR markers.
+systemic noise in Next Generation Sequencing data of forensic DNA markers.
 """
 
 __version_info__ = ('0', '0', '2')

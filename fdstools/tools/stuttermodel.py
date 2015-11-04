@@ -11,7 +11,7 @@ import re
 #import numpy as np  # Only imported when actually running this tool.
 
 from ..lib import pos_int_arg, add_input_output_args, get_input_output_files,\
-                  add_allele_detection_args, parse_allelelist, parse_library,\
+                  add_allele_detection_args, parse_allelelist, \
                   get_sample_data, add_sequence_format_args, call_variants,\
                   add_random_subsampling_args, reverse_complement,\
                   get_repeat_pattern
@@ -188,8 +188,7 @@ def fit_stutter(samples_in, outfile, allelefile, annotation_column, min_pct,
                 same_shape, ignore_zeros, max_unit_length, raw_outfile, marker,
                 limit_reads, drop_samples):
 
-    # Parse library and allele list.
-    library = parse_library(library) if library is not None else None
+    # Parse allele list.
     allelelist = {} if allelefile is None \
                     else parse_allelelist(allelefile, "raw", library)
 

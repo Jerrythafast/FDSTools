@@ -28,12 +28,11 @@ of one repeat in the second block and one repeat in the ninth block
 ('2-1x9-1').  (If this allele would have more than 157 reads, it would
 be annotated as 'ALLELE' instead.)
 """
-import argparse
+import argparse, sys
 
 from ..lib import pos_int_arg, print_db, PAT_TSSV_BLOCK, get_column_ids, \
                   add_input_output_args, get_input_output_files, \
-                  ensure_sequence_format, add_sequence_format_args, \
-                  parse_library
+                  ensure_sequence_format, add_sequence_format_args
 
 __version__ = "1.4"
 
@@ -440,16 +439,16 @@ def run(args):
         raise ValueError("please specify an input file, or pipe in the output "
                          "of another program")
 
-    # Read library once.
-    library = parse_library(args.library) if args.library is not None else None
-
     for tag, infiles, outfile in gen:
         # TODO: Aggregate data from all infiles of each sample.
         # This tool now only works properly with one infile per sample!
         if len(infiles) > 1:
             raise ValueError(
-                "multiple input files for sample '%s' specified " % tag)
-        annotate_alleles(infiles[0], outfile, args.stutter, args.min_reads,
+                "multiple input files for sample '%s' specified" % tag)
+        infile = sys.stdin if infiles[0] == "-" else open(infiles[0], "r")
+        annotate_alleles(infile, outfile, args.stutter, args.min_reads,
                          args.min_repeats, args.min_report, args.column_name,
-                         library, args.debug)
+                         args.library, args.debug)
+        if infile != sys.stdin:
+            infile.close()
 #run

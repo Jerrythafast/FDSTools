@@ -48,6 +48,11 @@ _DEF_THRESHOLD_ABS = 15
 # This value can be overridden by the -m command line option.
 _DEF_THRESHOLD_PCT = 0.5
 
+# Default minimum number of reads per orientation to require.
+# This value can be overridden by the -s command line option.
+_DEF_THRESHOLD_ORIENTATION = 0
+
+
 # Default width of bars in bar graphs, in pixels.
 # This value can be overridden by the -b command line option.
 _DEF_BAR_WIDTH = 15
@@ -121,8 +126,8 @@ def set_axis_scale(spec, scalename, value):
 
 
 def create_visualisation(vistype, infile, outfile, vega, online, tidy, min_abs,
-                         min_pct, bar_width, padding, marker, width, height,
-                         log_scale, repeat_unit, no_alldata):
+                         min_pct, min_per_strand, bar_width, padding, marker,
+                         width, height, log_scale, repeat_unit, no_alldata):
     # Get graph spec.
     spec = json.load(resource_stream(
         "fdstools", "vis/%svis/%svis.json" % (vistype, vistype)))
@@ -163,6 +168,9 @@ def create_visualisation(vistype, infile, outfile, vega, online, tidy, min_abs,
             spec, "table", "filter_threshold", min_pct)
         set_data_formula_transform_value(
             spec, "table", "low", "0.001" if log_scale else "0")
+    if vistype == "sample":
+        set_data_formula_transform_value(
+            spec, "table", "orientation_threshold", min_per_strand)
 
     # Apply axis scale settings.
     if vistype != "stuttermodel":
@@ -210,7 +218,7 @@ def create_visualisation(vistype, infile, outfile, vega, online, tidy, min_abs,
             parts.append(html[match.end(1):])
             html = "".join(parts)
 
-    outfile.write(html)    
+    outfile.write(html)
 #create_visualisation
 
 
@@ -259,6 +267,10 @@ def add_arguments(parser):
              "at least this percentage of the number of reads of the highest "
              "allele of a marker; for profile and bgraw: at least this "
              "percentage of the true allele (default: %(default)s)")
+    visgroup.add_argument('-s', '--min-per-strand', metavar="N",
+        type=pos_int_arg, default=_DEF_THRESHOLD_ORIENTATION,
+        help="[sample] only show sequences with this minimum number of reads "
+             "for both orientations (forward/reverse) (default: %(default)s)")
     visgroup.add_argument('-M', '--marker', metavar="REGEX",
         default=_DEF_MARKER_REGEX,
         help="[sample, profile, bgraw, stuttermodel] only show graphs for the "
@@ -315,7 +327,7 @@ def run(args):
 
     create_visualisation(args.type, args.infile, args.outfile, args.vega,
                          args.online, args.tidy, args.min_abs, args.min_pct,
-                         args.bar_width, args.padding, args.marker, args.width,
-                         args.height, args.log_scale, args.repeat_unit,
-                         args.no_alldata)
+                         args.min_per_strand, args.bar_width, args.padding,
+                         args.marker, args.width, args.height, args.log_scale,
+                         args.repeat_unit, args.no_alldata)
 #run

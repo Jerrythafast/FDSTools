@@ -19,19 +19,20 @@ Example: fdstools bgpredict ... | fdstools bgmerge old.txt > out.txt
 import argparse
 import sys
 
-from ..lib import load_profiles, ensure_sequence_format, parse_library,\
+from ..lib import load_profiles, ensure_sequence_format,\
                   add_sequence_format_args
 
 __version__ = "0.1dev"
 
 
 def merge_profiles(infiles, outfile, crosstab, seqformat, library):
-    # Parse library file.
-    library = parse_library(library) if library is not None else None
-
     amounts = {}
     for infile in infiles:
-        profiles = load_profiles(infile, library)
+        if infile == "-":
+            profiles = load_profiles(sys.stdin, library)
+        else:
+            with open(infile, "r") as handle:
+                profiles = load_profiles(handle, library)
         for marker in profiles:
             if marker not in amounts:
                 amounts[marker] = {}
@@ -82,7 +83,6 @@ def merge_profiles(infiles, outfile, crosstab, seqformat, library):
 
 def add_arguments(parser):
     parser.add_argument('infiles', nargs='+', metavar="FILE",
-        type=argparse.FileType('r'),
         help="files containing the background noise profiles to combine; "
              "if a single file is given, it is merged with input from stdin; "
              "use '-' to use stdin as an explicit input source")
@@ -100,9 +100,9 @@ def add_arguments(parser):
 
 def run(args):
     if len(args.infiles) < 2:
-        if sys.stdin.isatty() or sys.stdin in args.infiles:
+        if sys.stdin.isatty() or "-" in args.infiles:
             raise ValueError("please specify at least two input files")
-        args.infiles.append(sys.stdin)
+        args.infiles.append("-")
 
     merge_profiles(args.infiles, args.outfile, args.cross_tabular,
                    args.sequence_format, args.library)

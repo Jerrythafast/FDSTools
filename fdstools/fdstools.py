@@ -62,7 +62,7 @@ def main():
                         default=argparse.SUPPRESS, nargs=argparse.REMAINDER,
                         help="show version number and exit")
     parser.add_argument('-d', "--debug", action="store_true",
-                        help="if specified, debug output is printed to stdout")
+                        help="if specified, additional debug output is given")
     subparsers = parser.add_subparsers(title='available tools', dest='tool',
                                        metavar='TOOL', help="specify which "
                                        "tool to run")
@@ -82,7 +82,7 @@ def main():
             version=version(parser.prog, name, module.__version__))
         __tools__[name] = subparser
         subparser.add_argument('-d', "--debug", action="store_true",
-            help="if specified, debug output is printed to stdout")
+            help="if specified, additional debug output is given")
         module.add_arguments(subparser)
         subparser.set_defaults(func=module.run)
     try:
