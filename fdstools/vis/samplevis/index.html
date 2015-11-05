@@ -43,11 +43,19 @@
         div#vis {
             position: absolute;
             overflow: auto;
-            bottom: 0px;
+            bottom: 150px;
             top: 0px;
             right: 0px;
             left: 0px;
             text-align: right;
+        }
+        div#table {
+            position: absolute;
+            overflow: auto;
+            bottom: 0px;
+            height: 150px;
+            right: 0px;
+            left: 0px;
         }
     </style>
 </head>
@@ -82,8 +90,16 @@
                     <td><input type="text" value="0.5" id="minP" size="3">% of highest allele per marker</td>
                 </tr>
                 <tr>
+                    <td>Require at least</td>
+                    <td><input type="text" value="0" id="minO" size="3"> reads in both orientations</td>
+                </tr>
+                <tr>
                     <td>Marker name</td>
                     <td><input type="text" id="markerFilter" size="20" title="Supports regular expression syntax: e.g., use '.*' to match anything."></td>
+                </tr>
+                <tr>
+                    <td>Mark if less than</td>
+                    <td><input type="text" value="25" id="minBias" size="3">% of the reads is on one strand</td>
                 </tr>
             </table>
             <table class="optiongroup">
@@ -118,6 +134,7 @@
         </div>
     </div>
     <div id="vis"></div>
+    <div id="table"></div>
     <script type="text/javascript">
         var graph = false;
         var fileName = "graph";
@@ -127,6 +144,7 @@
                 if(document.getElementById("renderSVG").checked)
                     rendererName="svg";
                 graph = chart({el: "#vis", renderer: rendererName});
+                graph.onSignal("clickedAllele", updateTable);
                 graph.update();
                 document.getElementById("saveLink").style.display = "inline";
 
@@ -224,6 +242,23 @@
             return false;
         }
 
+        //Data table update function.
+        function updateTable(){
+            if(!graph)
+                return;
+            var tabledata = "<table border=1 cellspacing=0><tr><th>Marker</th><th>Allele</th><th>Total reads</th></tr>";
+            graph.data("selectedAlleles").values().sort(function(a, b){
+                if(a.allele.name != b.allele.name)
+                    return (a.allele.name > b.allele.name) - (a.allele.name < b.allele.name);
+                if(a.allele.allele != b.allele.allele)
+                    return (a.allele.allele > b.allele.allele) - (a.allele.allele < b.allele.allele);
+                return a.allele.total - b.allele.total;
+            }).forEach(function(o){
+                tabledata += "<tr><td>" + o.allele.name + "</td><td>" + o.allele.allele + "</td><td>" + o.allele.total + "</td></tr>";
+            });
+            document.getElementById("table").innerHTML = tabledata + "</table>";
+        }
+
         function onLoadSpec(has_data){
             if(!has_data){
                 //Allow files to be dragged onto the page.
@@ -293,8 +328,22 @@
                 if(setDataFormulaTransformValue("table", "amplitude_pct_threshold", value) && graph)
                     parse();
             }, false);
+            document.getElementById("minO").addEventListener('change', function(){
+                var value = parseFloat(this.value);
+                if(isNaN(value))
+                    return;
+                if(setDataFormulaTransformValue("table", "orientation_threshold", value) && graph)
+                    parse();
+            }, false);
             document.getElementById("markerFilter").addEventListener('change', function(){
                 if(setDataFormulaTransformValue("table", "filter_marker", "'" + this.value + "'") && graph)
+                    parse();
+            }, false);
+            document.getElementById("minBias").addEventListener('change', function(){
+                var value = parseFloat(this.value);
+                if(isNaN(value))
+                    return;
+                if(setDataFormulaTransformValue("table", "bias_threshold", value) && graph)
                     parse();
             }, false);
 
@@ -322,6 +371,8 @@
             document.getElementById("subgraphoffset").value = getDataFormulaTransformValue("yscale", "subgraphoffset");
             document.getElementById("minN").value = getDataFormulaTransformValue("table", "amplitude_threshold");
             document.getElementById("minP").value = getDataFormulaTransformValue("table", "amplitude_pct_threshold");
+            document.getElementById("minO").value = getDataFormulaTransformValue("table", "orientation_threshold");
+            document.getElementById("minBias").value = getDataFormulaTransformValue("table", "bias_threshold");
             if(has_data){
                 document.getElementById("options").style.display = "none";
                 parse();

@@ -9,6 +9,7 @@
         "type": "tsv",
         "parse": {
           "forward": "number",
+          "reverse": "number",
           "total": "number",
           "total_noise": "number",
           "total_add": "number"
@@ -67,12 +68,22 @@
         },
         {
           "type": "formula",
+          "field": "orientation_threshold",
+          "expr": "0"
+        },
+        {
+          "type": "formula",
+          "field": "bias_threshold",
+          "expr": "25"
+        },
+        {
+          "type": "formula",
           "field": "amplitude_pct",
           "expr": "datum.aggr.max_amplitude? (datum.amplitude/datum.aggr.max_amplitude*100) : 100"
         },
         {
           "type": "filter",
-          "test": "datum.amplitude >= datum.amplitude_threshold && datum.amplitude_pct >= datum.amplitude_pct_threshold"
+          "test": "datum.amplitude >= datum.amplitude_threshold && datum.amplitude_pct >= datum.amplitude_pct_threshold && min(datum.forward, datum.reverse) >= datum.orientation_threshold"
         },
         {
           "type": "formula",
@@ -107,6 +118,21 @@
           "type": "formula",
           "field": "forwardpct",
           "expr": "100.0 / datum.total * datum.forward"
+        },
+        {
+          "type": "formula",
+          "field": "xlow",
+          "expr": "min(0, datum.total_corr*1.05)"
+        },
+        {
+          "type": "formula",
+          "field": "xhigh",
+          "expr": "max(datum.total*1.05, datum.total_add*1.05)"
+        },
+        {
+          "type": "formula",
+          "field": "biasmark",
+          "expr": "50-abs(datum.forwardpct-50) < datum.bias_threshold? '★' : ''"
         },
         {
           "type": "sort",
@@ -214,14 +240,60 @@
           "expr": "datum.offset + datum.barwidth*datum.count"
         }
       ]
+    },
+    {
+      "name": "selectedAlleles",
+      "modify": [
+        {
+          "type": "toggle",
+          "signal": "clickedAllele",
+          "field": "allele"
+        }
+      ],
+      "transform": [
+        {
+          "type": "filter",
+          "test": "datum.allele"
+        }
+      ]
+    }
+  ],
+  "signals": [
+    {
+      "name": "clickedAllele",
+      "verbose": true,
+      "streams": [
+        {"type": "@alleleSelector:click", "expr": "datum.thedatum"}
+      ]
+    }
+  ],
+  "predicates": [
+    {
+      "name": "isSelected",
+      "type": "in",
+      "item": {"arg": "allele"},
+      "data": "selectedAlleles",
+      "field": "allele"
     }
   ],
   "scales": [
     {
+      "name": "b",
+      "type": "ordinal",
+      "range": ["black", "red"],
+      "domain": ["", "★"]
+    },
+    {
       "name": "c",
       "type": "ordinal",
       "range": ["#5e3c99", "#b2abd2", "#fdb863", "#e66101"],
-      "domain": ["Shared base", "Correction removed", "Correction shared", "Correction added"]
+      "domain": ["Genuine reads", "Noise reads", "Noise/recovered overlap", "Recovered reads"]
+    },
+    {
+      "name": "d",
+      "type": "ordinal",
+      "range": ["transparent"],
+      "domain": ["— Strand balance"]
     }
   ],
   "marks": [
@@ -248,6 +320,11 @@
         "data": "table",
         "transform": [
           {
+            "type": "formula",
+            "field": "thedatum",
+            "expr": "datum"
+          },
+          {
             "type": "facet",
             "groupby": ["name"]
           },
@@ -273,8 +350,9 @@
         {
           "name": "x",
           "type": "linear",
+          "nice": true,
           "range": "width",
-          "domain": {"field": ["total", "total_corr", "total_add"]}
+          "domain": {"field": ["xlow", "xhigh"]}
         },
         {
           "name": "y",
@@ -304,7 +382,12 @@
         },
         {
           "type": "y",
-          "scale": "y"
+          "scale": "y",
+          "properties": {
+            "labels": {
+              "fill": {"value": "transparent"}
+            }
+          }
         }
       ],
       "legends": [
@@ -315,6 +398,17 @@
               "size": {"value": 100},
               "stroke": {"value": "transparent"},
               "fillOpacity": {"value": 0.8}
+            }
+          }
+        },
+        {
+          "fill": "d",
+          "properties": {
+            "symbols": {
+              "stroke": {"value": "transparent"}
+            },
+            "labels": {
+              "x": {"value": 2}
             }
           }
         }
@@ -328,7 +422,7 @@
               "x2": {"scale": "x", "field": "shared"},
               "y": {"scale": "y", "field": "allele", "offset": 1},
               "height": {"scale": "y", "band": true, "offset": -2},
-              "fill": {"scale": "c", "value": "Shared base"},
+              "fill": {"scale": "c", "value": "Genuine reads"},
               "fillOpacity": {"value": 0.8}
             }
           }
@@ -341,7 +435,7 @@
               "x2": {"scale": "x", "field": "corr_decreased"},
               "y": {"scale": "y", "field": "allele", "offset": 1},
               "height": {"scale": "y", "band": true, "offset": -2},
-              "fill": {"scale": "c", "value": "Correction removed"},
+              "fill": {"scale": "c", "value": "Noise reads"},
               "fillOpacity": {"value": 0.8}
             }
           }
@@ -354,7 +448,7 @@
               "x2": {"scale": "x", "field": "corr_shared"},
               "y": {"scale": "y", "field": "allele", "offset": 1},
               "height": {"scale": "y", "band": true, "offset": -2},
-              "fill": {"scale": "c", "value": "Correction shared"},
+              "fill": {"scale": "c", "value": "Noise/recovered overlap"},
               "fillOpacity": {"value": 0.8}
             }
           }
@@ -367,7 +461,7 @@
               "x2": {"scale": "x", "field": "corr_increased"},
               "y": {"scale": "y", "field": "allele", "offset": 1},
               "height": {"scale": "y", "band": true, "offset": -2},
-              "fill": {"scale": "c", "value": "Correction added"},
+              "fill": {"scale": "c", "value": "Recovered reads"},
               "fillOpacity": {"value": 0.8}
             }
           }
@@ -402,11 +496,74 @@
                   "x2": {"scale": "x", "field": "total"},
                   "y": {"scale": "balance", "field": "forwardpct", "offset": -0.5},
                   "y2": {"scale": "balance", "field": "forwardpct", "offset": 0.5},
-                  "fill": {"value": "black"}
+                  "fill": {"scale": "b", "field": "biasmark"}
+                }
+              }
+            },
+            {
+              "type": "text",
+              "properties": {
+                "enter": {
+                  "x": {"scale": "x", "field": "xhigh", "mult": 0.952381, "offset": 5},
+                  "y": {"scale": "balance", "value": 50},
+                  "baseline": {"value": "middle"},
+                  "fill": {"scale": "b", "field": "biasmark"},
+                  "text": {"field": "biasmark"}
+                }
+              }
+            },
+            {
+              "type": "text",
+              "properties": {
+                "enter": {
+                  "x": {"value": -10},
+                  "y": {"scale": "balance", "value": 50},
+                  "baseline": {"value": "middle"},
+                  "align": {"value": "right"},
+                  "text": {"field": "allele"}
+                },
+                "update": {
+                  "fill": {
+                    "rule": [
+                      {
+                        "predicate": {
+                          "name": "isSelected",
+                          "allele": {"field": "thedatum"}
+                        },
+                        "value": "green"
+                      },
+                      {"value": "black"}
+                    ]
+                  },
+                  "fontStyle": {
+                    "rule": [
+                      {
+                        "predicate": {
+                          "name": "isSelected",
+                          "allele": {"field": "thedatum"}
+                        },
+                        "value": "italic"
+                      },
+                      {"value": "normal"}
+                    ]
+                  }
                 }
               }
             }
           ]
+        },
+        {
+          "name": "alleleSelector",
+          "type": "rect",
+          "properties": {
+            "enter": {
+              "x": {"value": 0},
+              "width": {"field": {"group": "width"}},
+              "y": {"scale": "y", "field": "allele"},
+              "height": {"scale": "y", "band": true},
+              "fill": {"value": "transparent"}
+            }
+          }
         }
       ]
     }
