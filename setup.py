@@ -22,7 +22,7 @@ x = setup(
     name="fdstools",
     packages=find_packages(),
     package_data={
-        "fdstools": ["vis/*", "vis/*/*"]
+        "fdstools": ["vis/*.*", "vis/*/*"]
     },
     version=distmeta.__version__,
     install_requires=requires,
@@ -53,4 +53,3 @@ x = setup(
         ]
     }
 )
-
