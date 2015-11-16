@@ -207,8 +207,8 @@ def get_relative_frequencies(stutters, combinations):
 
 
 def predict_profiles(stuttermodel, seqsfile, outfile, marker_column,
-                     allele_column, default_marker, use_all_data, crosstab,
-                     min_pct, min_r2, seqformat, library):
+                     allele_column, default_marker, use_all_data, min_pct,
+                     min_r2, seqformat, library):
     # Parse stutter model file.
     model = parse_stuttermodel(stuttermodel, min_r2, use_all_data)
 
@@ -236,9 +236,8 @@ def predict_profiles(stuttermodel, seqsfile, outfile, marker_column,
         except KeyError:
             seqlist[marker] = [sequence]
 
-    if not crosstab:
-        outfile.write("\t".join(
-            ["marker", "allele", "sequence", "fmean", "rmean"]) + "\n")
+    outfile.write("\t".join(
+        ["marker", "allele", "sequence", "fmean", "rmean", "tool"]) + "\n")
     for marker in seqlist:
         p = {
             "true alleles": len(seqlist[marker]),
@@ -302,31 +301,18 @@ def predict_profiles(stuttermodel, seqsfile, outfile, marker_column,
             for i in range(len(profile)):
                 profile[i] = round(profile[i], 3)
 
-        if crosstab:
-            # Cross-tabular output (profiles in rows).
-            outfile.write("\t".join([marker, "0"] +
-                [ensure_sequence_format(seq, seqformat, library=library,
-                    marker=marker) for seq in p["alleles"]]) + "\n")
-            for i in range(p["true alleles"]):
-                outfile.write("\t".join(
-                    [marker, str(i+1)] + map(str, p["profiles_forward"][i])) +
-                    "\n")
-                outfile.write("\t".join(
-                    [marker, str(-i-1)] + map(str, p["profiles_reverse"][i])) +
-                    "\n")
-        else:
-            # Tab-separated columns format.
-            for i in range(p["true alleles"]):
-                for j in range(len(p["alleles"])):
-                    if not (p["profiles_forward"][i][j] +
-                            p["profiles_reverse"][i][j]):
-                        continue
-                    outfile.write("\t".join([marker] +
-                        [ensure_sequence_format(seq, seqformat,
-                            library=library, marker=marker)
-                         for seq in (p["alleles"][i], p["alleles"][j])] +
-                        map(str, [p["profiles_forward"][i][j],
-                                  p["profiles_reverse"][i][j]])) + "\n")
+        for i in range(p["true alleles"]):
+            for j in range(len(p["alleles"])):
+                if not (p["profiles_forward"][i][j] +
+                        p["profiles_reverse"][i][j]):
+                    continue
+                outfile.write("\t".join([marker] +
+                    [ensure_sequence_format(seq, seqformat, library=library,
+                            marker=marker)
+                        for seq in (p["alleles"][i], p["alleles"][j])] +
+                    map(str, [p["profiles_forward"][i][j],
+                              p["profiles_reverse"][i][j]]) +
+                    ["bgpredict"]) + "\n")
 #predict_profiles
 
 
@@ -355,9 +341,6 @@ def add_arguments(parser):
         help="if specified, the 'All data' model is used to predict stutter "
              "whenever no marker-specific model is available for a certain "
              "repeat unit")
-    parser.add_argument('-C', '--cross-tabular', action="store_true",
-        help="if specified, a space-efficient cross-tabular output format is "
-             "used instead of the default tab-separated columns format")
     filtergroup = parser.add_argument_group("filtering options")
     filtergroup.add_argument('-n', '--min-pct', metavar="PCT", type=float,
         default=_DEF_THRESHOLD_PCT,
@@ -377,6 +360,6 @@ def run(args):
 
     predict_profiles(args.stuttermodel, args.seqs, args.outfile,
                      args.marker_column, args.allele_column, args.marker,
-                     args.use_all_data, args.cross_tabular, args.min_pct,
-                     args.min_r2, args.sequence_format, args.library)
+                     args.use_all_data, args.min_pct, args.min_r2,
+                     args.sequence_format, args.library)
 #run

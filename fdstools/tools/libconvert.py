@@ -243,13 +243,32 @@ def convert_library(infile, outfile, aliases=False):
                 "; Specify the chromosome number and position of the first "
                 "base after the first")
         ini.set("genome_position",
-                "; flank of each marker. Specify 'M' as the chromosome name "
-                "for markers on")
+                "; flank of each marker. Optionally, you may specify the "
+                "position of the last")
         ini.set("genome_position",
-                "; mitochondrial DNA. Allele names generated for these "
-                "markers will follow mtDNA")
+                "; base of the fragment as well. Specify 'M' as the "
+                "chromosome name for markers")
         ini.set("genome_position",
-                "; nomenclature guidelines.")
+                "; on mitochondrial DNA. Allele names generated for these "
+                "markers will follow")
+        ini.set("genome_position",
+                "; mtDNA nomenclature guidelines. If one of your mtDNA "
+                "fragments starts near the")
+        ini.set("genome_position",
+                "; end of the reference sequence and continues at the "
+                "beginning, you can obtain")
+        ini.set("genome_position",
+                "; correct base numbering by specifying the fragment's genome "
+                "position as")
+        ini.set("genome_position",
+                "; \"M, (starting position), 16569, 1, (ending position)\". "
+                "This tells FDSTools")
+        ini.set("genome_position",
+                "; that the marker is a concatenation of two fragments, where "
+                "the first fragment")
+        ini.set("genome_position",
+                "; ends at position 16569 and the second fragment starts at "
+                "position 1.")
         ini.set("genome_position",
                 ";MyMarker    = 9, 36834400")
         ini.set("genome_position",

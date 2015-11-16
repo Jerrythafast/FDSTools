@@ -16,6 +16,14 @@ Seqconvert can be used to explicitly convert all sequences in a file to
 the same output format.  Conversions are done using a library file, see
 the help text of the libconvert tool for details.
 
+You can specify multiple input files using the -i/--input option.  This
+is especially useful when generating allele names for many samples that
+have many sequences in common.  To call the variants in the allele
+names, FDSTools needs to do sequence alignments which can be rather
+slow.  When generating allele names for many input files at once, the
+results of the alignments are cached which may give a significant
+speed-up compared to generating allele names for each sample separately.
+
 Seqconvert can also be used with two different library files to rewrite
 the allele names or TSSV-style sequences after a library update.
 Currently, the only limitation to this is that the ending position of

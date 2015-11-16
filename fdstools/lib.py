@@ -12,14 +12,14 @@ PAT_SEQ_TSSV = re.compile("^(?:[ACGT]+\(\d+\))*$")
 PAT_SEQ_ALLELENAME_STR = re.compile(  # First line: n_ACT[m] or alias.
     "^(?:(?:(?:CE)?-?\d+(?:\.\d+)?_(?:[ACGT]+\[\d+\])*)|((?!_).+?))"
     "(?:_[-+]\d+(?:\.1)?(?P<a>(?:(?<=\.1)-)|(?<!\.1)[ACGT]+)>"  # _+3A>
-        "(?!(?P=a))(?:[ACTG]+|-))*$")  # Portion of variants after '>'.
+        "(?!(?P=a))(?:[ACGT]+|-))*$")  # Portion of variants after '>'.
 PAT_SEQ_ALLELENAME_SNP = re.compile(
     "^REF$|^(?:(?:(?<=^)|(?<!^) )"  # 'REF' or space-separated variants.
     "\d+(?:\.1)?(?P<a>(?:(?<=\.1)-)|(?<!\.1)[ACGT]+)>"
-        "(?!(?P=a))(?:[ACTG]+|-))+$")  # Portion of variants after '>'.
+        "(?!(?P=a))(?:[ACGT]+|-))+$")  # Portion of variants after '>'.
 PAT_SEQ_ALLELENAME_MT = re.compile(
     "^REF$|^(?:(?:(?<=^)|(?<!^) )"  # 'REF' or space-separated variants.
-    "(?:(?P<a>[ACGT])|-?)\d+(?(a)|(?:\.\d+)?)(?:[ACGT-]|del))+$")
+    "(?:-?\d+\.\d+[ACGT]|(?P<a>[ACGT])?\d+(?(a)(?!(?P=a)))(?:[ACGT-]|del)))+$")
 
 # Patterns that match blocks of TSSV-style sequences and allele names.
 PAT_TSSV_BLOCK = re.compile("([ACGT]+)\((\d+)\)")
@@ -30,11 +30,11 @@ PAT_ALIAS = re.compile("^(?!_).+$")
 PAT_VARIANT_STR = re.compile(
     "^(?P<pos>[-+]\d+)(?:\.(?P<ins>1))?"
     "(?P<old>(?:(?<=\.1)-)|(?<!\.1)[ACGT]+)>"
-    "(?!(?P=old))(?P<new>[ACTG]+|-)$")
+    "(?!(?P=old))(?P<new>[ACGT]+|-)$")
 PAT_VARIANT_SNP = re.compile(
     "^(?P<pos>\d+)(?:\.(?P<ins>1))?"
     "(?P<old>(?:(?<=\.1)-)|(?<!\.1)[ACGT]+)>"
-    "(?!(?P=old))(?P<new>[ACTG]+|-)$")
+    "(?!(?P=old))(?P<new>[ACGT]+|-)$")
 PAT_VARIANT_MT = re.compile(
     "^(?P<old>(?P<a>[ACGT])|-?)"
     "(?P<pos>\d+)(?(a)|(?:\.(?P<ins>\d+))?)"
@@ -69,6 +69,38 @@ COMPL = {"A": "T", "T": "A", "U": "A", "G": "C", "C": "G", "R": "Y", "Y": "R",
          "K": "M", "M": "K", "B": "V", "V": "B", "D": "H", "H": "D",
          "a": "t", "t": "a", "u": "a", "g": "c", "c": "g", "r": "y", "y": "r",
          "k": "m", "m": "k", "b": "v", "v": "b", "d": "h", "h": "d"}
+
+
+def get_genome_pos(location, x, invert=False):
+    """Get the genome position of the x-th base in a sequence."""
+    if invert:
+        offset = 0
+        for i in range(1, len(location)):
+            if i % 2:
+                # Starting position.
+                pos = location[i]
+            elif pos <= x <= location[i]:
+                # x is in the current range
+                break
+            else:
+                offset += location[i]-pos+1
+        else:
+            if len(location) % 2:
+                raise ValueError("Position %i is outside sequence range" % x)
+        return offset + x - pos
+    else:
+        for i in range(1, len(location)):
+            if i % 2:
+                # Starting position.
+                pos = location[i]
+            elif location[i]-pos < x:
+                # x is after this ending position
+                x -= location[i]-pos+1
+            else:
+                # x is before this ending position
+                break
+        return pos + x
+#get_genome_pos
 
 
 def call_variants(template, sequence, location="suffix", cache=True,
@@ -121,9 +153,10 @@ def call_variants(template, sequence, location="suffix", cache=True,
         # Include plus signs for position numbers.
         variant_format = "%+i%s>%s"
         location = ("suffix", 1)
-    elif type(location) != tuple or len(location) != 2:
+    elif type(location) != tuple or len(location) < 2:
         raise ValueError("Unknown location %r. It should be 'prefix', "
-            "'suffix', or a two-tuple (chromosome, position)" % location)
+            "'suffix', or a tuple (chromosome, position [, endpos])" %
+            location)
     elif location[0] == "M":
         # No need to avoid gaps in mtDNA notation.
         GAP_OPEN_SCORE = -1
@@ -205,19 +238,20 @@ def call_variants(template, sequence, location="suffix", cache=True,
                             max(variant_template, variant_sequence)-1, -1, -1):
                         variants.append("%s%i%s%s" % (
                             template[x+j] if j < variant_template else "",#"-",
-                            x + min(j, variant_template-1) + location[1],
+                            get_genome_pos(
+                                location, x + min(j, variant_template-1)),
                             ".%i" % (j-variant_template+1)
                                 if j >= variant_template else "",
-                            sequence[x+j] if j < variant_sequence else "del"))
+                            sequence[y+j] if j < variant_sequence else "del"))
                 elif variant_template == 0:
                     # Insertions: "-131.1->C" instead of "-130->C".
                     variants.append(variant_format % (
-                        x - 1 + location[1],
+                        get_genome_pos(location, x - 1),
                         ".1-",
                         sequence[y:y+variant_sequence]))
                 else:
                     variants.append(variant_format % (
-                        x + location[1],
+                        get_genome_pos(location, x),
                         template[x:x+variant_template],
                         sequence[y:y+variant_sequence] or "-"))
                 variant_template = 0
@@ -242,15 +276,15 @@ call_variants.cache = {}
 
 def mutate_sequence(seq, variants, location=None):
     """Apply the given variants to the given sequence."""
-    if type(location) != tuple or len(location) != 2:
+    if type(location) != tuple or len(location) < 2:
         pattern = PAT_VARIANT_STR
-        offset = 1
+        location = (None, 0)
     elif location[0] == "M":
         pattern = PAT_VARIANT_MT
-        offset = location[1]
+        location = (location[0], location[1]-1) + tuple(location[2:])
     else:
         pattern = PAT_VARIANT_SNP
-        offset = location[1]
+        location = (location[0], location[1]-1) + tuple(location[2:])
 
     seq = [[]] + [[base] for base in seq]
     for variant in variants:
@@ -267,11 +301,11 @@ def mutate_sequence(seq, variants, location=None):
             new = ""
         if pos < 0:
             pos += len(seq) + 1
-        pos -= offset - 1
-        if pos < 0 or (pos == 0 and not ins) or pos > len(seq):
+        pos = get_genome_pos(location, pos, True)
+        if pos < 0 or (pos == 0 and not ins) or pos >= len(seq):
             raise ValueError(
-                "Position of variant '%s' is outside sequence range (%i-%i)" %
-                    (variant, offset, offset+len(seq)-2))
+                "Position of variant '%s' is outside sequence range" %
+                    (variant))
         if (not ins and old and old != "".join("".join(x[:1])
                 for x in seq[pos:pos+len(old)])):
             raise ValueError(
@@ -297,24 +331,27 @@ def mutate_sequence(seq, variants, location=None):
 
 
 def parse_library(libfile, stream=False):
-    if not stream:
-        libfile = sys.stdin if libfile == "-" else open(libfile, "r")
-    if libfile == sys.stdin:
-        # Can't seek on pipes, so read it into a buffer first.
-        libfile = StringIO(sys.stdin.read())
     try:
-        library = parse_library_ini(libfile)
         if not stream:
+            libfile = sys.stdin if libfile == "-" else open(libfile, "r")
+        if libfile == sys.stdin:
+            # Can't seek on pipes, so read it into a buffer first.
+            libfile = StringIO(sys.stdin.read())
+        try:
+            library = parse_library_ini(libfile)
+            if not stream:
+                libfile.close()
+            return library
+        except MissingSectionHeaderError:
+            # Not an ini file.
+            pass
+        libfile.seek(0)
+        library = parse_library_tsv(libfile)
+        if not stream and libfile != sys.stdin:
             libfile.close()
         return library
-    except MissingSectionHeaderError:
-        # Not an ini file.
-        pass
-    libfile.seek(0)
-    library = parse_library_tsv(libfile)
-    if not stream and libfile != sys.stdin:
-        libfile.close()
-    return library
+    except ValueError as err:
+        raise argparse.ArgumentTypeError(err)
 #parse_library
 
 
@@ -421,24 +458,30 @@ def parse_library_ini(handle):
                 markers.add(marker)
             elif section_low == "genome_position":
                 values = PAT_SPLIT.split(value)
-                if len(values) != 2:
+                if len(values) < 2:
                     raise ValueError(
                         "Invalid genome position '%s' for marker %s. Expected "
-                        "a chromosome name and a position number." %
+                        "a chromosome name and one or more position numbers." %
                         (value, marker))
                 chromosome = PAT_CHROMOSOME.match(values[0])
                 if chromosome is None:
                     raise ValueError(
                         "Invalid chromosome '%s' for marker %s." %
                         (values[0], marker))
-                try:
-                    position = int(values[1])
-                except:
-                    raise ValueError(
-                        "Position '%s' of marker %s is not a valid integer" %
-                        (values[1], marker))
-                library["genome_position"][marker] = (chromosome.group(1),
-                    position)
+                pos = [chromosome.group(1)]
+                for i in range(1, len(values)):
+                    try:
+                        pos.append(int(values[i]))
+                    except:
+                        raise ValueError(
+                            "Position '%s' of marker %s is not a valid integer"
+                            % (values[i], marker))
+                    if not i % 2 and pos[-2] >= pos[-1]:
+                        raise ValueError(
+                            "End position %i of marker %s must be higher than "
+                            "corresponding start position %i" %
+                            (pos[-1], marker, pos[-2]))
+                library["genome_position"][marker] = tuple(pos)
                 markers.add(marker)
             elif section_low == "length_adjust":
                 try:
@@ -521,6 +564,21 @@ def parse_library_ini(handle):
                 "A prefix or suffix was defined for alias %s of non-STR "
                 "marker %s" % (alias, library["aliases"][alias]["marker"]))
 
+    # Sanity check: end position of marker should reflect ref length.
+    for marker in library["genome_position"]:
+        if marker not in library["nostr_reference"]:
+            continue
+        pos = library["genome_position"][marker]
+        reflength = len(library["nostr_reference"][marker])
+        length = 0
+        for i in range(2, len(pos), 2):
+            length += pos[i] - pos[i-1] + 1
+        if reflength < length or (len(pos) % 2 and reflength != length):
+            raise ValueError(
+                "Length of reference sequence of marker %s is %i bases, but "
+                "genome positions add up to %i bases" %
+                (marker, reflength, length))
+
     # Compile regular expressions.
     # NOTE: The libconvert tool expects "(seq){num,num}" blocks ONLY!
     # TODO: Should a single prefix/suffix be required (i.e., seq{1,1})?
@@ -549,31 +607,10 @@ def parse_library_ini(handle):
 
 
 def load_profiles(profilefile, library=None):
-    if profilefile == sys.stdin:
-        # Can't seek on pipes, so read it into a buffer first.
-        profilefile = StringIO(sys.stdin.read())
-    headline = profilefile.readline().rstrip("\r\n").split("\t")
-    profilefile.seek(0)
-    try:
-        get_column_ids(headline, "marker", "allele", "sequence", "fmean",
-            "rmean")
-    except ValueError:
-        try:
-            int(headline[1])
-        except:
-            raise ValueError(
-                "Invalid background noise profiles file: unable to determine "
-                "file format!")
-        return load_profiles_crosstab(profilefile, library)
-    return load_profiles_columnar(profilefile, library)
-#load_profiles
-
-
-def load_profiles_columnar(profilefile, library=None):
     column_names = profilefile.readline().rstrip("\r\n").split("\t")
-    colid_marker, colid_allele, colid_sequence, colid_fmean, colid_rmean = \
-        get_column_ids(column_names, "marker", "allele", "sequence", "fmean",
-            "rmean")
+    (colid_marker, colid_allele, colid_sequence, colid_fmean, colid_rmean,
+     colid_tool) = get_column_ids(column_names, "marker", "allele", "sequence",
+        "fmean", "rmean", "tool")
 
     profiles = {}
     for line in profilefile:
@@ -587,7 +624,8 @@ def load_profiles_columnar(profilefile, library=None):
                 "n": set(),  # To be replaced by its length below.
                 "seqs": [],
                 "forward": {},  # To be replaced by a list below.
-                "reverse": {}  # To be replaced by a list below.
+                "reverse": {},  # To be replaced by a list below.
+                "tool": {}  # To be replaced by a list below.
                 }
         allele = ensure_sequence_format(line[colid_allele], "raw",
             library=library, marker=marker)
@@ -600,6 +638,7 @@ def load_profiles_columnar(profilefile, library=None):
                 (marker, allele, sequence))
         profiles[marker]["forward"][allele,sequence] = float(line[colid_fmean])
         profiles[marker]["reverse"][allele,sequence] = float(line[colid_rmean])
+        profiles[marker]["tool"][allele, sequence] = line[colid_tool]
         profiles[marker]["m"].update((allele, sequence))
         profiles[marker]["n"].add(allele)
 
@@ -610,94 +649,25 @@ def load_profiles_columnar(profilefile, library=None):
         profiles[marker]["n"] = len(profiles[marker]["n"])
         profiles[marker]["m"] = len(profiles[marker]["m"])
         newprofiles = {"forward": [], "reverse": []}
+        tools = []
         for i in range(profiles[marker]["n"]):
             allele = profiles[marker]["seqs"][i]
             for direction in newprofiles:
                 newprofiles[direction].append([0] * profiles[marker]["m"])
+            tools.append([""] * profiles[marker]["m"])
             for j in range(profiles[marker]["m"]):
                 sequence = profiles[marker]["seqs"][j]
                 if (allele, sequence) in profiles[marker]["forward"]:
                     for direction in newprofiles:
                         newprofiles[direction][i][j] = \
                             profiles[marker][direction][allele, sequence]
+                    tools[i][j] = profiles[marker]["tool"][allele, sequence]
         profiles[marker]["forward"] = newprofiles["forward"]
         profiles[marker]["reverse"] = newprofiles["reverse"]
+        profiles[marker]["tool"] = tools
 
     return profiles
-#load_profiles_columnar
-
-
-def load_profiles_crosstab(profilefile, library=None):
-    profiles = {}
-
-    # Read the profile file without assuming it is sorted.
-    for line in profilefile:
-        line = line.rstrip("\r\n").split("\t")
-        if line == [""]:
-            continue
-        if len(line) < 3:
-            raise ValueError(
-                "Invalid background noise profiles file: encountered line "
-                "with %i columns, need at least 3" % len(line))
-        marker = line[0]
-        try:
-            num = int(line[1])
-        except ValueError:
-            raise ValueError(
-                "Invalid background noise profiles file: encountered "
-                "non-number '%s' in the second column" % line[1])
-        values = line[2:]
-        if marker not in profiles:
-            profiles[marker] = {
-                "m": len(values),
-                "n": abs(num),
-                "seqs": [],
-                "forward": {},  # To be replaced by a list below.
-                "reverse": {}  # To be replaced by a list below.
-                }
-        elif len(values) != profiles[marker]["m"]:
-            raise ValueError(
-                "Invalid background noise profiles file: profiles of "
-                "marker '%s'% have inconsistent lengths" % marker)
-        profiles[marker]["n"] = max(abs(num), profiles[marker]["n"])
-        if num == 0:
-            if profiles[marker]["seqs"]:
-                raise ValueError(
-                    "Invalid background noise profiles file: encountered "
-                    "multiple header lines for marker '%s'" % marker)
-            values = [ensure_sequence_format(seq, "raw", library=library,
-                        marker=marker) for seq in values]
-            profiles[marker]["seqs"] = values
-        else:
-            direction = "forward" if num > 0 else "reverse"
-            if abs(num) in profiles[marker][direction]:
-                raise ValueError(
-                    "Invalid background noise profiles file: encountered "
-                    "multiple %s profiles for marker '%s' allele %i" %
-                    (direction, marker, abs(num)))
-            values = map(float, values)
-            profiles[marker][direction][abs(num)] = values
-
-    # Check completeness and reorder true alleles.
-    for marker in profiles:
-        newprofiles = {"forward": [], "reverse": []}
-        if not profiles[marker]["seqs"]:
-            raise ValueError(
-                "Invalid background noise profiles file: missing header line "
-                "for marker '%s'" % marker)
-        for i in range(1, profiles[marker]["n"] + 1):
-            for direction in newprofiles:
-                if i not in profiles[marker][direction]:
-                    raise ValueError(
-                        "Invalid background noise profiles file: missing %s "
-                        "profile for marker '%s' allele %i" %
-                        (direction, marker, i))
-                newprofiles[direction].append(profiles[marker][direction][i])
-        profiles[marker]["forward"] = newprofiles["forward"]
-        profiles[marker]["reverse"] = newprofiles["reverse"]
-
-    return profiles
-#load_profiles_crosstab
+#load_profiles
 
 
 def regex_longest_match(pattern, subject):
@@ -953,6 +923,9 @@ def convert_sequence_raw_allelename(seq, library, marker):
         # Handle non-STR markers here.
         if alias != marker:
             return library["aliases"][alias]["name"]
+        if not blocks:
+            # Oh dear, empty sequence... Primer dimer?
+            blocks = (("",),)
         if library["nostr_reference"][marker] == blocks[0][0]:
             return "REF"
         return " ".join(
@@ -1292,6 +1265,15 @@ def pos_int_arg(value):
 #pos_int_arg
 
 
+def regex_arg(value):
+    """Compile value into a regular expression."""
+    try:
+        return re.compile(value)
+    except re.error as err:
+        raise argparse.ArgumentTypeError(err)
+#regex_arg
+
+
 def add_allele_detection_args(parser):
     group = parser.add_argument_group("allele detection options")
     group.add_argument('-a', '--allelelist', metavar="ALLELEFILE",
@@ -1394,7 +1376,7 @@ def add_input_output_args(parser, single_in=False, batch_support=False,
 
     # Sample tag parsing options group.
     group = parser.add_argument_group("sample tag parsing options")
-    group.add_argument('-e', '--tag-expr', metavar="REGEX", type=re.compile,
+    group.add_argument('-e', '--tag-expr', metavar="REGEX", type=regex_arg,
         default=DEF_TAG_EXPR,
         help="regular expression that captures (using one or more capturing "
              "groups) the sample tags from the file names; by default, the "

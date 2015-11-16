@@ -122,7 +122,7 @@ def compute_stats(samples_in, outfile, allelefile, annotation_column, min_pct,
 
     outfile.write("\t".join(["marker", "allele", "sequence", "n", "fmin",
                      "fmax", "fmean", "fvariance", "rmin", "rmax", "rmean",
-                     "rvariance"]) + "\n")
+                     "rvariance", "tool"]) + "\n")
     for marker, allele in data:
         for sequence in data[marker, allele]:
             outfile.write("\t".join([marker, allele, sequence] + [
@@ -135,7 +135,8 @@ def compute_stats(samples_in, outfile, allelefile, annotation_column, min_pct,
                     data[marker, allele][sequence][1]["min"],
                     data[marker, allele][sequence][1]["max"],
                     data[marker, allele][sequence][1]["mean"],
-                    data[marker, allele][sequence][1]["variance"])]) + "\n")
+                    data[marker, allele][sequence][1]["variance"])] +
+                ["bghomstats"]) + "\n")
 #compute_stats
 
 

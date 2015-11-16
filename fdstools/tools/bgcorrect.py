@@ -3,11 +3,20 @@
 Match background noise profiles (obtained from e.g., bgestimate) to
 samples.
 
-Nine new columns are added to the output giving, for each sequence, the
+Ten new columns are added to the output giving, for each sequence, the
 number of reads attributable to noise from other sequences (_noise
 columns) and the number of noise reads caused by the prescense of this
 sequence (_add columns), as well as the resulting number of reads after
 correction (_corrected columns: original minus _noise plus _add).
+
+The flags column contains a comma-separated list of flags with the
+following meanings: 'not_corrected', no background noise profile was
+available for this marker; 'not_in_ref_db', the sequence was not present
+in the noise profiles given; 'not_profiled', the sequence was present in
+the noise profiles given, but only as noise and not as genuine allele;
+'profile_predicted', the sequence was present in the noise profiles as a
+genuine allele, but its noise profile consists entirely of predictions
+as opposed to direct observations.
 """
 import argparse, sys
 #import numpy as np  # Only imported when actually running this tool.
@@ -34,6 +43,7 @@ def get_sample_data(infile, convert_to_raw=False, library=None):
     column_names.append("forward_corrected")
     column_names.append("reverse_corrected")
     column_names.append("total_corrected")
+    column_names.append("flags")
     colid_name, colid_allele, colid_forward, colid_reverse = get_column_ids(
         column_names, "name", "allele", "forward", "reverse")
     data = {}
@@ -54,6 +64,7 @@ def get_sample_data(infile, convert_to_raw=False, library=None):
         cols.append(int(cols[colid_forward]))
         cols.append(int(cols[colid_reverse]))
         cols.append(int(cols[colid_forward]) + int(cols[colid_reverse]))
+        cols.append("not_corrected")
         if marker not in data:
             data[marker] = []
         data[marker].append(cols)
@@ -67,11 +78,11 @@ def match_profile(column_names, data, profile, convert_to_raw, library,
      colid_forward_noise, colid_reverse_noise, colid_total_noise,
      colid_forward_add, colid_reverse_add, colid_total_add,
      colid_forward_corrected, colid_reverse_corrected,
-     colid_total_corrected) = get_column_ids(
+     colid_total_corrected, colid_flags) = get_column_ids(
         column_names, "name", "allele", "forward", "reverse", "total",
         "forward_noise", "reverse_noise", "total_noise", "forward_add",
         "reverse_add", "total_add", "forward_corrected", "reverse_corrected",
-        "total_corrected")
+        "total_corrected", "flags")
 
     # Enter profiles into P.
     P1 = np.matrix(profile["forward"])
@@ -112,6 +123,7 @@ def match_profile(column_names, data, profile, convert_to_raw, library,
         try:
             i = profile["seqs"].index(seqs[j-1])
         except ValueError:
+            line[colid_flags] = "not_in_ref_db"
             continue
         line[colid_forward_noise] = forward_noise[0, i]
         line[colid_reverse_noise] = reverse_noise[0, i]
@@ -126,6 +138,13 @@ def match_profile(column_names, data, profile, convert_to_raw, library,
             line[colid_forward_corrected] += line[colid_forward_add]
             line[colid_reverse_corrected] += line[colid_reverse_add]
             line[colid_total_corrected] += line[colid_total_add]
+            if ("bgestimate" not in profile["tool"][i] and
+                    "bgcorrect" not in profile["tool"][i]):
+                line[colid_flags] = "profile_predicted"
+            else:
+                line[colid_flags] = ""
+        else:
+            line[colid_flags] = "not_profiled"
 
     # Add sequences that are in the profile but not in the sample.
     for i in range(profile["m"]):
@@ -202,7 +221,7 @@ def run(args):
         raise ValueError("please specify an input file, or pipe in the output "
                          "of another program")
 
-    # Read library and profiles once.
+    # Read profiles once.
     profiles = load_profiles(args.profiles, args.library)
     if args.marker:
         profiles = {args.marker: profiles[args.marker]} \

@@ -1,3 +1,49 @@
+To-do:
+* Add samplestats tool to compute a table of statistics about every sequence.
+  Include options to automatically mark alleles in samples as well.
+* Allow loading multiple files into HTML visualisations and provide prev/next
+  buttons to browse them.
+* Add tool to summarise various statistics about the entire analysis pipeline:
+  (TODO: Write this list)
+* Add "allow_N" flag to [no_repeat] markers.  If the flag is specified, the
+  reference sequence may contain Ns.  People might need this for the rCRS mtDNA
+  reference sequence.
+* Allow simple marker name filtering in visualisations.
+* Samplevis:
+  * Change the colours of the allele names (or some other marking)
+    corresponding to the amount of correction
+  * Add columns to the table of selected alleles that shows which tool did the
+    filtering (if any) and what data was used to filter with.
+  * Change the 'percentage of highest allele' column in the table of selected
+    alleles to 'percentage of marker reads'.
+  * Preserve selected alleles when updating split, markerFilter, and scale.
+* Adjust BGEstimate so that it computes forward and reverse in one go.  To do
+  this, double the number of columns in P and C and put the forward profile in
+  the left half and the reverse profile in the right half.  The benefit of this
+  is that this ensures the same A is used for both strands, that is, the
+  estimated allele balance is the same.
+* Adjust BGEstimate so that it takes strand bias in the allele itself into
+  account as well.
+* Perhaps there should be a version of BGEstimate that makes a profile for each
+  genotype instead of each allele.  This allows for the detection of hybrids.
+* Add plotting of raw data points to StuttermodelVis.
+* Add visualisation with all markers in one graph ("samplesummaryvis"?).
+
+Known Vega bugs:
+* Cross transform does not work well if right data changes via a signal.
+  https://github.com/vega/vega/pull/428
+  NOTE: Pull request is closed, should be fixed with Arvind's commit.
+* Vega crashes if all data gets filtered out after a signal change.  This could
+  be caused by the bug above.
+* Incrrect width calculation when axes exist within group marks.
+  https://github.com/vega/vega/issues/429
+* Legend is not updated correctly when more values are added to domain by
+  signal change.
+  https://github.com/vega/vega/issues/435
+
+
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
 Inclusion of tools developed during the project into FDSTools:
 PRIO    OLD TOOL NAME       DESCRIPTION
 ------- ------------------- ---------------------------------------------------
@@ -32,7 +78,7 @@ DONE    samplevis           Sample data
 DONE    profiles            Background profiles
 DONE    bg                  Dotplots of noise ratios in homozygous samples
 DONE    trends              Fit repeat length vs stutter amount
-*Blocking issue: https://github.com/vega/vega/issues/338
+*Blocking issue: https://github.com/vega/vega/issues/395
 
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
@@ -87,14 +133,20 @@ Reserved option letters:
 
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-To-do:
-* Adjust BGEstimate so that it computes forward and reverse in one go.  To do
-  this, double the number of columns in P and C and put the forward profile in
-  the left half and the reverse profile in the right half.  The benefit of this
-  is that this ensures the same A is used for both strands, that is, the
-  estimated allele balance is the same.
-* Adjust BGEstimate so that it takes strand bias in the allele itself into
-  account as well.
-* Perhaps there should be a version of BGEstimate that makes a profile for each
-  genotype instead of each allele.  This allows for the detection of hybrids.
-* Add plotting of raw data points to StuttermodelVis.
+Sequence format conversions:
+From    To
+raw     tssv    OK - Transparent to non-STR markers (have no regex_middle).
+raw     name    OK - Uses raw->tssv as a first step.
+tssv    raw     OK - Trivial case.
+tssv    name    (Implemented as tssv->raw->name)
+name    raw     (Implemented as name->tssv->raw)
+name    tssv    OK
+
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Find TODOs and FIXMEs in the code:
+grep "TODO\|FIXME" *.py */*.py */*/*.py
+
+
+Number of lines, excluding empty lines and comments:
+grep -v "^\s*\(#.*\)\?$" *.py */*.py */*/*.py | wc -l

@@ -25,7 +25,7 @@ from ..lib import load_profiles, ensure_sequence_format,\
 __version__ = "0.1dev"
 
 
-def merge_profiles(infiles, outfile, crosstab, seqformat, library):
+def merge_profiles(infiles, outfile, seqformat, library):
     amounts = {}
     for infile in infiles:
         if infile == "-":
@@ -42,42 +42,19 @@ def merge_profiles(infiles, outfile, crosstab, seqformat, library):
                            profiles[marker]["seqs"][j])
                     if key not in amounts[marker]:
                         this_amounts = (profiles[marker]["forward"][i][j],
-                                        profiles[marker]["reverse"][i][j])
-                        if sum(this_amounts):
+                                        profiles[marker]["reverse"][i][j],
+                                        profiles[marker]["tools"][i][j])
+                        if sum(this_amounts[:2]):
                             amounts[marker][key] = this_amounts
 
-    if not crosstab:
-        # Tab-separated columns format.
-        outfile.write("\t".join(
-            ["marker", "allele", "sequence", "fmean", "rmean"]) + "\n")
-        for marker in amounts:
-            for allele, sequence in amounts[marker]:
-                outfile.write("\t".join([marker] +
-                    [ensure_sequence_format(seq, seqformat, library=library,
-                        marker=marker) for seq in (allele, sequence)] +
-                    map(str, amounts[marker][allele, sequence])) + "\n")
-        return
-
-    # Cross-tabular format (profiles in rows).
+    outfile.write("\t".join(
+        ["marker", "allele", "sequence", "fmean", "rmean", "tool"]) + "\n")
     for marker in amounts:
-        alleles = set(allele for allele, sequence in amounts[marker])
-        seqs = list(alleles) + list(set(
-            sequence for allele, sequence in amounts[marker]
-            if sequence not in alleles))
-        outfile.write("\t".join([marker, "0"] +
-            [ensure_sequence_format(seq, seqformat, library=library,
-                marker=marker) for seq in seqs]) + "\n")
-        forward = [[0 if (allele, sequence) not in amounts[marker] else
-                    amounts[marker][allele, sequence][0] for sequence in seqs]
-                   for allele in seqs[:len(alleles)]]
-        reverse = [[0 if (allele, sequence) not in amounts[marker] else
-                    amounts[marker][allele, sequence][1] for sequence in seqs]
-                   for allele in seqs[:len(alleles)]]
-        for i in range(len(alleles)):
-            outfile.write("\t".join(
-                [marker, str(i+1)] + map(str, forward[i])) + "\n")
-            outfile.write("\t".join(
-                [marker, str(-i-1)] + map(str, reverse[i])) + "\n")
+        for allele, sequence in amounts[marker]:
+            outfile.write("\t".join([marker] +
+                [ensure_sequence_format(seq, seqformat, library=library,
+                    marker=marker) for seq in (allele, sequence)] +
+                map(str, amounts[marker][allele, sequence])) + "\n")
 #merge_profiles
 
 
@@ -91,9 +68,6 @@ def add_arguments(parser):
         type=argparse.FileType('w'),
         default=sys.stdout,
         help="file to write output to (default: write to stdout)")
-    parser.add_argument('-C', '--cross-tabular', action="store_true",
-        help="if specified, a space-efficient cross-tabular output format is "
-             "used instead of the default tab-separated columns format")
     add_sequence_format_args(parser, "raw", True)  # Force raw seqs.
 #add_arguments
 
@@ -104,6 +78,6 @@ def run(args):
             raise ValueError("please specify at least two input files")
         args.infiles.append("-")
 
-    merge_profiles(args.infiles, args.outfile, args.cross_tabular,
-                   args.sequence_format, args.library)
+    merge_profiles(args.infiles, args.outfile, args.sequence_format,
+                   args.library)
 #run
