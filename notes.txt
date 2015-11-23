@@ -29,17 +29,13 @@ To-do:
 * Add plotting of raw data points to StuttermodelVis.
 * Add visualisation with all markers in one graph ("samplesummaryvis"?).
 
-Known Vega bugs:
-* Cross transform does not work well if right data changes via a signal.
-  https://github.com/vega/vega/pull/428
-  NOTE: Pull request is closed, should be fixed with Arvind's commit.
-* Vega crashes if all data gets filtered out after a signal change.  This could
-  be caused by the bug above.
-* Incrrect width calculation when axes exist within group marks.
+Open Vega issues:
+* Legend and axis corruption on signal changes.
+  https://github.com/vega/vega/issues/446
+* Incorrect width calculation when axes exist within group marks.
   https://github.com/vega/vega/issues/429
-* Legend is not updated correctly when more values are added to domain by
-  signal change.
-  https://github.com/vega/vega/issues/435
+* Feature request for lines (or arbitrary shapes) for legend items.
+  https://github.com/vega/vega/issues/408
 
 
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~

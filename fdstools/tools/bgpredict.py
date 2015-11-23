@@ -216,10 +216,7 @@ def predict_profiles(stuttermodel, seqsfile, outfile, marker_column,
     seqlist = {}
     column_names = seqsfile.readline().rstrip("\r\n").split("\t")
     colid_allele = get_column_ids(column_names, "allele")
-    try:
-        colid_name = get_column_ids(column_names, "name")
-    except:
-        colid_name = None
+    colid_name = get_column_ids(column_names, "name", optional=True)
     for line in seqsfile:
         line = line.rstrip("\r\n").split("\t")
         marker = line[colid_name] if colid_name is not None else default_marker

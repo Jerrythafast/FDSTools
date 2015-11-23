@@ -100,12 +100,8 @@ def load_data(infile, colname_annotation=_DEF_COLNAME, library=None):
     column_names = infile.readline().rstrip("\r\n").split("\t")
     colid_total, colid_allele, = get_column_ids(column_names,
         "total", "allele")
+    colid_name = get_column_ids(column_names, "name", optional=True)
     column_names.append(colname_annotation)
-
-    try:
-        colid_name = get_column_ids(column_names, "name")
-    except:
-        colid_name = None
 
     # Step through the file line by line to build the allele list.
     allelelist = []

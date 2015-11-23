@@ -458,11 +458,6 @@ def parse_library_ini(handle):
                 markers.add(marker)
             elif section_low == "genome_position":
                 values = PAT_SPLIT.split(value)
-                if len(values) < 2:
-                    raise ValueError(
-                        "Invalid genome position '%s' for marker %s. Expected "
-                        "a chromosome name and one or more position numbers." %
-                        (value, marker))
                 chromosome = PAT_CHROMOSOME.match(values[0])
                 if chromosome is None:
                     raise ValueError(
@@ -481,6 +476,8 @@ def parse_library_ini(handle):
                             "End position %i of marker %s must be higher than "
                             "corresponding start position %i" %
                             (pos[-1], marker, pos[-2]))
+                if len(values) == 1:
+                    pos.append(1)
                 library["genome_position"][marker] = tuple(pos)
                 markers.add(marker)
             elif section_low == "length_adjust":
@@ -1127,10 +1124,7 @@ def read_sample_data_file(infile, data, annotation_column=None, seqformat=None,
         get_column_ids(column_names, "allele", "forward", "reverse")
 
     # Get marker name column if it exists.
-    try:
-        colid_name = get_column_ids(column_names, "name")
-    except:
-        colid_name = None
+    colid_name = get_column_ids(column_names, "name", optional=True)
 
     # Also try to get annotation column if we have one.
     if annotation_column is not None:
@@ -1219,14 +1213,17 @@ def get_sample_data(tags_to_files, callback, allelelist=None,
 #get_sample_data
 
 
-def get_column_ids(column_names, *names):
+def get_column_ids(column_names, *names, **optional):
     """Find all names in column_names and return their indices."""
     result = []
     for name in names:
         try:
             result.append(column_names.index(name))
         except ValueError:
-            raise ValueError("Column not found in input file: %s" % name)
+            if "optional" in optional and optional["optional"]:
+                result.append(None)
+            else:
+                raise ValueError("Column not found in input file: %s" % name)
     if len(result) == 1:
         return result[0]
     return tuple(result)
