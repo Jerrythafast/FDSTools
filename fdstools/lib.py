@@ -732,8 +732,8 @@ def convert_sequence_raw_tssv(seq, library, marker, return_alias=False):
                     break
 
         # Find longest match of middle pattern.
-        middle = [(seq, len(pre_suf[0])+len(seq))]
-        if marker in library["regex_middle"]:
+        middle = [(seq, len(pre_suf[0])+len(seq))] if seq else []
+        if middle and marker in library["regex_middle"]:
             match = regex_longest_match(library["regex_middle"][marker], seq)
             if match is not None and match.end()-match.start():
 

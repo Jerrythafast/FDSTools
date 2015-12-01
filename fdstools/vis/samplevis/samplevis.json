@@ -1,6 +1,43 @@
 {
   "width": 600,
   "height": 10,
+  "signals": [
+    {
+      "name": "amplitude_threshold",
+      "init": 5
+    },
+    {
+      "name": "amplitude_pct_threshold",
+      "init": 0.5
+    },
+    {
+      "name": "orientation_threshold",
+      "init": 0
+    },
+    {
+      "name": "bias_threshold",
+      "init": 25
+    },
+    {
+      "name": "filter_marker",
+      "init": ".*"
+    },
+    {
+      "name": "barwidth",
+      "init": 15
+    },
+    {
+      "name": "subgraphoffset",
+      "init": 70
+    },
+    {
+      "name": "clickedAllele",
+      "verbose": true,
+      "streams": [
+        {"type": "@alleleSelector:click", "expr": "datum.thedatum"}
+      ]
+    }
+  ],
   "data": [
     {
       "name": "raw",
@@ -9,7 +46,11 @@
         "type": "tsv",
         "parse": {
           "forward": "number",
+          "forward_noise": "number",
+          "forward_add": "number",
           "reverse": "number",
+          "reverse_noise": "number",
+          "reverse_add": "number",
           "total": "number",
           "total_noise": "number",
           "total_add": "number"
@@ -18,81 +59,67 @@
       "transform": [
         {
           "type": "formula",
+          "field": "forward_corr",
+          "expr": "datum.forward_noise? datum.forward-datum.forward_noise : datum.forward"
+        },
+        {
+          "type": "formula",
+          "field": "reverse_corr",
+          "expr": "datum.reverse_noise? datum.reverse-datum.reverse_noise : datum.reverse"
+        },
+        {
+          "type": "formula",
           "field": "total_corr",
           "expr": "datum.total_noise? datum.total-datum.total_noise : datum.total"
         },
         {
           "type": "formula",
-          "field": "total_add",
-          "expr": "datum.total_add? datum.total_corr+datum.total_add : datum.total_corr"
+          "field": "forward_added",
+          "expr": "datum.forward_add? datum.forward_corr+datum.forward_add : datum.forward_corr"
         },
         {
           "type": "formula",
-          "field": "amplitude",
-          "expr": "max(abs(datum.total), abs(datum.total_add))"
+          "field": "reverse_added",
+          "expr": "datum.reverse_add? datum.reverse_corr+datum.reverse_add : datum.reverse_corr"
+        },
+        {
+          "type": "formula",
+          "field": "total_added",
+          "expr": "datum.total_add? datum.total_corr+datum.total_add : datum.total_corr"
         }
       ]
     },
     {
-      "name": "maxima",
+      "name": "aggr",
       "source": "raw",
       "transform": [
         {
           "type": "aggregate",
           "groupby": ["name"],
-          "summarize": {"amplitude": "max"}
+          "summarize": {"total_added": ["sum", "max"]}
         }
       ]
     },
     {
-      "name": "table",
+      "name": "annotated",
       "source": "raw",
       "transform": [
         {
           "type": "lookup",
-          "on": "maxima",
+          "on": "aggr",
           "onKey": "name",
           "keys": ["name"],
           "as": ["aggr"],
-          "default": {"max_amplitude": 0}
+          "default": {"max_total_added": 0, "sum_total_added": 0}
         },
         {
           "type": "formula",
-          "field": "amplitude_threshold",
-          "expr": "5"
-        },
-        {
+          "field": "pct_of_max",
+          "expr": "datum.aggr.max_total_added? (datum.total_added / datum.aggr.max_total_added * 100) : 100"
+        },        {
           "type": "formula",
-          "field": "amplitude_pct_threshold",
-          "expr": "0.5"
-        },
-        {
-          "type": "formula",
-          "field": "orientation_threshold",
-          "expr": "0"
-        },
-        {
-          "type": "formula",
-          "field": "bias_threshold",
-          "expr": "25"
-        },
-        {
-          "type": "formula",
-          "field": "amplitude_pct",
-          "expr": "datum.aggr.max_amplitude? (datum.amplitude/datum.aggr.max_amplitude*100) : 100"
-        },
-        {
-          "type": "filter",
-          "test": "datum.amplitude >= datum.amplitude_threshold && datum.amplitude_pct >= datum.amplitude_pct_threshold && min(datum.forward, datum.reverse) >= datum.orientation_threshold"
-        },
-        {
-          "type": "formula",
-          "field": "filter_marker",
-          "expr": "'.*'"
-        },
-        {
-          "type": "filter",
-          "test": "test('^' + datum.filter_marker + '$', datum.name)"
+          "field": "pct_of_sum",
+          "expr": "datum.aggr.sum_total_added? (datum.total_added / datum.aggr.sum_total_added * 100) : 100"
         },
         {
           "type": "formula",
@@ -102,7 +129,7 @@
         {
           "type": "formula",
           "field": "corr_shared",
-          "expr": "min(datum.total, datum.total_add)"
+          "expr": "min(datum.total, datum.total_added)"
         },
         {
           "type": "formula",
@@ -112,12 +139,12 @@
         {
           "type": "formula",
           "field": "corr_increased",
-          "expr": "max(datum.corr_shared, datum.total_add)"
+          "expr": "max(datum.corr_shared, datum.total_added)"
         },
         {
           "type": "formula",
           "field": "forwardpct",
-          "expr": "100.0 / datum.total * datum.forward"
+          "expr": "datum.total_added? (100.0 / datum.total_added * datum.forward_added) : 50"
         },
         {
           "type": "formula",
@@ -127,16 +154,41 @@
         {
           "type": "formula",
           "field": "xhigh",
-          "expr": "max(datum.total*1.05, datum.total_add*1.05)"
+          "expr": "max(datum.total*1.05, datum.total_added*1.05)"
         },
         {
           "type": "formula",
           "field": "biasmark",
-          "expr": "50-abs(datum.forwardpct-50) < datum.bias_threshold? '★' : ''"
+          "expr": "50-abs(datum.forwardpct-50) < bias_threshold? '\u2605' : ''"
+        },
+        {
+          "type": "formula",
+          "field": "thedatum",
+          "expr": "datum"
+        }
+      ]
+    },
+    {
+      "name": "markerfiltered",
+      "source": "annotated",
+      "transform": [
+        {
+          "type": "filter",
+          "test": "test('^' + filter_marker + '$', datum.name)"
+        }
+      ]
+    },
+    {
+      "name": "table",
+      "source": "markerfiltered",
+      "transform": [
+        {
+          "type": "filter",
+          "test": "datum.total_added >= amplitude_threshold && datum.pct_of_max >= amplitude_pct_threshold && min(datum.forward_added, datum.reverse_added) >= orientation_threshold"
         },
         {
           "type": "sort",
-          "by": ["name", "allele", "-total_add", "-total_corr", "-total"]
+          "by": ["name", "allele", "-total_added", "-total_corr", "-total"]
         }
       ]
     },
@@ -157,11 +209,8 @@
       "transform": [
         {
           "type": "cross",
-          "diagonal": false
-        },
-        {
-          "type": "filter",
-          "test": "datum.b.name < datum.a.name"
+          "diagonal": false,
+          "filter": "datum.b.name < datum.a.name"
         },
         {
           "type": "formula",
@@ -181,11 +230,9 @@
       "transform": [
         {
           "type": "cross",
-          "with": "table"
-        },
-        {
-          "type": "filter",
-          "test": "datum.b.name < datum.a.name"
+          "with": "table",
+          "diagonal": false,
+          "filter": "datum.b.name < datum.a.name"
         },
         {
           "type": "formula",
@@ -221,23 +268,13 @@
         },
         {
           "type": "formula",
-          "field": "barwidth",
-          "expr": "15"
-        },
-        {
-          "type": "formula",
-          "field": "subgraphoffset",
-          "expr": "70"
-        },
-        {
-          "type": "formula",
           "field": "offset",
-          "expr": "datum.barwidth*datum.offsetobj.cumulcount + datum.subgraphoffset*datum.paddingobj.cumulpadding"
+          "expr": "barwidth*datum.offsetobj.cumulcount + subgraphoffset*datum.paddingobj.cumulpadding"
         },
         {
           "type": "formula",
           "field": "end",
-          "expr": "datum.offset + datum.barwidth*datum.count"
+          "expr": "datum.offset + barwidth*datum.count"
         }
       ]
     },
@@ -258,15 +295,6 @@
       ]
     }
   ],
-  "signals": [
-    {
-      "name": "clickedAllele",
-      "verbose": true,
-      "streams": [
-        {"type": "@alleleSelector:click", "expr": "datum.thedatum"}
-      ]
-    }
-  ],
   "predicates": [
     {
       "name": "isSelected",
@@ -281,7 +309,7 @@
       "name": "b",
       "type": "ordinal",
       "range": ["black", "red"],
-      "domain": ["", "★"]
+      "domain": ["", "\u2605"]
     },
     {
       "name": "c",
@@ -293,7 +321,7 @@
       "name": "d",
       "type": "ordinal",
       "range": ["transparent"],
-      "domain": ["— Strand balance"]
+      "domain": ["\u2014 Strand balance"]
     }
   ],
   "marks": [
@@ -303,7 +331,7 @@
         "data": "yscale"
       },
       "properties": {
-        "enter": {
+        "update": {
           "x": {"field": {"group": "width"}, "mult": 0.5},
           "y": {"field": "offset"},
           "fontWeight": {"value": "bold"},
@@ -320,11 +348,6 @@
         "data": "table",
         "transform": [
           {
-            "type": "formula",
-            "field": "thedatum",
-            "expr": "datum"
-          },
-          {
             "type": "facet",
             "groupby": ["name"]
           },
@@ -338,7 +361,7 @@
         ]
       },
       "properties": {
-        "enter": {
+        "update": {
           "x": {"value": 0},
           "width": {"field": {"group": "width"}},
           "y": {"field": "subgraphscale.offset"},
@@ -417,7 +440,7 @@
         {
           "type": "rect",
           "properties": {
-            "enter": {
+            "update": {
               "x": {"scale": "x", "value": 0},
               "x2": {"scale": "x", "field": "shared"},
               "y": {"scale": "y", "field": "allele", "offset": 1},
@@ -430,7 +453,7 @@
         {
           "type": "rect",
           "properties": {
-            "enter": {
+            "update": {
               "x": {"scale": "x", "field": "corr_shared"},
               "x2": {"scale": "x", "field": "corr_decreased"},
               "y": {"scale": "y", "field": "allele", "offset": 1},
@@ -443,7 +466,7 @@
         {
           "type": "rect",
           "properties": {
-            "enter": {
+            "update": {
               "x": {"scale": "x", "field": "total_corr"},
               "x2": {"scale": "x", "field": "corr_shared"},
               "y": {"scale": "y", "field": "allele", "offset": 1},
@@ -456,7 +479,7 @@
         {
           "type": "rect",
           "properties": {
-            "enter": {
+            "update": {
               "x": {"scale": "x", "field": "corr_shared"},
               "x2": {"scale": "x", "field": "corr_increased"},
               "y": {"scale": "y", "field": "allele", "offset": 1},
@@ -472,7 +495,7 @@
             "transform": [{"type": "facet", "groupby": ["allele"]}]
           },
           "properties": {
-            "enter": {
+            "update": {
               "x": {"value": 0},
               "width": {"field": {"group": "width"}},
               "y": {"scale": "y", "field": "key", "offset": 1},
@@ -489,21 +512,21 @@
           ],
           "marks": [
             {
-              "type": "rect",
+              "type": "rule",
               "properties": {
-                "enter": {
+                "update": {
                   "x": {"scale": "x", "value": 0},
-                  "x2": {"scale": "x", "field": "total"},
-                  "y": {"scale": "balance", "field": "forwardpct", "offset": -0.5},
-                  "y2": {"scale": "balance", "field": "forwardpct", "offset": 0.5},
-                  "fill": {"scale": "b", "field": "biasmark"}
+                  "x2": {"scale": "x", "field": "total_added"},
+                  "y": {"scale": "balance", "field": "forwardpct"},
+                  "stroke": {"scale": "b", "field": "biasmark"},
+                  "strokeWidth": {"value": 1}
                 }
               }
             },
             {
               "type": "text",
               "properties": {
-                "enter": {
+                "update": {
                   "x": {"scale": "x", "field": "xhigh", "mult": 0.952381, "offset": 5},
                   "y": {"scale": "balance", "value": 50},
                   "baseline": {"value": "middle"},
@@ -515,14 +538,12 @@
             {
               "type": "text",
               "properties": {
-                "enter": {
+                "update": {
                   "x": {"value": -10},
                   "y": {"scale": "balance", "value": 50},
                   "baseline": {"value": "middle"},
                   "align": {"value": "right"},
-                  "text": {"field": "allele"}
-                },
-                "update": {
+                  "text": {"field": "allele"},
                   "fill": {
                     "rule": [
                       {
@@ -532,7 +553,7 @@
                         },
                         "value": "green"
                       },
-                      {"value": "black"}
+                      {"value": "#aaaaaa"}
                     ]
                   },
                   "fontStyle": {
@@ -542,9 +563,9 @@
                           "name": "isSelected",
                           "allele": {"field": "thedatum"}
                         },
-                        "value": "italic"
+                        "value": "normal"
                       },
-                      {"value": "normal"}
+                      {"value": "italic"}
                     ]
                   }
                 }
@@ -556,7 +577,7 @@
           "name": "alleleSelector",
           "type": "rect",
           "properties": {
-            "enter": {
+            "update": {
               "x": {"value": 0},
               "width": {"field": {"group": "width"}},
               "y": {"scale": "y", "field": "allele"},

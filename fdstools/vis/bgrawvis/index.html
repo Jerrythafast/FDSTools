@@ -121,17 +121,20 @@
     <script type="text/javascript">
         var graph = false;
         var fileName = "graph";
+        var stamp = 0;
         function parse(){
+            var this_stamp = ++stamp;
             vg.parse.spec(graph_spec, function(chart){
-                var rendererName = "canvas";
-                if(document.getElementById("renderSVG").checked)
-                    rendererName="svg";
-                graph = chart({el: "#vis", renderer: rendererName});
+                // Cancel rendering if a new parse() call was made.
+                if(this_stamp != stamp)
+                    return;
+
+                var visdiv = document.getElementById("vis");
+                graph = chart({el: visdiv, renderer: document.querySelector("input[name=renderer]:checked").value});
                 graph.update();
                 document.getElementById("saveLink").style.display = "inline";
 
                 //Scroll to the right; the graph is more interesting than the long labels.
-                var visdiv = document.getElementById("vis");
                 visdiv.scrollLeft = visdiv.scrollWidth;
             });
         }
@@ -160,34 +163,26 @@
             return "linear";
         }
 
-        function setDataFormulaTransformValue(dataname, fieldname, value){
+        function setSignalValue(signalname, value){
             if(!graph_spec)
-                return false;
-            for(i in graph_spec["data"]){
-                if(graph_spec["data"][i]["name"] == dataname){
-                    for(j in graph_spec["data"][i]["transform"]){
-                        if(graph_spec["data"][i]["transform"][j]["type"] == "formula" && graph_spec["data"][i]["transform"][j]["field"] == fieldname){
-                            graph_spec["data"][i]["transform"][j]["expr"] = "" + value;
-                            return true;
-                        }
-                    }
+                return;
+            for(i in graph_spec["signals"]){
+                if(graph_spec["signals"][i]["name"] == signalname){
+                    graph_spec["signals"][i]["init"] = value;
+                    break;
                 }
             }
-            return false;
+            if(graph)
+                graph.signal(signalname, value).padding("auto").update();
+            return;
         }
 
-        function getDataFormulaTransformValue(dataname, fieldname){
+        function getSignalValue(signalname){
             if(!graph_spec)
                 return false;
-            for(i in graph_spec["data"]){
-                if(graph_spec["data"][i]["name"] == dataname){
-                    for(j in graph_spec["data"][i]["transform"]){
-                        if(graph_spec["data"][i]["transform"][j]["type"] == "formula" && graph_spec["data"][i]["transform"][j]["field"] == fieldname){
-                            return graph_spec["data"][i]["transform"][j]["expr"];
-                        }
-                    }
-                }
-            }
+            for(i in graph_spec["signals"])
+                if(graph_spec["signals"][i]["name"] == signalname)
+                    return graph_spec["signals"][i]["init"];
             return false;
         }
 
@@ -206,6 +201,7 @@
                     fileName = fileList[0].name.substr(0, fileList[0].name.lastIndexOf("."));
                 else
                     fileName = "graph";
+                document.title = fileName + " - Background Noise Visualisation - FDSTools";
                 graph_spec["data"][0]["values"] = reader.result;
                 parse();
             };
@@ -226,6 +222,12 @@
 
         function onLoadSpec(has_data){
             if(!has_data){
+                //Handle files from the file input.
+                document.getElementById("fileselect").addEventListener('change', function(){
+                    loadDataset(document.getElementById("fileselect").files);
+                }, false);
+                document.getElementById("fileselectgroup").style.display = "table";
+
                 //Allow files to be dragged onto the page.
                 document.addEventListener('dragover', function(evt){
                     evt.stopPropagation();
@@ -234,14 +236,8 @@
                 document.addEventListener('drop', function(evt){
                     evt.stopPropagation();
                     evt.preventDefault();
-                    loadDataset(evt.dataTransfer.files);
+                    document.getElementById("fileselect").files = evt.dataTransfer.files;
                 }, false);
-
-                //Handle files from the file input.
-                document.getElementById("fileselect").addEventListener('change', function(){
-                    loadDataset(document.getElementById("fileselect").files);
-                }, false);
-                document.getElementById("fileselectgroup").style.display = "table";
             }
 
             //Update graph when rendering mode or axis scale is changed.
@@ -263,39 +259,34 @@
                     return;
                 graph_spec["width"] = value;
                 if(graph)
-                    parse();
+                    graph.width(value).padding("auto").update();
             }, false);
             document.getElementById("barwidth").addEventListener('change', function(){
                 var value = parseFloat(this.value);
                 if(isNaN(value))
                     return;
-                if(setDataFormulaTransformValue("yscale", "barwidth", value) && graph)
-                    parse();
+                setSignalValue("barwidth", value);
             }, false);
             document.getElementById("subgraphoffset").addEventListener('change', function(){
                 var value = parseFloat(this.value);
                 if(isNaN(value))
                     return;
-                if(setDataFormulaTransformValue("yscale", "subgraphoffset", value) && graph)
-                    parse();
+                setSignalValue("subgraphoffset", value);
             }, false);
             document.getElementById("minN").addEventListener('change', function(){
                 var value = parseFloat(this.value);
                 if(isNaN(value))
                     return;
-                if(setDataFormulaTransformValue("table", "amplitude_threshold", value) && graph)
-                    parse();
+                setSignalValue("amplitude_threshold", value);
             }, false);
             document.getElementById("minP").addEventListener('change', function(){
                 var value = parseFloat(this.value);
                 if(isNaN(value))
                     return;
-                if(setDataFormulaTransformValue("table", "amplitude_pct_threshold", value) && graph)
-                    parse();
+                setSignalValue("amplitude_pct_threshold", value);
             }, false);
             document.getElementById("markerFilter").addEventListener('change', function(){
-                if(setDataFormulaTransformValue("table", "filter_marker", "'" + this.value + "'") && graph)
-                    parse();
+                setSignalValue("filter_marker", this.value);
             }, false);
 
             //Toggle options visibility.
@@ -316,12 +307,12 @@
                 document.getElementById("scaleLinear").checked = false;
                 document.getElementById("scaleLog").checked = true;
             }
-            document.getElementById("markerFilter").value = getDataFormulaTransformValue("table", "filter_marker").replace(/^(['"]?)(.*(?=\1$))\1$/, '$2');
+            document.getElementById("markerFilter").value = getSignalValue("filter_marker");
             document.getElementById("graphwidth").value = graph_spec["width"];
-            document.getElementById("barwidth").value = getDataFormulaTransformValue("yscale", "barwidth");
-            document.getElementById("subgraphoffset").value = getDataFormulaTransformValue("yscale", "subgraphoffset");
-            document.getElementById("minN").value = getDataFormulaTransformValue("table", "amplitude_threshold");
-            document.getElementById("minP").value = getDataFormulaTransformValue("table", "amplitude_pct_threshold");
+            document.getElementById("barwidth").value = getSignalValue("barwidth");
+            document.getElementById("subgraphoffset").value = getSignalValue("subgraphoffset");
+            document.getElementById("minN").value = getSignalValue("amplitude_threshold");
+            document.getElementById("minP").value = getSignalValue("amplitude_pct_threshold");
             if(has_data){
                 document.getElementById("options").style.display = "none";
                 parse();

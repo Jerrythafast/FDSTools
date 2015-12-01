@@ -1,6 +1,28 @@
 {
   "width": 600,
   "height": 10,
+  "signals": [
+    {
+      "name": "filter_threshold",
+      "init": 0.5
+    },
+    {
+      "name": "filter_marker",
+      "init": ".*"
+    },
+    {
+      "name": "barwidth",
+      "init": 15
+    },
+    {
+      "name": "subgraphoffset",
+      "init": 70
+    },
+    {
+      "name": "low",
+      "init": 0
+    }
+  ],
   "data": [
     {
       "name": "table",
@@ -15,40 +37,17 @@
       "transform": [
         {
           "type": "filter",
-          "test": "datum.allele != datum.sequence"
-        },
-        {
-          "type": "formula",
-          "field": "filter_threshold",
-          "expr": "0.5"
-        },
-        {
-          "type": "filter",
-          "test": "max(datum.fmean, datum.rmean) >= datum.filter_threshold"
-        },
-        {
-          "type": "formula",
-          "field": "filter_marker",
-          "expr": "'.*'"
-        },
-        {
-          "type": "filter",
-          "test": "test('^' + datum.filter_marker + '$', datum.marker)"
-        },
-        {
-          "type": "formula",
-          "field": "low",
-          "expr": "0"
+          "test": "datum.allele != datum.sequence && max(datum.fmean, datum.rmean) >= filter_threshold && test('^' + filter_marker + '$', datum.marker)"
         },
         {
           "type": "formula",
           "field": "fmean",
-          "expr": "max(datum.fmean, datum.low)"
+          "expr": "max(datum.fmean, low)"
         },
         {
           "type": "formula",
           "field": "rmean",
-          "expr": "max(datum.rmean, datum.low)"
+          "expr": "max(datum.rmean, low)"
         },
         {
           "type": "formula",
@@ -88,11 +87,8 @@
       "transform": [
         {
           "type": "cross",
-          "diagonal": false
-        },
-        {
-          "type": "filter",
-          "test": "datum.b.name < datum.a.name"
+          "diagonal": false,
+          "filter": "datum.b.name < datum.a.name"
         },
         {
           "type": "formula",
@@ -112,11 +108,8 @@
       "transform": [
         {
           "type": "cross",
-          "with": "table"
-        },
-        {
-          "type": "filter",
-          "test": "datum.b.name < datum.a.name"
+          "with": "table",
+          "filter": "datum.b.name < datum.a.name"
         },
         {
           "type": "formula",
@@ -152,23 +145,13 @@
         },
         {
           "type": "formula",
-          "field": "barwidth",
-          "expr": "15"
-        },
-        {
-          "type": "formula",
-          "field": "subgraphoffset",
-          "expr": "70"
-        },
-        {
-          "type": "formula",
           "field": "offset",
-          "expr": "2*datum.barwidth*datum.offsetobj.cumulcount + datum.subgraphoffset*datum.paddingobj.cumulpadding"
+          "expr": "2*barwidth*datum.offsetobj.cumulcount + subgraphoffset*datum.paddingobj.cumulpadding"
         },
         {
           "type": "formula",
           "field": "end",
-          "expr": "datum.offset + 2*datum.barwidth*datum.count"
+          "expr": "datum.offset + 2*barwidth*datum.count"
         }
       ]
     }
@@ -188,7 +171,7 @@
         "data": "yscale"
       },
       "properties": {
-        "enter": {
+        "update": {
           "x": {"field": {"group": "width"}, "mult": 0.5},
           "y": {"field": "offset"},
           "fontWeight": {"value": "bold"},
@@ -218,7 +201,7 @@
         ]
       },
       "properties": {
-        "enter": {
+        "update": {
           "x": {"value": 0},
           "width": {"field": {"group": "width"}},
           "y": {"field": "subgraphscale.offset"},
@@ -232,7 +215,8 @@
           "type": "linear",
           "nice": true,
           "range": "width",
-          "domain": {"data": "table", "field": ["low", "fmean", "rmean"]}
+          "domainMin": {"signal": "low"},
+          "domainMax": {"data": "table", "field": ["fmean", "rmean"]}
         },
         {
           "name": "y",
@@ -283,7 +267,7 @@
             ]
           },
           "properties": {
-            "enter": {
+            "update": {
               "x": {"value": 0},
               "y": {"scale": "y", "field": "key", "offset": 1},
               "width": {"field": {"group": "width"}},
@@ -310,8 +294,8 @@
             {
               "type": "rect",
               "properties": {
-                "enter": {
-                  "x": {"scale": "x", "field": "low"},
+                "update": {
+                  "x": {"scale": "x", "signal": "low"},
                   "x2": {"scale": "x", "field": "fmean"},
                   "y": {"scale": "bars", "value": "Forward reads"},
                   "height": {"scale": "bars", "band": true},
@@ -323,7 +307,7 @@
             {
               "type": "text",
               "properties": {
-                "enter": {
+                "update": {
                   "x": {"scale": "x", "field": "fmean", "offset": 5},
                   "y": {"scale": "labels", "value": "Forward reads"},
                   "fontWeight": {"value": "bold"},
@@ -337,8 +321,8 @@
             {
               "type": "rect",
               "properties": {
-                "enter": {
-                  "x": {"scale": "x", "field": "low"},
+                "update": {
+                  "x": {"scale": "x", "signal": "low"},
                   "x2": {"scale": "x", "field": "rmean"},
                   "y": {"scale": "bars", "value": "Reverse reads"},
                   "height": {"scale": "bars", "band": true},
@@ -350,7 +334,7 @@
             {
               "type": "text",
               "properties": {
-                "enter": {
+                "update": {
                   "x": {"scale": "x", "field": "rmean", "offset": 5},
                   "y": {"scale": "labels", "value": "Reverse reads"},
                   "fontWeight": {"value": "bold"},

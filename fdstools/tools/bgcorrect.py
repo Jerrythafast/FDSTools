@@ -117,6 +117,12 @@ def match_profile(column_names, data, profile, convert_to_raw, library,
     forward_add = np.multiply(A, P1.sum(1))
     reverse_add = np.multiply(A, P2.sum(1))
 
+    # Round values to 3 decimal positions.
+    forward_noise.round(3, forward_noise);
+    reverse_noise.round(3, reverse_noise);
+    forward_add.round(3, forward_add);
+    reverse_add.round(3, reverse_add);
+
     j = 0
     for line in data:
         j += 1

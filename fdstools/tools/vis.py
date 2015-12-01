@@ -13,11 +13,11 @@ D3) are embedded in the generated HTML file.  With the -O/--online
 option specified, the HTML file will instead link to the latest version
 of these libraries on the Internet.
 
-Vega also supports generating visualisations on the command line, which
-is useful if you wish to generate graphs automatically in your analysis
-pipeline.  Specify the -V/--vega option to obtain a bare Vega graph
-specification (a JSON file) instead of the full-featured HTML file.  You
-can pass this file through Vega to generate a PNG or SVG image file.
+Vega supports generating visualisations on the command line.  By
+default, FDSTools produces a full-featured HTML file.  Specify the
+-V/--vega option if you wish to obtain a bare Vega graph specification
+(a JSON file) instead.  You can pass this file through Vega to generate
+a PNG or SVG image file.
 
 If an input file is specified, the visualisation will be set up
 specifically to visualise the contents of this file.  To this end, the
@@ -52,6 +52,9 @@ _DEF_THRESHOLD_PCT = 0.5
 # This value can be overridden by the -s command line option.
 _DEF_THRESHOLD_ORIENTATION = 0
 
+# Default percentage of reads on one strand to mark as bias.
+# This value can be overridden by the -B command line option.
+_DEF_THRESHOLD_BIAS = 25.0
 
 # Default width of bars in bar graphs, in pixels.
 # This value can be overridden by the -b command line option.
@@ -84,10 +87,12 @@ _DEF_DATA_FILENAME = "data.csv"
 
 
 
-_PAT_LOAD_SCRIPT = re.compile("<!--\s*BEGIN_LOAD_SCRIPT\s*-->\s*(.*?)\s*"
-                              "<!--\s*END_LOAD_SCRIPT\s*-->", flags=re.DOTALL)
+_PAT_TITLE = re.compile("<title>\s*(.*?)\s*"
+                        "</title>", flags=re.DOTALL|re.IGNORECASE)
 _PAT_LIBRARIES = re.compile("<!--\s*BEGIN_LIBRARIES\s*-->\s*(.*?)\s*"
                             "<!--\s*END_LIBRARIES\s*-->", flags=re.DOTALL)
+_PAT_LOAD_SCRIPT = re.compile("<!--\s*BEGIN_LOAD_SCRIPT\s*-->\s*(.*?)\s*"
+                              "<!--\s*END_LOAD_SCRIPT\s*-->", flags=re.DOTALL)
 
 _SCRIPT_BEGIN = '<script type="text/javascript">'
 _SCRIPT_END = '</script>'
@@ -96,19 +101,15 @@ _EXTERNAL_LIBRARIES = ("vis/d3.min.js", "vis/vega.min.js")
 
 
 
-def set_data_formula_transform_value(spec, dataname, fieldname, value):
-    for data in spec["data"]:
-        if data["name"] != dataname:
-            continue
-        if "transform" not in data:
-            return False
-        for transform in data["transform"]:
-            if (transform["type"] == "formula" and
-                    transform["field"] == fieldname):
-                transform["expr"] = str(value)
-                return True
+def set_signal_value(spec, signalname, value):
+    if "signals" not in spec:
+        return False
+    for signal in spec["signals"]:
+        if signal["name"] == signalname:
+            signal["init"] = value
+            return True
     return False
-#set_data_formula_transform_value
+#set_signal_value
 
 
 def set_axis_scale(spec, scalename, value):
@@ -126,8 +127,9 @@ def set_axis_scale(spec, scalename, value):
 
 
 def create_visualisation(vistype, infile, outfile, vega, online, tidy, min_abs,
-                         min_pct, min_per_strand, bar_width, padding, marker,
-                         width, height, log_scale, repeat_unit, no_alldata):
+                         min_pct, min_per_strand, bias_threshold, bar_width,
+                         padding, marker, width, height, log_scale,
+                         repeat_unit, no_alldata, title):
     # Get graph spec.
     spec = json.load(resource_stream(
         "fdstools", "vis/%svis/%svis.json" % (vistype, vistype)))
@@ -142,35 +144,25 @@ def create_visualisation(vistype, infile, outfile, vega, online, tidy, min_abs,
     # Apply width, height, and padding settings.
     spec["width"] = width
     if vistype == "stuttermodel":
-        set_data_formula_transform_value(spec, "yscale", "graphheight", height)
+        set_signal_value(spec, "graphheight", height)
     else:
-        set_data_formula_transform_value(spec, "yscale", "barwidth", bar_width)
-    set_data_formula_transform_value(spec, "yscale", "subgraphoffset", padding)
-    set_data_formula_transform_value(
-        spec,
-        "fitfunctions" if vistype == "stuttermodel" else "table",
-        "filter_marker", "'" + marker + "'")
+        set_signal_value(spec, "barwidth", bar_width)
+    set_signal_value(spec, "subgraphoffset", padding)
+    set_signal_value(spec, "filter_marker", marker)
 
     # Apply type-specific settings.
     if vistype == "stuttermodel":
-        set_data_formula_transform_value(
-            spec, "fitfunctions", "filter_unit", "'" + repeat_unit + "'")
-        set_data_formula_transform_value(
-            spec, "fitfunctions", "show_all_data",
-            "false" if no_alldata else "true")
+        set_signal_value(spec, "filter_unit", repeat_unit)
+        set_signal_value(spec, "show_all_data", False if no_alldata else True)
     elif vistype == "sample" or vistype == "bgraw":
-        set_data_formula_transform_value(
-            spec, "table", "amplitude_threshold", min_abs)
-        set_data_formula_transform_value(
-            spec, "table", "amplitude_pct_threshold", min_pct)
+        set_signal_value(spec, "amplitude_threshold", min_abs)
+        set_signal_value(spec, "amplitude_pct_threshold", min_pct)
     elif vistype == "profile":
-        set_data_formula_transform_value(
-            spec, "table", "filter_threshold", min_pct)
-        set_data_formula_transform_value(
-            spec, "table", "low", "0.001" if log_scale else "0")
+        set_signal_value(spec, "filter_threshold", min_pct)
+        set_signal_value(spec, "low", 0.001 if log_scale else 0)
     if vistype == "sample":
-        set_data_formula_transform_value(
-            spec, "table", "orientation_threshold", min_per_strand)
+        set_signal_value(spec, "orientation_threshold", min_per_strand)
+        set_signal_value(spec, "bias_threshold", bias_threshold)
 
     # Apply axis scale settings.
     if vistype != "stuttermodel":
@@ -218,6 +210,17 @@ def create_visualisation(vistype, infile, outfile, vega, online, tidy, min_abs,
             parts.append(html[match.end(1):])
             html = "".join(parts)
 
+    if title is None and infile is not None and infile != sys.stdin:
+        try:
+            title = os.path.splitext(os.path.basename(infile.name))[0]
+        except AttributeError:
+            pass
+    if title:
+        match = _PAT_TITLE.search(html)
+        if match:
+            html = "".join([
+                html[:match.start(1)], title, " - ", html[match.start(1):]])
+
     outfile.write(html)
 #create_visualisation
 
@@ -242,9 +245,9 @@ def add_arguments(parser):
         default=sys.stdout,
         help="file to write output to (default: write to stdout)")
     parser.add_argument('-V', '--vega', action="store_true",
-        help="an HTML file containing an interactive visualisation is created "
-             "by default; if this option is specified, a Vega graph "
-             "specification (JSON file) is produced instead")
+        help="by default, a full-featured HTML file offering an interactive "
+             "visualisation is created; if this option is specified, only a "
+             "bare Vega graph specification (JSON file) is produced instead")
     parser.add_argument('-O', '--online', action="store_true",
         help="when generating an HTML visualisation file, required JavaScript "
              "libraries (D3 and Vega) are embedded in the file; if this "
@@ -253,6 +256,9 @@ def add_arguments(parser):
              "versions of D3 and Vega")
     parser.add_argument('-t', '--tidy', action="store_true",
         help="tidily indent the generated JSON")
+    parser.add_argument('-T', '--title',
+        help="prepend the given value to the title of HTML visualisations "
+             "(default: prepend name of data file if given)")
 
     visgroup = parser.add_argument_group("visualisation options",
         description="words in [brackets] indicate applicable visualisation "
@@ -271,6 +277,10 @@ def add_arguments(parser):
         type=pos_int_arg, default=_DEF_THRESHOLD_ORIENTATION,
         help="[sample] only show sequences with this minimum number of reads "
              "for both orientations (forward/reverse) (default: %(default)s)")
+    visgroup.add_argument('-B', '--bias-threshold', metavar="N", type=float,
+        default=_DEF_THRESHOLD_BIAS,
+        help="[sample] mark sequences that have less than this percentage of "
+             "reads on one strand (default: %(default)s)")
     visgroup.add_argument('-M', '--marker', metavar="REGEX",
         default=_DEF_MARKER_REGEX,
         help="[sample, profile, bgraw, stuttermodel] only show graphs for the "
@@ -307,9 +317,8 @@ def add_arguments(parser):
 
 
 def run(args):
-    if args.infile == "-" and not sys.stdin.isatty():
-        # User appears to want to pipe data in.
-        args.infile = sys.stdin
+    if args.infile == "-":
+        args.infile = None if sys.stdin.isatty() else sys.stdin
     if (args.infile is not None and args.outfile == sys.stdout
             and not os.path.exists(args.infile)):
         # One filename given, and it does not exist.  Assume outfile.
@@ -327,7 +336,8 @@ def run(args):
 
     create_visualisation(args.type, args.infile, args.outfile, args.vega,
                          args.online, args.tidy, args.min_abs, args.min_pct,
-                         args.min_per_strand, args.bar_width, args.padding,
-                         args.marker, args.width, args.height, args.log_scale,
-                         args.repeat_unit, args.no_alldata)
+                         args.min_per_strand, args.bias_threshold,
+                         args.bar_width, args.padding, args.marker, args.width,
+                         args.height, args.log_scale, args.repeat_unit,
+                         args.no_alldata, args.title)
 #run

@@ -1,6 +1,28 @@
 {
   "width": 600,
   "height": 10,
+  "signals": [
+    {
+      "name": "amplitude_threshold",
+      "init": 5
+    },
+    {
+      "name": "amplitude_pct_threshold",
+      "init": 0.5
+    },
+    {
+      "name": "filter_marker",
+      "init": ".*"
+    },
+    {
+      "name": "barwidth",
+      "init": 15
+    },
+    {
+      "name": "subgraphoffset",
+      "init": 70
+    }
+  ],
   "data": [
     {
       "name": "table",
@@ -23,31 +45,12 @@
         },
         {
           "type": "formula",
-          "field": "amplitude_threshold",
-          "expr": "5"
-        },
-        {
-          "type": "formula",
-          "field": "amplitude_pct_threshold",
-          "expr": "0.5"
-        },
-        {
-          "type": "formula",
           "field": "maxnoise",
           "expr": "max(datum.fnoise, datum.rnoise, datum.tnoise)"
         },
         {
           "type": "filter",
-          "test": "datum.total >= 1 && datum.total >= datum.amplitude_threshold && datum.maxnoise >= datum.amplitude_pct_threshold"
-        },
-        {
-          "type": "formula",
-          "field": "filter_marker",
-          "expr": "'.*'"
-        },
-        {
-          "type": "filter",
-          "test": "test('^' + datum.filter_marker + '$', datum.marker)"
+          "test": "datum.total >= 1 && datum.total >= amplitude_threshold && datum.maxnoise >= amplitude_pct_threshold && test('^' + filter_marker + '$', datum.marker)"
         },
         {
           "type": "formula",
@@ -83,11 +86,8 @@
       "transform": [
         {
           "type": "cross",
-          "diagonal": false
-        },
-        {
-          "type": "filter",
-          "test": "datum.b.name < datum.a.name"
+          "diagonal": false,
+          "filter": "datum.b.name < datum.a.name"
         },
         {
           "type": "formula",
@@ -107,11 +107,8 @@
       "transform": [
         {
           "type": "cross",
-          "with": "table"
-        },
-        {
-          "type": "filter",
-          "test": "datum.b.name < datum.a.name"
+          "with": "table",
+          "filter": "datum.b.name < datum.a.name"
         },
         {
           "type": "formula",
@@ -152,23 +149,13 @@
         },
         {
           "type": "formula",
-          "field": "barwidth",
-          "expr": "15"
-        },
-        {
-          "type": "formula",
-          "field": "subgraphoffset",
-          "expr": "70"
-        },
-        {
-          "type": "formula",
           "field": "offset",
-          "expr": "(10+datum.barwidth)*datum.offsetobj.cumulcount + datum.subgraphoffset*datum.paddingobj.cumulpadding"
+          "expr": "(10+barwidth)*datum.offsetobj.cumulcount + subgraphoffset*datum.paddingobj.cumulpadding"
         },
         {
           "type": "formula",
           "field": "end",
-          "expr": "datum.offset + (10+datum.barwidth)*datum.count"
+          "expr": "datum.offset + (10+barwidth)*datum.count"
         }
       ]
     }
@@ -188,7 +175,7 @@
         "data": "yscale"
       },
       "properties": {
-        "enter": {
+        "update": {
           "x": {"field": {"group": "width"}, "mult": 0.5},
           "y": {"field": "offset"},
           "fontWeight": {"value": "bold"},
@@ -218,7 +205,7 @@
         ]
       },
       "properties": {
-        "enter": {
+        "update": {
           "x": {"value": 0},
           "width": {"field": {"group": "width"}},
           "y": {"field": "subgraphscale.offset"},
@@ -283,22 +270,20 @@
             "transform": [
               {
                 "type": "filter",
-                "test": "datum.forward >= 1 && datum.forward >= datum.amplitude_threshold"
+                "test": "datum.forward >= 1 && datum.forward >= amplitude_threshold"
               },
               {
                 "type": "filter",
-                "test": "datum.fnoise >= datum.amplitude_pct_threshold"
+                "test": "datum.fnoise >= amplitude_pct_threshold"
               }
             ]
           },
           "properties": {
-            "enter": {
+            "update": {
               "x": {"scale": "x", "field": "fnoise"},
               "y": {"scale": "y", "field": "sequence", "offset": -5},
               "fill": {"scale": "c", "value": "Forward reads"},
-              "fillOpacity": {"value": 0.8}
-            },
-            "update": {
+              "fillOpacity": {"value": 0.8},
               "size": {"value": 100},
               "stroke": {"value": "transparent"}
             },
@@ -314,22 +299,20 @@
             "transform": [
               {
                 "type": "filter",
-                "test": "datum.reverse >= 1 && datum.reverse >= datum.amplitude_threshold"
+                "test": "datum.reverse >= 1 && datum.reverse >= amplitude_threshold"
               },
               {
                 "type": "filter",
-                "test": "datum.rnoise >= datum.amplitude_pct_threshold"
+                "test": "datum.rnoise >= amplitude_pct_threshold"
               }
             ]
           },
           "properties": {
-            "enter": {
+            "update": {
               "x": {"scale": "x", "field": "rnoise"},
               "y": {"scale": "y", "field": "sequence", "offset": 5},
               "fill": {"scale": "c", "value": "Reverse reads"},
-              "fillOpacity": {"value": 0.8}
-            },
-            "update": {
+              "fillOpacity": {"value": 0.8},
               "size": {"value": 100},
               "stroke": {"value": "transparent"}
             },
@@ -345,22 +328,20 @@
             "transform": [
               {
                 "type": "filter",
-                "test": "datum.total >= 1 && datum.total >= datum.amplitude_threshold"
+                "test": "datum.total >= 1 && datum.total >= amplitude_threshold"
               },
               {
                 "type": "filter",
-                "test": "datum.tnoise >= datum.amplitude_pct_threshold"
+                "test": "datum.tnoise >= amplitude_pct_threshold"
               }
             ]
           },
           "properties": {
-            "enter": {
+            "update": {
               "x": {"scale": "x", "field": "tnoise"},
               "y": {"scale": "y", "field": "sequence"},
               "fill": {"scale": "c", "value": "Total reads"},
-              "fillOpacity": {"value": 0.8}
-            },
-            "update": {
+              "fillOpacity": {"value": 0.8},
               "size": {"value": 100},
               "stroke": {"value": "transparent"}
             },

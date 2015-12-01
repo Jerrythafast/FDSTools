@@ -1,6 +1,28 @@
 {
   "width": 600,
   "height": 10,
+  "signals": [
+    {
+      "name": "filter_unit",
+      "init": ".*"
+    },
+    {
+      "name": "filter_marker",
+      "init": ".*"
+    },
+    {
+      "name": "show_all_data",
+      "init": true
+    },
+    {
+      "name": "graphheight",
+      "init": 400
+    },
+    {
+      "name": "subgraphoffset",
+      "init": 70
+    }
+  ],
   "data": [
     {
       "name": "fitfunctions",
@@ -26,23 +48,8 @@
       },
       "transform": [
         {
-          "type": "formula",
-          "field": "filter_unit",
-          "expr": "'.*'"
-        },
-        {
-          "type": "formula",
-          "field": "filter_marker",
-          "expr": "'.*'"
-        },
-        {
-          "type": "formula",
-          "field": "show_all_data",
-          "expr": "true"
-        },
-        {
           "type": "filter",
-          "test": "(datum.marker != 'All data' && test('^' + datum.filter_unit + '$', datum.unit) && test('^' + datum.filter_marker + '$', datum.marker)) || (datum.marker == 'All data' && datum.show_all_data)"
+          "test": "((datum.marker != 'All data' && test('^' + filter_marker + '$', datum.marker)) || (datum.marker == 'All data' && show_all_data)) && test('^' + filter_unit + '$', datum.unit)"
         },
         {
           "type": "formula",
@@ -57,11 +64,8 @@
       "transform": [
         {
           "type": "cross",
-          "diagonal": false
-        },
-        {
-          "type": "filter",
-          "test": "length(datum.b.unit) < length(datum.a.unit) || (length(datum.b.unit) == length(datum.a.unit) && datum.b.unit < datum.a.unit) || (datum.b.unit == datum.a.unit && datum.b.stutter < datum.a.stutter)"
+          "diagonal": false,
+          "filter": "length(datum.b.unit) < length(datum.a.unit) || (length(datum.b.unit) == length(datum.a.unit) && datum.b.unit < datum.a.unit) || (datum.b.unit == datum.a.unit && datum.b.stutter < datum.a.stutter)"
         },
         {
           "type": "formula",
@@ -94,23 +98,13 @@
         },
         {
           "type": "formula",
-          "field": "graphheight",
-          "expr": "400"
-        },
-        {
-          "type": "formula",
-          "field": "subgraphoffset",
-          "expr": "70"
-        },
-        {
-          "type": "formula",
           "field": "offset",
-          "expr": "(datum.graphheight+datum.subgraphoffset)*datum.paddingobj.cumulpadding"
+          "expr": "(graphheight+subgraphoffset)*datum.paddingobj.cumulpadding"
         },
         {
           "type": "formula",
           "field": "end",
-          "expr": "datum.offset + datum.graphheight"
+          "expr": "datum.offset + graphheight"
         }
       ]
     },
@@ -136,23 +130,17 @@
         },
         {
           "type": "cross",
-          "with": "lengths"
+          "with": "lengths",
+          "filter": "datum.b.data < datum.a.amount"
         },
         {
-          "type": "filter",
-          "test": "datum.b.data < datum.a.amount"
-        },
-        {
-          "type": "cross"
+          "type": "cross",
+          "filter": "datum.a.a.amount * datum.a.b.data + datum.b.b.data <= datum.a.a.max_max"
         },
         {
           "type": "formula",
           "field": "length",
           "expr": "datum.a.a.amount * datum.a.b.data + datum.b.b.data"
-        },
-        {
-          "type": "filter",
-          "test": "datum.length <= datum.a.a.max_max"
         },
         {
           "type": "cross",
@@ -200,7 +188,7 @@
         "data": "yscale"
       },
       "properties": {
-        "enter": {
+        "update": {
           "x": {"field": {"group": "width"}, "mult": 0.5},
           "y": {"field": "offset"},
           "fontWeight": {"value": "bold"},
@@ -230,7 +218,7 @@
         ]
       },
       "properties": {
-        "enter": {
+        "update": {
           "x": {"value": 0},
           "width": {"field": {"group": "width"}},
           "y": {"field": "subgraphscale.offset"},
@@ -316,13 +304,11 @@
             {
               "type": "line",
               "properties": {
-                "enter": {
+                "update": {
                   "interpolate": {"value": "linear"},
                   "x": {"scale": "x", "field": "length"},
                   "y": {"scale": "y", "field": "value"},
-                  "stroke": {"scale": "c", "field": "markerdirection"}
-                },
-                "update": {
+                  "stroke": {"scale": "c", "field": "markerdirection"},
                   "strokeWidth": {"value": 1.5},
                   "strokeOpacity": {"value": 0.8}
                 },

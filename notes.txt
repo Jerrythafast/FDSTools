@@ -1,6 +1,5 @@
 To-do:
-* Add samplestats tool to compute a table of statistics about every sequence.
-  Include options to automatically mark alleles in samples as well.
+* Add  options to automatically mark alleles in samples to Samplestats.
 * Allow loading multiple files into HTML visualisations and provide prev/next
   buttons to browse them.
 * Add tool to summarise various statistics about the entire analysis pipeline:
@@ -10,13 +9,16 @@ To-do:
   reference sequence.
 * Allow simple marker name filtering in visualisations.
 * Samplevis:
-  * Change the colours of the allele names (or some other marking)
-    corresponding to the amount of correction
+  * Automatically mark alleles based on user-provided bounds.
   * Add columns to the table of selected alleles that shows which tool did the
     filtering (if any) and what data was used to filter with.
-  * Change the 'percentage of highest allele' column in the table of selected
-    alleles to 'percentage of marker reads'.
-  * Preserve selected alleles when updating split, markerFilter, and scale.
+  * Add 'percentage of marker reads' column in the table of selected alleles.
+  * Add 'show negative alleles' checkbox in Filtering options (for diagnostic
+    purposes - but default to TRUE).
+  * Respect sorting rules when adding sequences due to lowered filters.
+  * Make sure marker and allele names sort the same in Vega and in the tables.
+  * Option to save the marker tables to a TSV file.
+  * When we have them, add default values to table filtering (for reference).
 * Adjust BGEstimate so that it computes forward and reverse in one go.  To do
   this, double the number of columns in P and C and put the forward profile in
   the left half and the reverse profile in the right half.  The benefit of this
@@ -32,8 +34,6 @@ To-do:
 Open Vega issues:
 * Legend and axis corruption on signal changes.
   https://github.com/vega/vega/issues/446
-* Incorrect width calculation when axes exist within group marks.
-  https://github.com/vega/vega/issues/429
 * Feature request for lines (or arbitrary shapes) for legend items.
   https://github.com/vega/vega/issues/408
 

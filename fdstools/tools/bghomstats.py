@@ -126,7 +126,7 @@ def compute_stats(samples_in, outfile, allelefile, annotation_column, min_pct,
     for marker, allele in data:
         for sequence in data[marker, allele]:
             outfile.write("\t".join([marker, allele, sequence] + [
-                str(x) if abs(x) > 0.0000000001 else "0" for x in (
+                "%.3g" % x if abs(x) > 0.0000000001 else "0" for x in (
                     data[marker, allele][sequence][0]["n"],
                     data[marker, allele][sequence][0]["min"],
                     data[marker, allele][sequence][0]["max"],

@@ -142,61 +142,66 @@ def compute_stats(infile, outfile, library, seqformat):
             marker_total_corrected = sum(
                 row[colid_total_corrected] for row in data[marker])
         for row in data[marker]:
-            row.append(100.*row[colid_forward]/row[colid_total])
+            row.append("%.3g" % (100.*row[colid_forward]/row[colid_total]))
             if colid_forward_corrected is not None:
                 if colid_total_corrected is not None:
-                    row.append(100.*(
+                    row.append("%.3g" % (100.*(
                         row[colid_forward_corrected]/row[colid_total_corrected]
                         if row[colid_total_corrected]
-                        else row[colid_forward_corrected] > 0))
-                row.append(
-                    100.*row[colid_forward_corrected]/row[colid_forward]-100
+                        else row[colid_forward_corrected] > 0)))
+                row.append("%.3g" %
+                    (100.*row[colid_forward_corrected]/row[colid_forward]-100
                     if row[colid_forward]
-                    else (row[colid_forward_corrected]>0)*200-100)
+                    else (row[colid_forward_corrected]>0)*200-100))
             if colid_reverse_corrected is not None:
-                row.append(
-                    100.*row[colid_reverse_corrected]/row[colid_reverse]-100
+                row.append("%.3g" %
+                    (100.*row[colid_reverse_corrected]/row[colid_reverse]-100
                     if row[colid_reverse]
-                    else (row[colid_reverse_corrected]>0)*200-100)
+                    else (row[colid_reverse_corrected]>0)*200-100))
             if colid_total_corrected is not None:
-                row.append(
-                    100.*row[colid_total_corrected]/row[colid_total]-100)
-            row.append(100.*row[colid_forward]/marker_forward
-                if marker_forward else 0)
-            row.append(100.*row[colid_reverse]/marker_reverse
-                if marker_reverse else 0)
-            row.append(100.*row[colid_total]/marker_total
-                if marker_total else 0)
+                row.append("%.3g" %
+                    (100.*row[colid_total_corrected]/row[colid_total]-100))
+            row.append("%.3g" % (100.*row[colid_forward]/marker_forward
+                if marker_forward else 0))
+            row.append("%.3g" % (100.*row[colid_reverse]/marker_reverse
+                if marker_reverse else 0))
+            row.append("%.3g" % (100.*row[colid_total]/marker_total
+                if marker_total else 0))
             if colid_forward_noise is not None:
-                row.append(100.*row[colid_forward_noise]/marker_forward_noise
-                    if marker_forward_noise else 0)
+                row.append("%.3g" %
+                    (100.*row[colid_forward_noise]/marker_forward_noise
+                    if marker_forward_noise else 0))
             if colid_reverse_noise is not None:
-                row.append(100.*row[colid_reverse_noise]/marker_reverse_noise
-                    if marker_reverse_noise else 0)
+                row.append("%.3g" %
+                    (100.*row[colid_reverse_noise]/marker_reverse_noise
+                    if marker_reverse_noise else 0))
             if colid_total_noise is not None:
-                row.append(100.*row[colid_total_noise]/marker_total_noise
-                    if marker_total_noise else 0)
+                row.append(
+                    "%.3g" % (100.*row[colid_total_noise]/marker_total_noise
+                    if marker_total_noise else 0))
             if colid_forward_add is not None:
-                row.append(100.*row[colid_forward_add]/marker_forward_add
-                    if marker_forward_add else 0)
+                row.append(
+                    "%.3g" % (100.*row[colid_forward_add]/marker_forward_add
+                    if marker_forward_add else 0))
             if colid_reverse_add is not None:
-                row.append(100.*row[colid_reverse_add]/marker_reverse_add
-                    if marker_reverse_add else 0)
+                row.append(
+                    "%.3g" % (100.*row[colid_reverse_add]/marker_reverse_add
+                    if marker_reverse_add else 0))
             if colid_total_add is not None:
-                row.append(100.*row[colid_total_add]/marker_total_add
-                    if marker_total_add else 0)
+                row.append("%.3g" % (100.*row[colid_total_add]/marker_total_add
+                    if marker_total_add else 0))
             if colid_forward_corrected is not None:
-                row.append(
-                    100.*row[colid_forward_corrected]/marker_forward_corrected
-                    if marker_forward_corrected else 0)
+                row.append("%.3g" %
+                    (100.*row[colid_forward_corrected]/marker_forward_corrected
+                    if marker_forward_corrected else 0))
             if colid_reverse_corrected is not None:
-                row.append(
-                    100.*row[colid_reverse_corrected]/marker_reverse_corrected
-                    if marker_reverse_corrected else 0)
+                row.append("%.3g" %
+                    (100.*row[colid_reverse_corrected]/marker_reverse_corrected
+                    if marker_reverse_corrected else 0))
             if colid_total_corrected is not None:
-                row.append(
-                    100.*row[colid_total_corrected]/marker_total_corrected
-                    if marker_total_corrected else 0)
+                row.append("%.3g" %
+                    (100.*row[colid_total_corrected]/marker_total_corrected
+                    if marker_total_corrected else 0))
 
     # Write results.
     outfile.write("\t".join(column_names) + "\n")
