@@ -1,13 +1,11 @@
 {
-  "width": 500,
+  "width": 600,
   "height": 500,
   "data": [
     {
       "name": "raw",
       "values": "VALUES HERE",
-      "format": {
-        "type": "tsv"
-      },
+      "format": {"type": "tsv"},
       "transform": [
         {
           "type": "formula",
@@ -59,13 +57,48 @@
       ]
     },
     {
-      "name": "nodes",
+      "name": "samplecounts",
       "source": "raw",
       "transform": [
         {
           "type": "aggregate",
           "groupby": ["marker", "allele"],
           "summarize": {"*": "count"}
+        }
+      ]
+    },
+    {
+      "name": "indices",
+      "source": "samplecounts",
+      "transform": [
+        {
+          "type": "cross",
+          "diagonal": false,
+          "filter": "datum.a._id > datum.b._id"
+        },
+        {
+          "type": "formula",
+          "field": "markerallele",
+          "expr": "datum.a.marker + datum.a.allele"
+        },
+        {
+          "type": "aggregate",
+          "groupby": ["markerallele"],
+          "summarize": [{"field": "*", "ops": ["count"], "as": ["index"]}]
+        }
+      ]
+    },
+    {
+      "name": "nodes",
+      "source": "samplecounts",
+      "transform": [
+        {
+          "type": "lookup",
+          "on": "indices",
+          "onKey": "markerallele",
+          "keys": ["markerallele"],
+          "as": ["indexobj"],
+          "default": {"index": 0}
         },
         {
           "type": "formula",
@@ -77,37 +110,26 @@
           "on": "homozygotes",
           "onKey": "markerallele",
           "keys": ["markerallele"],
-          "as": ["homcountobj"],
+          "as": ["homcount"],
           "default": {"count": 0}
-        },
-        {
-          "type": "formula",
-          "field": "homCount",
-          "expr": "datum.homcountobj.count"
         }
       ]
     },
     {
       "name": "edges",
-      "source": "nodes",
+      "source": "raw",
       "transform": [
         {
           "type": "cross",
-          "with": "raw",
-          "output": {"left": "source", "right": "samples"}
-        },
-        {
-          "type": "filter",
-          "test": "datum.source.markerallele == datum.samples.markerallele"
+          "with": "nodes",
+          "output": {"left": "samples", "right": "source"},
+          "filter": "datum.source.markerallele == datum.samples.markerallele"
         },
         {
           "type": "cross",
           "with": "nodes",
-          "output": {"left": "a", "right": "target"}
-        },
-        {
-          "type": "filter",
-          "test": "datum.a.source.marker == datum.target.marker && datum.a.source.allele < datum.target.allele"
+          "output": {"left": "a", "right": "target"},
+          "filter": "datum.a.source.marker == datum.target.marker && datum.a.source.allele < datum.target.allele"
         },
         {
           "type": "formula",
@@ -129,17 +151,12 @@
         {
           "type": "formula",
           "field": "source",
-          "expr": "datum.a.source._id"
+          "expr": "datum.a.source.indexobj.index"
         },
         {
           "type": "formula",
           "field": "target",
-          "expr": "datum.target._id"
-        },
-        {
-          "type": "formula",
-          "field": "sampletag",
-          "expr": "datum.targetsample.sample"
+          "expr": "datum.target.indexobj.index"
         },
         {
           "type": "aggregate",
@@ -147,6 +164,109 @@
           "summarize": {"*": "count"}
         }
       ]
+    },
+    {
+      "name": "layout",
+      "source": "nodes",
+      "transform": [
+        {
+          "type": "force",
+          "links": "edges",
+          "linkDistance": 30,
+          "linkStrength": 0.1,
+          "charge": -20,
+          "iterations": 1000
+        }
+      ]
+    }
+  ],
+  "scales": [
+    {
+      "name": "c",
+      "type": "ordinal",
+      "range": "category20",
+      "domain": {"data": "raw", "field": "marker", "sort": true}
+    },
+    {
+      "name": "legend_sizes",
+      "type": "ordinal",
+      "range": [1, 5, 10, 20, 50],
+      "domain": [1, 5, 10, 20, 50]
+    }
+  ],
+  "legends": [
+    {
+      "fill": "c",
+      "properties": {
+        "symbols": {
+          "size": {"value": 100},
+          "stroke": {"value": "transparent"},
+          "fillOpacity": {"value": 0.8}
+        }
+      }
+    },
+    {
+      "size": "legend_sizes",
+      "values": [1, 5, 10, 20, 50]
+    }
+  ],
+  "marks": [
+    {
+      "type": "path",
+      "from": {
+        "data": "edges",
+        "transform": [
+          {
+            "type": "lookup",
+            "on": "layout",
+            "keys": ["source", "target"],
+            "as": ["_source", "_target"]
+          },
+          {
+            "type": "sort",
+            "by": "_source.marker"
+          },
+          {"type": "linkpath"}
+        ]
+      },
+      "properties": {
+        "update": {
+          "path": {"field": "layout_path"},
+          "stroke": {"scale": "c", "field": "_source.marker"},
+          "strokeWidth": {"field": "count", "mult": 0.5},
+          "strokeOpacity": {"value": 0.3}
+        }
+      }
+    },
+    {
+      "type": "symbol",
+      "from": {"data": "layout"},
+      "properties": {
+        "enter": {
+          "size": {"field": "count"}
+        },
+        "update": {
+          "x": {"field": "layout_x"},
+          "y": {"field": "layout_y"},
+          "fill": {"scale": "c", "field": "marker"},
+          "stroke": {"scale": "c", "field": "marker"}
+        }
+      }
+    },
+    {
+      "type": "symbol",
+      "from": {"data": "layout"},
+      "properties": {
+        "enter": {
+          "size": {"field": "homcount.count"}
+        },
+        "update": {
+          "x": {"field": "layout_x"},
+          "y": {"field": "layout_y"},
+          "fill": {"value": "black"},
+          "stroke": {"value": "black"}
+        }
+      }
     }
   ]
 }

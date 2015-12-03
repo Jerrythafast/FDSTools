@@ -1,5 +1,6 @@
 To-do:
-* Add  options to automatically mark alleles in samples to Samplestats.
+* Known bug: regex_longest_match does not give the longest match if a shorter
+  match is possible and found earlier at the same position.
 * Allow loading multiple files into HTML visualisations and provide prev/next
   buttons to browse them.
 * Add tool to summarise various statistics about the entire analysis pipeline:
@@ -9,7 +10,6 @@ To-do:
   reference sequence.
 * Allow simple marker name filtering in visualisations.
 * Samplevis:
-  * Automatically mark alleles based on user-provided bounds.
   * Add columns to the table of selected alleles that shows which tool did the
     filtering (if any) and what data was used to filter with.
   * Add 'percentage of marker reads' column in the table of selected alleles.
@@ -32,6 +32,8 @@ To-do:
 * Add visualisation with all markers in one graph ("samplesummaryvis"?).
 
 Open Vega issues:
+* Force layout parameter name: 'drag' or 'active'?
+  https://github.com/vega/vega/issues/460
 * Legend and axis corruption on signal changes.
   https://github.com/vega/vega/issues/446
 * Feature request for lines (or arbitrary shapes) for legend items.
@@ -66,7 +68,6 @@ DROP    strandbias          Find strand bias in the data
 DROP    annotate-alleles    Annotate true alleles in sample based on allelelist
 
 Visualisations:
-LOW     allelegraph         Homozygosity/heterozygosity*
 LOW     blame               Common alleles
 LOW     qqplot              Q-Q plot of normal/lognormal distribution
 LOW     stability           Profile distance vs amount of subsampling
@@ -74,17 +75,18 @@ DONE    samplevis           Sample data
 DONE    profiles            Background profiles
 DONE    bg                  Dotplots of noise ratios in homozygous samples
 DONE    trends              Fit repeat length vs stutter amount
-*Blocking issue: https://github.com/vega/vega/issues/395
+DONE    allelegraph         Homozygosity/heterozygosity
 
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 Argument group order:
-input file options          bgcorrect,seqconvert,stuttermark
-output file options         allelefinder,bgcorrect,bgestimate,bghomstats,blame,seqconvert,stuttermark,stuttermodel
-sample tag parsing options  allelefinder,bgcorrect,bgestimate,bghomstats,blame,seqconvert,stuttermark,stuttermodel
+input file options          bgcorrect,samplestats,seqconvert,stuttermark
+output file options         allelefinder,bgcorrect,bgestimate,bghomstats,blame,samplestats,seqconvert,stuttermark,stuttermodel
+sample tag parsing options  allelefinder,bgcorrect,bgestimate,bghomstats,blame,samplestats,seqconvert,stuttermark,stuttermodel
 allele detection options    bgestimate,bghomstats,blame,stuttermodel
+interpretation options		samplestats
 filtering options           allelefinder,bgcorrect,bgestimate,bghomstats,bgpredict,blame,stuttermark,stuttermodel
-sequence format options     allelefinder,bgcorrect,bgestimate,bghomstats,bgpredict,blame,stuttermark,stuttermodel
+sequence format options     allelefinder,bgcorrect,bgestimate,bghomstats,bgpredict,blame,samplestats,stuttermark,stuttermodel
 random subsampling options  bgestimate,bghomstats,stuttermodel
 visualisation options       vis
 
@@ -98,6 +100,7 @@ bgmerge^        list of bg files            single output
 bgpredict^      model + seqfile             single output
 blame           bg file + list of samples   single output
 libconvert^     single input library        single output
+samplestats		single sample file (batch)	single sample (batches supported)
 seqconvert      single sample file (batch)  single sample (batches supported)
 stuttermark     single sample file (batch)  single sample (batches supported)
 stuttermodel    list of sample files        single output

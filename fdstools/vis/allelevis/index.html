@@ -2,7 +2,7 @@
 <html>
 <head>
     <meta charset="UTF-8">
-    <title>Allele Visualisation - FDSTools</title/>
+    <title>Allele Visualisation - FDSTools</title>
     <!-- BEGIN_LIBRARIES -->
     <script src="http://vega.github.io/vega-editor/vendor/d3.min.js"></script>
     <script src="http://vega.github.io/vega/vega.min.js"></script>
@@ -10,20 +10,44 @@
     <style>
         * {
             font-family: Helvetica Neue, Helvetica, Arial, sans-serif;
+            font-size: 10pt;
         }
         body {
-            margin: 0px
+            margin: 0px;
         }
         div.options {
             position: absolute;
-            margin: 5px;
-            background-color: rgba(128, 128, 255, 0.5);
+            padding: 5px;
+            background-color: rgba(255, 255, 255, 0.8);
             z-index: 10;
         }
-        #optionsheader{
-            cursor: pointer;
+        table.optiongroup {
+            padding: 10px 0px 0px 0px;
+            margin: 0px;
+            border-spacing: 0px;
+            border: none;
         }
-        #optionsheader:hover{
+        table.optiongroup td {
+            padding-right: 10px;
+        }
+        table.optiongroup th {
+            text-align: left;
+            font-weight: bold;
+            padding-top: 5px;
+        }
+        .description {
+            max-width: 250px;
+            text-align: justify;
+        }
+        .description p:first-child{
+            margin-top: 0px;
+        }
+        .description p:last-child{
+            margin-bottom: 0px;
+        }
+        #optionsheader {
+            cursor: pointer;
+            font-variant: small-caps;
             border-bottom: 1px dashed black;
         }
         div#vis {
@@ -41,86 +65,88 @@
     <div class="options">
         <strong id="optionsheader">Options</strong><br>
         <div id="options">
-            <span id="fileselectspan" style="display: none">
-                Open sample data file (or drag a file onto this page): <input id="fileselect" type="file"><br>
-            </span>
-            Display options: graph width <input type="text" value="600" id="graphwidth" size="3">px;
-                bar width <input type="text" value="15" id="barwidth" size="2">px;
-                marker spacing <input type="text" value="70" id="subgraphoffset" size="3">px<br>
-            Filtering: require at least <input type="text" value="15" id="minN" size="3"> reads and at least <input type="text" value="0.5" id="minP" size="3">% of highest allele per marker<br>
-            Filtering: marker <input type="text" id="markerFilter" size="10" title="Supports regular expression syntax: e.g., use '.*' to match anything."><br>
-            Axis scale: <input type="radio" name="scale" value="linear" id="scaleLinear" checked> Linear
-            <input type="radio" name="scale" value="sqrt" id="scaleLog"> Square root<br>
-            Render as: <input type="radio" name="renderer" value="canvas" id="renderCanvas"> Canvas
-            <input type="radio" name="renderer" value="svg" id="renderSVG" checked> SVG<br>
+            <table class="optiongroup" id="fileselectgroup" style="display: none">
+                <tr>
+                    <th>Input file</th>
+                </tr>
+                <tr>
+                    <td>Allele list file:</td>
+                </tr>
+                <tr>
+                    <td><input id="fileselect" type="file"></td>
+                </tr>
+                <tr>
+                    <td>(or drag a file onto this page)</td>
+                </tr>
+            </table>
+            <table class="optiongroup description">
+                <tr>
+                    <th>Description</th>
+                </tr>
+                <tr>
+                    <td>
+                        <p>
+                        The graph depicts every allele among the reference
+                        samples as a circle. The size of the circle corresponds
+                        to the number of samples with that particular allele. A
+                        black inner circle depicts the number of homozygotes.
+                        </p>
+                        <p>
+                        The circles of two alleles are connected by a line
+                        whenever samples exist that have a combination of the
+                        two connected alleles. The thickness of the line
+                        corresponds to the number of heterozygotes with that
+                        particular combination of alleles.
+                        </p>
+                    </td>
+                </tr>
+            </table>
+            <table class="optiongroup">
+                <tr>
+                    <th colspan="3">Display options</th>
+                </tr>
+                <tr>
+                    <td>Graph width</td>
+                    <td colspan="2"><input type="text" value="600" id="graphwidth" size="3"> px</td>
+                </tr>
+                <tr>
+                    <td>Graph height</td>
+                    <td colspan="2"><input type="text" value="500" id="graphheight" size="3"> px</td>
+                </tr>
+                <tr>
+                    <td>Renderer</td>
+                    <td><input type="radio" name="renderer" value="svg" id="renderSVG" checked> SVG</td>
+                    <td><input type="radio" name="renderer" value="canvas" id="renderCanvas"> Canvas</td>
+                </tr>
+            </table>
             <a id="saveLink" href="javascript:void(saveImage())" style="display: none">Save image</a>
         </div>
     </div>
     <div id="vis"></div>
     <script type="text/javascript">
         var graph = false;
+        var fileName = "graph";
+        var stamp = 0;
         function parse(){
+            var this_stamp = ++stamp;
             vg.parse.spec(graph_spec, function(chart){
-                var rendererName = "canvas";
-                if(document.getElementById("renderSVG").checked)
-                    rendererName="svg";
-                graph = chart({el: "#vis", renderer: rendererName});
+                // Cancel rendering if a new parse() call was made.
+                if(this_stamp != stamp)
+                    return;
+
+                var visdiv = document.getElementById("vis");
+                graph = chart({el: visdiv, renderer: document.querySelector("input[name=renderer]:checked").value});
                 graph.update();
                 document.getElementById("saveLink").style.display = "inline";
 
                 //Scroll to the right; the graph is more interesting than the long labels.
-                var visdiv = document.getElementById("vis");
                 visdiv.scrollLeft = visdiv.scrollWidth;
             });
         }
 
-        function setScale(value){
-            if(!graph_spec)
-                return;
-            for(i in graph_spec["marks"])
-                if(graph_spec["marks"][i]["scales"])
-                    for(j in graph_spec["marks"][i]["scales"])
-                        if(graph_spec["marks"][i]["scales"][j]["name"] == "x")
-                            graph_spec["marks"][i]["scales"][j]["type"] = value;
-
-            if(graph)
-                parse();
-        }
-
-        function setDataFormulaTransformValue(dataname, fieldname, value){
-            if(!graph_spec)
-                return false;
-            for(i in graph_spec["data"]){
-                if(graph_spec["data"][i]["name"] == dataname){
-                    for(j in graph_spec["data"][i]["transform"]){
-                        if(graph_spec["data"][i]["transform"][j]["type"] == "formula" && graph_spec["data"][i]["transform"][j]["field"] == fieldname){
-                            graph_spec["data"][i]["transform"][j]["expr"] = "" + value;
-                            return true;
-                        }
-                    }
-                }
-            }
-            return false;
-        }
-
-        function getDataFormulaTransformValue(dataname, fieldname){
-            if(!graph_spec)
-                return false;
-            for(i in graph_spec["data"]){
-                if(graph_spec["data"][i]["name"] == dataname){
-                    for(j in graph_spec["data"][i]["transform"]){
-                        if(graph_spec["data"][i]["transform"][j]["type"] == "formula" && graph_spec["data"][i]["transform"][j]["field"] == fieldname){
-                            return graph_spec["data"][i]["transform"][j]["expr"];
-                        }
-                    }
-                }
-            }
-            return false;
-        }
-
         function setRenderer(value){
             if(graph)
-                graph.renderer(value);
+                graph.renderer(value).update();
         }
 
         //Load the data (input is a fileList object; only the first file is loaded).
@@ -128,7 +154,12 @@
             if(!graph_spec || !fileList || !fileList.length)
                 return;
             var reader = new FileReader();
-            reader.onload = function(theFile){
+            reader.onload = function(e){
+                if(fileList && fileList.length && fileList[0].name)
+                    fileName = fileList[0].name.substr(0, fileList[0].name.lastIndexOf("."));
+                else
+                    fileName = "graph";
+                document.title = fileName + " - Allele Visualisation - FDSTools";
                 graph_spec["data"][0]["values"] = reader.result;
                 parse();
             };
@@ -138,23 +169,23 @@
         //Save image function.
         function saveImage(){
             var link = document.getElementById("saveLink");
-            if(document.getElementById("renderSVG").checked){
-                var svg = document.querySelector("svg.marks");
-                svg.setAttribute("xmlns", "http://www.w3.org/2000/svg"); //Vega does not set this for us
-                link.setAttribute("href", "data:image/svg+xml," + encodeURIComponent(svg.outerHTML));
-                link.setAttribute("download", "graph.svg");
-            }
-            else{
-                link.setAttribute("href", document.getElementsByClassName('marks')[0].toDataURL());
-                link.setAttribute("download", "graph.png");
-            }
+            var imageType = document.getElementById("renderSVG").checked? "svg": "png";
+            link.setAttribute("href", graph.toImageURL(imageType));
+            link.setAttribute("download", fileName + "." + imageType);
             link.click();
             link.setAttribute("href", "javascript:void(saveImage())");
+            link.removeAttribute("download");
             return false;
         }
 
         function onLoadSpec(has_data){
             if(!has_data){
+                //Handle files from the file input.
+                document.getElementById("fileselect").addEventListener('change', function(){
+                    loadDataset(document.getElementById("fileselect").files);
+                }, false);
+                document.getElementById("fileselectgroup").style.display = "table";
+
                 //Allow files to be dragged onto the page.
                 document.addEventListener('dragover', function(evt){
                     evt.stopPropagation();
@@ -163,14 +194,8 @@
                 document.addEventListener('drop', function(evt){
                     evt.stopPropagation();
                     evt.preventDefault();
-                    loadDataset(evt.dataTransfer.files);
+                    document.getElementById("fileselect").files = evt.dataTransfer.files;
                 }, false);
-
-                //Handle files from the file input.
-                document.getElementById("fileselect").addEventListener('change', function(){
-                    loadDataset(document.getElementById("fileselect").files);
-                }, false);
-                document.getElementById("fileselectspan").style.display = "inline";
             }
 
             //Update graph when rendering mode or axis scale is changed.
@@ -180,54 +205,23 @@
             document.getElementById("renderSVG").addEventListener('change', function(){
                 setRenderer(this.value);
             }, false);
-            /*
-            document.getElementById("scaleLinear").addEventListener('change', function(){
-                setScale(this.value);
-            }, false);
-            document.getElementById("scaleLog").addEventListener('change', function(){
-                setScale(this.value);
-            }, false);
             document.getElementById("graphwidth").addEventListener('change', function(){
                 var value = parseFloat(this.value);
                 if(isNaN(value))
                     return;
                 graph_spec["width"] = value;
                 if(graph)
-                    parse();
+                    graph.width(value).padding("auto").update();
             }, false);
-            document.getElementById("barwidth").addEventListener('change', function(){
+            document.getElementById("graphheight").addEventListener('change', function(){
                 var value = parseFloat(this.value);
                 if(isNaN(value))
                     return;
-                if(setDataFormulaTransformValue("yscale", "barwidth", value) && graph)
-                    parse();
+                graph_spec["height"] = value;
+                if(graph)
+                    graph.height(value).padding("auto").update();
             }, false);
-            document.getElementById("subgraphoffset").addEventListener('change', function(){
-                var value = parseFloat(this.value);
-                if(isNaN(value))
-                    return;
-                if(setDataFormulaTransformValue("yscale", "subgraphoffset", value) && graph)
-                    parse();
-            }, false);
-            document.getElementById("minN").addEventListener('change', function(){
-                var value = parseFloat(this.value);
-                if(isNaN(value))
-                    return;
-                if(setDataFormulaTransformValue("table", "amplitude_threshold", value) && graph)
-                    parse();
-            }, false);
-            document.getElementById("minP").addEventListener('change', function(){
-                var value = parseFloat(this.value);
-                if(isNaN(value))
-                    return;
-                if(setDataFormulaTransformValue("table", "amplitude_pct_threshold", value) && graph)
-                    parse();
-            }, false);
-            document.getElementById("markerFilter").addEventListener('change', function(){
-                if(setDataFormulaTransformValue("table", "filter_marker", "'" + this.value + "'") && graph)
-                    parse();
-            }, false);
-            */
+
             //Toggle options visibility.
             document.getElementById("optionsheader").addEventListener('click', function(){
                 var opts = document.getElementById("options");
@@ -238,18 +232,8 @@
             }, false);
 
             //Sync graph_spec and display.
-            /*
-            if(document.getElementById("scaleLinear").checked)
-                setScale(document.getElementById("scaleLinear").value);
-            else
-                setScale(document.getElementById("scaleLog").value);
-            document.getElementById("markerFilter").value = getDataFormulaTransformValue("table", "filter_marker").replace(/^(['"]?)(.*(?=\1$))\1$/, '$2');
             document.getElementById("graphwidth").value = graph_spec["width"];
-            document.getElementById("barwidth").value = getDataFormulaTransformValue("yscale", "barwidth");
-            document.getElementById("subgraphoffset").value = getDataFormulaTransformValue("yscale", "subgraphoffset");
-            document.getElementById("minN").value = getDataFormulaTransformValue("table", "amplitude_threshold");
-            document.getElementById("minP").value = getDataFormulaTransformValue("table", "amplitude_pct_threshold");
-            */
+            document.getElementById("graphheight").value = graph_spec["height"];
             if(has_data){
                 document.getElementById("options").style.display = "none";
                 parse();

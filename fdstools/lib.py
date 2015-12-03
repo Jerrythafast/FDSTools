@@ -669,9 +669,16 @@ def load_profiles(profilefile, library=None):
 
 def regex_longest_match(pattern, subject):
     """Return the longest match of the pattern in the subject string."""
-    return reduce(lambda x, y:
-        y if x is None or x.end()-x.start() < y.end()-y.start() else x,
-        pattern.finditer(subject), None)
+    match = None
+    pos = 0
+    while pos < len(subject):
+        m = pattern.search(subject, pos)
+        if m is None:
+            break
+        if match is None or m.end()-m.start() > match.end()-match.start():
+            match = m
+        pos = m.start() + 1
+    return match
 #regex_longest_match
 
 
@@ -795,7 +802,8 @@ def convert_sequence_raw_tssv(seq, library, marker, return_alias=False):
                         middle = reduce(
                             lambda x, y: (x[:-1] if x[-1][0] == y else x) +
                                 [(y, x[-1][1]+len(y))], middle[1:],
-                                [(middle[0], start+len(middle[0]))])
+                                [(middle[0],
+                                  start+len(middle[0])+len(pre_suf[0]))])
 
                 else:
                     # No trickery with prefix or suffix was done.
@@ -1372,7 +1380,9 @@ def add_input_output_args(parser, single_in=False, batch_support=False,
             help="file to write a report to (default: write to stderr)")
 
     # Sample tag parsing options group.
-    group = parser.add_argument_group("sample tag parsing options")
+    group = parser.add_argument_group("sample tag parsing options",
+        "for details about REGEX syntax and capturing groups, check "
+        "https://docs.python.org/howto/regex")
     group.add_argument('-e', '--tag-expr', metavar="REGEX", type=regex_arg,
         default=DEF_TAG_EXPR,
         help="regular expression that captures (using one or more capturing "

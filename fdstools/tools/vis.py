@@ -145,10 +145,13 @@ def create_visualisation(vistype, infile, outfile, vega, online, tidy, min_abs,
     spec["width"] = width
     if vistype == "stuttermodel":
         set_signal_value(spec, "graphheight", height)
+    elif vistype == "allele":
+        spec["height"] = height
     else:
         set_signal_value(spec, "barwidth", bar_width)
-    set_signal_value(spec, "subgraphoffset", padding)
-    set_signal_value(spec, "filter_marker", marker)
+    if vistype != "allele":
+        set_signal_value(spec, "subgraphoffset", padding)
+        set_signal_value(spec, "filter_marker", marker)
 
     # Apply type-specific settings.
     if vistype == "stuttermodel":
@@ -165,7 +168,7 @@ def create_visualisation(vistype, infile, outfile, vega, online, tidy, min_abs,
         set_signal_value(spec, "bias_threshold", bias_threshold)
 
     # Apply axis scale settings.
-    if vistype != "stuttermodel":
+    if vistype != "stuttermodel" and vistype != "allele":
         if not log_scale:
             set_axis_scale(spec, "x", "linear")
         elif vistype == "sample":
@@ -227,14 +230,15 @@ def create_visualisation(vistype, infile, outfile, vega, online, tidy, min_abs,
 
 def add_arguments(parser):
     parser.add_argument('type', metavar="TYPE",
-        choices=("sample", "profile", "bgraw", "stuttermodel"),
+        choices=("sample", "profile", "bgraw", "stuttermodel", "allele"),
         help="the type of data to visualise; use 'sample' to visualise "
              "sample data files and bgcorrect output; use 'profile' to "
              "visualise background noise profiles obtained with bgestimate, "
              "bghomstats, and bgpredict; use 'bgraw' to visualise raw "
              "background noise data obtained with bghomraw; use "
              "'stuttermodel' to visualise models of stutter obtained from "
-             "stuttermodel")
+             "stuttermodel; use 'allele' to visualise the allele list "
+             "obtained from allelefinder")
     parser.add_argument('infile', metavar="IN", nargs="?",
         help="file containing the data to embed in the visualisation file; if "
              "not specified, HTML visualisation files will contain a file "
@@ -305,12 +309,12 @@ def add_arguments(parser):
              "%(default)s)")
     visgroup.add_argument('-w', '--width', metavar="N", type=pos_int_arg,
         default=_DEF_WIDTH,
-        help="[sample, profile, bgraw, stuttermodel] width of the graph area "
-             "in pixels (default: %(default)s)")
+        help="[sample, profile, bgraw, stuttermodel, allele] width of the "
+             "graph area in pixels (default: %(default)s)")
     visgroup.add_argument('-H', '--height', metavar="N", type=pos_int_arg,
         default=_DEF_HEIGHT,
-        help="[stuttermodel] height of the graph area in pixels (default: "
-             "%(default)s)")
+        help="[stuttermodel, allele] height of the graph area in pixels "
+             "(default: %(default)s)")
     visgroup.add_argument('-A', '--no-alldata', action="store_true",
         help="[stuttermodel] if specified, show only marker-specific fits")
 #add_arguments

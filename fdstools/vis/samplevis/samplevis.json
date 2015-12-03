@@ -105,6 +105,10 @@
       "source": "raw",
       "transform": [
         {
+          "type": "filter",
+          "test": "test('^' + filter_marker + '$', datum.name)"
+        },
+        {
           "type": "lookup",
           "on": "aggr",
           "onKey": "name",
@@ -169,18 +173,8 @@
       ]
     },
     {
-      "name": "markerfiltered",
-      "source": "annotated",
-      "transform": [
-        {
-          "type": "filter",
-          "test": "test('^' + filter_marker + '$', datum.name)"
-        }
-      ]
-    },
-    {
       "name": "table",
-      "source": "markerfiltered",
+      "source": "annotated",
       "transform": [
         {
           "type": "filter",

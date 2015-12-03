@@ -85,6 +85,9 @@
             .markertable tr:nth-child(2n) {
                 background-color: #eeeeee;
             }
+            .markertable tr.removed td:not(:last-child) {
+                text-decoration: line-through;
+            }
             td.num {
                 text-align: right;
             }
@@ -182,6 +185,9 @@
             }
             .markertable tr:nth-child(2n) {
                 background-color: #eeeeee;
+            }
+            .markertable tr.removed td:not(:last-child) {
+                text-decoration: line-through;
             }
             .num {
                 text-align: right;
@@ -412,7 +418,7 @@
 
                     // Restore selected and deselected alleles. Deselected alleles
                     // are the ones that appear in selectedAlleles twice.
-                    var graphAlleles = graph.data("markerfiltered").values();
+                    var graphAlleles = graph.data("annotated").values();
                     selectedAlleles = selectedAlleles.filter(function(sa){
                         return graphAlleles.every(function(datum){
                             var prev = datum._prev;
@@ -454,13 +460,13 @@
                 return;
             (graph === undefined? graphs : [graph]).forEach(function(graph){
                 var selectedAlleles = graph.data("selectedAlleles").values().map(function(datum){return datum.allele});
-                graph.data("markerfiltered").values().forEach(function(datum){
-                    if(datum.total_added > minNa &&
+                graph.data("annotated").values().forEach(function(datum){
+                    if(datum.total_added >= minNa &&
                        datum.pct_of_max >= minPa &&
                        datum.pct_of_sum >= minTa &&
                        (datum.total_added/datum.total*100-100) >= minCa &&
                        datum.total_add >= minAa &&
-                       Math.min(datum.reverse_added, datum.total_added) >= minOa){
+                       Math.min(datum.forward_added, datum.reverse_added) >= minOa){
                         if(autoSelected.indexOf(datum) == -1)
                             autoSelected.push(datum);
                         if(selectedAlleles.indexOf(datum) == -1 && userDeselected.indexOf(datum) == -1){
@@ -605,7 +611,7 @@
             row.insertCell().appendChild(document.createTextNode("PctForward")).parentNode.setAttribute("class", "num");
             row.insertCell().appendChild(document.createTextNode("Notes"));
 
-            var graphAlleles = graphs[i].data("markerfiltered").values();
+            var graphAlleles = graphs[i].data("annotated").values();
             autoSelected.concat(userSelected).filter(function(datum, index, self){
                 return graphAlleles.indexOf(datum) >= 0 && self.indexOf(datum) === index;
             }).sort(function(a, b){
@@ -633,8 +639,10 @@
                 if(datum.biasmark !== "")
                     cell.style.backgroundColor = "#ffaaaa";
                 var notes = [];
-                if(autoSelected.indexOf(datum) >= 0 && userDeselected.indexOf(datum) >= 0)
+                if(autoSelected.indexOf(datum) >= 0 && userDeselected.indexOf(datum) >= 0){
                     notes.push("User-removed");
+                    row.setAttribute("class", "removed");
+                }
                 if(autoSelected.indexOf(datum) < 0 && userSelected.indexOf(datum) >= 0)
                     notes.push("User-added");
                 row.insertCell().appendChild(document.createTextNode(notes.join(", ")));
