@@ -144,6 +144,37 @@
             });
         }
 
+        function setSignalValue(signalname, value){
+            if(!graph_spec)
+                return;
+            if(signalname == "width")
+                graph_spec.width = value;
+            if(signalname == "height")
+                graph_spec.height = value;
+            for(i in graph_spec.signals){
+                if(graph_spec.signals[i].name == signalname){
+                    graph_spec.signals[i].init = value;
+                    break;
+                }
+            }
+            if(graph)
+                graph.signal(signalname, value).padding("auto").update();
+            return;
+        }
+
+        function getSignalValue(signalname){
+            if(!graph_spec)
+                return false;
+            if(signalname == "width")
+                return graph_spec.width;
+            if(signalname == "height")
+                return graph_spec.height;
+            for(i in graph_spec.signals)
+                if(graph_spec.signals[i].name == signalname)
+                    return graph_spec.signals[i].init;
+            return false;
+        }
+
         function setRenderer(value){
             if(graph)
                 graph.renderer(value).update();
@@ -160,7 +191,7 @@
                 else
                     fileName = "graph";
                 document.title = fileName + " - Allele Visualisation - FDSTools";
-                graph_spec["data"][0]["values"] = reader.result;
+                graph_spec.data[0].values = reader.result;
                 parse();
             };
             reader.readAsText(fileList[0]);
@@ -209,17 +240,13 @@
                 var value = parseFloat(this.value);
                 if(isNaN(value))
                     return;
-                graph_spec["width"] = value;
-                if(graph)
-                    graph.width(value).padding("auto").update();
+                setSignalValue("width", value);
             }, false);
             document.getElementById("graphheight").addEventListener('change', function(){
                 var value = parseFloat(this.value);
                 if(isNaN(value))
                     return;
-                graph_spec["height"] = value;
-                if(graph)
-                    graph.height(value).padding("auto").update();
+                setSignalValue("height", value);
             }, false);
 
             //Toggle options visibility.
@@ -232,8 +259,8 @@
             }, false);
 
             //Sync graph_spec and display.
-            document.getElementById("graphwidth").value = graph_spec["width"];
-            document.getElementById("graphheight").value = graph_spec["height"];
+            document.getElementById("graphwidth").value = getSignalValue("width");
+            document.getElementById("graphheight").value = getSignalValue("height");
             if(has_data){
                 document.getElementById("options").style.display = "none";
                 parse();

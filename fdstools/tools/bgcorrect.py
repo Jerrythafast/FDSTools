@@ -9,14 +9,17 @@ columns) and the number of noise reads caused by the prescense of this
 sequence (_add columns), as well as the resulting number of reads after
 correction (_corrected columns: original minus _noise plus _add).
 
-The flags column contains a comma-separated list of flags with the
-following meanings: 'not_corrected', no background noise profile was
-available for this marker; 'not_in_ref_db', the sequence was not present
-in the noise profiles given; 'not_profiled', the sequence was present in
-the noise profiles given, but only as noise and not as genuine allele;
-'profile_predicted', the sequence was present in the noise profiles as a
-genuine allele, but its noise profile consists entirely of predictions
-as opposed to direct observations.
+The correction_flags column contains one of the following values:
+'not_corrected', no background noise profile was available for this
+marker; 'not_in_ref_db', the sequence was not present in the noise
+profiles given; 'corrected_as_background_only', the sequence was present
+in the noise profiles given, but only as noise and not as genuine
+allele; 'corrected_bgpredict', the sequence was present in the noise
+profiles as a genuine allele, but its noise profile consists entirely of
+predictions as opposed to direct observations;
+'corrected_bgestimate'/'corrected_bghomstats', the sequence was present
+in the noise profiles as a genuine allele and at least part of its noise
+profile was based on direct observations.
 """
 import argparse, sys
 #import numpy as np  # Only imported when actually running this tool.
@@ -43,7 +46,7 @@ def get_sample_data(infile, convert_to_raw=False, library=None):
     column_names.append("forward_corrected")
     column_names.append("reverse_corrected")
     column_names.append("total_corrected")
-    column_names.append("flags")
+    column_names.append("correction_flags")
     colid_name, colid_allele, colid_forward, colid_reverse = get_column_ids(
         column_names, "name", "allele", "forward", "reverse")
     data = {}
@@ -78,11 +81,11 @@ def match_profile(column_names, data, profile, convert_to_raw, library,
      colid_forward_noise, colid_reverse_noise, colid_total_noise,
      colid_forward_add, colid_reverse_add, colid_total_add,
      colid_forward_corrected, colid_reverse_corrected,
-     colid_total_corrected, colid_flags) = get_column_ids(
+     colid_total_corrected, colid_correction_flags) = get_column_ids(
         column_names, "name", "allele", "forward", "reverse", "total",
         "forward_noise", "reverse_noise", "total_noise", "forward_add",
         "reverse_add", "total_add", "forward_corrected", "reverse_corrected",
-        "total_corrected", "flags")
+        "total_corrected", "correction_flags")
 
     # Enter profiles into P.
     P1 = np.matrix(profile["forward"])
@@ -129,7 +132,7 @@ def match_profile(column_names, data, profile, convert_to_raw, library,
         try:
             i = profile["seqs"].index(seqs[j-1])
         except ValueError:
-            line[colid_flags] = "not_in_ref_db"
+            line[colid_correction_flags] = "not_in_ref_db"
             continue
         line[colid_forward_noise] = forward_noise[0, i]
         line[colid_reverse_noise] = reverse_noise[0, i]
@@ -144,13 +147,16 @@ def match_profile(column_names, data, profile, convert_to_raw, library,
             line[colid_forward_corrected] += line[colid_forward_add]
             line[colid_reverse_corrected] += line[colid_reverse_add]
             line[colid_total_corrected] += line[colid_total_add]
-            if ("bgestimate" not in profile["tool"][i] and
-                    "bgcorrect" not in profile["tool"][i]):
-                line[colid_flags] = "profile_predicted"
+            if "bgestimate" in profile["tool"][i]:
+                line[colid_correction_flags] = "corrected_bgestimate"
+            if "bghomstats" in profile["tool"][i]:
+                line[colid_correction_flags] = "corrected_bghomstats"
+            elif "bgpredict" in profile["tool"][i]:
+                line[colid_correction_flags] = "corrected_bgpredict"
             else:
-                line[colid_flags] = ""
+                line[colid_correction_flags] = "corrected"
         else:
-            line[colid_flags] = "not_profiled"
+            line[colid_correction_flags] = "corrected_as_background_only"
 
     # Add sequences that are in the profile but not in the sample.
     for i in range(profile["m"]):

@@ -21,6 +21,11 @@
             background-color: rgba(255, 255, 255, 0.8);
             z-index: 10;
         }
+        div.options span.help {
+            cursor: help;
+            font-weight: bold;
+            border-bottom: 1px dashed black;
+        }
         table.optiongroup {
             padding: 10px 0px 0px 0px;
             margin: 0px;
@@ -83,7 +88,10 @@
                 </tr>
                 <tr>
                     <td>Marker name</td>
-                    <td><input type="text" id="markerFilter" size="20" title="Supports regular expression syntax: e.g., use '.*' to match anything."></td>
+                    <td>
+                        <input type="text" id="markerFilter" size="20">
+                        <span class="help" title="Type xyz to show all markers with 'xyz' in their names. Type =xyz to show only the marker 'xyz'. Separate multiple values with spaces.">?</span>
+                    </td>
                 </tr>
             </table>
             <table class="optiongroup">
@@ -142,11 +150,11 @@
         function setScale(value){
             if(!graph_spec)
                 return;
-            for(i in graph_spec["marks"])
-                if(graph_spec["marks"][i]["scales"])
-                    for(j in graph_spec["marks"][i]["scales"])
-                        if(graph_spec["marks"][i]["scales"][j]["name"] == "x")
-                            graph_spec["marks"][i]["scales"][j]["type"] = value;
+            for(i in graph_spec.marks)
+                if(graph_spec.marks[i].scales)
+                    for(j in graph_spec.marks[i].scales)
+                        if(graph_spec.marks[i].scales[j].name == "x")
+                            graph_spec.marks[i].scales[j].type = value;
 
             if(graph)
                 parse();
@@ -155,20 +163,22 @@
         function getScale(){
             if(!graph_spec)
                 return "linear";
-            for(i in graph_spec["marks"])
-                if(graph_spec["marks"][i]["scales"])
-                    for(j in graph_spec["marks"][i]["scales"])
-                        if(graph_spec["marks"][i]["scales"][j]["name"] == "x")
-                            return graph_spec["marks"][i]["scales"][j]["type"];
+            for(i in graph_spec.marks)
+                if(graph_spec.marks[i].scales)
+                    for(j in graph_spec.marks[i].scales)
+                        if(graph_spec.marks[i].scales[j].name == "x")
+                            return graph_spec.marks[i].scales[j].type;
             return "linear";
         }
 
         function setSignalValue(signalname, value){
             if(!graph_spec)
                 return;
-            for(i in graph_spec["signals"]){
-                if(graph_spec["signals"][i]["name"] == signalname){
-                    graph_spec["signals"][i]["init"] = value;
+            if(signalname == "width")
+                graph_spec.width = value;
+            for(i in graph_spec.signals){
+                if(graph_spec.signals[i].name == signalname){
+                    graph_spec.signals[i].init = value;
                     break;
                 }
             }
@@ -180,9 +190,11 @@
         function getSignalValue(signalname){
             if(!graph_spec)
                 return false;
-            for(i in graph_spec["signals"])
-                if(graph_spec["signals"][i]["name"] == signalname)
-                    return graph_spec["signals"][i]["init"];
+            if(signalname == "width")
+                return graph_spec.width;
+            for(i in graph_spec.signals)
+                if(graph_spec.signals[i].name == signalname)
+                    return graph_spec.signals[i].init;
             return false;
         }
 
@@ -202,7 +214,7 @@
                 else
                     fileName = "graph";
                 document.title = fileName + " - Background Noise Visualisation - FDSTools";
-                graph_spec["data"][0]["values"] = reader.result;
+                graph_spec.data[0].values = reader.result;
                 parse();
             };
             reader.readAsText(fileList[0]);
@@ -257,9 +269,7 @@
                 var value = parseFloat(this.value);
                 if(isNaN(value))
                     return;
-                graph_spec["width"] = value;
-                if(graph)
-                    graph.width(value).padding("auto").update();
+                setSignalValue("width", value);
             }, false);
             document.getElementById("barwidth").addEventListener('change', function(){
                 var value = parseFloat(this.value);
@@ -308,7 +318,7 @@
                 document.getElementById("scaleLog").checked = true;
             }
             document.getElementById("markerFilter").value = getSignalValue("filter_marker");
-            document.getElementById("graphwidth").value = graph_spec["width"];
+            document.getElementById("graphwidth").value = getSignalValue("width");
             document.getElementById("barwidth").value = getSignalValue("barwidth");
             document.getElementById("subgraphoffset").value = getSignalValue("subgraphoffset");
             document.getElementById("minN").value = getSignalValue("amplitude_threshold");

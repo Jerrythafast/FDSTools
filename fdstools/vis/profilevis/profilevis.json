@@ -8,7 +8,12 @@
     },
     {
       "name": "filter_marker",
-      "init": ".*"
+      "init": ""
+    },
+    {
+      "name": "marker_regex",
+      "init": {"expr": "regexp('(?:' + replace(replace(replace(filter_marker, /^ *(.*?) *$/, '$1'), /(^| )=(.*?)(?= |$)/g, '$1^$2$$'), / +/g, ')|(?:') + ')')"},
+      "expr": "regexp('(?:' + replace(replace(replace(filter_marker, /^ *(.*?) *$/, '$1'), /(^| )=(.*?)(?= |$)/g, '$1^$2$$'), / +/g, ')|(?:') + ')')"
     },
     {
       "name": "barwidth",
@@ -37,7 +42,7 @@
       "transform": [
         {
           "type": "filter",
-          "test": "datum.allele != datum.sequence && max(datum.fmean, datum.rmean) >= filter_threshold && test('^' + filter_marker + '$', datum.marker)"
+          "test": "datum.allele != datum.sequence && max(datum.fmean, datum.rmean) >= filter_threshold && test(marker_regex, datum.marker)"
         },
         {
           "type": "formula",
@@ -231,12 +236,7 @@
           "scale": "x",
           "grid": true,
           "layer": "back",
-          "title": "Noise ratio (%)",
-          "properties": {
-            "title": {
-              "dy": {"value": -5}
-            }
-          }
+          "title": "Noise ratio (%)"
         },
         {
           "type": "y",

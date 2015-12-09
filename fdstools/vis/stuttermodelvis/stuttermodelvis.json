@@ -4,11 +4,21 @@
   "signals": [
     {
       "name": "filter_unit",
-      "init": ".*"
+      "init": ""
+    },
+    {
+      "name": "unit_regex",
+      "init": {"expr": "regexp('(?:' + replace(replace(replace(filter_unit, /^ *(.*?) *$/, '$1'), /(^| )=(.*?)(?= |$)/g, '$1^$2$$'), / +/g, ')|(?:') + ')')"},
+      "expr": "regexp('(?:' + replace(replace(replace(filter_unit, /^ *(.*?) *$/, '$1'), /(^| )=(.*?)(?= |$)/g, '$1^$2$$'), / +/g, ')|(?:') + ')')"
     },
     {
       "name": "filter_marker",
-      "init": ".*"
+      "init": ""
+    },
+    {
+      "name": "marker_regex",
+      "init": {"expr": "regexp('(?:' + replace(replace(replace(filter_marker, /^ *(.*?) *$/, '$1'), /(^| )=(.*?)(?= |$)/g, '$1^$2$$'), / +/g, ')|(?:') + ')')"},
+      "expr": "regexp('(?:' + replace(replace(replace(filter_marker, /^ *(.*?) *$/, '$1'), /(^| )=(.*?)(?= |$)/g, '$1^$2$$'), / +/g, ')|(?:') + ')')"
     },
     {
       "name": "show_all_data",
@@ -49,7 +59,7 @@
       "transform": [
         {
           "type": "filter",
-          "test": "((datum.marker != 'All data' && test('^' + filter_marker + '$', datum.marker)) || (datum.marker == 'All data' && show_all_data)) && test('^' + filter_unit + '$', datum.unit)"
+          "test": "((datum.marker != 'All data' && test(marker_regex, datum.marker)) || (datum.marker == 'All data' && show_all_data)) && test(unit_regex, datum.unit)"
         },
         {
           "type": "formula",
@@ -265,12 +275,7 @@
           "type": "x",
           "scale": "x",
           "tickSizeEnd": 0,
-          "title": "Length of repeat (bp)",
-          "properties": {
-            "title": {
-              "dy": {"value": -5}
-            }
-          }
+          "title": "Length of repeat (bp)"
         },
         {
           "type": "y",

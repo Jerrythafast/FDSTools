@@ -5,20 +5,15 @@ To-do:
   buttons to browse them.
 * Add tool to summarise various statistics about the entire analysis pipeline:
   (TODO: Write this list)
+* Add tool that takes a configuration file and runs a pipeline of other tools.
 * Add "allow_N" flag to [no_repeat] markers.  If the flag is specified, the
   reference sequence may contain Ns.  People might need this for the rCRS mtDNA
   reference sequence.
-* Allow simple marker name filtering in visualisations.
 * Samplevis:
-  * Add columns to the table of selected alleles that shows which tool did the
-    filtering (if any) and what data was used to filter with.
-  * Add 'percentage of marker reads' column in the table of selected alleles.
-  * Add 'show negative alleles' checkbox in Filtering options (for diagnostic
-    purposes - but default to TRUE).
-  * Respect sorting rules when adding sequences due to lowered filters.
-  * Make sure marker and allele names sort the same in Vega and in the tables.
+  * Sort STR alleles by length.
   * Option to save the marker tables to a TSV file.
   * When we have them, add default values to table filtering (for reference).
+* Add a print stylesheet for the other visualisations (only Samplevis has one).
 * Adjust BGEstimate so that it computes forward and reverse in one go.  To do
   this, double the number of columns in P and C and put the forward profile in
   the left half and the reverse profile in the right half.  The benefit of this
@@ -32,8 +27,10 @@ To-do:
 * Add visualisation with all markers in one graph ("samplesummaryvis"?).
 
 Open Vega issues:
-* Force layout parameter name: 'drag' or 'active'?
-  https://github.com/vega/vega/issues/460
+* Feature request: Id-based refs for Force transform's source and target.
+  https://github.com/vega/vega/issues/471
+* Tick labels of log scale axes don't respect number formatting.
+  https://github.com/vega/vega/issues/470
 * Legend and axis corruption on signal changes.
   https://github.com/vega/vega/issues/446
 * Feature request for lines (or arbitrary shapes) for legend items.
@@ -85,7 +82,7 @@ output file options         allelefinder,bgcorrect,bgestimate,bghomstats,blame,s
 sample tag parsing options  allelefinder,bgcorrect,bgestimate,bghomstats,blame,samplestats,seqconvert,stuttermark,stuttermodel
 allele detection options    bgestimate,bghomstats,blame,stuttermodel
 interpretation options		samplestats
-filtering options           allelefinder,bgcorrect,bgestimate,bghomstats,bgpredict,blame,stuttermark,stuttermodel
+filtering options           allelefinder,bgcorrect,bgestimate,bghomstats,bgpredict,blame,samplestats,stuttermark,stuttermodel
 sequence format options     allelefinder,bgcorrect,bgestimate,bghomstats,bgpredict,blame,samplestats,stuttermark,stuttermodel
 random subsampling options  bgestimate,bghomstats,stuttermodel
 visualisation options       vis

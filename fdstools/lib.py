@@ -300,7 +300,7 @@ def mutate_sequence(seq, variants, location=None):
         if new == "-" or new == "del":
             new = ""
         if pos < 0:
-            pos += len(seq) + 1
+            pos += len(seq)
         pos = get_genome_pos(location, pos, True)
         if pos < 0 or (pos == 0 and not ins) or pos >= len(seq):
             raise ValueError(
@@ -686,6 +686,9 @@ def detect_sequence_format(seq):
     """Return format of seq.  One of 'raw', 'tssv', or 'allelename'."""
     if not seq:
         raise ValueError("Empty sequence")
+    if seq == "Other sequences":
+        # Special case.
+        return False
     if PAT_SEQ_RAW.match(seq):
         return 'raw'
     if PAT_SEQ_TSSV.match(seq):
@@ -994,8 +997,13 @@ def convert_sequence_raw_allelename(seq, library, marker):
 
 
 def ensure_sequence_format(seq, to_format, from_format=None, library=None,
-                           marker=None):
+                           marker=None, allow_special=False):
     """Convert seq to 'raw', 'tssv', or 'allelename' format."""
+    if seq == "Other sequences":
+        # Special case.
+        if allow_special:
+            return False
+        raise ValueError("Unable to handle special value '%s'" % seq)
     known_formats = ("raw", "tssv", "allelename")
     if to_format not in known_formats:
         raise ValueError("Unknown format '%s', choose from %s" %

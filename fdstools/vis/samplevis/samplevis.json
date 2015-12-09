@@ -15,12 +15,21 @@
       "init": 0
     },
     {
+      "name": "show_negative",
+      "init": true
+    },
+    {
       "name": "bias_threshold",
       "init": 25
     },
     {
       "name": "filter_marker",
-      "init": ".*"
+      "init": ""
+    },
+    {
+      "name": "marker_regex",
+      "init": {"expr": "regexp('(?:' + replace(replace(replace(filter_marker, /^ *(.*?) *$/, '$1'), /(^| )=(.*?)(?= |$)/g, '$1^$2$$'), / +/g, ')|(?:') + ')')"},
+      "expr": "regexp('(?:' + replace(replace(replace(filter_marker, /^ *(.*?) *$/, '$1'), /(^| )=(.*?)(?= |$)/g, '$1^$2$$'), / +/g, ')|(?:') + ')')"
     },
     {
       "name": "barwidth",
@@ -106,7 +115,7 @@
       "transform": [
         {
           "type": "filter",
-          "test": "test('^' + filter_marker + '$', datum.name)"
+          "test": "test(marker_regex, datum.name)"
         },
         {
           "type": "lookup",
@@ -178,11 +187,11 @@
       "transform": [
         {
           "type": "filter",
-          "test": "datum.total_added >= amplitude_threshold && datum.pct_of_max >= amplitude_pct_threshold && min(datum.forward_added, datum.reverse_added) >= orientation_threshold"
+          "test": "(show_negative? abs(datum.total_added) : datum.total_added) >= amplitude_threshold && (show_negative? abs(datum.pct_of_max) : datum.pct_of_max) >= amplitude_pct_threshold && min(show_negative? abs(datum.forward_added) : datum.forward_added, show_negative? abs(datum.reverse_added) : datum.reverse_added) >= orientation_threshold"
         },
         {
           "type": "sort",
-          "by": ["name", "allele", "-total_added", "-total_corr", "-total"]
+          "by": ["name", "-total_added", "-total_corr", "-total", "allele"]
         }
       ]
     },
@@ -391,9 +400,6 @@
               "baseline": {"value": "middle"},
               "dy": {"value": 3},
               "angle": {"value": -25}
-            },
-            "title": {
-              "dy": {"value": 5}
             }
           }
         },

@@ -86,15 +86,20 @@ def convert_sequences(infile, outfile, to_format, library=None,
         seq = line[colid_allele]
         if library2 != library:
             seq = ensure_sequence_format(
-                seq, "raw", marker=marker, library=library)
-            if marker in revcomp_markers:
+                seq, "raw", marker=marker, library=library, allow_special=True)
+            if seq == False:
+                seq = line[colid_allele]
+            elif marker in revcomp_markers:
                 seq = reverse_complement(seq)
             # TODO: The current implementation assumes identical
             # flanking sequences.  Introduce means to shift flanking
             # sequence in/out of prefix and/or suffix.
 
-        line[colid_allele_out] = ensure_sequence_format(
-            seq, to_format, marker=marker, library=library2)
+        seq = ensure_sequence_format(seq, to_format, marker=marker,
+            library=library2, allow_special=True)
+        if seq == False:
+            seq = line[colid_allele]
+        line[colid_allele_out] = seq
         outfile.write("\t".join(line) + "\n")
 #convert_sequences
 

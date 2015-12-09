@@ -74,11 +74,11 @@ _DEF_HEIGHT = 400
 
 # Default marker name matching regular expression.
 # This value can be overridden by the -M command line option.
-_DEF_MARKER_REGEX = ".*"
+_DEF_MARKER_NAME = ""
 
 # Default repeat unit matching regular expression.
 # This value can be overridden by the -U command line option.
-_DEF_UNIT_REGEX = ".*"
+_DEF_UNIT = ""
 
 # Default data file that Vega will read when -V/--vega is specified
 # without providing data to embed in the file.
@@ -285,16 +285,18 @@ def add_arguments(parser):
         default=_DEF_THRESHOLD_BIAS,
         help="[sample] mark sequences that have less than this percentage of "
              "reads on one strand (default: %(default)s)")
-    visgroup.add_argument('-M', '--marker', metavar="REGEX",
-        default=_DEF_MARKER_REGEX,
+    visgroup.add_argument('-M', '--marker', metavar="MARKER",
+        default=_DEF_MARKER_NAME,
         help="[sample, profile, bgraw, stuttermodel] only show graphs for the "
-             "markers that match the given regular expression; the default "
-             "value '%(default)s' matches any marker name")
-    visgroup.add_argument('-U', '--repeat-unit', metavar="REGEX",
-        default=_DEF_UNIT_REGEX,
-        help="[stuttermodel] only show graphs for the repeat units that match "
-             "the given regular expression; the default value '%(default)s' "
-             "matches any repeat unit sequence")
+             "markers that contain the given value in their name; separate "
+             "multiple values with spaces; prepend any value with '=' for an "
+             "exact match (default: show all markers)")
+    visgroup.add_argument('-U', '--repeat-unit', metavar="UNIT",
+        default=_DEF_UNIT,
+        help="[stuttermodel] only show graphs for the repeat units that "
+             "contain the given value; separate multiple values with spaces; "
+             "prepend any value with '=' for an exact match (default: show "
+             "all repeat units)")
     visgroup.add_argument('-L', '--log-scale', action="store_true",
         help="[sample, profile, bgraw] use logarithmic scale (for sample: "
              "square root scale) instead of linear scale")
