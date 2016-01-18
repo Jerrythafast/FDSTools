@@ -507,6 +507,7 @@
               "name": "balance",
               "range": "height",
               "nice": false,
+              "clamp": true,
               "domain": [0, 100]
             }
           ],

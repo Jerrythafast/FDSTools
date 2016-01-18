@@ -117,8 +117,8 @@ def match_profile(column_names, data, profile, convert_to_raw, library,
     np.fill_diagonal(P2, 0)
     forward_noise = A * P1
     reverse_noise = A * P2
-    forward_add = np.multiply(A, P1.sum(1))
-    reverse_add = np.multiply(A, P2.sum(1))
+    forward_add = np.multiply(A, P1.sum(1).T)
+    reverse_add = np.multiply(A, P2.sum(1).T)
 
     # Round values to 3 decimal positions.
     forward_noise.round(3, forward_noise);
@@ -149,7 +149,7 @@ def match_profile(column_names, data, profile, convert_to_raw, library,
             line[colid_total_corrected] += line[colid_total_add]
             if "bgestimate" in profile["tool"][i]:
                 line[colid_correction_flags] = "corrected_bgestimate"
-            if "bghomstats" in profile["tool"][i]:
+            elif "bghomstats" in profile["tool"][i]:
                 line[colid_correction_flags] = "corrected_bghomstats"
             elif "bgpredict" in profile["tool"][i]:
                 line[colid_correction_flags] = "corrected_bgpredict"

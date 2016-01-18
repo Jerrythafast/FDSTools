@@ -43,7 +43,7 @@ def merge_profiles(infiles, outfile, seqformat, library):
                     if key not in amounts[marker]:
                         this_amounts = (profiles[marker]["forward"][i][j],
                                         profiles[marker]["reverse"][i][j],
-                                        profiles[marker]["tools"][i][j])
+                                        profiles[marker]["tool"][i][j])
                         if sum(this_amounts[:2]):
                             amounts[marker][key] = this_amounts
 

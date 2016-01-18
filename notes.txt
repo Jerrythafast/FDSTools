@@ -1,18 +1,50 @@
 To-do:
+* [!] Additions needed for publication:
+  * [If not too difficult to implement] BGEstimate should start with homozygous
+    samples and add heterozygous samples later to optimise correction.
+  * Summary statistics for BGEstimate based on top N genotypes per marker,
+    which is the highest percentage remaining background in reference database
+    (maybe also additional value for confidence interval).
+  * Visualisation to display highest remaining background (positive and
+    negative) in known samples after BGCorrect analysis.
+* Update bundled D3 to v3.5.12 (now at v3.5.10)
+* Libconvert should check whether the reference sequence is the same as one of
+  the aliases when converting to TSSV format, because it includes the Amel-X
+  allele twice now.
+* Add options to Libconvert to generate a template for STR or non-STR markers.
+* BGPredict's get_relative_frequencies may produce a "RuntimeWarning: invalid
+  value encountered in double_scalars" when computing (with n=0):
+  A[C[i]] *= stutters[i]["amount"] / A[C[i]].sum()
+* BGCorrect might perform better if it 'is given a way out' for those cases
+  where a sample contains a genuine allele that does not occur in the noise
+  profiles. I could try to add an all-zero (except for the 100) noise profile
+  for those missing sequences.
+* Warn user in BGEstimate if no samples are given.
 * Known bug: regex_longest_match does not give the longest match if a shorter
   match is possible and found earlier at the same position.
 * Allow loading multiple files into HTML visualisations and provide prev/next
   buttons to browse them.
+* Add sequence format options back to Samplestats (it turns out to be the only
+  tool without them).
+* In HTML visualisations, before changing a signal value, check whether the
+  page is scrolled all the way to the right and if so, make sure to scroll to
+  the right after the change as well.
+* Add tool that takes a configuration file and runs a pipeline of other tools.
 * Add tool to summarise various statistics about the entire analysis pipeline:
   (TODO: Write this list)
-* Add tool that takes a configuration file and runs a pipeline of other tools.
 * Add "allow_N" flag to [no_repeat] markers.  If the flag is specified, the
   reference sequence may contain Ns.  People might need this for the rCRS mtDNA
   reference sequence.
 * Samplevis:
+  * Add % of marker to graph filtering options.
+  * Add button to clear userSelected/userRemoved.
+  * Vega's sorting seems to be broken (v2.4.1).
   * Sort STR alleles by length.
   * Option to save the marker tables to a TSV file.
   * When we have them, add default values to table filtering (for reference).
+* Visualisations in IE10:
+  * Printing striped table rows does not seem to work. (But pagebreaks work
+    better than Chrome!!)
 * Add a print stylesheet for the other visualisations (only Samplevis has one).
 * Adjust BGEstimate so that it computes forward and reverse in one go.  To do
   this, double the number of columns in P and C and put the forward profile in
@@ -78,12 +110,12 @@ DONE    allelegraph         Homozygosity/heterozygosity
 
 Argument group order:
 input file options          bgcorrect,samplestats,seqconvert,stuttermark
-output file options         allelefinder,bgcorrect,bgestimate,bghomstats,blame,samplestats,seqconvert,stuttermark,stuttermodel
-sample tag parsing options  allelefinder,bgcorrect,bgestimate,bghomstats,blame,samplestats,seqconvert,stuttermark,stuttermodel
-allele detection options    bgestimate,bghomstats,blame,stuttermodel
-interpretation options		samplestats
-filtering options           allelefinder,bgcorrect,bgestimate,bghomstats,bgpredict,blame,samplestats,stuttermark,stuttermodel
-sequence format options     allelefinder,bgcorrect,bgestimate,bghomstats,bgpredict,blame,samplestats,stuttermark,stuttermodel
+output file options         allelefinder,bgcorrect,bgestimate,bghomraw,bghomstats,bgmerge,blame,samplestats,seqconvert,stuttermark,stuttermodel
+sample tag parsing options  allelefinder,bgcorrect,bgestimate,bghomraw,bghomstats,blame,samplestats,seqconvert,stuttermark,stuttermodel
+allele detection options    bgestimate,bghomraw,bghomstats,blame,stuttermodel
+interpretation options      samplestats
+filtering options           allelefinder,bgcorrect,bgestimate,bghomraw,bghomstats,bgpredict,blame,samplestats,stuttermark,stuttermodel
+sequence format options     allelefinder,bgcorrect,bgestimate,bghomraw,bghomstats,bgmerge,bgpredict,blame,stuttermark,stuttermodel
 random subsampling options  bgestimate,bghomstats,stuttermodel
 visualisation options       vis
 
@@ -97,7 +129,7 @@ bgmerge^        list of bg files            single output
 bgpredict^      model + seqfile             single output
 blame           bg file + list of samples   single output
 libconvert^     single input library        single output
-samplestats		single sample file (batch)	single sample (batches supported)
+samplestats     single sample file (batch)  single sample (batches supported)
 seqconvert      single sample file (batch)  single sample (batches supported)
 stuttermark     single sample file (batch)  single sample (batches supported)
 stuttermodel    list of sample files        single output

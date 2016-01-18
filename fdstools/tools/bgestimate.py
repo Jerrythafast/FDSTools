@@ -287,7 +287,7 @@ def ensure_min_samples(allelelist, min_samples):
 #ensure_min_samples
 
 
-def add_sample_data(data, sample_data, sample_alleles, min_pct, min_abs):
+def add_sample_data(data, sample_data, sample_alleles, min_pct, min_abs, tag):
     # Make sure the true alleles of this sample are added to data.
     # Also compute the allele-specific inclusion thresholds for noise.
     thresholds = {}
@@ -311,10 +311,12 @@ def add_sample_data(data, sample_data, sample_alleles, min_pct, min_abs):
         for allele in sample_alleles[marker]:
             if (marker, allele) not in sample_data:
                 raise ValueError(
-                    "Missing allele %s of marker %s!" % (allele, marker))
+                    "Missing allele %s of marker %s in sample %s!" %
+                        (allele, marker, tag))
             elif 0 in sample_data[marker, allele]:
                 raise ValueError(
-                    "Allele %s of marker %s has 0 reads!" % (allele, marker))
+                    "Allele %s of marker %s has 0 reads on one strand in "
+                    "sample %s!" % (allele, marker, tag))
             try:
                 i = p["alleles"].index(allele)
             except ValueError:
@@ -420,7 +422,7 @@ def generate_profiles(samples_in, outfile, reportfile, allelefile,
     data = {}
     for tag in sample_data.keys():
         add_sample_data(data, sample_data[tag], allelelist[tag], min_pct,
-                        min_abs)
+                        min_abs, tag)
         del sample_data[tag]
 
     # Filter insignificant background products.

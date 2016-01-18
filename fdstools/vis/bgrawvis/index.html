@@ -1,6 +1,7 @@
 <!DOCTYPE html>
 <html>
 <head>
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
     <meta charset="UTF-8">
     <title>Background Noise Visualisation - FDSTools</title>
     <!-- BEGIN_LIBRARIES -->
@@ -133,7 +134,7 @@
         function parse(){
             var this_stamp = ++stamp;
             vg.parse.spec(graph_spec, function(chart){
-                // Cancel rendering if a new parse() call was made.
+                //Cancel rendering if a new parse() call was made.
                 if(this_stamp != stamp)
                     return;
 
@@ -204,9 +205,11 @@
         }
 
         //Load the data (input is a fileList object; only the first file is loaded).
+        var currentlyLoadedFile = "no/file/loaded";
         function loadDataset(fileList){
-            if(!graph_spec || !fileList || !fileList.length)
+            if(!graph_spec || !fileList || !fileList.length || fileList[0].name == currentlyLoadedFile)
                 return;
+            currentlyLoadedFile = fileList[0].name;
             var reader = new FileReader();
             reader.onload = function(e){
                 if(fileList && fileList.length && fileList[0].name)
@@ -224,11 +227,24 @@
         function saveImage(){
             var link = document.getElementById("saveLink");
             var imageType = document.getElementById("renderSVG").checked? "svg": "png";
-            link.setAttribute("href", graph.toImageURL(imageType));
-            link.setAttribute("download", fileName + "." + imageType);
-            link.click();
-            link.setAttribute("href", "javascript:void(saveImage())");
-            link.removeAttribute("download");
+            if(window.navigator.msSaveOrOpenBlob){
+                //Internet Explorer has its own ways of doing things.
+                var b;
+                if(imageType == "svg")
+                    b = new Blob([graph._el.innerHTML], {type: "image/svg+xml;charset=utf-8"});
+                else
+                    b = graph._el.firstChild.msToBlob();
+                window.navigator.msSaveOrOpenBlob(b, fileName + "." + imageType);
+                if(b.msClose)
+                    b.msClose();
+            }
+            else{
+                link.setAttribute("href", graph.toImageURL(imageType));
+                link.setAttribute("download", fileName + "." + imageType);
+                link.click();
+                link.setAttribute("href", "javascript:void(saveImage())");
+                link.removeAttribute("download");
+            }
             return false;
         }
 
@@ -248,7 +264,13 @@
                 document.addEventListener('drop', function(evt){
                     evt.stopPropagation();
                     evt.preventDefault();
+
+                    //Try to clear the currently displayed file, then try to set
+                    //the drag-'n-dropped file as the selected one on the file input.
+                    //Both actions are not supported in all major browsers.
+                    document.getElementById("fileselect").value = "";
                     document.getElementById("fileselect").files = evt.dataTransfer.files;
+                    loadDataset(evt.dataTransfer.files);
                 }, false);
             }
 

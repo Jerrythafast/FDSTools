@@ -1,6 +1,7 @@
 <!DOCTYPE html>
 <html>
 <head>
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
     <meta charset="UTF-8">
     <title>Sample Visualisation - FDSTools</title>
     <!-- BEGIN_LIBRARIES -->
@@ -60,7 +61,6 @@
                 text-align: right;
             }
             div#vis {
-                overflow: auto;
                 direction: rtl;
                 display: inline-block;
             }
@@ -335,6 +335,8 @@
     </div>
     <script type="text/javascript">
         var graphs = false;
+        var data_values = {};
+        var data_format = {};
         var fileName = "graph";
         var stamp = 0;
         var userSelected = [];
@@ -355,13 +357,13 @@
             graphs = [];
             removeChildren(visdiv);
 
-            // Get a list of marker names and render a graph for each of them.
+            //Get a list of marker names and render a graph for each of them.
             var splitMarkers = document.getElementById("splitmarkers").checked;
             var markerFilter = document.getElementById("markerFilter").value;
             var markerNames = [];
             if(splitMarkers){
                 var patt = new RegExp('(?:' + markerFilter.trim().replace(/(^| )=(.*?)(?= |$)/g, '$1^$2$$').replace(/ +/g, ')|(?:') + ')');
-                vg.util.read(graph_spec.data[0].values, {type: 'tsv'}).forEach(function(datum){
+                data_values.forEach(function(datum){
                     if(patt.test(datum.name))
                         markerNames.push("=" + datum.name);
                 });
@@ -375,18 +377,22 @@
                 else
                     return;
 
-                // Render graph for this marker.
+                //Set up graph spec for this marker.
                 for(i in graph_spec.signals)
                     if(graph_spec.signals[i].name == "filter_marker")
                         graph_spec.signals[i].init = marker;
+                var patt = new RegExp('(?:' + marker.replace(/(^| )=(.*?)(?= |$)/g, '$1^$2$$').replace(/ +/g, ')|(?:') + ')');
+                graph_spec.data[0].values = data_values.filter(function(datum){return patt.test(datum.name)});
+
+                //Render graph for this marker.
                 vg.parse.spec(graph_spec, function(chart){
-                    // Cancel rendering if a new parse() call was made.
+                    //Cancel rendering if a new parse() call was made.
                     if(this_stamp != stamp)
                         return;
 
                     var i = graphs.length;
 
-                    // Add new visualisation and table divs.
+                    //Add new visualisation and table divs.
                     if(i > 0)
                         visdiv.appendChild(document.createElement("hr"));
                     var newvis = document.createElement("div");
@@ -431,8 +437,8 @@
                     graphs.push(graph);
                     document.getElementById("saveLink").style.display = (splitMarkers? "none" : "inline");
 
-                    // Restore selected and deselected alleles. Deselected alleles
-                    // are the ones that appear in selectedAlleles twice.
+                    //Restore selected and deselected alleles. Deselected alleles
+                    //are the ones that appear in selectedAlleles twice.
                     var graphAlleles = graph.data("annotated").values();
                     selectedAlleles = selectedAlleles.filter(function(sa){
                         return graphAlleles.every(function(datum){
@@ -453,10 +459,10 @@
                         });
                     });
 
-                    // Automatically select alleles using set thresholds.
+                    //Automatically select alleles using set thresholds.
                     autoSelectAlleles(graph);
 
-                    // Scroll to the right; the graph is more interesting than the long labels.
+                    //Scroll to the right; the graph is more interesting than the long labels.
                     scrolldiv.scrollLeft = scrolldiv.scrollWidth;
                 });
             });
@@ -480,13 +486,13 @@
                        datum.total_added >= minNa &&
                        datum.pct_of_max >= minPa &&
                        datum.pct_of_sum >= minTa &&
-                       ((datum.total_added/datum.total*100-100) >= minCa ||  // TODO: Docs!!
+                       ((datum.total_added/datum.total*100-100) >= minCa ||  //TODO: Docs!!
                        datum.total_add >= minAa) &&
                        Math.min(datum.forward_added, datum.reverse_added) >= minOa){
                         if(autoSelected.indexOf(datum) == -1)
                             autoSelected.push(datum);
                         if(selectedAlleles.indexOf(datum) == -1 && userDeselected.indexOf(datum) == -1){
-                            // Meets criteria, not selected, and user has not deselected. Autoselect.
+                            //Meets criteria, not selected, and user has not deselected. Autoselect.
                             isAutoselecting = true;
                             graph.signal("clickedAllele", datum).update();
                             isAutoselecting = false;
@@ -497,7 +503,7 @@
                         if(pos >= 0)
                             autoSelected.splice(pos, 1);
                         if(selectedAlleles.indexOf(datum) >= 0 && userSelected.indexOf(datum) == -1){
-                            // Does not meet criteria but was autoselected previously. Autodeselect.
+                            //Does not meet criteria but was autoselected previously. Autodeselect.
                             isAutoselecting = true;
                             graph.signal("clickedAllele", datum).update();
                             isAutoselecting = false;
@@ -509,7 +515,7 @@
         }
 
         function updateViewBox(svg){
-            // Setting the viewBox enables shrink-to-fit behaviour when printing.
+            //Setting the viewBox enables shrink-to-fit behaviour when printing.
             svg.setAttribute("viewBox",
                 "0 0 " + svg.getAttribute("width") + " " + svg.getAttribute("height"));
         }
@@ -590,9 +596,11 @@
         }
 
         //Load the data (input is a fileList object; only the first file is loaded).
+        var currentlyLoadedFile = "no/file/loaded";
         function loadDataset(fileList){
-            if(!graph_spec || !fileList || !fileList.length)
+            if(!graph_spec || !fileList || !fileList.length || fileList[0].name == currentlyLoadedFile)
                 return;
+            currentlyLoadedFile = fileList[0].name;
             var reader = new FileReader();
             reader.onload = function(e){
                 if(fileList && fileList.length && fileList[0].name)
@@ -600,7 +608,7 @@
                 else
                     fileName = "graph";
                 document.title = fileName + " - Sample Visualisation - FDSTools";
-                graph_spec.data[0].values = reader.result;
+                data_values = vg.util.read(reader.result, data_format);
                 parse();
             };
             reader.readAsText(fileList[0]);
@@ -610,11 +618,24 @@
         function saveImage(){
             var link = document.getElementById("saveLink");
             var imageType = document.getElementById("renderSVG").checked? "svg": "png";
-            link.setAttribute("href", graphs[0].toImageURL(imageType));
-            link.setAttribute("download", fileName + "." + imageType);
-            link.click();
-            link.setAttribute("href", "javascript:void(saveImage())");
-            link.removeAttribute("download");
+            if(window.navigator.msSaveOrOpenBlob){
+                //Internet Explorer has its own ways of doing things.
+                var b;
+                if(imageType == "svg")
+                    b = new Blob([graphs[0]._el.innerHTML], {type: "image/svg+xml;charset=utf-8"});
+                else
+                    b = graphs[0]._el.firstChild.msToBlob();
+                window.navigator.msSaveOrOpenBlob(b, fileName + "." + imageType);
+                if(b.msClose)
+                    b.msClose();
+            }
+            else{
+                link.setAttribute("href", graphs[0].toImageURL(imageType));
+                link.setAttribute("download", fileName + "." + imageType);
+                link.click();
+                link.setAttribute("href", "javascript:void(saveImage())");
+                link.removeAttribute("download");
+            }
             return false;
         }
 
@@ -710,9 +731,22 @@
                 document.addEventListener('drop', function(evt){
                     evt.stopPropagation();
                     evt.preventDefault();
+
+                    //Try to clear the currently displayed file, then try to set
+                    //the drag-'n-dropped file as the selected one on the file input.
+                    //Both actions are not supported in all major browsers.
+                    document.getElementById("fileselect").value = "";
                     document.getElementById("fileselect").files = evt.dataTransfer.files;
+                    loadDataset(evt.dataTransfer.files);
                 }, false);
             }
+
+            //Parse data outside of Vega.
+            data_format = graph_spec.data[0].format;
+            graph_spec.data[0].format = null;
+            if(has_data)
+                data_values = vg.util.read(graph_spec.data[0].values, data_format);
+
 
             //Update graph when rendering mode or axis scale is changed.
             document.getElementById("renderCanvas").addEventListener('change', function(){
