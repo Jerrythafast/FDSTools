@@ -31,10 +31,6 @@ x = setup(
     long_description=distmeta.__doc__,
     author="Jerry Hoogenboom",
     author_email="jerryhoogenboom@outlook.com",
-    # NOTE! Maintainer field should be entered manually on pypi.python.org!
-    # If you specify it here, setuptools wil overwrite the author field.
-    #maintainer="LUMC, Jeroen F.J. Laros",
-    #maintainer_email="j.f.j.laros@lumc.nl",
     url="https://git.lumc.nl/jhoogenboom/fdstools/blob/master/README.rst",
     license="LGPLv3+",
     platforms=["any"],

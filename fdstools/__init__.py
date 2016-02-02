@@ -1,9 +1,10 @@
 """
-Tools for characterisation and filtering of PCR stutter artefacts and other
-systemic noise in Next Generation Sequencing data of forensic DNA markers.
+Data analysis tools for Next Generation Sequencing of forensic DNA markers,
+including tools for characterisation and filtering of PCR stutter artefacts and
+other systemic noise, and for automatic detection of the alleles in a sample.
 """
 
-__version_info__ = ('0', '0', '2')
+__version_info__ = ('0', '0', '3')
 __version__ = '.'.join(__version_info__)
 usage = __doc__.split("\n\n\n")
 

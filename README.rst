@@ -29,6 +29,9 @@ Alternatively, FDSTools can be installed by running:
 
 FDSTools Changelog
 ------------------
+v0.0.3
+    - Includes Stuttermark v1.5
+
 v0.0.2
     - Added global -d/--debug switch
     - Includes Stuttermark v1.4
@@ -76,6 +79,11 @@ Output
 
 Changelog
 ~~~~~~~~~
+
+v1.5
+    - Changed column names 'name' and 'allele' to 'marker' and 'sequence',
+	  respectively. WARNING: Stuttermark is now INCOMPATIBLE with output
+	  from TSSV but made compatible with TSSV-Lite instead.
 
 v1.4
     - Stuttermark now accepts raw sequences and allele names as input, which

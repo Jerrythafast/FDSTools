@@ -340,6 +340,9 @@ def add_sample_data(data, sample_data, sample_alleles, min_pct, min_abs, tag):
         if marker not in sample_alleles or not sample_alleles[marker]:
             # Sample does not participate in this marker (no alleles).
             continue
+        if allele is False:
+            # This was a special sequence value, skip it.
+            continue
 
         p = data[marker]["profiles"]
         try:
@@ -412,7 +415,7 @@ def generate_profiles(samples_in, outfile, reportfile, allelefile,
     get_sample_data(samples_in,
                     lambda tag, data: sample_data.update({tag: data}),
                     allelelist, annotation_column, seqformat, library, marker,
-                    homozygotes, limit_reads, drop_samples)
+                    homozygotes, limit_reads, drop_samples, True)
 
     # Ensure minimum number of samples per allele.
     allelelist = {tag: allelelist[tag] for tag in sample_data}
@@ -512,8 +515,8 @@ def add_arguments(parser):
 
 def run(args):
     # Import numpy now.
-    import numpy as np
     global np
+    import numpy as np
 
     files = get_input_output_files(args)
     if not files:

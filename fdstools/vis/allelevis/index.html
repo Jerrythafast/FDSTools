@@ -148,6 +148,8 @@
         function setSignalValue(signalname, value){
             if(!graph_spec)
                 return;
+            var visdiv = document.getElementById("vis");
+            var scrollRight = (visdiv.scrollLeft >= visdiv.scrollWidth - visdiv.clientWidth);
             if(signalname == "width")
                 graph_spec.width = value;
             if(signalname == "height")
@@ -160,6 +162,8 @@
             }
             if(graph)
                 graph.signal(signalname, value).padding("auto").update();
+            if(scrollRight)
+                visdiv.scrollLeft = visdiv.scrollWidth;
             return;
         }
 
@@ -202,7 +206,6 @@
 
         //Save image function.
         function saveImage(){
-            var link = document.getElementById("saveLink");
             var imageType = document.getElementById("renderSVG").checked? "svg": "png";
             if(window.navigator.msSaveOrOpenBlob){
                 //Internet Explorer has its own ways of doing things.
@@ -216,6 +219,7 @@
                     b.msClose();
             }
             else{
+                var link = document.getElementById("saveLink");
                 link.setAttribute("href", graph.toImageURL(imageType));
                 link.setAttribute("download", fileName + "." + imageType);
                 link.click();

@@ -11,6 +11,10 @@
       "init": 0.5
     },
     {
+      "name": "amplitude_markerpct_threshold",
+      "init": 0
+    },
+    {
       "name": "orientation_threshold",
       "init": 0
     },
@@ -104,7 +108,7 @@
       "transform": [
         {
           "type": "aggregate",
-          "groupby": ["name"],
+          "groupby": ["marker"],
           "summarize": {"total_added": ["sum", "max"]}
         }
       ]
@@ -115,13 +119,13 @@
       "transform": [
         {
           "type": "filter",
-          "test": "test(marker_regex, datum.name)"
+          "test": "test(marker_regex, datum.marker)"
         },
         {
           "type": "lookup",
           "on": "aggr",
-          "onKey": "name",
-          "keys": ["name"],
+          "onKey": "marker",
+          "keys": ["marker"],
           "as": ["aggr"],
           "default": {"max_total_added": 0, "sum_total_added": 0}
         },
@@ -187,11 +191,11 @@
       "transform": [
         {
           "type": "filter",
-          "test": "(show_negative? abs(datum.total_added) : datum.total_added) >= amplitude_threshold && (show_negative? abs(datum.pct_of_max) : datum.pct_of_max) >= amplitude_pct_threshold && min(show_negative? abs(datum.forward_added) : datum.forward_added, show_negative? abs(datum.reverse_added) : datum.reverse_added) >= orientation_threshold"
+          "test": "(show_negative? abs(datum.total_added) : datum.total_added) >= amplitude_threshold && (show_negative? abs(datum.pct_of_max) : datum.pct_of_max) >= amplitude_pct_threshold && (show_negative? abs(datum.pct_of_sum) : datum.pct_of_sum) >= amplitude_markerpct_threshold && min(show_negative? abs(datum.forward_added) : datum.forward_added, show_negative? abs(datum.reverse_added) : datum.reverse_added) >= orientation_threshold"
         },
         {
           "type": "sort",
-          "by": ["name", "-total_added", "-total_corr", "-total", "allele"]
+          "by": ["marker", "-total_added", "-total_corr", "-total", "sequence"]
         }
       ]
     },
@@ -201,7 +205,7 @@
       "transform": [
         {
           "type": "aggregate",
-          "groupby": ["name"],
+          "groupby": ["marker"],
           "summarize": {"*": "count"}
         }
       ]
@@ -213,16 +217,16 @@
         {
           "type": "cross",
           "diagonal": false,
-          "filter": "datum.b.name < datum.a.name"
+          "filter": "datum.b.marker < datum.a.marker"
         },
         {
           "type": "formula",
-          "field": "name",
-          "expr": "datum.a.name"
+          "field": "marker",
+          "expr": "datum.a.marker"
         },
         {
           "type": "aggregate",
-          "groupby": ["name"],
+          "groupby": ["marker"],
           "summarize": [{"field": "*", "ops": ["count"], "as": ["cumulpadding"]}]
         }
       ]
@@ -235,16 +239,16 @@
           "type": "cross",
           "with": "table",
           "diagonal": false,
-          "filter": "datum.b.name < datum.a.name"
+          "filter": "datum.b.marker < datum.a.marker"
         },
         {
           "type": "formula",
-          "field": "name",
-          "expr": "datum.a.name"
+          "field": "marker",
+          "expr": "datum.a.marker"
         },
         {
           "type": "aggregate",
-          "groupby": ["name"],
+          "groupby": ["marker"],
           "summarize": [{"field": "*", "ops": ["count"], "as": ["cumulcount"]}]
         }
       ]
@@ -256,16 +260,16 @@
         {
           "type": "lookup",
           "on": "subgraphpadding",
-          "onKey": "name",
-          "keys": ["name"],
+          "onKey": "marker",
+          "keys": ["marker"],
           "as": ["paddingobj"],
           "default": {"cumulpadding": 0}
         },
         {
           "type": "lookup",
           "on": "subgraphoffsets",
-          "onKey": "name",
-          "keys": ["name"],
+          "onKey": "marker",
+          "keys": ["marker"],
           "as": ["offsetobj"],
           "default": {"cumulcount": 0}
         },
@@ -287,13 +291,13 @@
         {
           "type": "toggle",
           "signal": "clickedAllele",
-          "field": "allele"
+          "field": "sequence"
         }
       ],
       "transform": [
         {
           "type": "filter",
-          "test": "datum.allele"
+          "test": "datum.sequence"
         }
       ]
     }
@@ -302,9 +306,9 @@
     {
       "name": "isSelected",
       "type": "in",
-      "item": {"arg": "allele"},
+      "item": {"arg": "sequence"},
       "data": "selectedAlleles",
-      "field": "allele"
+      "field": "sequence"
     }
   ],
   "scales": [
@@ -338,7 +342,7 @@
           "x": {"field": {"group": "width"}, "mult": 0.5},
           "y": {"field": "offset"},
           "fontWeight": {"value": "bold"},
-          "text": {"field": "name"},
+          "text": {"field": "marker"},
           "align": {"value": "center"},
           "baseline": {"value": "bottom"},
           "fill": {"value": "black"}
@@ -352,13 +356,13 @@
         "transform": [
           {
             "type": "facet",
-            "groupby": ["name"]
+            "groupby": ["marker"]
           },
           {
             "type": "lookup",
             "on": "yscale",
-            "onKey": "name",
-            "keys": ["name"],
+            "onKey": "marker",
+            "keys": ["marker"],
             "as": ["subgraphscale"]
           }
         ]
@@ -384,7 +388,7 @@
           "name": "y",
           "type": "ordinal",
           "range": "height",
-          "domain": {"field": "allele"}
+          "domain": {"field": "sequence"}
         }
       ],
       "axes": [
@@ -443,7 +447,7 @@
             "update": {
               "x": {"scale": "x", "value": 0},
               "x2": {"scale": "x", "field": "shared"},
-              "y": {"scale": "y", "field": "allele", "offset": 1},
+              "y": {"scale": "y", "field": "sequence", "offset": 1},
               "height": {"scale": "y", "band": true, "offset": -2},
               "fill": {"scale": "c", "value": "Genuine reads"},
               "fillOpacity": {"value": 0.8}
@@ -456,7 +460,7 @@
             "update": {
               "x": {"scale": "x", "field": "corr_shared"},
               "x2": {"scale": "x", "field": "corr_decreased"},
-              "y": {"scale": "y", "field": "allele", "offset": 1},
+              "y": {"scale": "y", "field": "sequence", "offset": 1},
               "height": {"scale": "y", "band": true, "offset": -2},
               "fill": {"scale": "c", "value": "Noise reads"},
               "fillOpacity": {"value": 0.8}
@@ -469,7 +473,7 @@
             "update": {
               "x": {"scale": "x", "field": "total_corr"},
               "x2": {"scale": "x", "field": "corr_shared"},
-              "y": {"scale": "y", "field": "allele", "offset": 1},
+              "y": {"scale": "y", "field": "sequence", "offset": 1},
               "height": {"scale": "y", "band": true, "offset": -2},
               "fill": {"scale": "c", "value": "Noise/recovered overlap"},
               "fillOpacity": {"value": 0.8}
@@ -482,7 +486,7 @@
             "update": {
               "x": {"scale": "x", "field": "corr_shared"},
               "x2": {"scale": "x", "field": "corr_increased"},
-              "y": {"scale": "y", "field": "allele", "offset": 1},
+              "y": {"scale": "y", "field": "sequence", "offset": 1},
               "height": {"scale": "y", "band": true, "offset": -2},
               "fill": {"scale": "c", "value": "Recovered reads"},
               "fillOpacity": {"value": 0.8}
@@ -492,7 +496,7 @@
         {
           "type": "group",
           "from": {
-            "transform": [{"type": "facet", "groupby": ["allele"]}]
+            "transform": [{"type": "facet", "groupby": ["sequence"]}]
           },
           "properties": {
             "update": {
@@ -544,13 +548,13 @@
                   "y": {"scale": "balance", "value": 50},
                   "baseline": {"value": "middle"},
                   "align": {"value": "right"},
-                  "text": {"field": "allele"},
+                  "text": {"field": "sequence"},
                   "fill": {
                     "rule": [
                       {
                         "predicate": {
                           "name": "isSelected",
-                          "allele": {"field": "thedatum"}
+                          "sequence": {"field": "thedatum"}
                         },
                         "value": "green"
                       },
@@ -562,7 +566,7 @@
                       {
                         "predicate": {
                           "name": "isSelected",
-                          "allele": {"field": "thedatum"}
+                          "sequence": {"field": "thedatum"}
                         },
                         "value": "normal"
                       },
@@ -581,7 +585,7 @@
             "update": {
               "x": {"value": 0},
               "width": {"field": {"group": "width"}},
-              "y": {"scale": "y", "field": "allele"},
+              "y": {"scale": "y", "field": "sequence"},
               "height": {"scale": "y", "band": true},
               "fill": {"value": "transparent"}
             }

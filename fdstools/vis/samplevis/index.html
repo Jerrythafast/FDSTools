@@ -67,6 +67,11 @@
             div#vis div {
                 direction: ltr;
             }
+            div#vis div:nth-child(2n+3) {
+                border-top: 1px solid black;
+                padding-top: 10px;
+                margin-top: 10px;
+            }
             .markertable {
                 display: inline-table;
                 text-align: left;
@@ -152,18 +157,15 @@
             div#vis > div > * {
                 direction: ltr;
             }
-            div#vis > :nth-child(3n+1){
+            div#vis > :nth-child(2n+0){
                 break-after: avoid;
                 page-break-after: avoid;
                 page-break-inside: avoid;
             }
-            div#vis > :nth-child(3n+2){
+            div#vis > :nth-child(2n+1){
                 break-before: avoid;
                 page-break-before: avoid;
                 page-break-inside: avoid;
-            }
-            div#vis hr {
-                display: none;
             }
             .vega, .marks {
                 max-width: 100%;
@@ -241,6 +243,10 @@
                     </tr>
                     <tr>
                         <td>Require at least</td>
+                        <td><input type="text" value="0" id="minT" size="3" class="num">% of the marker's total reads</td>
+                    </tr>
+                    <tr>
+                        <td>Require at least</td>
                         <td><input type="text" value="0" id="minO" size="3" class="num"> reads in both orientations</td>
                     </tr>
                     <tr>
@@ -279,15 +285,21 @@
                     </tr>
                     <tr>
                         <td>At least</td>
-                        <td><input type="text" value="0" id="minCa" size="3" class="num">% correction</td>
+                        <td><input type="text" value="0" id="minCa" size="3" class="num">% correction*</td>
                     </tr>
                     <tr>
                         <td>At least</td>
-                        <td><input type="text" value="0" id="minAa" size="3" class="num">% recovery</td>
+                        <td><input type="text" value="0" id="minAa" size="3" class="num">% recovery*</td>
                     </tr>
                     <tr>
                         <td>At least</td>
                         <td><input type="text" value="0" id="minOa" size="3" class="num"> reads in both orientations</td>
+                    </tr>
+                    <tr>
+                        <td colspan="2" style="font-style: italic">*Of these two criteria, at least one must be met</td>
+                    </tr>
+                    <tr class="noprint">
+                        <td colspan="2"><a id="clearSelectionLink" href="javascript:void(clearSelection())" style="display: none">Clear manually added/removed</a></td>
                     </tr>
                 </table>
             </div>
@@ -313,6 +325,10 @@
                         <td colspan="2"><input type="checkbox" id="splitmarkers" checked></td>
                     </tr>
                     <tr>
+                        <td>Common axis range</td>
+                        <td colspan="2"><input type="checkbox" id="commonrange" disabled></td>
+                    </tr>
+                    <tr>
                         <td>Axis scale</td>
                         <td><input type="radio" name="scale" value="linear" id="scaleLinear" checked> Linear</td>
                         <td><input type="radio" name="scale" value="sqrt" id="scaleLog"> Square root
@@ -326,7 +342,8 @@
                 </table>
             </div>
             <span class="noprint">
-                <a id="saveLink" href="javascript:void(saveImage())" style="display: none">Save image</a>
+                <a id="saveImageLink" href="javascript:void(saveImage())" style="display: none">Save image</a>
+                <a id="saveTableLink" href="javascript:void(saveTable())" style="display: none">Save table</a>
             </span>
         </div>
     </div>
@@ -335,8 +352,10 @@
     </div>
     <script type="text/javascript">
         var graphs = false;
-        var data_values = {};
+        var linebreak = "\n";
         var data_format = {};
+        var data_values = [];
+        var mising_markers = [];
         var fileName = "graph";
         var stamp = 0;
         var userSelected = [];
@@ -352,10 +371,15 @@
             autoSelected = [];
             var this_stamp = ++stamp;
             var visdiv = document.getElementById("vis");
+            //var globalnotes = document.getElementById("globalnotes");
             var scrolldiv = document.getElementById("visscrollbox");
             var rendererName = document.querySelector("input[name=renderer]:checked").value;
             graphs = [];
             removeChildren(visdiv);
+            //removeChildren(globalnotes);
+            document.getElementById("saveImageLink").style.display = "none";
+            document.getElementById("saveTableLink").style.display = "none";
+            document.getElementById("clearSelectionLink").style.display = "none";
 
             //Get a list of marker names and render a graph for each of them.
             var splitMarkers = document.getElementById("splitmarkers").checked;
@@ -364,8 +388,8 @@
             if(splitMarkers){
                 var patt = new RegExp('(?:' + markerFilter.trim().replace(/(^| )=(.*?)(?= |$)/g, '$1^$2$$').replace(/ +/g, ')|(?:') + ')');
                 data_values.forEach(function(datum){
-                    if(patt.test(datum.name))
-                        markerNames.push("=" + datum.name);
+                    if(patt.test(datum.marker))
+                        markerNames.push("=" + datum.marker);
                 });
             }
             else
@@ -382,7 +406,7 @@
                     if(graph_spec.signals[i].name == "filter_marker")
                         graph_spec.signals[i].init = marker;
                 var patt = new RegExp('(?:' + marker.replace(/(^| )=(.*?)(?= |$)/g, '$1^$2$$').replace(/ +/g, ')|(?:') + ')');
-                graph_spec.data[0].values = data_values.filter(function(datum){return patt.test(datum.name)});
+                graph_spec.data[0].values = data_values.filter(function(datum){return patt.test(datum.marker)});
 
                 //Render graph for this marker.
                 vg.parse.spec(graph_spec, function(chart){
@@ -393,8 +417,6 @@
                     var i = graphs.length;
 
                     //Add new visualisation and table divs.
-                    if(i > 0)
-                        visdiv.appendChild(document.createElement("hr"));
                     var newvis = document.createElement("div");
                     newvis.setAttribute("id", "vis" + i);
                     visdiv.appendChild(newvis);
@@ -404,15 +426,18 @@
 
                     var graph = chart({el: newvis, renderer: rendererName});
                     graph.on("mouseover", function(event, item){
-                        document.body.style.cursor = (item && item.mark && item.mark.name && item.mark.name == "alleleSelector")? "pointer" : "auto";
+                        if(item && item.mark && item.mark.name && item.mark.name == "alleleSelector")
+                            document.body.style.cursor = "pointer";
                     });
                     graph.on("mouseout", function(event, item){
-                        document.body.style.cursor = "auto";
+                        if(item && item.mark && item.mark.name && item.mark.name == "alleleSelector")
+                            document.body.style.cursor = "auto";
                     });
                     graph.onSignal("clickedAllele", function(name, value){
                         if(isAutoselecting)
                             return;
-                        if(graph.data("selectedAlleles").values().some(function(item){return item.allele==value})){
+                        document.getElementById("clearSelectionLink").style.display = "inline";
+                        if(graph.data("selectedAlleles").values().some(function(item){return item.sequence==value})){
                             //User added this allele.
                             var pos = userDeselected.indexOf(value);
                             if(pos >= 0)
@@ -435,7 +460,8 @@
                     if(rendererName == "svg")
                         updateViewBox(graph._el.childNodes[0]);
                     graphs.push(graph);
-                    document.getElementById("saveLink").style.display = (splitMarkers? "none" : "inline");
+                    if(!splitMarkers)
+                        document.getElementById("saveImageLink").style.display = "inline";
 
                     //Restore selected and deselected alleles. Deselected alleles
                     //are the ones that appear in selectedAlleles twice.
@@ -466,6 +492,9 @@
                     scrolldiv.scrollLeft = scrolldiv.scrollWidth;
                 });
             });
+            if(missing_markers.length)
+                //globalnotes.appendChild(document.createTextNode("THERE ARE MISSING MARKERS!!! " + missing_markers.join(", ")));
+                alert("Warning: Some markers were not detected in this sample.\n" + missing_markers.join(", "));
         }
 
         function autoSelectAlleles(graph){
@@ -480,14 +509,14 @@
             if(isNaN(minNa + minPa + minTa + minCa + minAa + minOa))
                 return;
             (graph === undefined? graphs : [graph]).forEach(function(graph){
-                var selectedAlleles = graph.data("selectedAlleles").values().map(function(datum){return datum.allele});
+                var selectedAlleles = graph.data("selectedAlleles").values().map(function(datum){return datum.sequence});
                 graph.data("annotated").values().forEach(function(datum){
-                    if(datum.allele != "Other sequences" &&
+                    if(datum.sequence != "Other sequences" &&
                        datum.total_added >= minNa &&
                        datum.pct_of_max >= minPa &&
                        datum.pct_of_sum >= minTa &&
-                       ((datum.total_added/datum.total*100-100) >= minCa ||  //TODO: Docs!!
-                       datum.total_add >= minAa) &&
+                       ((datum.total_added/datum.total*100-100) >= minCa ||
+                       (datum.total_add/datum.total*100) >= minAa) &&
                        Math.min(datum.forward_added, datum.reverse_added) >= minOa){
                         if(autoSelected.indexOf(datum) == -1)
                             autoSelected.push(datum);
@@ -553,6 +582,8 @@
         function setSignalValue(signalname, value){
             if(!graph_spec)
                 return;
+            var scrolldiv = document.getElementById("visscrollbox");
+            var scrollRight = (scrolldiv.scrollLeft >= scrolldiv.scrollWidth - scrolldiv.clientWidth);
             if(signalname == "width")
                 graph_spec.width = value;
             for(i in graph_spec.signals){
@@ -572,6 +603,8 @@
                             tab.style.minWidth = value + "px";
                     }
                 });
+            if(scrollRight)
+                scrolldiv.scrollLeft = scrolldiv.scrollWidth;
             return;
         }
 
@@ -608,15 +641,34 @@
                 else
                     fileName = "graph";
                 document.title = fileName + " - Sample Visualisation - FDSTools";
-                data_values = vg.util.read(reader.result, data_format);
+                missing_markers = []
+                data_values = vg.util.read(reader.result, data_format).filter(function(datum){
+                    if(datum.sequence == "No data"){
+                        missing_markers.push(datum.marker);
+                        return false;
+                    }
+                    return true;
+                });
+                linebreak = reader.result.match(/\r\n|\r|\n/) || linebreak;
                 parse();
             };
             reader.readAsText(fileList[0]);
         }
 
+        //Clear user selection.
+        function clearSelection(){
+            graphs.forEach(function(graph){
+                graph.data("selectedAlleles").remove(function(){return true});
+                graph.update();
+            });
+            userSelected = [];
+            userDeselected = [];
+            autoSelectAlleles();
+            document.getElementById("clearSelectionLink").style.display = "none";
+        }
+
         //Save image function.
         function saveImage(){
-            var link = document.getElementById("saveLink");
             var imageType = document.getElementById("renderSVG").checked? "svg": "png";
             if(window.navigator.msSaveOrOpenBlob){
                 //Internet Explorer has its own ways of doing things.
@@ -630,12 +682,66 @@
                     b.msClose();
             }
             else{
+                var link = document.getElementById("saveImageLink");
                 link.setAttribute("href", graphs[0].toImageURL(imageType));
                 link.setAttribute("download", fileName + "." + imageType);
                 link.click();
                 link.setAttribute("href", "javascript:void(saveImage())");
                 link.removeAttribute("download");
             }
+            return false;
+        }
+
+        //Save table function.
+        function saveTable(){
+            var b = new Blob(
+                [["marker", "sequence", "reads", "PctOfHighest", "PctOfMarker", "PctCorrected", "PctRecovery", "PctForward", "Notes"].join("\t") + linebreak +
+                    autoSelected.concat(userSelected).filter(function(datum, index, self){
+                        return self.indexOf(datum) === index; //Deduplication.
+                    }).sort(function(a, b){
+                        if(a.marker != b.marker)
+                            return (a.marker > b.marker) - (a.marker < b.marker);
+                        if(a.total_added != b.total_added)
+                            return b.total_added - a.total_added;
+                        if(a.total_corr != b.total_corr)
+                            return b.total_corr - a.total_corr;
+                        if(a.total != b.total)
+                            return b.total - a.total;
+                        return (a.sequence > b.sequence) - (a.sequence < b.sequence);
+                    }).map(function(datum){
+                        var notes = [];
+                        if(autoSelected.indexOf(datum) >= 0 && userDeselected.indexOf(datum) >= 0)
+                            notes.push("user_removed");
+                        if(autoSelected.indexOf(datum) < 0 && userSelected.indexOf(datum) >= 0)
+                            notes.push("user_added");
+                        if(datum.correction_flags)
+                                notes.push(datum.correction_flags);
+                        return [
+                            datum.marker,
+                            datum.sequence,
+                            datum.total_added.toFixed(),
+                            datum.pct_of_max.toFixed(2),
+                            datum.pct_of_sum.toFixed(2),
+                            (datum.total_added/datum.total*100-100).toFixed(2),
+                            (datum.total_add/datum.total*100).toFixed(2),
+                            datum.forwardpct.toFixed(2),
+                            notes.join(",")].join("\t");
+                    }).join(linebreak)
+                ],
+                {type: "text/plain"});
+            if(window.navigator.msSaveOrOpenBlob)
+                window.navigator.msSaveOrOpenBlob(b, fileName + ".csv");
+            else{
+                var url = URL.createObjectURL(b);
+                var link = document.getElementById("saveTableLink");
+                link.setAttribute("href", url);
+                link.setAttribute("download", fileName + ".csv");
+                link.click();
+                link.setAttribute("href", "javascript:void(saveTable())");
+                link.removeAttribute("download");
+            }
+            if(b.msClose)
+                b.msClose();
             return false;
         }
 
@@ -654,6 +760,7 @@
             row.insertCell().appendChild(document.createTextNode("PctOfHighest")).parentNode.setAttribute("class", "num");
             row.insertCell().appendChild(document.createTextNode("PctOfMarker")).parentNode.setAttribute("class", "num");
             row.insertCell().appendChild(document.createTextNode("PctCorrected")).parentNode.setAttribute("class", "num");
+            row.insertCell().appendChild(document.createTextNode("PctRecovery")).parentNode.setAttribute("class", "num");
             row.insertCell().appendChild(document.createTextNode("PctForward")).parentNode.setAttribute("class", "num");
             row.insertCell().appendChild(document.createTextNode("Notes"));
 
@@ -661,24 +768,25 @@
             autoSelected.concat(userSelected).filter(function(datum, index, self){
                 return graphAlleles.indexOf(datum) >= 0 && self.indexOf(datum) === index;
             }).sort(function(a, b){
-                if(a.name != b.name)
-                    return (a.name > b.name) - (a.name < b.name);
+                if(a.marker != b.marker)
+                    return (a.marker > b.marker) - (a.marker < b.marker);
                 if(a.total_added != b.total_added)
                     return b.total_added - a.total_added;
                 if(a.total_corr != b.total_corr)
                     return b.total_corr - a.total_corr;
                 if(a.total != b.total)
                     return b.total - a.total;
-                return (a.allele > b.allele) - (a.allele < b.allele);
+                return (a.sequence > b.sequence) - (a.sequence < b.sequence);
             }).forEach(function(datum){
                 row = table.insertRow();
-                row.insertCell().appendChild(document.createTextNode(datum.name));
-                row.insertCell().appendChild(document.createTextNode(datum.allele)).parentNode.setAttribute("class", "wrap");
+                row.insertCell().appendChild(document.createTextNode(datum.marker));
+                row.insertCell().appendChild(document.createTextNode(datum.sequence)).parentNode.setAttribute("class", "wrap");
                 row.insertCell().appendChild(document.createTextNode(datum.total_added.toFixed())).parentNode.setAttribute("class", "num");
                 row.insertCell().appendChild(document.createTextNode(datum.pct_of_max.toFixed(2) + "%")).parentNode.setAttribute("class", "num");
                 row.insertCell().appendChild(document.createTextNode(datum.pct_of_sum.toFixed(2) + "%")).parentNode.setAttribute("class", "num");
                 var corrAmount = datum.total_added/datum.total*100-100;
                 row.insertCell().appendChild(document.createTextNode((corrAmount < 0? "" : "+") + corrAmount.toFixed(2) + "%")).parentNode.setAttribute("class", "num");
+                row.insertCell().appendChild(document.createTextNode((datum.total_add/datum.total*100).toFixed(2) + "%")).parentNode.setAttribute("class", "num");
                 var cell = row.insertCell();
                 cell.appendChild(document.createTextNode(datum.forwardpct.toFixed(2) + "%"));
                 cell.setAttribute("class", "num");
@@ -713,6 +821,7 @@
             removeChildren(tabdiv);
             if(table.rows.length > 1)
                 tabdiv.appendChild(table);
+            document.getElementById("saveTableLink").style.display = (autoSelected.length + userSelected.length? "inline" : "none");
         }
 
         function onLoadSpec(has_data){
@@ -745,7 +854,13 @@
             data_format = graph_spec.data[0].format;
             graph_spec.data[0].format = null;
             if(has_data)
-                data_values = vg.util.read(graph_spec.data[0].values, data_format);
+                data_values = vg.util.read(graph_spec.data[0].values, data_format).filter(function(datum){
+                    if(datum.sequence == "No data"){
+                        missing_markers.push(datum.marker);
+                        return false;
+                    }
+                    return true;
+                });
 
 
             //Update graph when rendering mode or axis scale is changed.
@@ -782,6 +897,14 @@
             document.getElementById("splitmarkers").addEventListener('change', function(){
                 if(graphs !== false)
                     parse(true);
+                document.getElementById("commonrange").disabled = this.checked;
+            }, false);
+            document.getElementById("commonrange").addEventListener('change', function(){
+                if(!graph_spec)
+                    return;
+                graph_spec.marks[1].scales[0].domain.data = (this.checked? "table" : undefined);
+                if(graphs !== false)
+                    parse(true);
             }, false);
             document.getElementById("minN").addEventListener('change', function(){
                 var value = parseFloat(this.value);
@@ -794,6 +917,12 @@
                 if(isNaN(value))
                     return;
                 setSignalValue("amplitude_pct_threshold", value);
+            }, false);
+            document.getElementById("minT").addEventListener('change', function(){
+                var value = parseFloat(this.value);
+                if(isNaN(value))
+                    return;
+                setSignalValue("amplitude_markerpct_threshold", value);
             }, false);
             document.getElementById("minO").addEventListener('change', function(){
                 var value = parseFloat(this.value);
@@ -879,6 +1008,7 @@
             document.getElementById("subgraphoffset").value = getSignalValue("subgraphoffset");
             document.getElementById("minN").value = getSignalValue("amplitude_threshold");
             document.getElementById("minP").value = getSignalValue("amplitude_pct_threshold");
+            document.getElementById("minT").value = getSignalValue("amplitude_markerpct_threshold");
             document.getElementById("minO").value = getSignalValue("orientation_threshold");
             document.getElementById("minBias").value = getSignalValue("bias_threshold");
             document.getElementById("shownegative").checked = getSignalValue("show_negative");

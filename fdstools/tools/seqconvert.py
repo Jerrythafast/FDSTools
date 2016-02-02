@@ -48,47 +48,47 @@ __version__ = "0.1dev"
 
 # Default name of the column that contains the marker name.
 # This value can be overridden by the -m command line option.
-_DEF_COLNAME_MARKER = "name"
+_DEF_COLNAME_MARKER = "marker"
 
-# Default name of the column that contains the allele.
+# Default name of the column that contains the sequence.
 # This value can be overridden by the -a command line option.
-_DEF_COLNAME_ALLELE = "allele"
+_DEF_COLNAME_SEQUENCE = "sequence"
 
 
 def convert_sequences(infile, outfile, to_format, library=None,
                       fixed_marker=None, colname_marker=_DEF_COLNAME_MARKER,
-                      colname_allele=_DEF_COLNAME_ALLELE,
-                      colname_allele_out=None,
+                      colname_sequence=_DEF_COLNAME_SEQUENCE,
+                      colname_sequence_out=None,
                       library2=None, revcomp_markers=[]):
-    if colname_allele_out is None:
-        colname_allele_out = colname_allele
+    if colname_sequence_out is None:
+        colname_sequence_out = colname_sequence
     column_names = infile.readline().rstrip("\r\n").split("\t")
-    colid_allele = get_column_ids(column_names, colname_allele)
+    colid_sequence = get_column_ids(column_names, colname_sequence)
     if library is None:
         fixed_marker = ""  # Don't need marker names without library.
     if fixed_marker is None:
         colid_marker = get_column_ids(column_names, colname_marker)
     try:
-        colid_allele_out = get_column_ids(column_names, colname_allele_out)
+        colid_sequence_out = get_column_ids(column_names, colname_sequence_out)
     except:
-        column_names.append(colname_allele_out)
-        colid_allele_out = -1
+        column_names.append(colname_sequence_out)
+        colid_sequence_out = -1
 
     outfile.write("\t".join(column_names) + "\n")
     for line in infile:
         line = line.rstrip("\r\n").split("\t")
         if line == [""]:
             continue
-        if colid_allele_out == -1:
+        if colid_sequence_out == -1:
             line.append("")
         marker = line[colid_marker] if fixed_marker is None else fixed_marker
 
-        seq = line[colid_allele]
+        seq = line[colid_sequence]
         if library2 != library:
             seq = ensure_sequence_format(
                 seq, "raw", marker=marker, library=library, allow_special=True)
             if seq == False:
-                seq = line[colid_allele]
+                seq = line[colid_sequence]
             elif marker in revcomp_markers:
                 seq = reverse_complement(seq)
             # TODO: The current implementation assumes identical
@@ -98,8 +98,8 @@ def convert_sequences(infile, outfile, to_format, library=None,
         seq = ensure_sequence_format(seq, to_format, marker=marker,
             library=library2, allow_special=True)
         if seq == False:
-            seq = line[colid_allele]
-        line[colid_allele_out] = seq
+            seq = line[colid_sequence]
+        line[colid_sequence_out] = seq
         outfile.write("\t".join(line) + "\n")
 #convert_sequences
 
@@ -114,8 +114,8 @@ def add_arguments(parser):
         help="name of the column that contains the marker name "
              "(default: '%(default)s')")
     parser.add_argument('-a', '--allele-column', metavar="COLNAME",
-        default=_DEF_COLNAME_ALLELE,
-        help="name of the column that contains the allele "
+        default=_DEF_COLNAME_SEQUENCE,
+        help="name of the column that contains the sequence "
              "(default: '%(default)s')")
     parser.add_argument('-c', '--output-column', metavar="COLNAME",
         help="name of the column to write the output to "

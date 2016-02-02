@@ -155,7 +155,7 @@ def compute_stats(infile, outfile, min_reads,
                   min_pct_of_sum_filt, min_correction_filt, min_recovery_filt):
     # Check presence of required columns.
     column_names = infile.readline().rstrip("\r\n").split("\t")
-    get_column_ids(column_names, "name", "allele", "forward", "reverse",
+    get_column_ids(column_names, "marker", "sequence", "forward", "reverse",
         "total")
     if "flags" not in column_names:
         column_names.append("flags")
@@ -218,7 +218,7 @@ def compute_stats(infile, outfile, min_reads,
     data = {}
     for line in infile:
         row = line.rstrip("\r\n").split("\t")
-        marker = row[ci["name"]]
+        marker = row[ci["marker"]]
         row[ci["forward"]] = int(row[ci["forward"]])
         row[ci["reverse"]] = int(row[ci["reverse"]])
         row[ci["total"]] = int(row[ci["total"]])
@@ -230,7 +230,7 @@ def compute_stats(infile, outfile, min_reads,
         if len(row) == ci["flags"]:
             row.append([])
         else:
-            row[ci["flags"]] = map(str.strip, ci["flags"].split(","))
+            row[ci["flags"]] = map(str.strip, row[ci["flags"]].split(","))
         if marker not in data:
             data[marker] = []
         data[marker].append(row)
@@ -420,22 +420,22 @@ def compute_stats(infile, outfile, min_reads,
                 row[ci["reverse"]] if "reverse_corrected" not in ci
                     else row[ci["reverse_corrected"]])
 
-            # Check if this allele should be filtered out.
+            # Check if this sequence should be filtered out.
             if filter_action != "off" and (
                     total_added < min_reads_filt or
                     pct_of_max < min_pct_of_max_filt or
                     pct_of_sum < min_pct_of_sum_filt or
-                    (correction < min_correction_filt and  # TODO: docs!
+                    (correction < min_correction_filt and
                     recovery < min_recovery_filt) or
                     min_strand < min_per_strand_filt):
                 filtered[marker].append(row)
 
             # Check if this sequence is an allele.
-            elif (row[ci["allele"]] != "Other sequences" and
+            elif (row[ci["sequence"]] != "Other sequences" and
                     total_added >= min_reads and
                     pct_of_max >= min_pct_of_max and
                     pct_of_sum >= min_pct_of_sum and
-                    (correction >= min_correction or  # TODO: docs!
+                    (correction >= min_correction or
                     recovery >= min_recovery) and
                     min_strand >= min_per_strand):
                 row[ci["flags"]].append("allele")
@@ -457,8 +457,8 @@ def compute_stats(infile, outfile, min_reads,
         if filter_action == "combine":
             have_combined = False
             combined = [""] * len(column_names)
-            combined[ci["name"]] = marker
-            combined[ci["allele"]] = "Other sequences"
+            combined[ci["marker"]] = marker
+            combined[ci["sequence"]] = "Other sequences"
             for i in (ci[column] for column in COLUMN_ORDER if column in ci):
                 # Set known numeric columns to 0.
                 combined[i] = 0
@@ -618,7 +618,8 @@ def compute_stats(infile, outfile, min_reads,
 def add_arguments(parser):
     add_input_output_args(parser, True, True, False)
     intergroup = parser.add_argument_group("interpretation options",
-        "sequences that match all of these settings are marked as 'allele'")
+        "sequences that match the -c or -y option (or both) and all of the "
+        "other settings are marked as 'allele'")
     intergroup.add_argument('-n', '--min-reads', metavar="N", type=float,
         default=_DEF_MIN_READS,
         help="the minimum number of reads (default: %(default)s)")
@@ -643,7 +644,9 @@ def add_arguments(parser):
         help="the minimum number of reads that was recovered thanks to "
              "noise correction (by e.g., bgcorrect), as a percentage of the "
              "original number of reads (default: %(default)s)")
-    filtergroup = parser.add_argument_group("filtering options")
+    filtergroup = parser.add_argument_group("filtering options",
+        "sequences that match the -C or -Y option (or both) and all of the "
+        "other settings are retained, all others are filtered")
     filtergroup.add_argument('-a', '--filter-action', metavar="ACTION",
         choices=("off", "combine", "delete"), default="off",
         help="filtering mode: 'off', disable filtering; 'combine', replace "

@@ -36,21 +36,9 @@ __version__ = "0.1dev"
 
 # Default values for parameters are specified below.
 
-# Default name of the column that contains the marker name.
-# This value can be overridden by the -m command line option.
-_DEF_COLNAME_MARKER = "name"
-
-# Default name of the column that contains the allele.
-# This value can be overridden by the -a command line option.
-_DEF_COLNAME_ALLELE = "allele"
-
-# Default name of the column to write the output to.
-# This value can be overridden by the -o command line option.
-_DEF_COLNAME_ALLELE_OUT = "allele"
-
 # Default minimum amount of background to consider, as a percentage of
 # the highest allele.
-# This value can be overridden by the -m command line option.
+# This value can be overridden by the -n command line option.
 _DEF_THRESHOLD_PCT = 0.5
 
 # Default minimum R2 score.
@@ -206,28 +194,34 @@ def get_relative_frequencies(stutters, combinations):
 #get_relative_frequencies
 
 
-def predict_profiles(stuttermodel, seqsfile, outfile, marker_column,
-                     allele_column, default_marker, use_all_data, min_pct,
-                     min_r2, seqformat, library):
+def predict_profiles(stuttermodel, seqsfile, outfile, default_marker,
+                     use_all_data, min_pct, min_r2, seqformat, library):
+    if min_pct <= 0:
+        raise ValueError("The -n/--min-pct option cannot be negative or zero!")
+
     # Parse stutter model file.
     model = parse_stuttermodel(stuttermodel, min_r2, use_all_data)
 
     # Read list of sequences.
     seqlist = {}
     column_names = seqsfile.readline().rstrip("\r\n").split("\t")
-    colid_allele = get_column_ids(column_names, "allele")
-    colid_name = get_column_ids(column_names, "name", optional=True)
+    colid_sequence = get_column_ids(column_names, "sequence")
+    colid_marker = get_column_ids(column_names, "marker", optional=True)
     for line in seqsfile:
         line = line.rstrip("\r\n").split("\t")
-        marker = line[colid_name] if colid_name is not None else default_marker
+        marker = line[colid_marker] if colid_marker is not None \
+            else default_marker
         if marker not in model:
             if use_all_data and "All data" in model:
                 # No marker-specific model available, use "All data".
                 model[marker] = model["All data"]
             else:
                 continue
-        sequence = ensure_sequence_format(line[colid_allele], "raw",
-                                          library=library, marker=marker)
+        sequence = ensure_sequence_format(line[colid_sequence], "raw",
+                                          library=library, marker=marker,
+                                          allow_special=True)
+        if sequence is False:
+            continue
         try:
             seqlist[marker].append(sequence)
         except KeyError:
@@ -324,14 +318,6 @@ def add_arguments(parser):
     parser.add_argument('outfile', metavar="OUT", nargs="?", default=sys.stdout,
         type=argparse.FileType("w"),
         help="the file to write the output to (default: write to stdout)")
-    parser.add_argument('-m', '--marker-column', metavar="COLNAME",
-        default=_DEF_COLNAME_MARKER,
-        help="name of the column that contains the marker name "
-             "(default: '%(default)s')")
-    parser.add_argument('-a', '--allele-column', metavar="COLNAME",
-        default=_DEF_COLNAME_ALLELE,
-        help="name of the column that contains the allele "
-             "(default: '%(default)s')")
     parser.add_argument('-M', '--marker', metavar="MARKER",
         help="assume the specified marker for all sequences")
     parser.add_argument('-A', '--use-all-data', action="store_true",
@@ -352,11 +338,10 @@ def add_arguments(parser):
 
 def run(args):
     # Import numpy now.
-    import numpy as np
     global np
+    import numpy as np
 
-    predict_profiles(args.stuttermodel, args.seqs, args.outfile,
-                     args.marker_column, args.allele_column, args.marker,
+    predict_profiles(args.stuttermodel, args.seqs, args.outfile, args.marker,
                      args.use_all_data, args.min_pct, args.min_r2,
                      args.sequence_format, args.library)
 #run

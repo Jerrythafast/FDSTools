@@ -24,8 +24,8 @@ profile was based on direct observations.
 import argparse, sys
 #import numpy as np  # Only imported when actually running this tool.
 
-from ..lib import load_profiles, ensure_sequence_format, nnls, \
-                  get_column_ids, add_sequence_format_args, \
+from ..lib import load_profiles, ensure_sequence_format, get_column_ids, \
+                  nnls, add_sequence_format_args, SEQ_SPECIAL_VALUES, \
                   add_input_output_args, get_input_output_files
 
 __version__ = "0.1dev"
@@ -47,15 +47,15 @@ def get_sample_data(infile, convert_to_raw=False, library=None):
     column_names.append("reverse_corrected")
     column_names.append("total_corrected")
     column_names.append("correction_flags")
-    colid_name, colid_allele, colid_forward, colid_reverse = get_column_ids(
-        column_names, "name", "allele", "forward", "reverse")
+    colid_marker, colid_sequence, colid_forward, colid_reverse = get_column_ids(
+        column_names, "marker", "sequence", "forward", "reverse")
     data = {}
     for line in infile:
         cols = line.rstrip("\r\n").split("\t")
-        marker = cols[colid_name]
-        if convert_to_raw:
-            cols[colid_allele] = ensure_sequence_format(
-                cols[colid_allele], "raw", library=library, marker=marker)
+        marker = cols[colid_marker]
+        if convert_to_raw and cols[colid_sequence] not in SEQ_SPECIAL_VALUES:
+            cols[colid_sequence] = ensure_sequence_format(
+                cols[colid_sequence], "raw", library=library, marker=marker)
         cols[colid_forward] = int(cols[colid_forward])
         cols[colid_reverse] = int(cols[colid_reverse])
         cols.append(0)
@@ -77,12 +77,12 @@ def get_sample_data(infile, convert_to_raw=False, library=None):
 
 def match_profile(column_names, data, profile, convert_to_raw, library,
                   marker):
-    (colid_name, colid_allele, colid_forward, colid_reverse, colid_total,
+    (colid_marker, colid_sequence, colid_forward, colid_reverse, colid_total,
      colid_forward_noise, colid_reverse_noise, colid_total_noise,
      colid_forward_add, colid_reverse_add, colid_total_add,
      colid_forward_corrected, colid_reverse_corrected,
      colid_total_corrected, colid_correction_flags) = get_column_ids(
-        column_names, "name", "allele", "forward", "reverse", "total",
+        column_names, "marker", "sequence", "forward", "reverse", "total",
         "forward_noise", "reverse_noise", "total_noise", "forward_add",
         "reverse_add", "total_add", "forward_corrected", "reverse_corrected",
         "total_corrected", "correction_flags")
@@ -96,20 +96,26 @@ def match_profile(column_names, data, profile, convert_to_raw, library,
     C1 = np.matrix(np.zeros([1, profile["m"]]))
     C2 = np.matrix(np.zeros([1, profile["m"]]))
     for line in data:
+        if line[colid_sequence] in SEQ_SPECIAL_VALUES:
+            continue
         if convert_to_raw:
-            allele = ensure_sequence_format(line[colid_allele], "raw",
+            sequence = ensure_sequence_format(line[colid_sequence], "raw",
                                             library=library, marker=marker)
         else:
-            allele = line[colid_allele]
-        seqs.append(allele)
+            sequence = line[colid_sequence]
+        seqs.append(sequence)
         try:
-            i = profile["seqs"].index(allele)
+            i = profile["seqs"].index(sequence)
         except ValueError:
             # Note: Not adding any new sequences to the profile, since
             # they will just be zeroes and have no effect on the result.
             continue
         C1[0, i] = line[colid_forward]
         C2[0, i] = line[colid_reverse]
+
+    # Stop if this sample has no explicit data for this marker.
+    if not seqs:
+        return
 
     # Compute corrected read counts.
     A = nnls(np.hstack([P1, P2]).T, np.hstack([C1, C2]).T).T
@@ -128,6 +134,8 @@ def match_profile(column_names, data, profile, convert_to_raw, library,
 
     j = 0
     for line in data:
+        if line[colid_sequence] in SEQ_SPECIAL_VALUES:
+            continue
         j += 1
         try:
             i = profile["seqs"].index(seqs[j-1])
@@ -167,8 +175,8 @@ def match_profile(column_names, data, profile, convert_to_raw, library,
             amount += forward_add[0, i] + reverse_add[0, i]
         if amount > 0:
             line = [""] * len(column_names)
-            line[colid_name] = marker
-            line[colid_allele] = profile["seqs"][i]
+            line[colid_marker] = marker
+            line[colid_sequence] = profile["seqs"][i]
             line[colid_forward] = 0
             line[colid_reverse] = 0
             line[colid_total] = 0
@@ -185,10 +193,19 @@ def match_profile(column_names, data, profile, convert_to_raw, library,
                 line[colid_forward_corrected] += line[colid_forward_add]
                 line[colid_reverse_corrected] += line[colid_reverse_add]
                 line[colid_total_corrected] += line[colid_total_add]
+                if "bgestimate" in profile["tool"][i]:
+                    line[colid_correction_flags] = "corrected_bgestimate"
+                elif "bghomstats" in profile["tool"][i]:
+                    line[colid_correction_flags] = "corrected_bghomstats"
+                elif "bgpredict" in profile["tool"][i]:
+                    line[colid_correction_flags] = "corrected_bgpredict"
+                else:
+                    line[colid_correction_flags] = "corrected"
             else:
                 line[colid_forward_add] = 0
                 line[colid_reverse_add] = 0
                 line[colid_total_add] = 0
+                line[colid_correction_flags] = "corrected_as_background_only"
             data.append(line)
 #match_profile
 
@@ -196,7 +213,7 @@ def match_profile(column_names, data, profile, convert_to_raw, library,
 def match_profiles(infile, outfile, profiles, library, seqformat):
     column_names, data = get_sample_data(
         infile, convert_to_raw=seqformat=="raw", library=library)
-    colid_allele = get_column_ids(column_names, "allele")
+    colid_sequence = get_column_ids(column_names, "sequence")
 
     outfile.write("\t".join(column_names) + "\n")
     for marker in data:
@@ -204,9 +221,11 @@ def match_profiles(infile, outfile, profiles, library, seqformat):
             match_profile(column_names, data[marker], profiles[marker],
                           seqformat!="raw", library, marker)
         for line in data[marker]:
-            if seqformat is not None and seqformat != "raw":
-                line[colid_allele] = ensure_sequence_format(line[colid_allele],
-                    seqformat, library=library, marker=marker)
+            if (seqformat is not None and seqformat != "raw" and
+                    line[colid_sequence] not in SEQ_SPECIAL_VALUES):
+                line[colid_sequence] = ensure_sequence_format(
+                    line[colid_sequence], seqformat, library=library,
+                    marker=marker)
             outfile.write("\t".join(map(str, line)) + "\n")
 #match_profiles
 
@@ -225,8 +244,8 @@ def add_arguments(parser):
 
 def run(args):
     # Import numpy now.
-    import numpy as np
     global np
+    import numpy as np
 
     gen = get_input_output_files(args, True, True)
     if not gen:

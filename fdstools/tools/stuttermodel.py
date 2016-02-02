@@ -153,7 +153,7 @@ def add_sample_data(data, sample_data, sample_alleles, tag, min_pct, min_abs):
 
     # Enter the read counts into data and check the thresholds.
     for marker, sequence in sample_data:
-        if marker not in sample_alleles:
+        if marker not in sample_alleles or sequence is False:
             # Sample does not participate in this marker.
             continue
         if (tag, marker) not in data["samples"]:
@@ -201,7 +201,7 @@ def fit_stutter(samples_in, outfile, allelefile, annotation_column, min_pct,
             {m: allelelist[tag][m].pop() for m in allelelist[tag]},
             tag, min_pct, min_abs),
         allelelist, annotation_column, "raw", library, marker, True,
-        limit_reads, drop_samples)
+        limit_reads, drop_samples, True)
 
     # Ensure minimum number of samples per allele.
     filter_data(data, min_samples)
@@ -498,8 +498,8 @@ def add_arguments(parser):
 
 def run(args):
     # Import numpy now.
-    import numpy as np
     global np
+    import numpy as np
 
     files = get_input_output_files(args)
     if not files:

@@ -148,8 +148,8 @@ def add_arguments(parser):
 
 def run(args):
     # Import numpy now.
-    import numpy as np
     global np
+    import numpy as np
 
     files = get_input_output_files(args)
     if not files:

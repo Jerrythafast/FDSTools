@@ -1,5 +1,17 @@
 To-do:
-* [!] Additions needed for publication:
+* Samplevis:
+  * Re-layout:
+    http://matthewjamestaylor.com/blog/perfect-multi-column-liquid-layouts.
+  * Allow for heavily corrected sequences to remain visible in the graphs.
+  * Replace the alert for 'No data' markers with a message on the page.
+  * Make sure markers for which no sequences meet the filtering criteria are
+    still visible.
+  * Sort STR alleles by length by default.
+  * Option to adjust the sorting.
+  * Option to choose complete table download.
+  * When we have them, add default values to table filtering (for reference).
+* Add 'Other sequences' line (optional) to TSSV output if -a > 1.
+* Additions needed for publication:
   * [If not too difficult to implement] BGEstimate should start with homozygous
     samples and add heterozygous samples later to optimise correction.
   * Summary statistics for BGEstimate based on top N genotypes per marker,
@@ -7,45 +19,24 @@ To-do:
     (maybe also additional value for confidence interval).
   * Visualisation to display highest remaining background (positive and
     negative) in known samples after BGCorrect analysis.
-* Update bundled D3 to v3.5.12 (now at v3.5.10)
-* Libconvert should check whether the reference sequence is the same as one of
-  the aliases when converting to TSSV format, because it includes the Amel-X
-  allele twice now.
 * Add options to Libconvert to generate a template for STR or non-STR markers.
-* BGPredict's get_relative_frequencies may produce a "RuntimeWarning: invalid
-  value encountered in double_scalars" when computing (with n=0):
-  A[C[i]] *= stutters[i]["amount"] / A[C[i]].sum()
-* BGCorrect might perform better if it 'is given a way out' for those cases
-  where a sample contains a genuine allele that does not occur in the noise
-  profiles. I could try to add an all-zero (except for the 100) noise profile
-  for those missing sequences.
-* Warn user in BGEstimate if no samples are given.
-* Known bug: regex_longest_match does not give the longest match if a shorter
-  match is possible and found earlier at the same position.
+* Make sure blame doesn't crash on 'No data' lines.
+* Add plotting of raw data points to StuttermodelVis.
+* Add a print stylesheet for the other visualisations (only Samplevis has one).
+* Add visualisation with all markers in one graph ("samplesummaryvis"?).
 * Allow loading multiple files into HTML visualisations and provide prev/next
   buttons to browse them.
-* Add sequence format options back to Samplestats (it turns out to be the only
-  tool without them).
-* In HTML visualisations, before changing a signal value, check whether the
-  page is scrolled all the way to the right and if so, make sure to scroll to
-  the right after the change as well.
-* Add tool that takes a configuration file and runs a pipeline of other tools.
-* Add tool to summarise various statistics about the entire analysis pipeline:
-  (TODO: Write this list)
-* Add "allow_N" flag to [no_repeat] markers.  If the flag is specified, the
-  reference sequence may contain Ns.  People might need this for the rCRS mtDNA
-  reference sequence.
-* Samplevis:
-  * Add % of marker to graph filtering options.
-  * Add button to clear userSelected/userRemoved.
-  * Vega's sorting seems to be broken (v2.4.1).
-  * Sort STR alleles by length.
-  * Option to save the marker tables to a TSV file.
-  * When we have them, add default values to table filtering (for reference).
 * Visualisations in IE10:
   * Printing striped table rows does not seem to work. (But pagebreaks work
     better than Chrome!!)
-* Add a print stylesheet for the other visualisations (only Samplevis has one).
+  * Tables are not perfectly aligned with the graphs (graphs render slightly
+    differently). Firefox: same thing (and not identical to IE either).
+* [Known bug]: pattern_longest_match does not give the longest match if a
+  shorter match is possible and found earlier at the same position.
+* Add tool that takes a configuration file and runs a pipeline of other tools.
+* Add "allow_N" flag to [no_repeat] markers.  If the flag is specified, the
+  reference sequence may contain Ns.  People might need this for the rCRS mtDNA
+  reference sequence.
 * Adjust BGEstimate so that it computes forward and reverse in one go.  To do
   this, double the number of columns in P and C and put the forward profile in
   the left half and the reverse profile in the right half.  The benefit of this
@@ -55,10 +46,12 @@ To-do:
   account as well.
 * Perhaps there should be a version of BGEstimate that makes a profile for each
   genotype instead of each allele.  This allows for the detection of hybrids.
-* Add plotting of raw data points to StuttermodelVis.
-* Add visualisation with all markers in one graph ("samplesummaryvis"?).
+* Add tool to summarise various statistics about the entire analysis pipeline:
+  (TODO: Write this list)
 
 Open Vega issues:
+* Sorting is broken.
+  https://github.com/vega/vega/issues/509
 * Feature request: Id-based refs for Force transform's source and target.
   https://github.com/vega/vega/issues/471
 * Tick labels of log scale axes don't respect number formatting.
@@ -108,16 +101,17 @@ DONE    allelegraph         Homozygosity/heterozygosity
 
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-Argument group order:
+Argument group order*:
 input file options          bgcorrect,samplestats,seqconvert,stuttermark
-output file options         allelefinder,bgcorrect,bgestimate,bghomraw,bghomstats,bgmerge,blame,samplestats,seqconvert,stuttermark,stuttermodel
+output file options         allelefinder,bgcorrect,bgestimate,bghomraw,bghomstats,bgmerge,blame,samplestats,seqconvert,stuttermark,stuttermodel,tssv
 sample tag parsing options  allelefinder,bgcorrect,bgestimate,bghomraw,bghomstats,blame,samplestats,seqconvert,stuttermark,stuttermodel
 allele detection options    bgestimate,bghomraw,bghomstats,blame,stuttermodel
 interpretation options      samplestats
 filtering options           allelefinder,bgcorrect,bgestimate,bghomraw,bghomstats,bgpredict,blame,samplestats,stuttermark,stuttermodel
-sequence format options     allelefinder,bgcorrect,bgestimate,bghomraw,bghomstats,bgmerge,bgpredict,blame,stuttermark,stuttermodel
+sequence format options     allelefinder,bgcorrect,bgestimate,bghomraw,bghomstats,bgmerge,bgpredict,blame,stuttermark,stuttermodel,tssv
 random subsampling options  bgestimate,bghomstats,stuttermodel
 visualisation options       vis
+*tssv has sequence format options before output file options
 
 Input/output of tools:      INPUT           OUTPUT
 allelefinder    list of sample files        *single output + report
@@ -133,6 +127,7 @@ samplestats     single sample file (batch)  single sample (batches supported)
 seqconvert      single sample file (batch)  single sample (batches supported)
 stuttermark     single sample file (batch)  single sample (batches supported)
 stuttermodel    list of sample files        single output
+tssv            single sample FQ/FA         single output + report
 vis^            single sample (optional)    single output
 *TODO: add option to change single output to multi-out (batch_process=True)
 ^does not use add_args functions (bgmodel/predict use sequence_format_args)

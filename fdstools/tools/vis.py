@@ -46,7 +46,12 @@ _DEF_THRESHOLD_ABS = 15
 # Default minimum amount of reads to require, as a percentage of the
 # highest allele of each marker.
 # This value can be overridden by the -m command line option.
-_DEF_THRESHOLD_PCT = 0.5
+_DEF_THRESHOLD_PCT_OF_MAX = 0.5
+
+# Default minimum amount of reads to require, as a percentage of the
+# total number of reads each marker.
+# This value can be overridden by the -S command line option.
+_DEF_THRESHOLD_PCT_OF_SUM = 0.0
 
 # Default minimum number of reads per orientation to require.
 # This value can be overridden by the -s command line option.
@@ -127,9 +132,9 @@ def set_axis_scale(spec, scalename, value):
 
 
 def create_visualisation(vistype, infile, outfile, vega, online, tidy, min_abs,
-                         min_pct, min_per_strand, bias_threshold, bar_width,
-                         padding, marker, width, height, log_scale,
-                         repeat_unit, no_alldata, title):
+                         min_pct_of_max, min_pct_of_sum, min_per_strand,
+                         bias_threshold, bar_width, padding, marker, width,
+                         height, log_scale, repeat_unit, no_alldata, title):
     # Get graph spec.
     spec = json.load(resource_stream(
         "fdstools", "vis/%svis/%svis.json" % (vistype, vistype)))
@@ -159,13 +164,14 @@ def create_visualisation(vistype, infile, outfile, vega, online, tidy, min_abs,
         set_signal_value(spec, "show_all_data", False if no_alldata else True)
     elif vistype == "sample" or vistype == "bgraw":
         set_signal_value(spec, "amplitude_threshold", min_abs)
-        set_signal_value(spec, "amplitude_pct_threshold", min_pct)
+        set_signal_value(spec, "amplitude_pct_threshold", min_pct_of_max)
     elif vistype == "profile":
-        set_signal_value(spec, "filter_threshold", min_pct)
+        set_signal_value(spec, "filter_threshold", min_pct_of_max)
         set_signal_value(spec, "low", 0.001 if log_scale else 0)
     if vistype == "sample":
         set_signal_value(spec, "orientation_threshold", min_per_strand)
         set_signal_value(spec, "bias_threshold", bias_threshold)
+        set_signal_value(spec, "amplitude_markerpct_threshold", min_pct_of_sum)
 
     # Apply axis scale settings.
     if vistype != "stuttermodel" and vistype != "allele":
@@ -271,12 +277,16 @@ def add_arguments(parser):
         default=_DEF_THRESHOLD_ABS,
         help="[sample, bgraw] only show sequences with this minimum number of "
              "reads (default: %(default)s)")
-    visgroup.add_argument('-m', '--min-pct', metavar="PCT", type=float,
-        default=_DEF_THRESHOLD_PCT,
+    visgroup.add_argument('-m', '--min-pct-of-max', metavar="PCT", type=float,
+        default=_DEF_THRESHOLD_PCT_OF_MAX,
         help="[sample, profile, bgraw] for sample: only show sequences with "
              "at least this percentage of the number of reads of the highest "
              "allele of a marker; for profile and bgraw: at least this "
              "percentage of the true allele (default: %(default)s)")
+    visgroup.add_argument('-S', '--min-pct-of-sum', metavar="PCT", type=float,
+        default=_DEF_THRESHOLD_PCT_OF_SUM,
+        help="[sample] only show sequences with at least this percentage of "
+             "the total number of reads of a marker (default: %(default)s)")
     visgroup.add_argument('-s', '--min-per-strand', metavar="N",
         type=pos_int_arg, default=_DEF_THRESHOLD_ORIENTATION,
         help="[sample] only show sequences with this minimum number of reads "
@@ -341,7 +351,8 @@ def run(args):
         args.infile = open(args.infile, 'r')
 
     create_visualisation(args.type, args.infile, args.outfile, args.vega,
-                         args.online, args.tidy, args.min_abs, args.min_pct,
+                         args.online, args.tidy, args.min_abs,
+                         args.min_pct_of_max, args.min_pct_of_sum,
                          args.min_per_strand, args.bias_threshold,
                          args.bar_width, args.padding, args.marker, args.width,
                          args.height, args.log_scale, args.repeat_unit,

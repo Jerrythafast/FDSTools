@@ -149,8 +149,9 @@ def convert_library(infile, outfile, aliases=False):
                     if len(suffixes):
                         middle = middle[:-len(suffixes)]
                     if unmatched:
-                        middle = [(x[0], "0", x[2]) for x in middle] + \
-                                 [(x, "0", "1") for x in unmatched]
+                        middle = [(x, "0", "1") for x in unmatched] + \
+                                 [(x[0], "0", x[2]) for x in middle]
+
                 elif marker in library["nostr_reference"]:
                     middle = [(library["nostr_reference"][marker],
                         "0" if marker in marker_aliases else "1", "1")]
@@ -162,18 +163,23 @@ def convert_library(infile, outfile, aliases=False):
                             prefixes += library["prefix"][alias]
                         if alias in library["suffix"]:
                             suffixes += library["suffix"][alias]
-                        if marker not in library["regex"]:
+                        if marker not in library["regex"] and (
+                                marker not in library["nostr_reference"] or
+                                library["nostr_reference"][marker] !=
+                                    library["aliases"][alias]["sequence"]):
                             middle.append((
                                 library["aliases"][alias]["sequence"],
                                 "0", "1"))
 
                 # Final regex is prefixes + middle + suffixes.
                 pattern = []
-                for prefix in prefixes:
-                    pattern.append((prefix, "0", "1"))
+                for i in range(len(prefixes)):
+                    if i == prefixes.index(prefixes[i]):
+                        pattern.append((prefixes[i], "0", "1"))
                 pattern += middle
-                for suffix in suffixes:
-                    pattern.append((suffix, "0", "1"))
+                for i in range(len(suffixes)):
+                    if i == suffixes.index(suffixes[i]):
+                        pattern.append((suffixes[i], "0", "1"))
 
             outfile.write("%s\t%s\t%s\t%s\n" % (
                 marker, flanks[0], flanks[1],
@@ -181,6 +187,8 @@ def convert_library(infile, outfile, aliases=False):
 
     else:
         # TSSV -> FDSTools
+        outfile.write("; Lines beginning with a semicolon (;) are ignored by "
+            "FDSTools.\n\n")
         ini = RawConfigParser(allow_no_value=True)
         ini.optionxform = str
 
@@ -286,7 +294,7 @@ def convert_library(infile, outfile, aliases=False):
                 "; specified here.")
         ini.add_section("block_length")
         ini.set("block_length",
-                "; Specify the core repeat unit length of each marker. The "
+                "; Specify the repeat unit length of each STR marker. The "
                 "default length is 4.")
         ini.add_section("max_expected_copies")
         ini.set("max_expected_copies",

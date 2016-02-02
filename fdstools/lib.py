@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 
-import re, sys, argparse, random
+import re, sys, argparse, random, itertools
 #import numpy as np  # Imported only when calling nnls()
 
 from ConfigParser import RawConfigParser, MissingSectionHeaderError
@@ -69,6 +69,9 @@ COMPL = {"A": "T", "T": "A", "U": "A", "G": "C", "C": "G", "R": "Y", "Y": "R",
          "K": "M", "M": "K", "B": "V", "V": "B", "D": "H", "H": "D",
          "a": "t", "t": "a", "u": "a", "g": "c", "c": "g", "r": "y", "y": "r",
          "k": "m", "m": "k", "b": "v", "v": "b", "d": "h", "h": "d"}
+
+# Special values that may appear in the place of a sequence.
+SEQ_SPECIAL_VALUES = ("No data", "Other sequences")
 
 
 def get_genome_pos(location, x, invert=False):
@@ -367,7 +370,7 @@ def parse_library_tsv(handle):
     library = {
       "flanks": {},
       "regex": {},
-      "regex_middle": {}
+      "blocks_middle": {}
     }
     for line in handle:
         line = [x.strip() for x in line.rstrip("\r\n").split("\t")]
@@ -388,10 +391,13 @@ def parse_library_tsv(handle):
             raise ValueError("STR definition '%s' of marker %s is invalid" %
                              (line[3], marker))
         library["flanks"][marker] = line[1:3]
-        library["regex_middle"][marker] = re.compile("".join(
-            "(%s){%s,%s}" % x for x in PAT_STR_DEF_BLOCK.findall(line[3])))
+        library["blocks_middle"][marker] = [
+            (block[0], int(block[1]), int(block[2])) for block in
+                PAT_STR_DEF_BLOCK.findall(line[3])]
         library["regex"][marker] = re.compile(
-            "".join(["^", library["regex_middle"][marker].pattern, "$"]))
+            "".join(("^", "".join(
+                "(%s){%s,%s}" % x for x in PAT_STR_DEF_BLOCK.findall(line[3])),
+                "$")))
     return library
 #parse_library_tsv
 
@@ -402,7 +408,7 @@ def parse_library_ini(handle):
       "prefix": {},
       "suffix": {},
       "regex": {},
-      "regex_middle": {},
+      "blocks_middle": {},
       "nostr_reference": {},
       "genome_position": {},
       "length_adjust": {},
@@ -578,27 +584,24 @@ def parse_library_ini(handle):
 
     # Compile regular expressions.
     # NOTE: The libconvert tool expects "(seq){num,num}" blocks ONLY!
-    # TODO: Should a single prefix/suffix be required (i.e., seq{1,1})?
-    #       Then also update libconvert when converting to TSSV format.
     for marker in markers:
         parts = []
-        partsm = []
+        blocksm = []
         if marker in library["prefix"]:
             parts += ("(%s){0,1}" % x for x in library["prefix"][marker])
         if marker in library["aliases"]:
-            parts.append("(%s){0,1}" % library["aliases"][marker]["sequence"])
-            partsm.append("(%s){0,1}" % library["aliases"][marker]["sequence"])
+            blocksm.append((library["aliases"][marker]["sequence"], 0, 1))
         elif marker in library["regex"]:
-            partsm = ["(%s){%s,%s}" % x for x in
-                      PAT_STR_DEF_BLOCK.findall(library["regex"][marker])]
-            parts += partsm
+            blocksm += [(block[0], int(block[1]), int(block[2])) for block in
+                        PAT_STR_DEF_BLOCK.findall(library["regex"][marker])]
+        parts += ["(%s){%s,%s}" % x for x in blocksm]
         if marker in library["suffix"]:
             parts += ("(%s){0,1}" % x for x in library["suffix"][marker])
         if parts:
             library["regex"][marker] = re.compile(
                 "".join(["^"] + parts + ["$"]))
-        if partsm:
-            library["regex_middle"][marker] = re.compile("".join(partsm))
+        if blocksm:
+            library["blocks_middle"][marker] = blocksm
     return library
 #parse_library_ini
 
@@ -667,26 +670,79 @@ def load_profiles(profilefile, library=None):
 #load_profiles
 
 
-def regex_longest_match(pattern, subject):
+def pattern_longest_match(pattern, subject):
     """Return the longest match of the pattern in the subject string."""
+    # FIXME, this function tries only one match at each position in the
+    # sequence, which is not neccessarily the longest match at that
+    # position. For now, we'll search the reverse sequence as well.
+    # Re-implement this without regular expressions to test all options.
+    reverse = False
     match = None
     pos = 0
+    pat = re.compile("".join("(%s){%i,%i}" % x for x in pattern))
     while pos < len(subject):
-        m = pattern.search(subject, pos)
+        m = pat.search(subject, pos)
         if m is None:
             break
         if match is None or m.end()-m.start() > match.end()-match.start():
             match = m
         pos = m.start() + 1
-    return match
-#regex_longest_match
+
+    # Try to find a longer match from the other end.
+    if match is not None:
+        subject = reverse_complement(subject)
+        pos = 0
+        pat = re.compile("".join(
+            "(%s){%i,%i}" % (reverse_complement(x[0]), x[1], x[2])
+            for x in reversed(pattern)))
+        while pos < len(subject):
+            m = pat.search(subject, pos)
+            if m is None:
+                break
+            if m.end()-m.start() > match.end()-match.start():
+                match = m
+                reverse = True
+            pos = m.start() + 1
+
+    # Extract the blocks from the match.
+    match = [] if match is None or not match.group() else reduce(
+        lambda x, i: (
+            x[0] + [match.group(i)]*((match.end(i)-x[1])/len(match.group(i))),
+            match.end(i)) if match.group(i) else x,
+        range(1, match.lastindex+1), ([], match.start()))[0]
+
+    # Return the match in the same sequence orientation as the input.
+    return map(reverse_complement, reversed(match)) if reverse else match
+#pattern_longest_match
+
+
+def pattern_longest_match_veryslow(pattern, subject):
+    """Return the longest match of the pattern in the subject string."""
+    longest = 0
+    the_match = []
+    # Generate all possible matching sequences for this pattern.
+    #print("Finding match of pattern %r to sequence %s" % (pattern, subject))
+    for matching_blocks in itertools.product(*(
+            [[block[0]]*i for i in range(block[1], block[2]+1)]
+            for block in pattern)):
+        matching = itertools.chain.from_iterable(matching_blocks)
+        matching_seq = "".join(matching)
+        matching_len = len(matching_seq)
+        if matching_len <= longest:
+            continue
+        if matching_seq in subject:
+            longest = matching_len
+            the_match = matching
+    #print("Found match covering %i/%i bases" % (longest, len(subject)))
+    return the_match
+#pattern_longest_match_veryslow
 
 
 def detect_sequence_format(seq):
     """Return format of seq.  One of 'raw', 'tssv', or 'allelename'."""
     if not seq:
         raise ValueError("Empty sequence")
-    if seq == "Other sequences":
+    if seq in SEQ_SPECIAL_VALUES:
         # Special case.
         return False
     if PAT_SEQ_RAW.match(seq):
@@ -743,18 +799,21 @@ def convert_sequence_raw_tssv(seq, library, marker, return_alias=False):
 
         # Find longest match of middle pattern.
         middle = [(seq, len(pre_suf[0])+len(seq))] if seq else []
-        if middle and marker in library["regex_middle"]:
-            match = regex_longest_match(library["regex_middle"][marker], seq)
-            if match is not None and match.end()-match.start():
+        if middle and marker in library["blocks_middle"]:
+            match = pattern_longest_match(library["blocks_middle"][marker],seq)
+            matched = "".join(match)
+            if matched:
 
                 # If this allele does not match the prefix of this
                 # marker, but the canonical prefix of the marker ends
                 # with the same sequence as the start of our match, we
                 # move that portion of the match into the prefix.
                 # Then, we do the same thing with the suffix.
-                matched = match.group()
-                start = match.start()
-                end = match.end()
+                middle = match
+                match_start = seq.index(matched)
+                match_end = match_start + len(matched)
+                start = match_start
+                end = match_end
                 modified = False
                 if (not pre_suf[0] and "prefix" in library
                         and marker in library["prefix"]):
@@ -779,14 +838,8 @@ def convert_sequence_raw_tssv(seq, library, marker, return_alias=False):
                             break
                         i -= 1
                 if modified:
-                    from_start = start-match.start()
-                    from_end = match.end()-end
-                    middle = reduce(
-                        lambda x, i: (
-                            x[0] + [match.group(i)] *
-                                ((match.end(i)-x[1])/len(match.group(i))),
-                            match.end(i)) if match.group(i) else x,
-                        range(1, match.lastindex+1), ([], match.start()))[0]
+                    from_start = start - match_start
+                    from_end = match_end - end
                     while from_start:
                         if from_start < len(middle[0]):
                             middle[0] = middle[0][from_start:]
@@ -801,17 +854,12 @@ def convert_sequence_raw_tssv(seq, library, marker, return_alias=False):
                         else:
                             from_end -= len(middle[-1])
                             middle = middle[:-1]
-                    if middle:
-                        middle = reduce(
-                            lambda x, y: (x[:-1] if x[-1][0] == y else x) +
-                                [(y, x[-1][1]+len(y))], middle[1:],
-                                [(middle[0],
-                                  start+len(middle[0])+len(pre_suf[0]))])
-
-                else:
-                    # No trickery with prefix or suffix was done.
-                    middle = [(match.group(i), match.end(i)+len(pre_suf[0]))
-                        for i in range(1, match.lastindex+1) if match.group(i)]
+                if middle:
+                    middle = reduce(
+                        lambda x, y: (x[:-1] if x[-1][0] == y else x) +
+                            [(y, x[-1][1]+len(y))], middle[1:],
+                            [(middle[0],
+                              start+len(middle[0])+len(pre_suf[0]))])
 
                 pre_suf[0] += seq[:start]
                 pre_suf[1] = seq[end:] + pre_suf[1]
@@ -927,7 +975,7 @@ def convert_sequence_raw_allelename(seq, library, marker):
     seq, alias = convert_sequence_raw_tssv(seq, library, marker, True)
     blocks = PAT_TSSV_BLOCK.findall(seq)
 
-    if marker in library["nostr_reference"]:
+    if "nostr_reference" in library and marker in library["nostr_reference"]:
         # Handle non-STR markers here.
         if alias != marker:
             return library["aliases"][alias]["name"]
@@ -999,7 +1047,7 @@ def convert_sequence_raw_allelename(seq, library, marker):
 def ensure_sequence_format(seq, to_format, from_format=None, library=None,
                            marker=None, allow_special=False):
     """Convert seq to 'raw', 'tssv', or 'allelename' format."""
-    if seq == "Other sequences":
+    if seq in SEQ_SPECIAL_VALUES:
         # Special case.
         if allow_special:
             return False
@@ -1132,15 +1180,16 @@ def get_repeat_pattern(seq):
 
 
 def read_sample_data_file(infile, data, annotation_column=None, seqformat=None,
-                          library=None, default_marker=None):
-    """Add data from infile to data dict as [marker, allele]=reads."""
+                          library=None, default_marker=None,
+                          allow_special=False):
+    """Add data from infile to data dict as [marker, sequence]=reads."""
     # Get column numbers.
     column_names = infile.readline().rstrip("\r\n").split("\t")
-    colid_allele, colid_forward, colid_reverse = \
-        get_column_ids(column_names, "allele", "forward", "reverse")
+    colid_sequence, colid_forward, colid_reverse = \
+        get_column_ids(column_names, "sequence", "forward", "reverse")
 
     # Get marker name column if it exists.
-    colid_name = get_column_ids(column_names, "name", optional=True)
+    colid_marker = get_column_ids(column_names, "marker", optional=True)
 
     # Also try to get annotation column if we have one.
     if annotation_column is not None:
@@ -1152,14 +1201,16 @@ def read_sample_data_file(infile, data, annotation_column=None, seqformat=None,
     found_alleles = []
     for line in infile:
         line = line.rstrip("\r\n").split("\t")
-        marker = line[colid_name] if colid_name is not None else default_marker
-        allele = line[colid_allele] if seqformat is None \
-            else ensure_sequence_format(line[colid_allele], seqformat,
-                                        library=library, marker=marker)
+        marker = line[colid_marker] if colid_marker is not None \
+            else default_marker
+        sequence = line[colid_sequence] if seqformat is None \
+            else ensure_sequence_format(line[colid_sequence], seqformat,
+                                        library=library, marker=marker,
+                                        allow_special=allow_special)
         if (annotation_column is not None and
                 line[colid_annotation].startswith("ALLELE")):
-            found_alleles.append((marker, allele))
-        data[marker, allele] = map(int,
+            found_alleles.append((marker, sequence))
+        data[marker, sequence] = map(int,
             (line[colid_forward], line[colid_reverse]))
 
     return found_alleles
@@ -1191,7 +1242,7 @@ def reduce_read_counts(data, limit_reads):
 def get_sample_data(tags_to_files, callback, allelelist=None,
                     annotation_column=None, seqformat=None, library=None,
                     marker=None, homozygotes=False, limit_reads=sys.maxint,
-                    drop_samples=0):
+                    drop_samples=0, allow_special=False):
     if drop_samples:
         sample_tags = tags_to_files.keys()
         for tag in random.sample(xrange(len(sample_tags)),
@@ -1204,7 +1255,7 @@ def get_sample_data(tags_to_files, callback, allelelist=None,
         for infile in tags_to_files[tag]:
             infile = sys.stdin if infile == "-" else open(infile, "r")
             alleles.update(read_sample_data_file(infile, data,
-                annotation_column, seqformat, library, marker))
+                annotation_column, seqformat, library, marker, allow_special))
             if infile != sys.stdin:
                 infile.close()
         if limit_reads < sys.maxint:
@@ -1310,7 +1361,8 @@ def add_random_subsampling_args(parser):
 #add_random_subsampling_args
 
 
-def add_sequence_format_args(parser, default_format=None, force=False):
+def add_sequence_format_args(parser, default_format=None, force=False,
+                             require_library=False):
     group = parser.add_argument_group("sequence format options")
     if force:
         group.set_defaults(sequence_format=default_format)
@@ -1322,9 +1374,13 @@ def add_sequence_format_args(parser, default_format=None, force=False):
                  "%(choices)s (default: " + (
                  "no conversion" if default_format is None else default_format)
                  + ")")
-    group.add_argument('-l', '--library', metavar="LIBRARY",
-        type=parse_library,
-        help="library file for sequence format conversion")
+    if require_library:
+        parser.add_argument('library', metavar="LIBRARY", type=parse_library,
+            help="library file with marker definitions")
+    else:
+        group.add_argument('-l', '--library', metavar="LIBRARY",
+            type=parse_library,
+            help="library file for sequence format conversion")
 #add_sequence_format_args
 
 
@@ -1333,15 +1389,19 @@ def add_input_output_args(parser, single_in=False, batch_support=False,
     """Add arguments for opening sample files to the given parser."""
     # Input file options group.
     if not single_in:
+        # Multiple input files: positionals.
         parser.add_argument('infiles', nargs='*', metavar="FILE",
             default=["-"],
             help="the sample data file(s) to process (default: read from "
                  "stdin)")
     elif not batch_support:
+        # Single input file and no batches: single positional.
         parser.add_argument('infile', nargs='?', metavar="IN",
             default="-",
             help="the sample data file to process (default: read from stdin)")
     else:
+        # Single input file with batch support: single positional and -i
+        # option for batches, which are mutually exclusive.
         mutex = parser.add_argument_group(
                     "input file options").add_mutually_exclusive_group()
         mutex.add_argument('infile', nargs='?', metavar="IN",
@@ -1356,6 +1416,8 @@ def add_input_output_args(parser, single_in=False, batch_support=False,
     # Output file options group.
     group = parser.add_argument_group("output file options")
     if batch_support and single_in:
+        # Single input file with batch support: single positional and -o
+        # option for batches, which are mutually exclusive.
         mutex = group.add_mutually_exclusive_group()
         mutex.add_argument('outfile', nargs='?', metavar="OUT",
             default=sys.stdout,
@@ -1367,7 +1429,15 @@ def add_input_output_args(parser, single_in=False, batch_support=False,
                  "file names from sample tags; e.g., the default value is "
                  "'\\1-%s.out', which expands to 'sampletag-%s.out'" %
                     ((parser.prog.rsplit(" ", 1)[-1],)*2))
+    elif single_in:
+        # Single input file and no batch support: single positional.
+        parser.add_argument('outfile', nargs='?', metavar="OUT",
+            type=argparse.FileType('w'),
+            default=sys.stdout,
+            help="the file to write the output to (default: write to stdout)")
     elif batch_support:
+        # Multiple input files and batch support: use -o option.
+        # (This is multi-in, multi-out).
         group.add_argument('-o', '--output', dest="outfiles", nargs="+",
             metavar="OUT",
             default=[sys.stdout],
@@ -1377,6 +1447,7 @@ def add_input_output_args(parser, single_in=False, batch_support=False,
                  "sample tags; e.g., the value '\\1-%s.out' expands to "
                  "'sampletag-%s.out'" % ((parser.prog.rsplit(" ", 1)[-1],)*2))
     else:
+        # Multiple input files and no batch support: use -o option.
         group.add_argument('-o', '--output', dest="outfile", metavar="FILE",
             type=argparse.FileType('w'),
             default=sys.stdout,
@@ -1388,21 +1459,24 @@ def add_input_output_args(parser, single_in=False, batch_support=False,
             help="file to write a report to (default: write to stderr)")
 
     # Sample tag parsing options group.
-    group = parser.add_argument_group("sample tag parsing options",
-        "for details about REGEX syntax and capturing groups, check "
-        "https://docs.python.org/howto/regex")
-    group.add_argument('-e', '--tag-expr', metavar="REGEX", type=regex_arg,
-        default=DEF_TAG_EXPR,
-        help="regular expression that captures (using one or more capturing "
-             "groups) the sample tags from the file names; by default, the "
-             "entire file name except for its extension (if any) is captured")
-    group.add_argument('-f', '--tag-format', metavar="EXPR",
-        default=DEF_TAG_FORMAT,
-        help="format of the sample tags produced; a capturing group reference "
-             "like '\\n' refers to the n-th capturing group in the regular "
-             "expression specified with -e/--tag-expr (the default of '\\1' "
-             "simply uses the first capturing group); with a single sample, "
-             "you can enter the sample tag here explicitly")
+    if not single_in or batch_support:
+        group = parser.add_argument_group("sample tag parsing options",
+            "for details about REGEX syntax and capturing groups, check "
+            "https://docs.python.org/howto/regex")
+        group.add_argument('-e', '--tag-expr', metavar="REGEX", type=regex_arg,
+            default=DEF_TAG_EXPR,
+            help="regular expression that captures (using one or more "
+                 "capturing groups) the sample tags from the file names; by "
+                 "default, the entire file name except for its extension (if "
+                 "any) is captured")
+        group.add_argument('-f', '--tag-format', metavar="EXPR",
+            default=DEF_TAG_FORMAT,
+            help="format of the sample tags produced; a capturing group "
+                 "reference like '\\n' refers to the n-th capturing group in "
+                 "the regular expression specified with -e/--tag-expr (the "
+                 "default of '\\1' simply uses the first capturing group); "
+                 "with a single sample, you can enter the sample tag here "
+                 "explicitly")
 #add_input_output_args
 
 
