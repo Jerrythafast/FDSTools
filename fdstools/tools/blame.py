@@ -78,7 +78,7 @@ def blame(samples_in, outfile, allelefile, annotation_column, mode,
         lambda tag, sample_data: add_sample_data(
             data, sample_data, tag,
             {m: allelelist[tag][m] for m in data if m in allelelist[tag]}),
-        allelelist, annotation_column, "raw", library)
+        allelelist, annotation_column, "raw", library, drop_special_seq=True)
 
     outfile.write("\t".join(["marker",
                      "allele" if mode == "common" else "sample",

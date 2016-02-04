@@ -1,16 +1,15 @@
 To-do:
 * Samplevis:
-  * Re-layout:
-    http://matthewjamestaylor.com/blog/perfect-multi-column-liquid-layouts.
-  * Allow for heavily corrected sequences to remain visible in the graphs.
+  * Re-layout, inspiration:
+    http://matthewjamestaylor.com/blog/perfect-multi-column-liquid-layouts
   * Replace the alert for 'No data' markers with a message on the page.
+  * Allow for heavily corrected sequences to remain visible in the graphs.
   * Make sure markers for which no sequences meet the filtering criteria are
     still visible.
   * Sort STR alleles by length by default.
   * Option to adjust the sorting.
   * Option to choose complete table download.
   * When we have them, add default values to table filtering (for reference).
-* Add 'Other sequences' line (optional) to TSSV output if -a > 1.
 * Additions needed for publication:
   * [If not too difficult to implement] BGEstimate should start with homozygous
     samples and add heterozygous samples later to optimise correction.
@@ -20,7 +19,6 @@ To-do:
   * Visualisation to display highest remaining background (positive and
     negative) in known samples after BGCorrect analysis.
 * Add options to Libconvert to generate a template for STR or non-STR markers.
-* Make sure blame doesn't crash on 'No data' lines.
 * Add plotting of raw data points to StuttermodelVis.
 * Add a print stylesheet for the other visualisations (only Samplevis has one).
 * Add visualisation with all markers in one graph ("samplesummaryvis"?).
@@ -153,6 +151,24 @@ Reserved option letters:
 -l  Library
 -e  Sample tag extraction pattern
 -f  Sample tag format
+
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Action for special values in sequence columns:
+TOOL            'No data'                   'Other sequences'
+allelefinder    Not suitable for marker     Treated as single noise sequence
+bgcorrect       Transparent                 Transparent
+bgestimate      Ignored                     Ignored
+bghomraw        Ignored                     Ignored
+bghomstats      Ignored                     Ignored
+bgmerge         Transparent                 Transparent
+bgpredict       Ignored                     Ignored
+blame           Ignored                     Ignored
+samplestats     Transparent                 Transparent; may remove or add more
+seqconvert      Transparent                 Transparent
+stuttermark     Marked as 'UNKNOWN'         Marked as 'UNKNOWN'
+stuttermodel    Ignored                     Ignored
+tssv            May create them             May create them
 
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 

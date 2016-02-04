@@ -39,7 +39,7 @@ import argparse, sys
 
 from ..lib import get_column_ids, ensure_sequence_format, parse_library,\
                   reverse_complement, add_input_output_args,\
-                  get_input_output_files
+                  get_input_output_files, SEQ_SPECIAL_VALUES
 
 __version__ = "0.1dev"
 
@@ -84,21 +84,17 @@ def convert_sequences(infile, outfile, to_format, library=None,
         marker = line[colid_marker] if fixed_marker is None else fixed_marker
 
         seq = line[colid_sequence]
-        if library2 != library:
+        if library2 != library and seq not in SEQ_SPECIAL_VALUES:
             seq = ensure_sequence_format(
-                seq, "raw", marker=marker, library=library, allow_special=True)
-            if seq == False:
-                seq = line[colid_sequence]
-            elif marker in revcomp_markers:
+                seq, "raw", marker=marker, library=library)
+            if marker in revcomp_markers:
                 seq = reverse_complement(seq)
             # TODO: The current implementation assumes identical
             # flanking sequences.  Introduce means to shift flanking
             # sequence in/out of prefix and/or suffix.
 
         seq = ensure_sequence_format(seq, to_format, marker=marker,
-            library=library2, allow_special=True)
-        if seq == False:
-            seq = line[colid_sequence]
+            library=library2)
         line[colid_sequence_out] = seq
         outfile.write("\t".join(line) + "\n")
 #convert_sequences

@@ -1045,13 +1045,11 @@ def convert_sequence_raw_allelename(seq, library, marker):
 
 
 def ensure_sequence_format(seq, to_format, from_format=None, library=None,
-                           marker=None, allow_special=False):
+                           marker=None):
     """Convert seq to 'raw', 'tssv', or 'allelename' format."""
     if seq in SEQ_SPECIAL_VALUES:
         # Special case.
-        if allow_special:
-            return False
-        raise ValueError("Unable to handle special value '%s'" % seq)
+        return seq
     known_formats = ("raw", "tssv", "allelename")
     if to_format not in known_formats:
         raise ValueError("Unknown format '%s', choose from %s" %
@@ -1181,7 +1179,7 @@ def get_repeat_pattern(seq):
 
 def read_sample_data_file(infile, data, annotation_column=None, seqformat=None,
                           library=None, default_marker=None,
-                          allow_special=False):
+                          drop_special_seq=False):
     """Add data from infile to data dict as [marker, sequence]=reads."""
     # Get column numbers.
     column_names = infile.readline().rstrip("\r\n").split("\t")
@@ -1201,12 +1199,13 @@ def read_sample_data_file(infile, data, annotation_column=None, seqformat=None,
     found_alleles = []
     for line in infile:
         line = line.rstrip("\r\n").split("\t")
+        if drop_special_seq and line[colid_sequence] in SEQ_SPECIAL_VALUES:
+            continue
         marker = line[colid_marker] if colid_marker is not None \
             else default_marker
         sequence = line[colid_sequence] if seqformat is None \
             else ensure_sequence_format(line[colid_sequence], seqformat,
-                                        library=library, marker=marker,
-                                        allow_special=allow_special)
+                                        library=library, marker=marker)
         if (annotation_column is not None and
                 line[colid_annotation].startswith("ALLELE")):
             found_alleles.append((marker, sequence))
@@ -1242,7 +1241,7 @@ def reduce_read_counts(data, limit_reads):
 def get_sample_data(tags_to_files, callback, allelelist=None,
                     annotation_column=None, seqformat=None, library=None,
                     marker=None, homozygotes=False, limit_reads=sys.maxint,
-                    drop_samples=0, allow_special=False):
+                    drop_samples=0, drop_special_seq=False):
     if drop_samples:
         sample_tags = tags_to_files.keys()
         for tag in random.sample(xrange(len(sample_tags)),
@@ -1255,7 +1254,7 @@ def get_sample_data(tags_to_files, callback, allelelist=None,
         for infile in tags_to_files[tag]:
             infile = sys.stdin if infile == "-" else open(infile, "r")
             alleles.update(read_sample_data_file(infile, data,
-                annotation_column, seqformat, library, marker, allow_special))
+                annotation_column, seqformat, library, marker, False))
             if infile != sys.stdin:
                 infile.close()
         if limit_reads < sys.maxint:

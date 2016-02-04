@@ -73,31 +73,34 @@ def find_alleles_sample(data, outfile, reportfile, tag, min_reads,
     top_noise = {}
     top_allele = {}
     alleles = {}
-    for marker, allele in data:
-        reads = sum(data[marker, allele])
+    for marker, sequence in data:
+        reads = sum(data[marker, sequence])
 
         if marker not in alleles:
-            alleles[marker] = {allele: reads}
-            top_allele[marker] = reads
+            alleles[marker] = {}
+            top_allele[marker] = 0
             top_noise[marker] = ["-", 0]
-        else:
-            if reads > top_allele[marker]:
-                # New highest allele!
-                top_allele[marker] = reads
-                for allelex in alleles[marker].keys():
-                    if (alleles[marker][allelex] <
-                            top_allele[marker] * (min_allele_pct/100.)):
-                        if alleles[marker][allelex] > top_noise[marker][1]:
-                            top_noise[marker] = [
-                                allelex, alleles[marker][allelex]]
-                        del alleles[marker][allelex]
-                alleles[marker][allele] = reads
-            elif reads >= top_allele[marker]*(min_allele_pct/100.):
-                # New secundary allele!
-                alleles[marker][allele] = reads
-            elif reads >= top_noise[marker][1]:
-                # New highest noise!
-                top_noise[marker] = [allele, reads]
+
+        if sequence == "Other Sequences" and reads >= top_noise[marker][1]:
+            # Aggregated sequences are new highest noise!
+            top_noise[marker] = [sequence, reads]
+        elif reads > top_allele[marker]:
+            # New highest allele!
+            top_allele[marker] = reads
+            for allele in alleles[marker].keys():
+                if (alleles[marker][allele] <
+                        top_allele[marker] * (min_allele_pct/100.)):
+                    if alleles[marker][allele] > top_noise[marker][1]:
+                        top_noise[marker] = [
+                            allele, alleles[marker][allele]]
+                    del alleles[marker][allele]
+            alleles[marker][sequence] = reads
+        elif reads >= top_allele[marker]*(min_allele_pct/100.):
+            # New secundary allele!
+            alleles[marker][sequence] = reads
+        elif reads >= top_noise[marker][1]:
+            # New highest noise!
+            top_noise[marker] = [sequence, reads]
 
     # Find and eliminate noisy markers in this sample first.
     noisy_markers = 0

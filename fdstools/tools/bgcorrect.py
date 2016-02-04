@@ -47,13 +47,13 @@ def get_sample_data(infile, convert_to_raw=False, library=None):
     column_names.append("reverse_corrected")
     column_names.append("total_corrected")
     column_names.append("correction_flags")
-    colid_marker, colid_sequence, colid_forward, colid_reverse = get_column_ids(
+    colid_marker, colid_sequence, colid_forward, colid_reverse =get_column_ids(
         column_names, "marker", "sequence", "forward", "reverse")
     data = {}
     for line in infile:
         cols = line.rstrip("\r\n").split("\t")
         marker = cols[colid_marker]
-        if convert_to_raw and cols[colid_sequence] not in SEQ_SPECIAL_VALUES:
+        if convert_to_raw:
             cols[colid_sequence] = ensure_sequence_format(
                 cols[colid_sequence], "raw", library=library, marker=marker)
         cols[colid_forward] = int(cols[colid_forward])
@@ -221,8 +221,7 @@ def match_profiles(infile, outfile, profiles, library, seqformat):
             match_profile(column_names, data[marker], profiles[marker],
                           seqformat!="raw", library, marker)
         for line in data[marker]:
-            if (seqformat is not None and seqformat != "raw" and
-                    line[colid_sequence] not in SEQ_SPECIAL_VALUES):
+            if seqformat is not None and seqformat != "raw":
                 line[colid_sequence] = ensure_sequence_format(
                     line[colid_sequence], seqformat, library=library,
                     marker=marker)

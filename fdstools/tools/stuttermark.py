@@ -32,7 +32,8 @@ import argparse, sys
 
 from ..lib import pos_int_arg, print_db, PAT_TSSV_BLOCK, get_column_ids, \
                   add_input_output_args, get_input_output_files, \
-                  ensure_sequence_format, add_sequence_format_args
+                  ensure_sequence_format, add_sequence_format_args, \
+                  SEQ_SPECIAL_VALUES
 
 __version__ = "1.5"
 
@@ -115,31 +116,30 @@ def load_data(infile, colname_annotation=_DEF_COLNAME, library=None):
                 print("WARNING: skipped line: %s" % line)
             continue
 
-        # Convert to TSSV-style sequences.
+        # String to integer conversion...
+        columns[colid_total] = int(columns[colid_total])
+
         if columns[colid_sequence]:
+            # Convert to TSSV-style sequences.
             marker = None if colid_marker is None else columns[colid_marker]
             columns[colid_sequence] = ensure_sequence_format(
                 columns[colid_sequence], 'tssv', marker=marker,library=library)
 
-        # Split the sequence column into a list of tuples:
-        # [('ACTG','4'),('CCTC','12'),...]
-        columns[colid_sequence] =PAT_TSSV_BLOCK.findall(columns[colid_sequence])
+            if columns[colid_sequence] not in SEQ_SPECIAL_VALUES:
+                # Split the sequence column into a list of tuples:
+                # [('ACTG', 4), ('CCTC', 12), ...]
+                columns[colid_sequence] = [[x[0], int(x[1])] for x in
+                    PAT_TSSV_BLOCK.findall(columns[colid_sequence])]
 
-        # String to integer conversion...
-        columns[colid_sequence] = [[x[0], int(x[1])]
-                                   for x in columns[colid_sequence]]
-        columns[colid_total] = int(columns[colid_total])
-
-        # Repeat unit deduplication (data may contain stuff like
-        # "AGAT(7)AGAT(5)" instead of "AGAT(12)").
-        if columns[colid_sequence]:
-            dedup = [columns[colid_sequence][0]]
-            for i in range(1, len(columns[colid_sequence])):
-                if columns[colid_sequence][i][0] == dedup[-1][0]:
-                    dedup[-1][1] += columns[colid_sequence][i][1]
-                else:
-                    dedup.append(columns[colid_sequence][i])
-            columns[colid_sequence] = dedup
+                # Repeat unit deduplication (data may contain stuff like
+                # "AGAT(7)AGAT(5)" instead of "AGAT(12)").
+                dedup = [columns[colid_sequence][0]]
+                for i in range(1, len(columns[colid_sequence])):
+                    if columns[colid_sequence][i][0] == dedup[-1][0]:
+                        dedup[-1][1] += columns[colid_sequence][i][1]
+                    else:
+                        dedup.append(columns[colid_sequence][i])
+                columns[colid_sequence] = dedup
 
         # Add the sequence to the list, including our new column.
         columns.append("UNKNOWN")
@@ -235,6 +235,10 @@ def annotate_alleles(infile, outfile, stutter, min_reads=_DEF_MIN_READS,
         if allelelist[iCurrent][colid_total] < min_reads:
             continue
 
+        # Skip special sequence values.
+        if allelelist[iCurrent][colid_sequence] in SEQ_SPECIAL_VALUES:
+            continue
+
         isStutterPeakOf = {}
         maximumOccurrenceExpected = 0
 
@@ -245,6 +249,10 @@ def annotate_alleles(infile, outfile, stutter, min_reads=_DEF_MIN_READS,
             # Must be same marker.
             if colid_marker is not None and (allelelist[iCurrent][colid_marker]
                     != allelelist[iOther][colid_marker]):
+                continue
+
+            # Skip special sequence values.
+            if allelelist[iOther][colid_sequence] in SEQ_SPECIAL_VALUES:
                 continue
 
             print_db('%i vs %i' % (iCurrent+1, iOther+1), debug)
@@ -360,8 +368,10 @@ def annotate_alleles(infile, outfile, stutter, min_reads=_DEF_MIN_READS,
 
     # Reconstruct the sequence and write out the findings.
     for i in range(len(allelelist)):
-        allelelist[i][colid_sequence] = "".join(
-            "%s(%i)" % tuple(block) for block in allelelist[i][colid_sequence])
+        if allelelist[i][colid_sequence] not in SEQ_SPECIAL_VALUES:
+            allelelist[i][colid_sequence] = "".join(
+                "%s(%i)" % tuple(block)
+                    for block in allelelist[i][colid_sequence])
     outfile.write("\t".join(column_names))
     outfile.write("\n")
     outfile.write("\n".join(

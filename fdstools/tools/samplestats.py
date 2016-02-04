@@ -403,6 +403,11 @@ def compute_stats(infile, outfile, min_reads,
                 row.append(100.*row[ci["reverse_add"]]/row[ci["reverse"]]
                     if row[ci["reverse"]] else 0)
 
+            # The 'No data' lines are fine like this.
+            if row[ci["sequence"]] == "No data":
+                row[ci["flags"]] = ",".join(row[ci["flags"]])
+                continue
+
             # Get the values we will filter on.
             total_added = row[ci["total"]] if "total_corrected" not in ci \
                 else row[ci["total_corrected"]]
@@ -421,13 +426,15 @@ def compute_stats(infile, outfile, min_reads,
                     else row[ci["reverse_corrected"]])
 
             # Check if this sequence should be filtered out.
+            # Always filter/combine existing 'Other sequences'.
             if filter_action != "off" and (
+                    row[ci["sequence"]] == "Other sequences" or (
                     total_added < min_reads_filt or
                     pct_of_max < min_pct_of_max_filt or
                     pct_of_sum < min_pct_of_sum_filt or
                     (correction < min_correction_filt and
                     recovery < min_recovery_filt) or
-                    min_strand < min_per_strand_filt):
+                    min_strand < min_per_strand_filt)):
                 filtered[marker].append(row)
 
             # Check if this sequence is an allele.

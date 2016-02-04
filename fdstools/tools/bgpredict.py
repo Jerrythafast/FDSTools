@@ -28,7 +28,7 @@ import sys
 from operator import mul
 
 from ..lib import get_column_ids, reverse_complement, get_repeat_pattern,\
-                  mutate_sequence,\
+                  mutate_sequence, SEQ_SPECIAL_VALUES,\
                   PAT_SEQ_RAW, ensure_sequence_format, add_sequence_format_args
 
 __version__ = "0.1dev"
@@ -217,11 +217,10 @@ def predict_profiles(stuttermodel, seqsfile, outfile, default_marker,
                 model[marker] = model["All data"]
             else:
                 continue
-        sequence = ensure_sequence_format(line[colid_sequence], "raw",
-                                          library=library, marker=marker,
-                                          allow_special=True)
-        if sequence is False:
+        if line[colid_sequence] in SEQ_SPECIAL_VALUES:
             continue
+        sequence = ensure_sequence_format(line[colid_sequence], "raw",
+                                          library=library, marker=marker)
         try:
             seqlist[marker].append(sequence)
         except KeyError:

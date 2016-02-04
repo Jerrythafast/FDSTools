@@ -121,7 +121,7 @@ def compute_ratios(samples_in, outfile, allelefile, annotation_column, min_pct,
             {m: allelelist[tag][m].pop() for m in allelelist[tag]},
             min_pct, min_abs, tag),
         allelelist, annotation_column, seqformat, library, marker, True,
-        allow_special=True)
+        drop_special_seq=True)
 
     # Ensure minimum number of samples per allele and filter
     # insignificant background products.

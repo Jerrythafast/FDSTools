@@ -44,7 +44,8 @@ def convert_library(library, threshold):
 
 
 def run_tssv_lite(infile, outfile, reportfile, is_fastq, library, seqformat,
-                  threshold, minimum, missing_marker_action, dirname):
+                  threshold, minimum, aggregate_below_minimum,
+                  missing_marker_action, dirname):
     file_format = "fastq" if is_fastq else "fasta"
     tssv_library = convert_library(library, threshold)
 
@@ -58,6 +59,15 @@ def run_tssv_lite(infile, outfile, reportfile, is_fastq, library, seqformat,
         infile, file_format, tssv_library, outfiles)
 
     # Filter out sequences with low read counts now.
+    if aggregate_below_minimum:
+        aggregates = {}
+        for marker in sequences:
+            for sequence in sequences[marker]:
+                if sum(sequences[marker][sequence]) < minimum:
+                    if marker not in aggregates:
+                        aggregates[marker] = [0, 0]
+                    aggregates[marker][0] += sequences[marker][sequence][0]
+                    aggregates[marker][1] += sequences[marker][sequence][1]
     sequences = {marker:
         {sequence: sequences[marker][sequence]
             for sequence in sequences[marker]
@@ -72,6 +82,11 @@ def run_tssv_lite(infile, outfile, reportfile, is_fastq, library, seqformat,
                     sequences[marker]["No data"] = [0, 0]
                 else:
                     raise ValueError("Marker %s was not detected!" % marker)
+
+    # Add aggregate rows if the user requested so.
+    if aggregate_below_minimum:
+        for marker in aggregates:
+            sequences[marker]["Other sequences"] = aggregates[marker]
 
     column_names, tables = make_sequence_tables(sequences, 0)
 
@@ -127,13 +142,22 @@ def add_arguments(parser):
         default=_DEF_MINIMUM,
         help="report only sequences with this minimum number of reads "
              "(default: %(default)s)")
+    parser.add_argument("-A", "--aggregate-below-minimum", action="store_true",
+        help="if specified, sequences that have less than the number of reads "
+             "specified with the -a/--minimum option will be aggregated per "
+             "marker and reported as 'Other sequences'")
     parser.add_argument("-M", "--missing-marker-action", metavar="ACTION",
         choices=("include", "exclude", "halt"),
         default="include",
         help="action to take when no sequences are linked to a marker: one of "
              "%(choices)s (default: %(default)s)")
     parser.add_argument("-D", "--dir",
-        help="output directory for verbose output")
+        help="output directory for verbose output; when given, a subdirectory "
+             "will be created for each marker, each with a separate "
+             "sequences.csv file and a number of FASTA/FASTQ files containing "
+             "unrecognised reads (unknown.fa), recognised reads "
+             "(Marker/paired.fa), and reads that lack one of the flanks of a "
+             "marker (Marker/noend.fa and Marker/nostart.fa")
 #add_arguments
 
 
@@ -157,7 +181,8 @@ def run(args):
     infile = sys.stdin if files[0] == "-" else open(files[0], "r")
     run_tssv_lite(infile, files[1], args.report, args.is_fastq, args.library,
                   args.sequence_format, args.mismatches, args.minimum,
-                  args.missing_marker_action, args.dir)
+                  args.aggregate_below_minimum, args.missing_marker_action,
+                  args.dir)
     if infile != sys.stdin:
         infile.close()
 #run
