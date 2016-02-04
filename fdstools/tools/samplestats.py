@@ -460,7 +460,7 @@ def compute_stats(infile, outfile, min_reads,
     # Write results.
     outfile.write("\t".join(
         column_names[new_order[i]] for i in range(len(column_names))) + "\n")
-    for marker in data:
+    for marker in sorted(data):
         if filter_action == "combine":
             have_combined = False
             combined = [""] * len(column_names)
