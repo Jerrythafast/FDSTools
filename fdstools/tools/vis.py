@@ -92,8 +92,6 @@ _DEF_DATA_FILENAME = "data.csv"
 
 
 
-_PAT_TITLE = re.compile("<title>\s*(.*?)\s*"
-                        "</title>", flags=re.DOTALL|re.IGNORECASE)
 _PAT_LIBRARIES = re.compile("<!--\s*BEGIN_LIBRARIES\s*-->\s*(.*?)\s*"
                             "<!--\s*END_LIBRARIES\s*-->", flags=re.DOTALL)
 _PAT_LOAD_SCRIPT = re.compile("<!--\s*BEGIN_LOAD_SCRIPT\s*-->\s*(.*?)\s*"
@@ -134,7 +132,8 @@ def set_axis_scale(spec, scalename, value):
 def create_visualisation(vistype, infile, outfile, vega, online, tidy, min_abs,
                          min_pct_of_max, min_pct_of_sum, min_per_strand,
                          bias_threshold, bar_width, padding, marker, width,
-                         height, log_scale, repeat_unit, no_alldata, title):
+                         height, log_scale, repeat_unit, no_alldata,
+                         no_aggregate, title):
     # Get graph spec.
     spec = json.load(resource_stream(
         "fdstools", "vis/%svis/%svis.json" % (vistype, vistype)))
@@ -172,6 +171,7 @@ def create_visualisation(vistype, infile, outfile, vega, online, tidy, min_abs,
         set_signal_value(spec, "orientation_threshold", min_per_strand)
         set_signal_value(spec, "bias_threshold", bias_threshold)
         set_signal_value(spec, "amplitude_markerpct_threshold", min_pct_of_sum)
+        set_signal_value(spec, "show_other", False if no_aggregate else True)
 
     # Apply axis scale settings.
     if vistype != "stuttermodel" and vistype != "allele":
@@ -181,6 +181,15 @@ def create_visualisation(vistype, infile, outfile, vega, online, tidy, min_abs,
             set_axis_scale(spec, "x", "sqrt")
         else:
             set_axis_scale(spec, "x", "log")
+
+    # Add title if available.
+    if title is None and infile is not None and infile != sys.stdin:
+        try:
+            title = os.path.splitext(os.path.basename(infile.name))[0]
+        except AttributeError:
+            pass
+    if title:
+        spec["data"][0]["fdstools_filename"] = title;
 
     # Stringify spec.
     if tidy:
@@ -218,17 +227,6 @@ def create_visualisation(vistype, infile, outfile, vega, online, tidy, min_abs,
                           _SCRIPT_END]
             parts.append(html[match.end(1):])
             html = "".join(parts)
-
-    if title is None and infile is not None and infile != sys.stdin:
-        try:
-            title = os.path.splitext(os.path.basename(infile.name))[0]
-        except AttributeError:
-            pass
-    if title:
-        match = _PAT_TITLE.search(html)
-        if match:
-            html = "".join([
-                html[:match.start(1)], title, " - ", html[match.start(1):]])
 
     outfile.write(html)
 #create_visualisation
@@ -329,6 +327,9 @@ def add_arguments(parser):
              "(default: %(default)s)")
     visgroup.add_argument('-A', '--no-alldata', action="store_true",
         help="[stuttermodel] if specified, show only marker-specific fits")
+    visgroup.add_argument('-a', '--no-aggregate', action="store_true",
+        help="[sample] if specified, do not replace filtered sequences with a"
+             "per-marker aggregate 'Other sequences' entry")
 #add_arguments
 
 
@@ -356,5 +357,5 @@ def run(args):
                          args.min_per_strand, args.bias_threshold,
                          args.bar_width, args.padding, args.marker, args.width,
                          args.height, args.log_scale, args.repeat_unit,
-                         args.no_alldata, args.title)
+                         args.no_alldata, args.no_aggregate, args.title)
 #run

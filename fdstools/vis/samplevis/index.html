@@ -2,6 +2,7 @@
 <html>
 <head>
     <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta charset="UTF-8">
     <title>Sample Visualisation - FDSTools</title>
     <!-- BEGIN_LIBRARIES -->
@@ -9,764 +10,927 @@
     <script src="http://vega.github.io/vega/vega.min.js"></script>
     <!-- END_LIBRARIES -->
     <style>
-        * {
+    input {
+        font-family: inherit;
+        font-size: 1em;
+    }
+    .icon {
+        padding: 1em;
+        margin-right: .25em;
+        background-size: contain;
+        background-position: center;
+        background-repeat: no-repeat;
+    }
+    .icon.warning {
+        background-image: url("data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjYwIiBoZWlnaHQ9IjI2MCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnI\
+        j48cGF0aCBmaWxsPSIjZmZjYzAwIiBzdHJva2U9IiMwMDAwMDAiIHN0cm9rZS13aWR0aD0iNyIgc3Ryb2tlLW1pdGVybGltaXQ9IjQiIGQ9Im0xMy42ODQyNDIsMjEwLjk2MDk\
+        wN2MtMS42MzE4MzIsMy4xNDE5ODMgLTMuNTU1MTQzLDYuMDc5NTU5IC0zLjU1NTMyMyw5LjUyNzg2M2wwLjAxNjEyMSwxLjQ0MTIwOGMwLDcuNDQyNDkgNS44MzA5OCwxMS45N\
+        DE3MjcgMTIuNTM0NzI3LDExLjk0MTcyN2wyMTYuNjA3NzA4LDBjNi43MDQyODUsMCAxMi40NzgxMTksLTUuNTc3NDIzIDEyLjQ3ODExOSwtMTMuMDE5OTEzbC0wLjA3MTE2Nyw\
+        tMS40NDc2MDFjMCwtMy40NDgzMzQgLTEuNjk2NjU1LC02LjQ0MjY3MyAtMy41NTQ3NzksLTkuNTI3OTA4bC0xMDcuMjc0NjczLC0xOTIuMjcwNjM0Yy00LjczOTU3OCwtNS4yN\
+        jE3ODQgLTEyLjQyMzUzOCwtNS4yNjE3ODQgLTE3LjE2Mzg0OSwwLjAwMDcxbC0xMTAuMDE2ODg0LDE5My4zNTQ1NDl6Ii8+PHBhdGggZmlsbD0iIzAwMDAwMCIgZD0ibTE1MC4\
+        1OTc2ODcsMTkxLjc1NDE1YTE3LjA5MTUxNiwxNy4wNzcwMTcgMCAxIDEtMzQuMTgzMDE0LDBhMTcuMDkxNTE2LDE3LjA3NzAxNyAwIDEgMTM0LjE4MzAxNCwweiIvPjxwYXRoI\
+        GZpbGw9IiMwMDAwMDAiIGQ9Im0xMzMuMzk0ODgyLDczLjEwNjYxM2M2LjcxNDYsMCAxNy4xMzU0MzcsNS4zNDUyNzYgMTcuMTM1NDM3LDExLjk4NDkwMWwtNS4wMTUyMjgsNjk\
+        uMDA0MDA1YzAsNi42Mzk2NDggLTUuNDA1NjA5LDExLjk4NDkyNCAtMTIuMTIwMjA5LDExLjk4NDkyNGMtNi43MTQ2LDAgLTEyLjEyMDE5MywtNS4zNDUyNzYgLTEyLjEyMDE5M\
+        ywtMTEuOTg0OTI0bC01Ljg1MTEzNSwtNjkuMDA0MDA1YzAsLTYuNjM5NjI2IDExLjI1NjcyOSwtMTEuOTg0OTAxIDE3Ljk3MTMyOSwtMTEuOTg0OTAxeiIvPjwvc3ZnPg==");
+    }
+    @media screen {
+        html, body {
+            /* First the UI fonts of WinVista+, OSX10.11, OSX10.10, OSX10.9-, WinXP-, Ubuntu. Then some fallbacks. */
+            font-family: Segoe UI, San Francisco, Helvetica Neue, Lucida Grande, Tahoma, Ubuntu, Helvetica, Arial, sans-serif;
+            font-size: 10pt;
+        }
+        body {
+            margin: 0rem;
+        }
+        a {
+            color: inherit;
+            text-decoration: inherit;
+            border-bottom: 1px dotted;
+        }
+        a:hover {
+            border-bottom: 1px solid;
+        }
+        a.disabled {
+            color: hsl(220, 20%, 53%);
+        }
+        a.disabled:hover {
+            color: hsl(220, 20%, 53%);
+            border-bottom: 1px dotted;
+            cursor: default;
+        }
+        #outer {
+            display: flex;
+            flex-flow: column nowrap;
+            height: 100vh;
+            overflow: hidden;
+        }
+        #inner {
+            display: flex;
+            flex-flow: row nowrap;
+            flex: 1 1 auto;
+            overflow: hidden;
+        }
+        #messagebox {
+            flex: 0 0 auto;
+            background-color: hsl(220, 20%, 77%);
+            padding: .2rem;
+            cursor: default;
+        }
+        #optscrollbox {
+            display: flex;
+            flex-flow: column nowrap;
+            flex: 0 0 auto;
+            width: 22.5em;
+            order: -1;
+            overflow: auto;
+            background-color: hsl(220, 20%, 77%);
+            border-right: 1px solid hsl(220, 20%, 3%);
+            border-bottom: none;
+            cursor: default;
+        }
+        #visscrollbox {
+            flex: 1 1 auto;
+            overflow: auto;
+            background-color: hsl(220, 20%, 97%); /* eef8ff */
+            border-bottom: 1px solid hsl(220, 20%, 3%);
+            text-align: right;
+        }
+        .optiongroup {
+            flex: 0 0 auto;
+            padding: .2rem .2rem 1rem;
+        }
+        .optiongroup:last-child {
+            padding: .2rem;
+        }
+        .optiongroup > table {
+            margin: 0rem;
+            border-spacing: 0rem;
+            border: none;
+        }
+        .optiongroup > .optionheader {
+            text-align: left;
+            font-weight: bold;
+            text-transform: uppercase;
+        }
+        .optiongroup > .optionheader:first-letter {
+            font-size: 1.25em;
+        }
+        .optiongroup > table td {
+            white-space: nowrap;
+        }
+        .optiongroup > table td:not(:last-child) {
+            padding-right: .4rem;
+        }
+        .optiongroup > table tr.fileselectrow, .optiongroup > table tr.filenamedisplayrow {
+            display: none;
+        }
+        .optiongroup > table tr.filenamedisplayrow #filenamedisplay {
+            max-width: 20em;
+            width: auto;
+        }
+        .optiongroup > table td.footnote {
+            font-style: italic;
+            white-space: wrap;
+        }
+        .help {
+            cursor: help;
+            font-weight: bold;
+            border-bottom: 1px dotted hsl(220, 20%, 3%);
+        }
+        #vis {
+            direction: rtl;
+            display: inline-block;
+        }
+        #vis div {
+            direction: ltr;
+        }
+        #vis div:nth-child(2n+3) {
+            border-top: 1px solid hsl(220, 20%, 3%);
+            padding-top: .8rem;
+            margin-top: .8rem;
+        }
+        #vis div:last-child {
+            padding-bottom: .8rem;
+        }
+        .markertable {
+            display: inline-table;
+            text-align: left;
+            border-collapse: collapse;
+            max-width: 55vw;
+            margin-right: 12rem;
+        }
+        .markertable td {
+            border: 1px solid hsl(220, 20%, 57%);
+            padding: .4rem;
+            font-size: 0.8em;
+            white-space: nowrap;
+            width: .1rem;
+        }
+        .markertable tr:first-child td {
+            font-weight: bold;
+        }
+        .markertable td:nth-child(2) {
+            width: auto;
+        }
+        .markertable tr:nth-child(1n) {
+            background-color: hsl(220, 20%, 97%);
+        }
+        .markertable tr:nth-child(2n) {
+            background-color: hsl(220, 20%, 90%);
+        }
+        .markertable tr.removed td:not(:last-child) {
+            text-decoration: line-through;
+        }
+        td.num {
+            text-align: right;
+        }
+        td.wrap {
+            white-space: normal !important;
+            width: 1em;
+        }
+    }
+    /*
+    portrait, height >= 55:
+
+      small collapsed   large collapsed   small top    large top
+    |-----------------|-----------------|------------|------------>  width
+    0                 45                60           68
+
+
+    portrait, height < 55:
+
+      small collapsed   large collapsed
+    |-----------------|------------------------------------------->  width
+    0                 45
+
+
+    landscape:
+
+      small collapsed   large collapsed   small left   large left
+    |-----------------|-----------------|------------|------------>  width
+    0                 45                60           68
+    */
+    @media only screen and (min-aspect-ratio: 40000/30000) and (min-width: 60em) and (max-width: 68em), /* Full menu is at the side, but viewport is not very wide */
+           only screen and (max-aspect-ratio: 40000/30000) and (min-height: 55em) and (min-width: 60em) and (max-width: 68em), /* Full menus at the top, but viewport not wide enough */
+           only screen and (max-width: 45em) { /* Very narrow; menu names don't fit anymore */
+        /* Limited width: make menu smaller */
+        #optscrollbox {
+            font-size: .85em;
+        }
+    }
+    @media only screen and (max-aspect-ratio: 40000/30000), only screen and (max-width: 60em) {
+        /* Portrait or near-portrait, or rather narrow: menu at the top */
+        #inner {
+            flex-direction: column;
+        }
+        #optscrollbox {
+            flex: 0 0 auto;
+            flex-flow: row nowrap;
+            width: 100%;
+            border-right: none;
+            border-bottom: 1px solid hsl(220, 20%, 3%);
+        }
+        #visscrollbox {
+            flex: 1 1 auto;
+        }
+        .optiongroup {
+            flex: 1 0 auto;
+            padding: .2rem 1rem .2rem .2rem;
+        }
+    }
+    @media only screen and (max-aspect-ratio: 40000/30000) and (max-height: 55em), only screen and (max-width: 60em) {
+        /* Portrait or near-portrait combined with very limited height, or rather narrow: collapse menu */
+        #optscrollbox {
+            overflow: visible;
+            z-index: 100;
+            border-bottom: 1px solid hsl(220, 20%, 3%);
+        }
+        .optiongroup {
+            position: relative;
+        }
+        .optiongroup > table {
+            display: none;
+            position: absolute;
+            top: 100%;
+            background-color: hsl(220, 20%, 77%);
+            border: 1px solid hsl(220, 20%, 3%);
+            border-top: none;
+        }
+        .optiongroup:last-child > table {
+            left: auto;
+            right: .2rem;
+        }
+        .optiongroup:hover > .optionheader {
+            color: hsl(220, 20%, 97%);
+        }
+        .optiongroup:hover > table {
+            display: table;
+        }
+    }
+
+    @media print {
+        html, body {
             font-family: Helvetica Neue, Helvetica, Arial, sans-serif;
             font-size: 10pt;
         }
-        @media screen {
-            body {
-                margin: 0px;
-            }
-            div.options {
-                position: absolute;
-                padding: 5px;
-                background-color: rgba(255, 255, 255, 0.8);
-                z-index: 10;
-            }
-            div.options span.help {
-                cursor: help;
-                font-weight: bold;
-                border-bottom: 1px dashed black;
-            }
-            table.optiongroup {
-                padding: 10px 0px 0px 0px;
-                margin: 0px;
-                border-spacing: 0px;
-                border: none;
-            }
-            table.optiongroup th span {
-                border-bottom: 1px dashed black;
-                cursor: pointer;
-            }
-            table.optiongroup td {
-                padding-right: 10px;
-            }
-            table.optiongroup th {
-                text-align: left;
-                font-weight: bold;
-                padding-top: 5px;
-            }
-            #optionsheader {
-                cursor: pointer;
-                font-variant: small-caps;
-                border-bottom: 1px dashed black;
-            }
-            div#visscrollbox {
-                position: absolute;
-                overflow: auto;
-                bottom: 0px;
-                top: 0px;
-                right: 0px;
-                left: 0px;
-                text-align: right;
-            }
-            div#vis {
-                direction: rtl;
-                display: inline-block;
-            }
-            div#vis div {
-                direction: ltr;
-            }
-            div#vis div:nth-child(2n+3) {
-                border-top: 1px solid black;
-                padding-top: 10px;
-                margin-top: 10px;
-            }
-            .markertable {
-                display: inline-table;
-                text-align: left;
-                border-collapse: collapse;
-                max-width: 80vw;
-                margin-right: 160px;
-            }
-            .markertable td {
-                border: 1px solid #888888;
-                padding: 5px;
-                font-size: 8pt;
-                white-space: nowrap;
-                width: 1px;
-            }
-            .markertable tr:first-child td {
-                font-weight: bold;
-            }
-            .markertable td:nth-child(2) {
-                width: auto;
-            }
-            .markertable tr:nth-child(2n) {
-                background-color: #eeeeee;
-            }
-            .markertable tr.removed td:not(:last-child) {
-                text-decoration: line-through;
-            }
-            td.num {
-                text-align: right;
-            }
-            td.wrap {
-                white-space: normal;
-            }
+        .noprint, .help {
+            display: none;
         }
-
-        @media print {
-            .noprint {
-                display: none;
-            }
-            div#options {
-                border-top: 1pt solid black;
-                border-right: 1pt solid black;
-                width: 100%;
-                display: flex;
-                flex-flow: row wrap;
-                align-items: stretch;
-                font-size: 6pt;
-            }
-            div#options > div {
-                border-left: 1pt solid black;
-                border-bottom: 1pt solid black;
-                flex-grow: 1;
-                padding: 5pt;
-            }
-            div.options span.help {
-                display: none;
-            }
-            table.optiongroup {
-                padding: 0px;
-                margin: 0px;
-                border-spacing: 0px;
-                border: none;
-                display: inline-table;
-            }
-            table.optiongroup td {
-                padding-right: 5pt;
-                white-space: nowrap;
-            }
-            table.optiongroup th {
-                text-align: left;
-                font-weight: bold;
-            }
-            table.optiongroup input {
-                border: none;
-            }`
-            div#vis {
-                width: 100%;
-            }
-            div#vis > div {
-                width: 100%;
-                direction: rtl;
-                text-align: right;
-            }
-            div#vis > div > * {
-                direction: ltr;
-            }
-            div#vis > :nth-child(2n+0){
-                break-after: avoid;
-                page-break-after: avoid;
-                page-break-inside: avoid;
-            }
-            div#vis > :nth-child(2n+1){
-                break-before: avoid;
-                page-break-before: avoid;
-                page-break-inside: avoid;
-            }
-            .vega, .marks {
-                max-width: 100%;
-                height: auto;
-            }
-            canvas {
-                object-fit: scale-down;
-            }
-            .markertable {
-                display: inline-table;
-                text-align: left;
-                border-collapse: collapse;
-                width: 100%;
-            }
-            .markertable td {
-                border: 1pt solid #888888;
-                padding: 2pt;
-                font-size: 6pt;
-                white-space: nowrap;
-                width: 50pt;
-            }
-            .markertable tr:first-child td {
-                font-weight: bold;
-            }
-            .markertable td:nth-child(2) {
-                width: auto;
-            }
-            .markertable tr:nth-child(2n) {
-                background-color: #eeeeee;
-            }
-            .markertable tr.removed td:not(:last-child) {
-                text-decoration: line-through;
-            }
-            .num {
-                text-align: right;
-            }
-            td.wrap {
-                white-space: normal;
-            }
+        #messagebox {
+            font-size: 8pt;
+            padding: 5pt 0pt;
         }
+        #optscrollbox {
+            display: flex;
+            box-sizing: border-box;
+            flex-flow: row wrap;
+            align-items: stretch;
+            width: 100%;
+            border-top: 1pt solid black;
+            border-right: 1pt solid black;
+            font-size: 8pt;
+        }
+        .optiongroup {
+            flex-grow: 1;
+            padding: 5pt;
+            border-left: 1pt solid black;
+            border-bottom: 1pt solid black;
+        }
+        .optiongroup > table {
+            padding: 0px;
+            margin: 0px;
+            border-spacing: 0px;
+            border: none;
+        }
+        .optiongroup > .optionheader {
+            text-align: left;
+            font-weight: bold;
+            text-transform: uppercase;
+        }
+        .optiongroup > .optionheader:first-letter {
+            font-size: 1.25em;
+        }
+        .optiongroup > table td {
+            white-space: nowrap;
+        }
+        .optiongroup > table td:not(:last-child) {
+            padding-right: 5pt;
+        }
+        .optiongroup > table td.footnote {
+            font-style: italic;
+            white-space: wrap;
+        }
+        .optiongroup > table input {
+            border: none;
+        }
+        .optiongroup > table input[type=checkbox] {
+            height: 1em;
+            width: 1em;
+        }
+        #vis {
+            width: 100%;
+        }
+        #vis > div {
+            width: 100%;
+            direction: rtl;
+            text-align: right;
+        }
+        #vis > div > * {
+            direction: ltr;
+        }
+        #vis > :nth-child(2n+0){
+            break-before: avoid;
+            page-break-before: avoid;
+            page-break-inside: avoid;
+        }
+        #vis > :nth-child(2n+1){
+            break-after: avoid;
+            page-break-after: avoid;
+            page-break-inside: avoid;
+        }
+        .vega, .marks {
+            max-width: 100%;
+            height: auto;
+        }
+        canvas {
+            object-fit: scale-down;
+        }
+        .markertable {
+            display: inline-table;
+            box-sizing: border-box;
+            text-align: left;
+            border-collapse: collapse;
+            width: 100%;
+        }
+        .markertable td {
+            border: 1pt solid #888888;
+            padding: 2pt;
+            font-size: 8pt;
+            white-space: nowrap;
+            width: 50pt;
+        }
+        .markertable tr:first-child td {
+            font-weight: bold;
+        }
+        .markertable td:nth-child(2) {
+            width: auto;
+        }
+        .markertable tr:nth-child(2n) {
+            background-color: #eeeeee;
+        }
+        .markertable tr.removed td:not(:last-child) {
+            text-decoration: line-through;
+        }
+        .num {
+            text-align: right;
+        }
+        td.wrap {
+            white-space: normal !important;
+        }
+    }
     </style>
 </head>
 <body>
-    <div class="options">
-        <span class="noprint"><strong id="optionsheader">Options</strong><br></span>
-        <div id="options">
-            <div class="noprint">
-                <table class="optiongroup" id="fileselectgroup" style="display: none">
-                    <tr>
-                        <th><span>Input file</span></th>
-                    </tr>
-                    <tr>
-                        <td>Sample data file:</td>
-                    </tr>
-                    <tr>
-                        <td><input id="fileselect" type="file"></td>
-                    </tr>
-                    <tr>
-                        <td>(or drag a file onto this page)</td>
-                    </tr>
-                </table>
-            </div>
-            <div>
-                <table class="optiongroup">
-                    <tr>
-                        <th colspan="2"><span>Graph filtering options</span></th>
-                    </tr>
-                    <tr>
-                        <td>Require at least</td>
-                        <td><input type="text" value="15" id="minN" size="3" class="num"> reads</td>
-                    </tr>
-                    <tr>
-                        <td>Require at least</td>
-                        <td><input type="text" value="0.5" id="minP" size="3" class="num">% of highest allele per marker</td>
-                    </tr>
-                    <tr>
-                        <td>Require at least</td>
-                        <td><input type="text" value="0" id="minT" size="3" class="num">% of the marker's total reads</td>
-                    </tr>
-                    <tr>
-                        <td>Require at least</td>
-                        <td><input type="text" value="0" id="minO" size="3" class="num"> reads in both orientations</td>
-                    </tr>
-                    <tr>
-                        <td>Marker name</td>
-                        <td>
-                            <input type="text" id="markerFilter" size="20">
+<div id="outer">
+<div id="inner">
+    <div id="optscrollbox">
+        <div class="optiongroup noprint">
+            <div class="optionheader">Input &amp; output</div>
+            <table>
+                <tr class="fileselectrow filenamedisplayrow">
+                    <td>Sample data file:</td>
+                </tr>
+                <tr class="fileselectrow">
+                    <td><input id="fileselect" type="file"></td>
+                </tr>
+                <tr class="fileselectrow">
+                    <td>(or drag a file onto this page)</td>
+                </tr>
+                <tr class="filenamedisplayrow">
+                    <td id="filenamedisplay" class="wrap"></td>
+                </tr>
+                <tr>
+                    <td>
+                        <a id="saveImageLink" href="javascript:void(saveImage())" class="disabled">Save image</a>
+                        <a id="saveTableLink" href="javascript:void(saveTable())" class="disabled">Save table</a>
+                    </td>
+                </tr>
+            </table>
+        </div>
+        <div class="optiongroup">
+            <div class="optionheader">Graph filtering options</div>
+            <table>
+                <tr>
+                    <td colspan="2">Show sequences with at least:</td>
+                </tr>
+                <tr>
+                    <td colspan="2"><label><input type="text" value="15" id="minN" size="3" class="num"> reads</label></td>
+                </tr>
+                <tr>
+                    <td colspan="2"><label><input type="text" value="0.5" id="minP" size="3" class="num">% of highest allele per marker</label></td>
+                </tr>
+                <tr>
+                    <td colspan="2"><label><input type="text" value="0" id="minT" size="3" class="num">% of the marker's total reads</label></td>
+                </tr>
+                <tr>
+                    <td colspan="2"><label><input type="text" value="0" id="minO" size="3" class="num"> reads in both orientations</label></td>
+                </tr>
+                <tr>
+                    <td><label for="markerFilter">Marker(s)</label></td>
+                    <td>
+                        <label>
+                            <input type="text" id="markerFilter" size="15">
                             <span class="help" title="Type xyz to show all markers with 'xyz' in their names. Type =xyz to show only the marker 'xyz'. Separate multiple values with spaces.">?</span>
-                        </td>
-                    </tr>
-                    <tr>
-                        <td>Mark if less than</td>
-                        <td><input type="text" value="25" id="minBias" size="3" class="num">% of the reads is on one strand</td>
-                    </tr>
-                    <tr>
-                        <td>Show negative alleles</td>
-                        <td colspan="2"><input type="checkbox" id="shownegative" checked></td>
-                    </tr>
-                </table>
-            </div>
-            <div>
-                <table class="optiongroup">
-                    <tr>
-                        <th colspan="2"><span>Table filtering options</span></th>
-                    </tr>
-                    <tr>
-                        <td>At least</td>
-                        <td><input type="text" value="30" id="minNa" size="3" class="num"> reads</td>
-                    </tr>
-                    <tr>
-                        <td>At least</td>
-                        <td><input type="text" value="5" id="minPa" size="3" class="num">% of highest allele per marker</td>
-                    </tr>
-                    <tr>
-                        <td>At least</td>
-                        <td><input type="text" value="3" id="minTa" size="3" class="num">% of the marker's total reads</td>
-                    </tr>
-                    <tr>
-                        <td>At least</td>
-                        <td><input type="text" value="0" id="minCa" size="3" class="num">% correction*</td>
-                    </tr>
-                    <tr>
-                        <td>At least</td>
-                        <td><input type="text" value="0" id="minAa" size="3" class="num">% recovery*</td>
-                    </tr>
-                    <tr>
-                        <td>At least</td>
-                        <td><input type="text" value="0" id="minOa" size="3" class="num"> reads in both orientations</td>
-                    </tr>
-                    <tr>
-                        <td colspan="2" style="font-style: italic">*Of these two criteria, at least one must be met</td>
-                    </tr>
-                    <tr class="noprint">
-                        <td colspan="2"><a id="clearSelectionLink" href="javascript:void(clearSelection())" style="display: none">Clear manually added/removed</a></td>
-                    </tr>
-                </table>
-            </div>
-            <div class="noprint">
-                <table class="optiongroup">
-                    <tr>
-                        <th colspan="3"><span>Display options</span></th>
-                    </tr>
-                    <tr>
-                        <td>Graph width</td>
-                        <td colspan="2"><input type="text" value="600" id="graphwidth" size="3" class="num"> px</td>
-                    </tr>
-                    <tr>
-                        <td>Bar width</td>
-                        <td colspan="2"><input type="text" value="15" id="barwidth" size="3" class="num"> px</td>
-                    </tr>
-                    <tr>
-                        <td>Marker spacing</td>
-                        <td colspan="2"><input type="text" value="70" id="subgraphoffset" size="3" class="num"> px</td>
-                    </tr>
-                    <tr>
-                        <td>Split markers</td>
-                        <td colspan="2"><input type="checkbox" id="splitmarkers" checked></td>
-                    </tr>
-                    <tr>
-                        <td>Common axis range</td>
-                        <td colspan="2"><input type="checkbox" id="commonrange" disabled></td>
-                    </tr>
-                    <tr>
-                        <td>Axis scale</td>
-                        <td><input type="radio" name="scale" value="linear" id="scaleLinear" checked> Linear</td>
-                        <td><input type="radio" name="scale" value="sqrt" id="scaleLog"> Square root
-                        </td>
-                    </tr>
-                    <tr class="noprint">
-                        <td>Renderer</td>
-                        <td><input type="radio" name="renderer" value="svg" id="renderSVG" checked> SVG</td>
-                        <td><input type="radio" name="renderer" value="canvas" id="renderCanvas"> Canvas</td>
-                    </tr>
-                </table>
-            </div>
-            <span class="noprint">
-                <a id="saveImageLink" href="javascript:void(saveImage())" style="display: none">Save image</a>
-                <a id="saveTableLink" href="javascript:void(saveTable())" style="display: none">Save table</a>
-            </span>
+                        </label>
+                    </td>
+                </tr>
+                <tr>
+                    <td><label for="minBias">Mark with &lt;</label></td>
+                    <td><label><input type="text" value="25" id="minBias" size="3" class="num">% of reads on one strand</label></td>
+                </tr>
+                <tr>
+                    <td colspan="2">
+                        <label>
+                            <input type="checkbox" id="shownegative" checked>
+                            Show negative alleles
+                        </label>
+                    </td>
+                </tr>
+                <tr>
+                    <td colspan="2">
+                        <label>
+                            <input type="checkbox" id="showother" checked>
+                            Show filtered data as 'Other sequences'
+                        </label>
+                    </td>
+                </tr>
+            </table>
+        </div>
+        <div class="optiongroup">
+            <div class="optionheader">Table filtering options</div>
+            <table>
+                <tr>
+                    <td>Select sequences having at least:</td>
+                </tr>
+                <tr>
+                    <td><label><input type="text" value="30" id="minNa" size="3" class="num"> reads</label></td>
+                </tr>
+                <tr>
+                    <td><label><input type="text" value="5" id="minPa" size="3" class="num">% of highest allele per marker</label></td>
+                </tr>
+                <tr>
+                    <td><label><input type="text" value="3" id="minTa" size="3" class="num">% of the marker's total reads</label></td>
+                </tr>
+                <tr>
+                    <td><label><input type="text" value="0" id="minCa" size="3" class="num">% correction*</label></td>
+                </tr>
+                <tr>
+                    <td><label><input type="text" value="0" id="minAa" size="3" class="num">% recovery*</label></td>
+                </tr>
+                <tr>
+                    <td><label><input type="text" value="0" id="minOa" size="3" class="num"> reads in both orientations</label></td>
+                </tr>
+                <tr>
+                    <td class="footnote">*Of these criteria, at least one must be met</td>
+                </tr>
+                <tr class="noprint">
+                    <td><a id="clearSelectionLink" href="javascript:void(clearSelection())" class="disabled">Clear manually added/removed</a></td>
+                </tr>
+            </table>
+        </div>
+        <div class="optiongroup noprint">
+            <div class="optionheader">Display options</div>
+            <table>
+                <tr>
+                    <td><label for="graphwidth">Graph width</label></td>
+                    <td colspan="2"><label><input type="text" value="600" id="graphwidth" size="3" class="num"> px</label></td>
+                </tr>
+                <tr>
+                    <td><label for="barwidth">Bar width</label></td>
+                    <td colspan="2"><label><input type="text" value="15" id="barwidth" size="3" class="num"> px</label></td>
+                </tr>
+                <tr>
+                    <td><label for="subgraphoffset">Marker spacing</label></td>
+                    <td colspan="2"><label><input type="text" value="70" id="subgraphoffset" size="3" class="num"> px</label></td>
+                </tr>
+                <tr>
+                    <td colspan="3">
+                        <label>
+                            <input type="checkbox" id="splitmarkers" checked>
+                            Split markers
+                        </label>
+                    </td>
+                </tr>
+                <tr>
+                    <td colspan="3">
+                        <label>
+                            <input type="checkbox" id="commonrange" disabled>
+                            Common axis range
+                        </label>
+                    </td>
+                </tr>
+                <tr>
+                    <td>Axis scale</td>
+                    <td><label><input type="radio" name="scale" value="linear" id="scaleLinear" checked> Linear</label></td>
+                    <td><label><input type="radio" name="scale" value="sqrt" id="scaleLog"> Square root</label></td>
+                </tr>
+                <tr class="noprint">
+                    <td>Renderer</td>
+                    <td><label><input type="radio" name="renderer" value="svg" id="renderSVG" checked> SVG</label></td>
+                    <td><label><input type="radio" name="renderer" value="canvas" id="renderCanvas"> Canvas</label></td>
+                </tr>
+            </table>
         </div>
     </div>
     <div id="visscrollbox">
         <div id="vis"></div>
     </div>
-    <script type="text/javascript">
-        var graphs = false;
-        var linebreak = "\n";
-        var data_format = {};
-        var data_values = [];
-        var missing_markers = [];
-        var fileName = "graph";
-        var stamp = 0;
-        var userSelected = [];
-        var userDeselected = [];
-        var autoSelected = [];
-        var isAutoselecting = false;
-        function parse(maintainSelection){
-            var selectedAlleles = [];
-            if(maintainSelection)
-                selectedAlleles = userSelected.concat(userDeselected, userDeselected);
-            userSelected = [];
-            userDeselected = [];
-            autoSelected = [];
-            var this_stamp = ++stamp;
-            var visdiv = document.getElementById("vis");
-            //var globalnotes = document.getElementById("globalnotes");
-            var scrolldiv = document.getElementById("visscrollbox");
-            var rendererName = document.querySelector("input[name=renderer]:checked").value;
-            graphs = [];
-            removeChildren(visdiv);
-            //removeChildren(globalnotes);
-            document.getElementById("saveImageLink").style.display = "none";
-            document.getElementById("saveTableLink").style.display = "none";
-            document.getElementById("clearSelectionLink").style.display = "none";
+</div>
+<div id="messagebox">
+    Ready
+</div>
+</div>
+<script type="text/javascript">
+var graphs = false;
+var linebreak = "\n";
+var data_format = {};
+var data_values = [];
+var missing_markers = [];
+var fileName = "sample";
+var stamp = 0;
+var userSelected = [];
+var userDeselected = [];
+var autoSelected = [];
+var selectedAlleles = []; //This keeps the alleles of filtered markers in a safe place.
+var isAutoselecting = false;
+function parse(maintainSelection){
+    if(maintainSelection)
+        selectedAlleles = selectedAlleles.concat(userSelected, userDeselected, userDeselected);
+    else
+        selectedAlleles = [];
+    userSelected = [];
+    userDeselected = [];
+    autoSelected = [];
+    var this_stamp = ++stamp;
+    var visdiv = document.getElementById("vis");
+    var scrolldiv = document.getElementById("visscrollbox");
+    var rendererName = document.querySelector("input[name=renderer]:checked").value;
+    graphs = [];
+    removeChildren(visdiv);
+    document.getElementById("saveImageLink").setAttribute("class", "disabled");
+    document.getElementById("saveTableLink").setAttribute("class", "disabled");
+    document.getElementById("clearSelectionLink").setAttribute("class", selectedAlleles.length? "" : "disabled");
 
-            //Get a list of marker names and render a graph for each of them.
-            var splitMarkers = document.getElementById("splitmarkers").checked;
-            var markerFilter = document.getElementById("markerFilter").value;
-            var markerNames = [];
-            if(splitMarkers){
-                var patt = new RegExp('(?:' + markerFilter.trim().replace(/(^| )=(.*?)(?= |$)/g, '$1^$2$$').replace(/ +/g, ')|(?:') + ')');
-                data_values.forEach(function(datum){
-                    if(patt.test(datum.marker))
-                        markerNames.push("=" + datum.marker);
-                });
-            }
-            else
-                markerNames.push(markerFilter);
-            var prevMarker;
-            markerNames.sort().forEach(function(marker){
-                if(marker != prevMarker)
-                    prevMarker = marker;
-                else
+    //Get a list of marker names and render a graph for each of them.
+    var splitMarkers = document.getElementById("splitmarkers").checked;
+    var markerFilter = document.getElementById("markerFilter").value;
+    var markerNames = [];
+    if(splitMarkers){
+        var patt = new RegExp('(?:' + markerFilter.trim().replace(/(^| )=(.*?)(?= |$)/g, '$1^$2$$').replace(/ +/g, ')|(?:') + ')');
+        data_values.forEach(function(datum){
+            if(patt.test(datum.marker))
+                markerNames.push("=" + datum.marker);
+        });
+    }
+    else
+        markerNames.push(markerFilter);
+    var prevMarker;
+    markerNames.sort().forEach(function(marker){
+        if(marker != prevMarker)
+            prevMarker = marker;
+        else
+            return;
+
+        //Set up graph spec for this marker.
+        for(i in graph_spec.signals)
+            if(graph_spec.signals[i].name == "filter_marker")
+                graph_spec.signals[i].init = marker;
+        var patt = new RegExp('(?:' + marker.replace(/(^| )=(.*?)(?= |$)/g, '$1^$2$$').replace(/ +/g, ')|(?:') + ')');
+        graph_spec.data[0].values = data_values.filter(function(datum){return patt.test(datum.marker)});
+
+        //Render graph for this marker.
+        vg.parse.spec(graph_spec, function(chart){
+            //Cancel rendering if a new parse() call was made.
+            if(this_stamp != stamp)
+                return;
+
+            var i = graphs.length;
+
+            //Add new visualisation and table divs.
+            var newvis = document.createElement("div");
+            newvis.setAttribute("id", "vis" + i);
+            visdiv.appendChild(newvis);
+            var newtab = document.createElement("div");
+            newtab.setAttribute("id", "tab" + i);
+            visdiv.appendChild(newtab);
+
+            var graph = chart({el: newvis, renderer: rendererName});
+            graph.on("mouseover", function(event, item){
+                if(item && item.mark && item.mark.name && item.mark.name == "alleleSelector" && item.datum && item.datum.sequence && item.datum.sequence != "Other sequences")
+                    document.body.style.cursor = "pointer";
+            });
+            graph.on("mouseout", function(event, item){
+                if(item && item.mark && item.mark.name && item.mark.name == "alleleSelector" && item.datum && item.datum.sequence && item.datum.sequence != "Other sequences")
+                    document.body.style.cursor = "auto";
+            });
+            graph.onSignal("clickedAllele", function(name, value){
+                if(isAutoselecting)
                     return;
+                document.getElementById("clearSelectionLink").setAttribute("class", "");
+                if(graph.data("selectedAlleles").values().some(function(item){return item.sequence==value})){
+                    //User added this allele.
+                    var pos = userDeselected.indexOf(value);
+                    if(pos >= 0)
+                        userDeselected.splice(pos, 1);
+                    if(userSelected.indexOf(value) == -1)
+                        userSelected.push(value);
+                }
+                else{
+                    //User removed this allele.
+                    var pos = userSelected.indexOf(value);
+                    if(pos >= 0)
+                        userSelected.splice(pos, 1);
+                    if(userDeselected.indexOf(value) == -1)
+                        userDeselected.push(value);
+                }
+                updateTable(i);
+            });
+            graph.onSignal("bias_threshold", function(){updateTable(i)});
+            graph.update();
+            if(rendererName == "svg")
+                updateViewBox(graph._el.childNodes[0]);
+            graphs.push(graph);
+            if(!splitMarkers)
+                document.getElementById("saveImageLink").setAttribute("class", "");
 
-                //Set up graph spec for this marker.
-                for(i in graph_spec.signals)
-                    if(graph_spec.signals[i].name == "filter_marker")
-                        graph_spec.signals[i].init = marker;
-                var patt = new RegExp('(?:' + marker.replace(/(^| )=(.*?)(?= |$)/g, '$1^$2$$').replace(/ +/g, ')|(?:') + ')');
-                graph_spec.data[0].values = data_values.filter(function(datum){return patt.test(datum.marker)});
-
-                //Render graph for this marker.
-                vg.parse.spec(graph_spec, function(chart){
-                    //Cancel rendering if a new parse() call was made.
-                    if(this_stamp != stamp)
-                        return;
-
-                    var i = graphs.length;
-
-                    //Add new visualisation and table divs.
-                    var newvis = document.createElement("div");
-                    newvis.setAttribute("id", "vis" + i);
-                    visdiv.appendChild(newvis);
-                    var newtab = document.createElement("div");
-                    newtab.setAttribute("id", "tab" + i);
-                    visdiv.appendChild(newtab);
-
-                    var graph = chart({el: newvis, renderer: rendererName});
-                    graph.on("mouseover", function(event, item){
-                        if(item && item.mark && item.mark.name && item.mark.name == "alleleSelector")
-                            document.body.style.cursor = "pointer";
-                    });
-                    graph.on("mouseout", function(event, item){
-                        if(item && item.mark && item.mark.name && item.mark.name == "alleleSelector")
-                            document.body.style.cursor = "auto";
-                    });
-                    graph.onSignal("clickedAllele", function(name, value){
-                        if(isAutoselecting)
-                            return;
-                        document.getElementById("clearSelectionLink").style.display = "inline";
-                        if(graph.data("selectedAlleles").values().some(function(item){return item.sequence==value})){
-                            //User added this allele.
-                            var pos = userDeselected.indexOf(value);
-                            if(pos >= 0)
-                                userDeselected.splice(pos, 1);
-                            if(userSelected.indexOf(value) == -1)
-                                userSelected.push(value);
-                        }
-                        else{
-                            //User removed this allele.
-                            var pos = userSelected.indexOf(value);
-                            if(pos >= 0)
-                                userSelected.splice(pos, 1);
-                            if(userDeselected.indexOf(value) == -1)
-                                userDeselected.push(value);
-                        }
-                        updateTable(i);
-                    });
-                    graph.onSignal("bias_threshold", function(){updateTable(i)});
-                    graph.update();
-                    if(rendererName == "svg")
-                        updateViewBox(graph._el.childNodes[0]);
-                    graphs.push(graph);
-                    if(!splitMarkers)
-                        document.getElementById("saveImageLink").style.display = "inline";
-
-                    //Restore selected and deselected alleles. Deselected alleles
-                    //are the ones that appear in selectedAlleles twice.
-                    var graphAlleles = graph.data("annotated").values();
-                    selectedAlleles = selectedAlleles.filter(function(sa){
-                        return graphAlleles.every(function(datum){
-                            var prev = datum._prev;
-                            sa._prev = null;
-                            datum._prev = null;
-                            sa._id = datum._id;
-                            sa.aggr._id = datum.aggr._id;
-                            sa.thedatum = null;
-                            datum.thedatum = null;
-                            var equal = vg.util.equal(sa, datum);
-                            datum.thedatum = datum;
-                            if(prev)
-                                datum._prev = prev;
-                            if(equal)
-                                graph.signal("clickedAllele", datum).update();
-                            return !equal;
-                        });
-                    });
-
-                    //Automatically select alleles using set thresholds.
-                    autoSelectAlleles(graph);
-
-                    //Scroll to the right; the graph is more interesting than the long labels.
-                    scrolldiv.scrollLeft = scrolldiv.scrollWidth;
+            //Restore selected and deselected alleles. Deselected alleles
+            //are the ones that appear in selectedAlleles twice.
+            var graphAlleles = graph.data("annotated").values();
+            selectedAlleles = selectedAlleles.filter(function(sa){
+                return graphAlleles.every(function(datum){
+                    var prev = datum._prev;
+                    sa._prev = null;
+                    datum._prev = null;
+                    sa._id = datum._id;
+                    sa.aggr._id = datum.aggr._id;
+                    sa.thedatum = null;
+                    datum.thedatum = null;
+                    var equal = vg.util.equal(sa, datum);
+                    datum.thedatum = datum;
+                    if(prev)
+                        datum._prev = prev;
+                    if(equal)
+                        graph.signal("clickedAllele", datum).update();
+                    return !equal;
                 });
             });
-            if(missing_markers.length)
-                //globalnotes.appendChild(document.createTextNode("THERE ARE MISSING MARKERS!!! " + missing_markers.join(", ")));
-                alert("Warning: Some markers were not detected in this sample.\n" + missing_markers.join(", "));
-        }
 
-        function autoSelectAlleles(graph){
-            if(graphs === false)
-                return;
-            var minNa = parseFloat(document.getElementById("minNa").value),
-                minPa = parseFloat(document.getElementById("minPa").value),
-                minTa = parseFloat(document.getElementById("minTa").value),
-                minCa = parseFloat(document.getElementById("minCa").value),
-                minAa = parseFloat(document.getElementById("minAa").value),
-                minOa = parseFloat(document.getElementById("minOa").value);
-            if(isNaN(minNa + minPa + minTa + minCa + minAa + minOa))
-                return;
-            (graph === undefined? graphs : [graph]).forEach(function(graph){
-                var selectedAlleles = graph.data("selectedAlleles").values().map(function(datum){return datum.sequence});
-                graph.data("annotated").values().forEach(function(datum){
-                    if(datum.sequence != "Other sequences" &&
-                       datum.total_added >= minNa &&
-                       datum.pct_of_max >= minPa &&
-                       datum.pct_of_sum >= minTa &&
-                       ((datum.total_added/datum.total*100-100) >= minCa ||
-                       (datum.total_add/datum.total*100) >= minAa) &&
-                       Math.min(datum.forward_added, datum.reverse_added) >= minOa){
-                        if(autoSelected.indexOf(datum) == -1)
-                            autoSelected.push(datum);
-                        if(selectedAlleles.indexOf(datum) == -1 && userDeselected.indexOf(datum) == -1){
-                            //Meets criteria, not selected, and user has not deselected. Autoselect.
-                            isAutoselecting = true;
-                            graph.signal("clickedAllele", datum).update();
-                            isAutoselecting = false;
-                        }
-                    }
-                    else{
-                        var pos = autoSelected.indexOf(datum);
-                        if(pos >= 0)
-                            autoSelected.splice(pos, 1);
-                        if(selectedAlleles.indexOf(datum) >= 0 && userSelected.indexOf(datum) == -1){
-                            //Does not meet criteria but was autoselected previously. Autodeselect.
-                            isAutoselecting = true;
-                            graph.signal("clickedAllele", datum).update();
-                            isAutoselecting = false;
-                        }
-                    }
-                });
-                updateTable(graphs.indexOf(graph));
-            });
-        }
+            //Automatically select alleles using set thresholds.
+            autoSelectAlleles(graph);
 
-        function updateViewBox(svg){
-            //Setting the viewBox enables shrink-to-fit behaviour when printing.
-            svg.setAttribute("viewBox",
-                "0 0 " + svg.getAttribute("width") + " " + svg.getAttribute("height"));
-        }
+            //Scroll to the right; the graph is more interesting than the long labels.
+            scrolldiv.scrollLeft = scrolldiv.scrollWidth;
+        });
+    });
+    if(missing_markers.length)
+        setMessage("Warning: Some markers were not detected in this sample:\n" + missing_markers.join(", "), true, "warning");
+}
 
-        function removeChildren(el){
-            while(el.lastChild){
-              el.removeChild(el.lastChild);
-            }
-        }
+function setMessage(message, printed, messagetype){
+    var messagebox = document.getElementById("messagebox");
+    removeChildren(messagebox);
+    messagebox.setAttribute("class", printed? "" : "noprint");
 
-        function setScale(value){
-            if(!graph_spec)
-                return;
-            for(i in graph_spec.marks)
-                if(graph_spec.marks[i].scales)
-                    for(j in graph_spec.marks[i].scales)
-                        if(graph_spec.marks[i].scales[j].name == "x")
-                            graph_spec.marks[i].scales[j].type = value;
+    if(messagetype == "warning"){
+        var icon = document.createElement("span");
+        icon.setAttribute("class", "icon warning");
+        messagebox.appendChild(icon);
+    }
 
-            if(graphs !== false)
-                parse(true);
-        }
+    messagebox.appendChild(document.createTextNode(message));
+}
 
-        function getScale(){
-            if(!graph_spec)
-                return "linear";
-            for(i in graph_spec.marks)
-                if(graph_spec.marks[i].scales)
-                    for(j in graph_spec.marks[i].scales)
-                        if(graph_spec.marks[i].scales[j].name == "x")
-                            return graph_spec.marks[i].scales[j].type;
-            return "linear";
-        }
-
-        function setSignalValue(signalname, value){
-            if(!graph_spec)
-                return;
-            var scrolldiv = document.getElementById("visscrollbox");
-            var scrollRight = (scrolldiv.scrollLeft >= scrolldiv.scrollWidth - scrolldiv.clientWidth);
-            if(signalname == "width")
-                graph_spec.width = value;
-            for(i in graph_spec.signals){
-                if(graph_spec.signals[i].name == signalname){
-                    graph_spec.signals[i].init = value;
-                    break;
+function autoSelectAlleles(graph){
+    if(graphs === false)
+        return;
+    var minNa = parseFloat(document.getElementById("minNa").value),
+        minPa = parseFloat(document.getElementById("minPa").value),
+        minTa = parseFloat(document.getElementById("minTa").value),
+        minCa = parseFloat(document.getElementById("minCa").value),
+        minAa = parseFloat(document.getElementById("minAa").value),
+        minOa = parseFloat(document.getElementById("minOa").value);
+    if(isNaN(minNa + minPa + minTa + minCa + minAa + minOa))
+        return;
+    (graph === undefined? graphs : [graph]).forEach(function(graph){
+        var selectedAllelesInGraph = graph.data("selectedAlleles").values().map(function(datum){return datum.sequence});
+        graph.data("annotated").values().forEach(function(datum){
+            if(datum.sequence != "Other sequences" &&
+               datum.total_added >= minNa &&
+               datum.pct_of_max >= minPa &&
+               datum.pct_of_sum >= minTa &&
+               ((datum.total_added/datum.total*100-100) >= minCa ||
+               (datum.total_add/datum.total*100) >= minAa) &&
+               Math.min(datum.forward_added, datum.reverse_added) >= minOa){
+                if(autoSelected.indexOf(datum) == -1)
+                    autoSelected.push(datum);
+                if(selectedAllelesInGraph.indexOf(datum) == -1 && userDeselected.indexOf(datum) == -1){
+                    //Meets criteria, not selected, and user has not deselected. Autoselect.
+                    isAutoselecting = true;
+                    graph.signal("clickedAllele", datum).update();
+                    isAutoselecting = false;
                 }
             }
-            if(graphs !== false)
-                graphs.forEach(function(graph, i){
-                    graph.signal(signalname, value).padding("auto").update();
-                    if(document.getElementById("renderSVG").checked)
-                        updateViewBox(graph._el.childNodes[0]);
-                    if(signalname == "width"){
-                        var tab = document.getElementById("table" + i);
-                        if(tab)
-                            tab.style.minWidth = value + "px";
-                    }
-                });
-            if(scrollRight)
-                scrolldiv.scrollLeft = scrolldiv.scrollWidth;
-            return;
-        }
+            else{
+                var pos = autoSelected.indexOf(datum);
+                if(pos >= 0)
+                    autoSelected.splice(pos, 1);
+                if(selectedAllelesInGraph.indexOf(datum) >= 0 && userSelected.indexOf(datum) == -1){
+                    //Does not meet criteria but was autoselected previously. Autodeselect.
+                    isAutoselecting = true;
+                    graph.signal("clickedAllele", datum).update();
+                    isAutoselecting = false;
+                }
+            }
+        });
+        updateTable(graphs.indexOf(graph));
+    });
+}
 
-        function getSignalValue(signalname){
-            if(!graph_spec)
+function updateViewBox(svg){
+    //Setting the viewBox enables shrink-to-fit behaviour when printing.
+    svg.setAttribute("viewBox",
+        "0 0 " + svg.getAttribute("width") + " " + svg.getAttribute("height"));
+}
+
+function removeChildren(el){
+    while(el.lastChild){
+      el.removeChild(el.lastChild);
+    }
+}
+
+function setScale(value){
+    if(!graph_spec)
+        return;
+    for(i in graph_spec.marks)
+        if(graph_spec.marks[i].scales)
+            for(j in graph_spec.marks[i].scales)
+                if(graph_spec.marks[i].scales[j].name == "x")
+                    graph_spec.marks[i].scales[j].type = value;
+
+    if(graphs !== false)
+        parse(true);
+}
+
+function getScale(){
+    if(!graph_spec)
+        return "linear";
+    for(i in graph_spec.marks)
+        if(graph_spec.marks[i].scales)
+            for(j in graph_spec.marks[i].scales)
+                if(graph_spec.marks[i].scales[j].name == "x")
+                    return graph_spec.marks[i].scales[j].type;
+    return "linear";
+}
+
+function setSignalValue(signalname, value){
+    if(!graph_spec)
+        return;
+    var scrolldiv = document.getElementById("visscrollbox");
+    var scrollRight = (scrolldiv.scrollLeft >= scrolldiv.scrollWidth - scrolldiv.clientWidth);
+    if(signalname == "width")
+        graph_spec.width = value;
+    for(i in graph_spec.signals){
+        if(graph_spec.signals[i].name == signalname){
+            graph_spec.signals[i].init = value;
+            break;
+        }
+    }
+    if(graphs !== false)
+        graphs.forEach(function(graph, i){
+            graph.signal(signalname, value).padding("auto").update();
+            if(document.getElementById("renderSVG").checked)
+                updateViewBox(graph._el.childNodes[0]);
+            if(signalname == "width"){
+                var tab = document.getElementById("table" + i);
+                if(tab)
+                    tab.style.minWidth = value + "px";
+            }
+        });
+    if(scrollRight)
+        scrolldiv.scrollLeft = scrolldiv.scrollWidth;
+    return;
+}
+
+function getSignalValue(signalname){
+    if(!graph_spec)
+        return false;
+    if(signalname == "width")
+        return graph_spec.width;
+    for(i in graph_spec.signals)
+        if(graph_spec.signals[i].name == signalname)
+            return graph_spec.signals[i].init;
+    return false;
+}
+
+function setRenderer(value){
+    if(graphs !== false)
+        graphs.forEach(function(graph){
+            graph.renderer(value).update();
+            if(value == "svg")
+                updateViewBox(graph._el.childNodes[0]);
+        });
+}
+
+function setFileName(value){
+    if(!value)
+        value = "sample";
+    fileName = value;
+    if(value == "sample")
+        document.title = "Sample Visualisation - FDSTools";
+    else
+        document.title = value + " - Sample Visualisation - FDSTools";
+}
+
+//Load the data (input is a fileList object; only the first file is loaded).
+var currentlyLoadedFile = "no/file/loaded";
+function loadDataset(fileList){
+    if(!graph_spec || !fileList || !fileList.length || fileList[0].name == currentlyLoadedFile)
+        return;
+    setMessage("Loading data file...", false);
+    currentlyLoadedFile = fileList[0].name;
+    var reader = new FileReader();
+    reader.onload = function(e){
+        if(fileList && fileList.length && fileList[0].name)
+            setFileName(fileList[0].name.substr(0, fileList[0].name.lastIndexOf(".")));
+        else
+            setFileName(false);
+        missing_markers = []
+        data_values = vg.util.read(reader.result, data_format).filter(function(datum){
+            if(datum.sequence == "No data"){
+                missing_markers.push(datum.marker);
                 return false;
-            if(signalname == "width")
-                return graph_spec.width;
-            for(i in graph_spec.signals)
-                if(graph_spec.signals[i].name == signalname)
-                    return graph_spec.signals[i].init;
-            return false;
-        }
-
-        function setRenderer(value){
-            if(graphs !== false)
-                graphs.forEach(function(graph){
-                    graph.renderer(value).update();
-                    if(value == "svg")
-                        updateViewBox(graph._el.childNodes[0]);
-                });
-        }
-
-        //Load the data (input is a fileList object; only the first file is loaded).
-        var currentlyLoadedFile = "no/file/loaded";
-        function loadDataset(fileList){
-            if(!graph_spec || !fileList || !fileList.length || fileList[0].name == currentlyLoadedFile)
-                return;
-            currentlyLoadedFile = fileList[0].name;
-            var reader = new FileReader();
-            reader.onload = function(e){
-                if(fileList && fileList.length && fileList[0].name)
-                    fileName = fileList[0].name.substr(0, fileList[0].name.lastIndexOf("."));
-                else
-                    fileName = "graph";
-                document.title = fileName + " - Sample Visualisation - FDSTools";
-                missing_markers = []
-                data_values = vg.util.read(reader.result, data_format).filter(function(datum){
-                    if(datum.sequence == "No data"){
-                        missing_markers.push(datum.marker);
-                        return false;
-                    }
-                    return true;
-                });
-                linebreak = reader.result.match(/\r\n|\r|\n/) || linebreak;
-                parse();
-            };
-            reader.readAsText(fileList[0]);
-        }
-
-        //Clear user selection.
-        function clearSelection(){
-            graphs.forEach(function(graph){
-                graph.data("selectedAlleles").remove(function(){return true});
-                graph.update();
-            });
-            userSelected = [];
-            userDeselected = [];
-            autoSelectAlleles();
-            document.getElementById("clearSelectionLink").style.display = "none";
-        }
-
-        //Save image function.
-        function saveImage(){
-            var imageType = document.getElementById("renderSVG").checked? "svg": "png";
-            if(window.navigator.msSaveOrOpenBlob){
-                //Internet Explorer has its own ways of doing things.
-                var b;
-                if(imageType == "svg")
-                    b = new Blob([graphs[0]._el.innerHTML], {type: "image/svg+xml;charset=utf-8"});
-                else
-                    b = graphs[0]._el.firstChild.msToBlob();
-                window.navigator.msSaveOrOpenBlob(b, fileName + "." + imageType);
-                if(b.msClose)
-                    b.msClose();
             }
-            else{
-                var link = document.getElementById("saveImageLink");
-                link.setAttribute("href", graphs[0].toImageURL(imageType));
-                link.setAttribute("download", fileName + "." + imageType);
-                link.click();
-                link.setAttribute("href", "javascript:void(saveImage())");
-                link.removeAttribute("download");
-            }
-            return false;
-        }
+            return true;
+        });
+        linebreak = reader.result.match(/\r\n|\r|\n/) || linebreak;
+        setMessage("Ready", false);
+        parse();
+    };
+    reader.readAsText(fileList[0]);
+}
 
-        //Save table function.
-        function saveTable(){
-            var b = new Blob(
-                [["marker", "sequence", "reads", "PctOfHighest", "PctOfMarker", "PctCorrected", "PctRecovery", "PctForward", "Notes"].join("\t") + linebreak +
-                    autoSelected.concat(userSelected).filter(function(datum, index, self){
-                        return self.indexOf(datum) === index; //Deduplication.
-                    }).sort(function(a, b){
-                        if(a.marker != b.marker)
-                            return (a.marker > b.marker) - (a.marker < b.marker);
-                        if(a.total_added != b.total_added)
-                            return b.total_added - a.total_added;
-                        if(a.total_corr != b.total_corr)
-                            return b.total_corr - a.total_corr;
-                        if(a.total != b.total)
-                            return b.total - a.total;
-                        return (a.sequence > b.sequence) - (a.sequence < b.sequence);
-                    }).map(function(datum){
-                        var notes = [];
-                        if(autoSelected.indexOf(datum) >= 0 && userDeselected.indexOf(datum) >= 0)
-                            notes.push("user_removed");
-                        if(autoSelected.indexOf(datum) < 0 && userSelected.indexOf(datum) >= 0)
-                            notes.push("user_added");
-                        if(datum.correction_flags)
-                                notes.push(datum.correction_flags);
-                        return [
-                            datum.marker,
-                            datum.sequence,
-                            datum.total_added.toFixed(),
-                            datum.pct_of_max.toFixed(2),
-                            datum.pct_of_sum.toFixed(2),
-                            (datum.total_added/datum.total*100-100).toFixed(2),
-                            (datum.total_add/datum.total*100).toFixed(2),
-                            datum.forwardpct.toFixed(2),
-                            notes.join(",")].join("\t");
-                    }).join(linebreak)
-                ],
-                {type: "text/plain"});
-            if(window.navigator.msSaveOrOpenBlob)
-                window.navigator.msSaveOrOpenBlob(b, fileName + ".csv");
-            else{
-                var url = URL.createObjectURL(b);
-                var link = document.getElementById("saveTableLink");
-                link.setAttribute("href", url);
-                link.setAttribute("download", fileName + ".csv");
-                link.click();
-                link.setAttribute("href", "javascript:void(saveTable())");
-                link.removeAttribute("download");
-            }
-            if(b.msClose)
-                b.msClose();
-            return false;
-        }
+//Clear user selection.
+function clearSelection(){
+    var link = document.getElementById("clearSelectionLink");
+    if(link.getAttribute("class") == "disabled")
+        return false;
+    graphs.forEach(function(graph){
+        graph.data("selectedAlleles").remove(function(){return true});
+        graph.update();
+    });
+    userSelected = [];
+    userDeselected = [];
+    selectedAlleles = [];
+    autoSelectAlleles();
+    link.setAttribute("class", "disabled");
+}
 
-        //Data table update function.
-        function updateTable(i){
-            if(graphs === false)
-                return;
-            var table = document.createElement("table");
-            table.setAttribute("id", "table" + i);
-            table.setAttribute("class", "markertable");
-            table.style.minWidth = graphs[i].signal("width") + "px";
-            var row = table.insertRow();
-            row.insertCell().appendChild(document.createTextNode("Marker"));
-            row.insertCell().appendChild(document.createTextNode("Allele"));
-            row.insertCell().appendChild(document.createTextNode("Reads")).parentNode.setAttribute("class", "num");
-            row.insertCell().appendChild(document.createTextNode("PctOfHighest")).parentNode.setAttribute("class", "num");
-            row.insertCell().appendChild(document.createTextNode("PctOfMarker")).parentNode.setAttribute("class", "num");
-            row.insertCell().appendChild(document.createTextNode("PctCorrected")).parentNode.setAttribute("class", "num");
-            row.insertCell().appendChild(document.createTextNode("PctRecovery")).parentNode.setAttribute("class", "num");
-            row.insertCell().appendChild(document.createTextNode("PctForward")).parentNode.setAttribute("class", "num");
-            row.insertCell().appendChild(document.createTextNode("Notes"));
+//Save image function.
+function saveImage(){
+    var link = document.getElementById("saveImageLink");
+    if(link.getAttribute("class") == "disabled")
+        return false;
+    var imageType = document.getElementById("renderSVG").checked? "svg": "png";
+    if(window.navigator.msSaveOrOpenBlob){
+        //Internet Explorer has its own ways of doing things.
+        var b;
+        if(imageType == "svg")
+            b = new Blob([graphs[0]._el.innerHTML], {type: "image/svg+xml;charset=utf-8"});
+        else
+            b = graphs[0]._el.firstChild.msToBlob();
+        window.navigator.msSaveOrOpenBlob(b, fileName + "." + imageType);
+        if(b.msClose)
+            b.msClose();
+    }
+    else{
+        link.setAttribute("href", graphs[0].toImageURL(imageType));
+        link.setAttribute("download", fileName + "." + imageType);
+        link.click();
+        link.setAttribute("href", "javascript:void(saveImage())");
+        link.removeAttribute("download");
+    }
+    return false;
+}
 
-            var graphAlleles = graphs[i].data("annotated").values();
+//Save table function.
+function saveTable(){
+    var link = document.getElementById("saveTableLink");
+    if(link.getAttribute("class") == "disabled")
+        return false;
+    var b = new Blob(
+        [["marker", "sequence", "reads", "PctOfHighest", "PctOfMarker", "PctCorrected", "PctRecovery", "PctForward", "Notes"].join("\t") + linebreak +
             autoSelected.concat(userSelected).filter(function(datum, index, self){
-                return graphAlleles.indexOf(datum) >= 0 && self.indexOf(datum) === index;
+                return self.indexOf(datum) === index; //Deduplication.
             }).sort(function(a, b){
                 if(a.marker != b.marker)
                     return (a.marker > b.marker) - (a.marker < b.marker);
@@ -777,255 +941,315 @@
                 if(a.total != b.total)
                     return b.total - a.total;
                 return (a.sequence > b.sequence) - (a.sequence < b.sequence);
-            }).forEach(function(datum){
-                row = table.insertRow();
-                row.insertCell().appendChild(document.createTextNode(datum.marker));
-                row.insertCell().appendChild(document.createTextNode(datum.sequence)).parentNode.setAttribute("class", "wrap");
-                row.insertCell().appendChild(document.createTextNode(datum.total_added.toFixed())).parentNode.setAttribute("class", "num");
-                row.insertCell().appendChild(document.createTextNode(datum.pct_of_max.toFixed(2) + "%")).parentNode.setAttribute("class", "num");
-                row.insertCell().appendChild(document.createTextNode(datum.pct_of_sum.toFixed(2) + "%")).parentNode.setAttribute("class", "num");
-                var corrAmount = datum.total_added/datum.total*100-100;
-                row.insertCell().appendChild(document.createTextNode((corrAmount < 0? "" : "+") + corrAmount.toFixed(2) + "%")).parentNode.setAttribute("class", "num");
-                row.insertCell().appendChild(document.createTextNode((datum.total_add/datum.total*100).toFixed(2) + "%")).parentNode.setAttribute("class", "num");
-                var cell = row.insertCell();
-                cell.appendChild(document.createTextNode(datum.forwardpct.toFixed(2) + "%"));
-                cell.setAttribute("class", "num");
-                if(datum.biasmark !== "")
-                    cell.style.backgroundColor = "#ffaaaa";
+            }).map(function(datum){
                 var notes = [];
-                if(autoSelected.indexOf(datum) >= 0 && userDeselected.indexOf(datum) >= 0){
-                    notes.push("User-removed");
-                    row.setAttribute("class", "removed");
-                }
+                if(autoSelected.indexOf(datum) >= 0 && userDeselected.indexOf(datum) >= 0)
+                    notes.push("user_removed");
                 if(autoSelected.indexOf(datum) < 0 && userSelected.indexOf(datum) >= 0)
-                    notes.push("User-added");
-                if(datum.correction_flags){
-                    if(datum.correction_flags == "corrected_bgestimate")
-                        notes.push("BGCorrect-BGEstimate");
-                    else if(datum.correction_flags == "corrected_bghomstats")
-                        notes.push("BGCorrect-BGHomStats");
-                    else if(datum.correction_flags == "corrected_bgpredict")
-                        notes.push("BGCorrect-BGPredict");
-                    else if(datum.correction_flags == "corrected_as_background_only")
-                        notes.push("BGCorrect-as-background-only");
-                    else if(datum.correction_flags == "not_in_ref_db")
-                        notes.push("BGCorrect-not-in-ref-db");
-                    else if(datum.correction_flags == "not_corrected")
-                        notes.push("BGCorrect-not-corrected");
-                    else
+                    notes.push("user_added");
+                if(datum.correction_flags)
                         notes.push(datum.correction_flags);
-                }
-                row.insertCell().appendChild(document.createTextNode(notes.join(", ")));
-            });
-            var tabdiv = document.getElementById("tab" + i);
-            removeChildren(tabdiv);
-            if(table.rows.length > 1)
-                tabdiv.appendChild(table);
-            document.getElementById("saveTableLink").style.display = (autoSelected.length + userSelected.length? "inline" : "none");
+                return [
+                    datum.marker,
+                    datum.sequence,
+                    datum.total_added.toFixed(),
+                    datum.pct_of_max.toFixed(2),
+                    datum.pct_of_sum.toFixed(2),
+                    (datum.total_added/datum.total*100-100).toFixed(2),
+                    (datum.total_add/datum.total*100).toFixed(2),
+                    datum.forwardpct.toFixed(2),
+                    notes.join(",")].join("\t");
+            }).join(linebreak)
+        ],
+        {type: "text/plain"});
+    if(window.navigator.msSaveOrOpenBlob)
+        window.navigator.msSaveOrOpenBlob(b, fileName + ".csv");
+    else{
+        var url = URL.createObjectURL(b);
+        link.setAttribute("href", url);
+        link.setAttribute("download", fileName + ".csv");
+        link.click();
+        link.setAttribute("href", "javascript:void(saveTable())");
+        link.removeAttribute("download");
+    }
+    if(b.msClose)
+        b.msClose();
+    return false;
+}
+
+//Data table update function.
+function updateTable(i){
+    if(graphs === false)
+        return;
+    var table = document.createElement("table");
+    table.setAttribute("id", "table" + i);
+    table.setAttribute("class", "markertable");
+    table.style.minWidth = graphs[i].signal("width") + "px";
+    var row = table.insertRow();
+    row.insertCell().appendChild(document.createTextNode("Marker"));
+    row.insertCell().appendChild(document.createTextNode("Allele"));
+    row.insertCell().appendChild(document.createTextNode("Reads")).parentNode.setAttribute("class", "num");
+    row.insertCell().appendChild(document.createTextNode("PctOfHighest")).parentNode.setAttribute("class", "num");
+    row.insertCell().appendChild(document.createTextNode("PctOfMarker")).parentNode.setAttribute("class", "num");
+    row.insertCell().appendChild(document.createTextNode("PctCorrected")).parentNode.setAttribute("class", "num");
+    row.insertCell().appendChild(document.createTextNode("PctRecovery")).parentNode.setAttribute("class", "num");
+    row.insertCell().appendChild(document.createTextNode("PctForward")).parentNode.setAttribute("class", "num");
+    row.insertCell().appendChild(document.createTextNode("Notes"));
+
+    var graphAlleles = graphs[i].data("annotated").values();
+    autoSelected.concat(userSelected).filter(function(datum, index, self){
+        return graphAlleles.indexOf(datum) >= 0 && self.indexOf(datum) === index;
+    }).sort(function(a, b){
+        if(a.marker != b.marker)
+            return (a.marker > b.marker) - (a.marker < b.marker);
+        if(a.total_added != b.total_added)
+            return b.total_added - a.total_added;
+        if(a.total_corr != b.total_corr)
+            return b.total_corr - a.total_corr;
+        if(a.total != b.total)
+            return b.total - a.total;
+        return (a.sequence > b.sequence) - (a.sequence < b.sequence);
+    }).forEach(function(datum){
+        row = table.insertRow();
+        row.insertCell().appendChild(document.createTextNode(datum.marker));
+        row.insertCell().appendChild(document.createTextNode(datum.sequence)).parentNode.setAttribute("class", "wrap");
+        row.insertCell().appendChild(document.createTextNode(datum.total_added.toFixed())).parentNode.setAttribute("class", "num");
+        row.insertCell().appendChild(document.createTextNode(datum.pct_of_max.toFixed(2) + "%")).parentNode.setAttribute("class", "num");
+        row.insertCell().appendChild(document.createTextNode(datum.pct_of_sum.toFixed(2) + "%")).parentNode.setAttribute("class", "num");
+        var corrAmount = datum.total_added/datum.total*100-100;
+        row.insertCell().appendChild(document.createTextNode((corrAmount < 0? "" : "+") + corrAmount.toFixed(2) + "%")).parentNode.setAttribute("class", "num");
+        row.insertCell().appendChild(document.createTextNode((datum.total_add/datum.total*100).toFixed(2) + "%")).parentNode.setAttribute("class", "num");
+        var cell = row.insertCell();
+        cell.appendChild(document.createTextNode(datum.forwardpct.toFixed(2) + "%"));
+        cell.setAttribute("class", "num");
+        if(datum.biasmark !== "")
+            cell.style.backgroundColor = "#ffaaaa";
+        var notes = [];
+        if(autoSelected.indexOf(datum) >= 0 && userDeselected.indexOf(datum) >= 0){
+            notes.push("User-removed");
+            row.setAttribute("class", "removed");
         }
-
-        function onLoadSpec(has_data){
-            if(!has_data){
-                //Handle files from the file input.
-                document.getElementById("fileselect").addEventListener('change', function(){
-                    loadDataset(document.getElementById("fileselect").files);
-                }, false);
-                document.getElementById("fileselectgroup").style.display = "table";
-
-                //Allow files to be dragged onto the page.
-                document.addEventListener('dragover', function(evt){
-                    evt.stopPropagation();
-                    evt.preventDefault();
-                }, false);
-                document.addEventListener('drop', function(evt){
-                    evt.stopPropagation();
-                    evt.preventDefault();
-
-                    //Try to clear the currently displayed file, then try to set
-                    //the drag-'n-dropped file as the selected one on the file input.
-                    //Both actions are not supported in all major browsers.
-                    document.getElementById("fileselect").value = "";
-                    document.getElementById("fileselect").files = evt.dataTransfer.files;
-                    loadDataset(evt.dataTransfer.files);
-                }, false);
-            }
-
-            //Parse data outside of Vega.
-            data_format = graph_spec.data[0].format;
-            graph_spec.data[0].format = null;
-            if(has_data)
-                data_values = vg.util.read(graph_spec.data[0].values, data_format).filter(function(datum){
-                    if(datum.sequence == "No data"){
-                        missing_markers.push(datum.marker);
-                        return false;
-                    }
-                    return true;
-                });
-
-
-            //Update graph when rendering mode or axis scale is changed.
-            document.getElementById("renderCanvas").addEventListener('change', function(){
-                setRenderer(this.value);
-            }, false);
-            document.getElementById("renderSVG").addEventListener('change', function(){
-                setRenderer(this.value);
-            }, false);
-            document.getElementById("scaleLinear").addEventListener('change', function(){
-                setScale(this.value);
-            }, false);
-            document.getElementById("scaleLog").addEventListener('change', function(){
-                setScale(this.value);
-            }, false);
-            document.getElementById("graphwidth").addEventListener('change', function(){
-                var value = parseFloat(this.value);
-                if(isNaN(value))
-                    return;
-                setSignalValue("width", value);
-            }, false);
-            document.getElementById("barwidth").addEventListener('change', function(){
-                var value = parseFloat(this.value);
-                if(isNaN(value))
-                    return;
-                setSignalValue("barwidth", value);
-            }, false);
-            document.getElementById("subgraphoffset").addEventListener('change', function(){
-                var value = parseFloat(this.value);
-                if(isNaN(value))
-                    return;
-                setSignalValue("subgraphoffset", value);
-            }, false);
-            document.getElementById("splitmarkers").addEventListener('change', function(){
-                if(graphs !== false)
-                    parse(true);
-                document.getElementById("commonrange").disabled = this.checked;
-            }, false);
-            document.getElementById("commonrange").addEventListener('change', function(){
-                if(!graph_spec)
-                    return;
-                graph_spec.marks[1].scales[0].domain.data = (this.checked? "table" : undefined);
-                if(graphs !== false)
-                    parse(true);
-            }, false);
-            document.getElementById("minN").addEventListener('change', function(){
-                var value = parseFloat(this.value);
-                if(isNaN(value))
-                    return;
-                setSignalValue("amplitude_threshold", value);
-            }, false);
-            document.getElementById("minP").addEventListener('change', function(){
-                var value = parseFloat(this.value);
-                if(isNaN(value))
-                    return;
-                setSignalValue("amplitude_pct_threshold", value);
-            }, false);
-            document.getElementById("minT").addEventListener('change', function(){
-                var value = parseFloat(this.value);
-                if(isNaN(value))
-                    return;
-                setSignalValue("amplitude_markerpct_threshold", value);
-            }, false);
-            document.getElementById("minO").addEventListener('change', function(){
-                var value = parseFloat(this.value);
-                if(isNaN(value))
-                    return;
-                setSignalValue("orientation_threshold", value);
-            }, false);
-            document.getElementById("markerFilter").addEventListener('change', function(){
-                if(graphs !== false)
-                    parse(true);
-            }, false);
-            document.getElementById("minBias").addEventListener('change', function(){
-                var value = parseFloat(this.value);
-                if(isNaN(value))
-                    return;
-                setSignalValue("bias_threshold", value);
-            }, false);
-            document.getElementById("shownegative").addEventListener('change', function(){
-                setSignalValue("show_negative", this.checked);
-            }, false);
-            document.getElementById("minNa").addEventListener('change', function(){
-                if(!isNaN(parseFloat(this.value)))
-                    autoSelectAlleles();
-            }, false);
-            document.getElementById("minPa").addEventListener('change', function(){
-                if(!isNaN(parseFloat(this.value)))
-                    autoSelectAlleles();
-            }, false);
-            document.getElementById("minTa").addEventListener('change', function(){
-                if(!isNaN(parseFloat(this.value)))
-                    autoSelectAlleles();
-            }, false);
-            document.getElementById("minCa").addEventListener('change', function(){
-                if(!isNaN(parseFloat(this.value)))
-                    autoSelectAlleles();
-            }, false);
-            document.getElementById("minAa").addEventListener('change', function(){
-                if(!isNaN(parseFloat(this.value)))
-                    autoSelectAlleles();
-            }, false);
-            document.getElementById("minOa").addEventListener('change', function(){
-                if(!isNaN(parseFloat(this.value)))
-                    autoSelectAlleles();
-            }, false);
-
-
-
-            //Toggle options visibility.
-            document.getElementById("optionsheader").addEventListener('click', function(){
-                var opts = document.getElementById("options");
-                if(opts.style.display == "none")
-                    opts.style.display = "block";
-                else
-                    opts.style.display = "none";
-            }, false);
-
-            //Toggle option group visibility.
-            var optgroups = document.querySelectorAll("table.optiongroup");
-            for(var i = 0; i < optgroups.length; i++){
-                optgroups.item(i).querySelector("tr:first-child").addEventListener('click', function(){
-                    var rows = this.parentNode.querySelectorAll("tr:not(:first-child)");
-                    for(var j = 0; j < rows.length; j++){
-                        if(rows.item(j).style.display == "none")
-                            rows.item(j).style.display = "table-row";
-                        else
-                            rows.item(j).style.display = "none";
-                    }
-                }, false);
-            };
-
-            //Sync graph_spec and display.
-            if(getScale() == "linear"){
-                document.getElementById("scaleLinear").checked = true;
-                document.getElementById("scaleLog").checked = false;
-            }
-            else{
-                document.getElementById("scaleLinear").checked = false;
-                document.getElementById("scaleLog").checked = true;
-            }
-            document.getElementById("markerFilter").value = getSignalValue("filter_marker");
-            document.getElementById("graphwidth").value = getSignalValue("width");
-            document.getElementById("barwidth").value = getSignalValue("barwidth");
-            document.getElementById("subgraphoffset").value = getSignalValue("subgraphoffset");
-            document.getElementById("minN").value = getSignalValue("amplitude_threshold");
-            document.getElementById("minP").value = getSignalValue("amplitude_pct_threshold");
-            document.getElementById("minT").value = getSignalValue("amplitude_markerpct_threshold");
-            document.getElementById("minO").value = getSignalValue("orientation_threshold");
-            document.getElementById("minBias").value = getSignalValue("bias_threshold");
-            document.getElementById("shownegative").checked = getSignalValue("show_negative");
-            if(has_data){
-                document.getElementById("options").style.display = "none";
-                parse();
-            }
+        if(autoSelected.indexOf(datum) < 0 && userSelected.indexOf(datum) >= 0)
+            notes.push("User-added");
+        if(datum.correction_flags){
+            if(datum.correction_flags == "corrected_bgestimate")
+                notes.push("BGCorrect-BGEstimate");
+            else if(datum.correction_flags == "corrected_bghomstats")
+                notes.push("BGCorrect-BGHomStats");
+            else if(datum.correction_flags == "corrected_bgpredict")
+                notes.push("BGCorrect-BGPredict");
+            else if(datum.correction_flags == "corrected_as_background_only")
+                notes.push("BGCorrect-as-background-only");
+            else if(datum.correction_flags == "not_in_ref_db")
+                notes.push("BGCorrect-not-in-ref-db");
+            else if(datum.correction_flags == "not_corrected")
+                notes.push("BGCorrect-not-corrected");
+            else
+                notes.push(datum.correction_flags);
         }
-    </script>
-    <!-- BEGIN_LOAD_SCRIPT -->
-    <script type="text/javascript">
-        var graph_spec = false;
-        vg.util.load({url: "samplevis.json"}, function(err, result){
-            graph_spec = JSON.parse(result);
-            onLoadSpec(false);
+        row.insertCell().appendChild(document.createTextNode(notes.join(", ")));
+    });
+    var tabdiv = document.getElementById("tab" + i);
+    removeChildren(tabdiv);
+    if(table.rows.length > 1)
+        tabdiv.appendChild(table);
+    document.getElementById("saveTableLink").setAttribute("class", (autoSelected.length + userSelected.length? "" : "disabled"));
+}
+
+function onLoadSpec(has_data){
+    if(!has_data){
+        //Handle files from the file input.
+        document.getElementById("fileselect").addEventListener('change', function(){
+            loadDataset(document.getElementById("fileselect").files);
+        }, false);
+        var rows = document.querySelectorAll(".fileselectrow");
+        for (var i = 0; i < rows.length; i++)
+            rows[i].style.display = "table-row";
+
+        //Allow files to be dragged onto the page.
+        document.addEventListener('dragover', function(evt){
+            evt.stopPropagation();
+            evt.preventDefault();
+        }, false);
+        document.addEventListener('drop', function(evt){
+            evt.stopPropagation();
+            evt.preventDefault();
+
+            //Try to clear the currently displayed file, then try to set
+            //the drag-'n-dropped file as the selected one on the file input.
+            //Both actions are not supported in all major browsers.
+            document.getElementById("fileselect").value = "";
+            document.getElementById("fileselect").files = evt.dataTransfer.files;
+            loadDataset(evt.dataTransfer.files);
+        }, false);
+    }
+
+    //Parse data outside of Vega.
+    data_format = graph_spec.data[0].format;
+    graph_spec.data[0].format = null;
+    if(has_data){
+        data_values = vg.util.read(graph_spec.data[0].values, data_format).filter(function(datum){
+            if(datum.sequence == "No data"){
+                missing_markers.push(datum.marker);
+                return false;
+            }
+            return true;
         });
-    </script>
-    <!-- END_LOAD_SCRIPT -->
+        if(graph_spec.data[0].fdstools_filename){
+            var rows = document.querySelectorAll(".filenamedisplayrow");
+            for (var i = 0; i < rows.length; i++)
+                rows[i].style.display = "table-row";
+            var cell = document.getElementById("filenamedisplay");
+            removeChildren(cell);
+            cell.appendChild(document.createTextNode(graph_spec.data[0].fdstools_filename));
+            setFileName(graph_spec.data[0].fdstools_filename);
+        }
+    }
+
+
+    //Update graph when rendering mode or axis scale is changed.
+    document.getElementById("renderCanvas").addEventListener('change', function(){
+        setRenderer(this.value);
+    }, false);
+    document.getElementById("renderSVG").addEventListener('change', function(){
+        setRenderer(this.value);
+    }, false);
+    document.getElementById("scaleLinear").addEventListener('change', function(){
+        setScale(this.value);
+    }, false);
+    document.getElementById("scaleLog").addEventListener('change', function(){
+        setScale(this.value);
+    }, false);
+    document.getElementById("graphwidth").addEventListener('change', function(){
+        var value = parseFloat(this.value);
+        if(isNaN(value))
+            return;
+        setSignalValue("width", value);
+    }, false);
+    document.getElementById("barwidth").addEventListener('change', function(){
+        var value = parseFloat(this.value);
+        if(isNaN(value))
+            return;
+        setSignalValue("barwidth", value);
+    }, false);
+    document.getElementById("subgraphoffset").addEventListener('change', function(){
+        var value = parseFloat(this.value);
+        if(isNaN(value))
+            return;
+        setSignalValue("subgraphoffset", value);
+    }, false);
+    document.getElementById("splitmarkers").addEventListener('change', function(){
+        if(graphs !== false)
+            parse(true);
+        document.getElementById("commonrange").disabled = this.checked;
+    }, false);
+    document.getElementById("commonrange").addEventListener('change', function(){
+        if(!graph_spec)
+            return;
+        graph_spec.marks[1].scales[0].domain.data = (this.checked? "table" : undefined);
+        if(graphs !== false)
+            parse(true);
+    }, false);
+    document.getElementById("minN").addEventListener('change', function(){
+        var value = parseFloat(this.value);
+        if(isNaN(value))
+            return;
+        setSignalValue("amplitude_threshold", value);
+    }, false);
+    document.getElementById("minP").addEventListener('change', function(){
+        var value = parseFloat(this.value);
+        if(isNaN(value))
+            return;
+        setSignalValue("amplitude_pct_threshold", value);
+    }, false);
+    document.getElementById("minT").addEventListener('change', function(){
+        var value = parseFloat(this.value);
+        if(isNaN(value))
+            return;
+        setSignalValue("amplitude_markerpct_threshold", value);
+    }, false);
+    document.getElementById("minO").addEventListener('change', function(){
+        var value = parseFloat(this.value);
+        if(isNaN(value))
+            return;
+        setSignalValue("orientation_threshold", value);
+    }, false);
+    document.getElementById("markerFilter").addEventListener('change', function(){
+        if(graphs !== false)
+            parse(true);
+    }, false);
+    document.getElementById("minBias").addEventListener('change', function(){
+        var value = parseFloat(this.value);
+        if(isNaN(value))
+            return;
+        setSignalValue("bias_threshold", value);
+    }, false);
+    document.getElementById("shownegative").addEventListener('change', function(){
+        setSignalValue("show_negative", this.checked);
+    }, false);
+    document.getElementById("showother").addEventListener('change', function(){
+        setSignalValue("show_other", this.checked);
+    }, false);
+    document.getElementById("minNa").addEventListener('change', function(){
+        if(!isNaN(parseFloat(this.value)))
+            autoSelectAlleles();
+    }, false);
+    document.getElementById("minPa").addEventListener('change', function(){
+        if(!isNaN(parseFloat(this.value)))
+            autoSelectAlleles();
+    }, false);
+    document.getElementById("minTa").addEventListener('change', function(){
+        if(!isNaN(parseFloat(this.value)))
+            autoSelectAlleles();
+    }, false);
+    document.getElementById("minCa").addEventListener('change', function(){
+        if(!isNaN(parseFloat(this.value)))
+            autoSelectAlleles();
+    }, false);
+    document.getElementById("minAa").addEventListener('change', function(){
+        if(!isNaN(parseFloat(this.value)))
+            autoSelectAlleles();
+    }, false);
+    document.getElementById("minOa").addEventListener('change', function(){
+        if(!isNaN(parseFloat(this.value)))
+            autoSelectAlleles();
+    }, false);
+
+    //Sync graph_spec and display.
+    if(getScale() == "linear"){
+        document.getElementById("scaleLinear").checked = true;
+        document.getElementById("scaleLog").checked = false;
+    }
+    else{
+        document.getElementById("scaleLinear").checked = false;
+        document.getElementById("scaleLog").checked = true;
+    }
+    document.getElementById("markerFilter").value = getSignalValue("filter_marker");
+    document.getElementById("graphwidth").value = getSignalValue("width");
+    document.getElementById("barwidth").value = getSignalValue("barwidth");
+    document.getElementById("subgraphoffset").value = getSignalValue("subgraphoffset");
+    document.getElementById("minN").value = getSignalValue("amplitude_threshold");
+    document.getElementById("minP").value = getSignalValue("amplitude_pct_threshold");
+    document.getElementById("minT").value = getSignalValue("amplitude_markerpct_threshold");
+    document.getElementById("minO").value = getSignalValue("orientation_threshold");
+    document.getElementById("minBias").value = getSignalValue("bias_threshold");
+    document.getElementById("shownegative").checked = getSignalValue("show_negative");
+    document.getElementById("showother").checked = getSignalValue("show_other");
+
+    setMessage("Ready", false);
+    if(has_data)
+        parse();
+}
+</script>
+<!-- BEGIN_LOAD_SCRIPT -->
+<script type="text/javascript">
+var graph_spec = false;
+setMessage("Loading graph specification...", false);
+vg.util.load({url: "samplevis.json"}, function(err, result){
+    graph_spec = JSON.parse(result);
+    onLoadSpec(false);
+});
+</script>
+<!-- END_LOAD_SCRIPT -->
 </body>
 </html>

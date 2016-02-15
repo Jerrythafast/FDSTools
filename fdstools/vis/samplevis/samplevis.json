@@ -23,6 +23,10 @@
       "init": true
     },
     {
+      "name": "show_other",
+      "init": true
+    },
+    {
       "name": "bias_threshold",
       "init": 25
     },
@@ -47,7 +51,7 @@
       "name": "clickedAllele",
       "verbose": true,
       "streams": [
-        {"type": "@alleleSelector:click", "expr": "datum.thedatum"}
+        {"type": "@alleleSelector:click[datum.thedatum]", "expr": "datum.thedatum"}
       ]
     }
   ],
@@ -70,6 +74,10 @@
         }
       },
       "transform": [
+        {
+          "type": "filter",
+          "test": "test(marker_regex, datum.marker)"
+        },
         {
           "type": "formula",
           "field": "forward_corr",
@@ -114,13 +122,9 @@
       ]
     },
     {
-      "name": "annotated",
+      "name": "preannotated",
       "source": "raw",
       "transform": [
-        {
-          "type": "filter",
-          "test": "test(marker_regex, datum.marker)"
-        },
         {
           "type": "lookup",
           "on": "aggr",
@@ -133,10 +137,108 @@
           "type": "formula",
           "field": "pct_of_max",
           "expr": "datum.aggr.max_total_added? (datum.total_added / datum.aggr.max_total_added * 100) : 100"
-        },        {
+        },
+        {
           "type": "formula",
           "field": "pct_of_sum",
           "expr": "datum.aggr.sum_total_added? (datum.total_added / datum.aggr.sum_total_added * 100) : 100"
+        },
+        {
+          "type": "formula",
+          "field": "markersequence",
+          "expr": "datum.marker + '\t' + datum.sequence"
+        }
+      ]
+    },
+    {
+      "name": "annotated",
+      "source": "preannotated",
+      "transform": [
+        {
+          "type": "formula",
+          "field": "shared",
+          "expr": "max(0, datum.total_corr)"
+        },
+        {
+          "type": "formula",
+          "field": "corr_shared",
+          "expr": "min(datum.total, datum.total_added)"
+        },
+        {
+          "type": "formula",
+          "field": "corr_decreased",
+          "expr": "max(datum.total, datum.corr_shared)"
+        },
+        {
+          "type": "formula",
+          "field": "forwardpct",
+          "expr": "datum.total_added? (100.0 / datum.total_added * datum.forward_added) : 50"
+        },
+        {
+          "type": "formula",
+          "field": "minimum",
+          "expr": "min(0, datum.total_corr)"
+        },
+        {
+          "type": "formula",
+          "field": "xlow",
+          "expr": "datum.minimum*1.05"
+        },
+        {
+          "type": "formula",
+          "field": "maximum",
+          "expr": "max(datum.total, datum.total_added)"
+        },
+        {
+          "type": "formula",
+          "field": "xhigh",
+          "expr": "datum.maximum*1.05"
+        },
+        {
+          "type": "formula",
+          "field": "biasmark",
+          "expr": "50-abs(datum.forwardpct-50) < bias_threshold? '\u2605' : ''"
+        },
+        {
+          "type": "formula",
+          "field": "thedatum",
+          "expr": "datum"
+        }
+      ]
+    },
+    {
+      "name": "table",
+      "source": "preannotated",
+      "transform": [
+        {
+          "type": "formula",
+          "field": "sequence",
+          "expr": "((show_negative? abs(datum.total_added) : datum.total_added) >= amplitude_threshold && (show_negative? abs(datum.pct_of_max) : datum.pct_of_max) >= amplitude_pct_threshold && (show_negative? abs(datum.pct_of_sum) : datum.pct_of_sum) >= amplitude_markerpct_threshold && min(show_negative? abs(datum.forward_added) : datum.forward_added, show_negative? abs(datum.reverse_added) : datum.reverse_added) >= orientation_threshold)? datum.sequence : 'Other sequences'"
+        },
+        {
+          "type": "filter",
+          "test": "show_other || datum.sequence != 'Other sequences'"
+        },
+        {
+          "type": "aggregate",
+          "groupby": ["marker", "sequence"],
+          "summarize": [
+            {"field": "forward",        "ops": ["sum"], "as": ["forward"]},
+            {"field": "reverse",        "ops": ["sum"], "as": ["reverse"]},
+            {"field": "total",          "ops": ["sum"], "as": ["total"]},
+            {"field": "forward_noise",  "ops": ["sum"], "as": ["forward_noise"]},
+            {"field": "reverse_noise",  "ops": ["sum"], "as": ["reverse_noise"]},
+            {"field": "total_noise",    "ops": ["sum"], "as": ["total_noise"]},
+            {"field": "forward_add",    "ops": ["sum"], "as": ["forward_add"]},
+            {"field": "reverse_add",    "ops": ["sum"], "as": ["reverse_add"]},
+            {"field": "total_add",      "ops": ["sum"], "as": ["total_add"]},
+            {"field": "forward_corr",   "ops": ["sum"], "as": ["forward_corr"]},
+            {"field": "reverse_corr",   "ops": ["sum"], "as": ["reverse_corr"]},
+            {"field": "total_corr",     "ops": ["sum"], "as": ["total_corr"]},
+            {"field": "forward_added",  "ops": ["sum"], "as": ["forward_added"]},
+            {"field": "reverse_added",  "ops": ["sum"], "as": ["reverse_added"]},
+            {"field": "total_added",    "ops": ["sum"], "as": ["total_added"]}
+          ]
         },
         {
           "type": "formula",
@@ -155,23 +257,28 @@
         },
         {
           "type": "formula",
-          "field": "corr_increased",
-          "expr": "max(datum.corr_shared, datum.total_added)"
-        },
-        {
-          "type": "formula",
           "field": "forwardpct",
           "expr": "datum.total_added? (100.0 / datum.total_added * datum.forward_added) : 50"
         },
         {
           "type": "formula",
+          "field": "minimum",
+          "expr": "min(0, datum.total_corr)"
+        },
+        {
+          "type": "formula",
           "field": "xlow",
-          "expr": "min(0, datum.total_corr*1.05)"
+          "expr": "datum.minimum*1.05"
+        },
+        {
+          "type": "formula",
+          "field": "maximum",
+          "expr": "max(datum.total, datum.total_added)"
         },
         {
           "type": "formula",
           "field": "xhigh",
-          "expr": "max(datum.total*1.05, datum.total_added*1.05)"
+          "expr": "datum.maximum*1.05"
         },
         {
           "type": "formula",
@@ -180,18 +287,15 @@
         },
         {
           "type": "formula",
-          "field": "thedatum",
-          "expr": "datum"
-        }
-      ]
-    },
-    {
-      "name": "table",
-      "source": "annotated",
-      "transform": [
+          "field": "markersequence",
+          "expr": "datum.marker + '\t' + datum.sequence"
+        },
         {
-          "type": "filter",
-          "test": "(show_negative? abs(datum.total_added) : datum.total_added) >= amplitude_threshold && (show_negative? abs(datum.pct_of_max) : datum.pct_of_max) >= amplitude_pct_threshold && (show_negative? abs(datum.pct_of_sum) : datum.pct_of_sum) >= amplitude_markerpct_threshold && min(show_negative? abs(datum.forward_added) : datum.forward_added, show_negative? abs(datum.reverse_added) : datum.reverse_added) >= orientation_threshold"
+          "type": "lookup",
+          "on": "annotated",
+          "onKey": "markersequence",
+          "keys": ["markersequence"],
+          "as": ["thedatum"]
         },
         {
           "type": "sort",
@@ -485,7 +589,7 @@
           "properties": {
             "update": {
               "x": {"scale": "x", "field": "corr_shared"},
-              "x2": {"scale": "x", "field": "corr_increased"},
+              "x2": {"scale": "x", "field": "total_added"},
               "y": {"scale": "y", "field": "sequence", "offset": 1},
               "height": {"scale": "y", "band": true, "offset": -2},
               "fill": {"scale": "c", "value": "Recovered reads"},
@@ -520,7 +624,7 @@
               "type": "rule",
               "properties": {
                 "update": {
-                  "x": {"scale": "x", "value": 0},
+                  "x": {"scale": "x", "field": "minimum"},
                   "x2": {"scale": "x", "field": "total_added"},
                   "y": {"scale": "balance", "field": "forwardpct"},
                   "stroke": {"scale": "b", "field": "biasmark"},
@@ -532,7 +636,7 @@
               "type": "text",
               "properties": {
                 "update": {
-                  "x": {"scale": "x", "field": "xhigh", "mult": 0.952381, "offset": 5},
+                  "x": {"scale": "x", "field": "maximum", "offset": 5},
                   "y": {"scale": "balance", "value": 50},
                   "baseline": {"value": "middle"},
                   "fill": {"scale": "b", "field": "biasmark"},

@@ -1,15 +1,16 @@
 To-do:
+* TRY: BGCorrect edits to get rid of overcorrection of singletons:
+  * Round final output to nearest integer; halves away from zero.
+  * Clip deviations of less than 1 read to zero while iterating.
+  * Both.
 * Samplevis:
-  * Re-layout, inspiration:
-    http://matthewjamestaylor.com/blog/perfect-multi-column-liquid-layouts
-  * Replace the alert for 'No data' markers with a message on the page.
-  * Allow for heavily corrected sequences to remain visible in the graphs.
-  * Make sure markers for which no sequences meet the filtering criteria are
-    still visible.
+  * Add option to truncate long allele names.
   * Sort STR alleles by length by default.
   * Option to adjust the sorting.
   * Option to choose complete table download.
   * When we have them, add default values to table filtering (for reference).
+  * Some of the media query breakpoints overlap, fix this.
+  * Perhaps it is desirable to be able to request a list of 'Other sequences'.
 * Additions needed for publication:
   * [If not too difficult to implement] BGEstimate should start with homozygous
     samples and add heterozygous samples later to optimise correction.
@@ -24,11 +25,12 @@ To-do:
 * Add visualisation with all markers in one graph ("samplesummaryvis"?).
 * Allow loading multiple files into HTML visualisations and provide prev/next
   buttons to browse them.
-* Visualisations in IE10:
-  * Printing striped table rows does not seem to work. (But pagebreaks work
-    better than Chrome!!)
+* Samplevis HTML visualisations in IE11:
+  * Printing striped table rows does not seem to work, though this might be an
+    NFI-specific issue.
   * Tables are not perfectly aligned with the graphs (graphs render slightly
-    differently). Firefox: same thing (and not identical to IE either).
+    differently). Firefox is just 1px off (using em units for positioning now).
+  * When printing, IE11 respects the pagebreak hints. Chrome and FF are bugged!
 * [Known bug]: pattern_longest_match does not give the longest match if a
   shorter match is possible and found earlier at the same position.
 * Add tool that takes a configuration file and runs a pipeline of other tools.
@@ -48,6 +50,8 @@ To-do:
   (TODO: Write this list)
 
 Open Vega issues:
+* Lookup transform only takes simple field names for the onKey parameter.
+  https://github.com/vega/vega/issues/526
 * Sorting is broken.
   https://github.com/vega/vega/issues/509
 * Feature request: Id-based refs for Force transform's source and target.

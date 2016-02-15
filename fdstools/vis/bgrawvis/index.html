@@ -208,6 +208,16 @@
                 graph.renderer(value).update();
         }
 
+        function setFileName(value){
+            if(!value)
+                value = "graph";
+            fileName = value;
+            if(value == "graph")
+                document.title = "Background Noise Visualisation - FDSTools";
+            else
+                document.title = value + " - Background Noise Visualisation - FDSTools";
+        }
+
         //Load the data (input is a fileList object; only the first file is loaded).
         var currentlyLoadedFile = "no/file/loaded";
         function loadDataset(fileList){
@@ -217,10 +227,9 @@
             var reader = new FileReader();
             reader.onload = function(e){
                 if(fileList && fileList.length && fileList[0].name)
-                    fileName = fileList[0].name.substr(0, fileList[0].name.lastIndexOf("."));
+                    setFileName(fileList[0].name.substr(0, fileList[0].name.lastIndexOf(".")));
                 else
-                    fileName = "graph";
-                document.title = fileName + " - Background Noise Visualisation - FDSTools";
+                    setFileName(false);
                 graph_spec.data[0].values = reader.result;
                 parse();
             };
@@ -277,6 +286,8 @@
                     loadDataset(evt.dataTransfer.files);
                 }, false);
             }
+            else if(graph_spec.data[0].fdstools_filename)
+                setFileName(graph_spec.data[0].fdstools_filename);
 
             //Update graph when rendering mode or axis scale is changed.
             document.getElementById("renderCanvas").addEventListener('change', function(){
