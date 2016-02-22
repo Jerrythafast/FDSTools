@@ -1,13 +1,10 @@
 To-do:
-* TRY: BGCorrect edits to get rid of overcorrection of singletons:
-  * Round final output to nearest integer; halves away from zero.
-  * Clip deviations of less than 1 read to zero while iterating.
-  * Both.
 * Samplevis:
+  * Give 'Other sequences' bars a distinct look.
   * Add option to truncate long allele names.
   * Sort STR alleles by length by default.
   * Option to adjust the sorting.
-  * Option to choose complete table download.
+  * Option to choose complete table download (all columns, not all rows).
   * When we have them, add default values to table filtering (for reference).
   * Some of the media query breakpoints overlap, fix this.
   * Perhaps it is desirable to be able to request a list of 'Other sequences'.
@@ -19,7 +16,11 @@ To-do:
     (maybe also additional value for confidence interval).
   * Visualisation to display highest remaining background (positive and
     negative) in known samples after BGCorrect analysis.
+* Add a way to identify sequences that do not fit the library, or an option not
+  to generate those.
 * Add options to Libconvert to generate a template for STR or non-STR markers.
+* Add options to Samplevis, Samplestats (and possibly other relevant tools) to
+  filter alleles by sequence length.
 * Add plotting of raw data points to StuttermodelVis.
 * Add a print stylesheet for the other visualisations (only Samplevis has one).
 * Add visualisation with all markers in one graph ("samplesummaryvis"?).
@@ -50,9 +51,11 @@ To-do:
   (TODO: Write this list)
 
 Open Vega issues:
+* Bug in aggregate transform.
+  https://github.com/vega/vega/issues/530
 * Lookup transform only takes simple field names for the onKey parameter.
   https://github.com/vega/vega/issues/526
-* Sorting is broken.
+* Sorting needs the Rank transform, but that is not released yet.
   https://github.com/vega/vega/issues/509
 * Feature request: Id-based refs for Force transform's source and target.
   https://github.com/vega/vega/issues/471

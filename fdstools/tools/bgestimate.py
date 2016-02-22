@@ -421,7 +421,7 @@ def generate_profiles(samples_in, outfile, reportfile, allelefile,
     allelelist = {tag: allelelist[tag] for tag in sample_data}
     ensure_min_samples(allelelist, min_samples)
 
-    # Combine data from all samples.
+    # Combine data from all samples.  This takes most time.
     data = {}
     for tag in sample_data.keys():
         add_sample_data(data, sample_data[tag], allelelist[tag], min_pct,

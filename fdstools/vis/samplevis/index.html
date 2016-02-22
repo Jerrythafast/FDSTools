@@ -172,7 +172,10 @@
         .markertable td:nth-child(2) {
             width: auto;
         }
-        .markertable tr:nth-child(1n) {
+        .markertable tr:first-child {
+            background-color: hsl(220, 20%, 77%);
+        }
+        .markertable tr:nth-child(1n+2) {
             background-color: hsl(220, 20%, 97%);
         }
         .markertable tr:nth-child(2n) {
@@ -288,7 +291,7 @@
             width: 100%;
             border-top: 1pt solid black;
             border-right: 1pt solid black;
-            font-size: 8pt;
+            font-size: 7pt;
         }
         .optiongroup {
             flex-grow: 1;
@@ -365,7 +368,7 @@
         .markertable td {
             border: 1pt solid #888888;
             padding: 2pt;
-            font-size: 8pt;
+            font-size: 7pt;
             white-space: nowrap;
             width: 50pt;
         }
@@ -374,6 +377,9 @@
         }
         .markertable td:nth-child(2) {
             width: auto;
+        }
+        .markertable tr:first-child {
+            background-color: #cccccc;
         }
         .markertable tr:nth-child(2n) {
             background-color: #eeeeee;

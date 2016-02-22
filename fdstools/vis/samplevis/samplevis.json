@@ -155,6 +155,10 @@
       "source": "preannotated",
       "transform": [
         {
+          "type": "filter",
+          "test": "datum.sequence != 'Other sequences'"
+        },
+        {
           "type": "formula",
           "field": "shared",
           "expr": "max(0, datum.total_corr)"
@@ -207,7 +211,7 @@
       ]
     },
     {
-      "name": "table",
+      "name": "unranked",
       "source": "preannotated",
       "transform": [
         {
@@ -296,10 +300,56 @@
           "onKey": "markersequence",
           "keys": ["markersequence"],
           "as": ["thedatum"]
+        }
+      ]
+    },
+    {
+      "name": "ranks",
+      "source": "unranked",
+      "transform": [
+        {
+          "type": "cross",
+          "diagonal": false,
+          "filter": "datum.b.marker > datum.a.marker || (datum.b.marker == datum.a.marker && (datum.b.total_added < datum.a.total_added || (datum.b.total_added == datum.a.total_added && (datum.b.total_corr < datum.a.total_corr || (datum.b.total_corr == datum.a.total_corr && (datum.b.total < datum.a.total || (datum.b.total == datum.a.total && datum.b.sequence > datum.a.sequence)))))))"
         },
         {
-          "type": "sort",
-          "by": ["marker", "-total_added", "-total_corr", "-total", "sequence"]
+          "type": "formula",
+          "field": "markersequence",
+          "expr": "datum.a.markersequence"
+        },
+        {
+          "type": "formula",
+          "field": "sequence",
+          "expr": "datum.a.sequence"
+        },
+        {
+          "type": "aggregate",
+          "groupby": ["markersequence", "sequence"],
+          "summarize": [{"field": "*", "ops": ["count"], "as": ["rank"]}]
+        },
+        {
+          "type": "formula",
+          "field": "rank",
+          "expr": "datum.sequence == 'Other sequences'? -1 : datum.rank"
+        }
+      ]
+    },
+    {
+      "name": "table",
+      "source": "unranked",
+      "transform": [
+        {
+          "type": "lookup",
+          "on": "ranks",
+          "onKey": "markersequence",
+          "keys": ["markersequence"],
+          "as": ["rankobj"],
+          "default": {"rank": 0}
+        },
+        {
+          "type": "formula",
+          "field": "rank",
+          "expr": "datum.rankobj.rank"
         }
       ]
     },
@@ -492,7 +542,8 @@
           "name": "y",
           "type": "ordinal",
           "range": "height",
-          "domain": {"field": "sequence"}
+          "domain": {"field": "sequence", "sort": {"field": "rank", "op": "min"}},
+          "reverse": true
         }
       ],
       "axes": [

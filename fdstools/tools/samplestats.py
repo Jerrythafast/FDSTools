@@ -597,7 +597,7 @@ def compute_stats(infile, outfile, min_reads,
                     100.*combined[ci["reverse_noise"]]/combined[ci["reverse"]]
                     if combined[ci["reverse"]] else 0)
             if "total_add" in ci:
-                combined[ci["total_add_pct"]] = (
+                combined[ci["total_added_pct"]] = (
                     100.*combined[ci["total_add"]]/combined[ci["total"]]
                     if combined[ci["total"]] else 0)
                 if "forward_add" in ci:

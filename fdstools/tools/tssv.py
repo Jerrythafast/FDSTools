@@ -16,7 +16,8 @@ import math
 #                           make_statistics_table, prepare_output_dir
 
 from ..lib import pos_int_arg, add_input_output_args, get_input_output_files,\
-                  add_sequence_format_args, reverse_complement, get_column_ids
+                  add_sequence_format_args, reverse_complement, PAT_SEQ_RAW,\
+                  get_column_ids
 
 __version__ = "0.1dev"
 
@@ -58,12 +59,13 @@ def run_tssv_lite(infile, outfile, reportfile, is_fastq, library, seqformat,
     total_reads, unrecognised, counters, sequences = process_file(
         infile, file_format, tssv_library, outfiles)
 
-    # Filter out sequences with low read counts now.
+    # Filter out sequences with low read counts and invalid bases now.
     if aggregate_below_minimum:
         aggregates = {}
         for marker in sequences:
             for sequence in sequences[marker]:
-                if sum(sequences[marker][sequence]) < minimum:
+                if (sum(sequences[marker][sequence]) < minimum or
+                        PAT_SEQ_RAW.match(sequence) is None):
                     if marker not in aggregates:
                         aggregates[marker] = [0, 0]
                     aggregates[marker][0] += sequences[marker][sequence][0]
@@ -71,7 +73,8 @@ def run_tssv_lite(infile, outfile, reportfile, is_fastq, library, seqformat,
     sequences = {marker:
         {sequence: sequences[marker][sequence]
             for sequence in sequences[marker]
-            if sum(sequences[marker][sequence]) >= minimum}
+            if sum(sequences[marker][sequence]) >= minimum
+            and PAT_SEQ_RAW.match(sequence) is not None}
         for marker in sequences}
 
     # Check presence of all markers.

@@ -278,6 +278,8 @@ def convert_library(infile, outfile, aliases=False):
                 "; ends at position 16569 and the second fragment starts at "
                 "position 1.")
         ini.set("genome_position",
+                "; Using human genome build GRCh38 and rCRS for human mtDNA.")
+        ini.set("genome_position",
                 ";MyMarker    = 9, 36834400")
         ini.set("genome_position",
                 ";MySNPMarker = X, 21214600")
