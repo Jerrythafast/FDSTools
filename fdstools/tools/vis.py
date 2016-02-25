@@ -133,7 +133,7 @@ def create_visualisation(vistype, infile, outfile, vega, online, tidy, min_abs,
                          min_pct_of_max, min_pct_of_sum, min_per_strand,
                          bias_threshold, bar_width, padding, marker, width,
                          height, log_scale, repeat_unit, no_alldata,
-                         no_aggregate, title):
+                         no_aggregate, no_ce_length_sort, title):
     # Get graph spec.
     spec = json.load(resource_stream(
         "fdstools", "vis/%svis/%svis.json" % (vistype, vistype)))
@@ -171,7 +171,8 @@ def create_visualisation(vistype, infile, outfile, vega, online, tidy, min_abs,
         set_signal_value(spec, "orientation_threshold", min_per_strand)
         set_signal_value(spec, "bias_threshold", bias_threshold)
         set_signal_value(spec, "amplitude_markerpct_threshold", min_pct_of_sum)
-        set_signal_value(spec, "show_other", False if no_aggregate else True)
+        set_signal_value(spec, "show_other", not no_aggregate)
+        set_signal_value(spec, "sort_str_by_length", not no_ce_length_sort)
 
     # Apply axis scale settings.
     if vistype != "stuttermodel" and vistype != "allele":
@@ -293,6 +294,8 @@ def add_arguments(parser):
         default=_DEF_THRESHOLD_BIAS,
         help="[sample] mark sequences that have less than this percentage of "
              "reads on one strand (default: %(default)s)")
+    visgroup.add_argument('-c', '--no-ce-length-sort', action="store_true",
+        help="[sample] if specified, do not sort STR alleles by length")
     visgroup.add_argument('-M', '--marker', metavar="MARKER",
         default=_DEF_MARKER_NAME,
         help="[sample, profile, bgraw, stuttermodel] only show graphs for the "
@@ -305,6 +308,11 @@ def add_arguments(parser):
              "contain the given value; separate multiple values with spaces; "
              "prepend any value with '=' for an exact match (default: show "
              "all repeat units)")
+    visgroup.add_argument('-A', '--no-alldata', action="store_true",
+        help="[stuttermodel] if specified, show only marker-specific fits")
+    visgroup.add_argument('-a', '--no-aggregate', action="store_true",
+        help="[sample] if specified, do not replace filtered sequences with a"
+             "per-marker aggregate 'Other sequences' entry")
     visgroup.add_argument('-L', '--log-scale', action="store_true",
         help="[sample, profile, bgraw] use logarithmic scale (for sample: "
              "square root scale) instead of linear scale")
@@ -325,11 +333,6 @@ def add_arguments(parser):
         default=_DEF_HEIGHT,
         help="[stuttermodel, allele] height of the graph area in pixels "
              "(default: %(default)s)")
-    visgroup.add_argument('-A', '--no-alldata', action="store_true",
-        help="[stuttermodel] if specified, show only marker-specific fits")
-    visgroup.add_argument('-a', '--no-aggregate', action="store_true",
-        help="[sample] if specified, do not replace filtered sequences with a"
-             "per-marker aggregate 'Other sequences' entry")
 #add_arguments
 
 
@@ -357,5 +360,6 @@ def run(args):
                          args.min_per_strand, args.bias_threshold,
                          args.bar_width, args.padding, args.marker, args.width,
                          args.height, args.log_scale, args.repeat_unit,
-                         args.no_alldata, args.no_aggregate, args.title)
+                         args.no_alldata, args.no_aggregate,
+                         args.no_ce_length_sort, args.title)
 #run

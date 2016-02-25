@@ -187,6 +187,9 @@
         {
           "type": "sort",
           "by": ["markerdirection", "length"]
+        },
+        {
+          "type": "rank"
         }
       ]
     }
@@ -255,7 +258,7 @@
           "name": "c",
           "type": "ordinal",
           "range": "category20",
-          "domain": {"field": "markerdirection"}
+          "domain": {"field": "markerdirection", "sort": {"field": "rank", "op": "min"}}
         }
       ],
       "axes": [

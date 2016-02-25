@@ -351,9 +351,16 @@
             page-break-after: avoid;
             page-break-inside: avoid;
         }
-        .vega, .marks {
+        .vega, canvas {
             max-width: 100%;
             height: auto;
+            overflow: visible;
+        }
+        svg {
+            /* Using slightly smaller width to prevent clipping in Chrome */
+            max-width: 98%;
+            height: auto;
+            overflow: visible;
         }
         canvas {
             object-fit: scale-down;
@@ -532,6 +539,15 @@
                         <label>
                             <input type="checkbox" id="commonrange" disabled>
                             Common axis range
+                            <span class="help" title="This option is only available if 'Split markers' has been turned off.">?</span>
+                        </label>
+                    </td>
+                </tr>
+                <tr>
+                    <td colspan="3">
+                        <label>
+                            <input type="checkbox" id="sortstrbylength">
+                            Sort STR alleles by length
                         </label>
                     </td>
                 </tr>
@@ -631,19 +647,11 @@ function parse(maintainSelection){
             visdiv.appendChild(newtab);
 
             var graph = chart({el: newvis, renderer: rendererName});
-            graph.on("mouseover", function(event, item){
-                if(item && item.mark && item.mark.name && item.mark.name == "alleleSelector" && item.datum && item.datum.sequence && item.datum.sequence != "Other sequences")
-                    document.body.style.cursor = "pointer";
-            });
-            graph.on("mouseout", function(event, item){
-                if(item && item.mark && item.mark.name && item.mark.name == "alleleSelector" && item.datum && item.datum.sequence && item.datum.sequence != "Other sequences")
-                    document.body.style.cursor = "auto";
-            });
             graph.onSignal("clickedAllele", function(name, value){
                 if(isAutoselecting)
                     return;
                 document.getElementById("clearSelectionLink").setAttribute("class", "");
-                if(graph.data("selectedAlleles").values().some(function(item){return item.sequence==value})){
+                if(graph.data("selectedAlleles").values().some(function(item){return item.thedatum==value})){
                     //User added this allele.
                     var pos = userDeselected.indexOf(value);
                     if(pos >= 0)
@@ -728,7 +736,7 @@ function autoSelectAlleles(graph){
     if(isNaN(minNa + minPa + minTa + minCa + minAa + minOa))
         return;
     (graph === undefined? graphs : [graph]).forEach(function(graph){
-        var selectedAllelesInGraph = graph.data("selectedAlleles").values().map(function(datum){return datum.sequence});
+        var selectedAllelesInGraph = graph.data("selectedAlleles").values().map(function(datum){return datum.thedatum});
         graph.data("annotated").values().forEach(function(datum){
             if(datum.sequence != "Other sequences" &&
                datum.total_added >= minNa &&
@@ -938,15 +946,7 @@ function saveTable(){
             autoSelected.concat(userSelected).filter(function(datum, index, self){
                 return self.indexOf(datum) === index; //Deduplication.
             }).sort(function(a, b){
-                if(a.marker != b.marker)
-                    return (a.marker > b.marker) - (a.marker < b.marker);
-                if(a.total_added != b.total_added)
-                    return b.total_added - a.total_added;
-                if(a.total_corr != b.total_corr)
-                    return b.total_corr - a.total_corr;
-                if(a.total != b.total)
-                    return b.total - a.total;
-                return (a.sequence > b.sequence) - (a.sequence < b.sequence);
+                return a.rank - b.rank;
             }).map(function(datum){
                 var notes = [];
                 if(autoSelected.indexOf(datum) >= 0 && userDeselected.indexOf(datum) >= 0)
@@ -984,6 +984,11 @@ function saveTable(){
 }
 
 //Data table update function.
+function updateAllTables(){
+    if(graphs === false)
+        return;
+    graphs.forEach(function(graph, i){updateTable(i)});
+}
 function updateTable(i){
     if(graphs === false)
         return;
@@ -1006,15 +1011,7 @@ function updateTable(i){
     autoSelected.concat(userSelected).filter(function(datum, index, self){
         return graphAlleles.indexOf(datum) >= 0 && self.indexOf(datum) === index;
     }).sort(function(a, b){
-        if(a.marker != b.marker)
-            return (a.marker > b.marker) - (a.marker < b.marker);
-        if(a.total_added != b.total_added)
-            return b.total_added - a.total_added;
-        if(a.total_corr != b.total_corr)
-            return b.total_corr - a.total_corr;
-        if(a.total != b.total)
-            return b.total - a.total;
-        return (a.sequence > b.sequence) - (a.sequence < b.sequence);
+        return a.rank - b.rank;
     }).forEach(function(datum){
         row = table.insertRow();
         row.insertCell().appendChild(document.createTextNode(datum.marker));
@@ -1196,6 +1193,10 @@ function onLoadSpec(has_data){
     document.getElementById("showother").addEventListener('change', function(){
         setSignalValue("show_other", this.checked);
     }, false);
+    document.getElementById("sortstrbylength").addEventListener('change', function(){
+        setSignalValue("sort_str_by_length", this.checked);
+        updateAllTables();
+    }, false);
     document.getElementById("minNa").addEventListener('change', function(){
         if(!isNaN(parseFloat(this.value)))
             autoSelectAlleles();
@@ -1241,6 +1242,7 @@ function onLoadSpec(has_data){
     document.getElementById("minBias").value = getSignalValue("bias_threshold");
     document.getElementById("shownegative").checked = getSignalValue("show_negative");
     document.getElementById("showother").checked = getSignalValue("show_other");
+    document.getElementById("sortstrbylength").checked = getSignalValue("sort_str_by_length");
 
     setMessage("Ready", false);
     if(has_data)

@@ -42,7 +42,8 @@ def add_sample_data(data, sample_data, sample_alleles, min_pct, min_abs, tag):
         allele = sample_alleles[marker]
         if (marker, allele) not in sample_data:
             raise ValueError(
-                "Missing allele %s of marker %s!" % (allele, marker))
+                "Missing allele %s of marker %s in sample %s!" %
+                        (allele, marker, tag))
         elif 0 in sample_data[marker, allele]:
             raise ValueError(
                 "Allele %s of marker %s has 0 reads!" % (allele, marker))
@@ -171,7 +172,7 @@ def add_arguments(parser):
              "particular true allele (default: %(default)s)")
     filtergroup.add_argument('-M', '--marker', metavar="MARKER",
         help="work only on MARKER")
-    add_sequence_format_args(parser)
+    add_sequence_format_args(parser, "raw")
 #add_arguments
 
 

@@ -1253,8 +1253,9 @@ def get_sample_data(tags_to_files, callback, allelelist=None,
         alleles = set()
         for infile in tags_to_files[tag]:
             infile = sys.stdin if infile == "-" else open(infile, "r")
-            alleles.update(read_sample_data_file(infile, data,
-                annotation_column, seqformat, library, marker, False))
+            alleles.update(read_sample_data_file(
+                infile, data, annotation_column, seqformat, library, marker,
+                drop_special_seq))
             if infile != sys.stdin:
                 infile.close()
         if limit_reads < sys.maxint:

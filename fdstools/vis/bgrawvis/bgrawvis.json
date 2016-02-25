@@ -67,6 +67,9 @@
           "by": ["name", "-tnoise", "-maxnoise"]
         },
         {
+          "type": "rank"
+        },
+        {
           "type":
           "formula",
           "field": "minnoise",
@@ -232,7 +235,7 @@
           "points": true,
           "padding": 1,
           "range": "height",
-          "domain": {"field": "sequence"}
+          "domain": {"field": "sequence", "sort": {"field": "rank", "op": "min"}}
         }
       ],
       "axes": [

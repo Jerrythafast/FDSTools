@@ -27,6 +27,10 @@
       "init": true
     },
     {
+      "name": "sort_str_by_length",
+      "init": true
+    },
+    {
       "name": "bias_threshold",
       "init": 25
     },
@@ -51,7 +55,10 @@
       "name": "clickedAllele",
       "verbose": true,
       "streams": [
-        {"type": "@alleleSelector:click[datum.thedatum]", "expr": "datum.thedatum"}
+        {
+          "type": "@alleleSelector:click[datum.thedatum]",
+          "expr": "datum.thedatum"
+        }
       ]
     }
   ],
@@ -145,6 +152,18 @@
         },
         {
           "type": "formula",
+          "field": "seq_order",
+          "expr": "(sort_str_by_length && test(/^CE\\d+\\.?\\d*_/, datum.sequence))? parseFloat(substring(datum.sequence, 2, indexof(datum.sequence, '_'))) : 1/0"
+        },
+        {
+          "type": "sort",
+          "by": ["marker", "seq_order", "-total_added", "-total_corr", "-total", "sequence"]
+        },
+        {
+          "type": "rank"
+        },
+        {
+          "type": "formula",
           "field": "markersequence",
           "expr": "datum.marker + '\t' + datum.sequence"
         }
@@ -211,7 +230,7 @@
       ]
     },
     {
-      "name": "unranked",
+      "name": "table",
       "source": "preannotated",
       "transform": [
         {
@@ -241,7 +260,8 @@
             {"field": "total_corr",     "ops": ["sum"], "as": ["total_corr"]},
             {"field": "forward_added",  "ops": ["sum"], "as": ["forward_added"]},
             {"field": "reverse_added",  "ops": ["sum"], "as": ["reverse_added"]},
-            {"field": "total_added",    "ops": ["sum"], "as": ["total_added"]}
+            {"field": "total_added",    "ops": ["sum"], "as": ["total_added"]},
+            {"field": "rank",           "ops": ["min"], "as": ["rank"]}
           ]
         },
         {
@@ -300,56 +320,11 @@
           "onKey": "markersequence",
           "keys": ["markersequence"],
           "as": ["thedatum"]
-        }
-      ]
-    },
-    {
-      "name": "ranks",
-      "source": "unranked",
-      "transform": [
-        {
-          "type": "cross",
-          "diagonal": false,
-          "filter": "datum.b.marker > datum.a.marker || (datum.b.marker == datum.a.marker && (datum.b.total_added < datum.a.total_added || (datum.b.total_added == datum.a.total_added && (datum.b.total_corr < datum.a.total_corr || (datum.b.total_corr == datum.a.total_corr && (datum.b.total < datum.a.total || (datum.b.total == datum.a.total && datum.b.sequence > datum.a.sequence)))))))"
-        },
-        {
-          "type": "formula",
-          "field": "markersequence",
-          "expr": "datum.a.markersequence"
-        },
-        {
-          "type": "formula",
-          "field": "sequence",
-          "expr": "datum.a.sequence"
-        },
-        {
-          "type": "aggregate",
-          "groupby": ["markersequence", "sequence"],
-          "summarize": [{"field": "*", "ops": ["count"], "as": ["rank"]}]
         },
         {
           "type": "formula",
           "field": "rank",
-          "expr": "datum.sequence == 'Other sequences'? -1 : datum.rank"
-        }
-      ]
-    },
-    {
-      "name": "table",
-      "source": "unranked",
-      "transform": [
-        {
-          "type": "lookup",
-          "on": "ranks",
-          "onKey": "markersequence",
-          "keys": ["markersequence"],
-          "as": ["rankobj"],
-          "default": {"rank": 0}
-        },
-        {
-          "type": "formula",
-          "field": "rank",
-          "expr": "datum.rankobj.rank"
+          "expr": "datum.sequence == 'Other sequences'? 1/0 : datum.rank"
         }
       ]
     },
@@ -445,24 +420,9 @@
         {
           "type": "toggle",
           "signal": "clickedAllele",
-          "field": "sequence"
-        }
-      ],
-      "transform": [
-        {
-          "type": "filter",
-          "test": "datum.sequence"
+          "field": "thedatum"
         }
       ]
-    }
-  ],
-  "predicates": [
-    {
-      "name": "isSelected",
-      "type": "in",
-      "item": {"arg": "sequence"},
-      "data": "selectedAlleles",
-      "field": "sequence"
     }
   ],
   "scales": [
@@ -542,8 +502,7 @@
           "name": "y",
           "type": "ordinal",
           "range": "height",
-          "domain": {"field": "sequence", "sort": {"field": "rank", "op": "min"}},
-          "reverse": true
+          "domain": {"field": "sequence", "sort": {"field": "rank", "op": "min"}}
         }
       ],
       "axes": [
@@ -600,12 +559,34 @@
           "type": "rect",
           "properties": {
             "update": {
-              "x": {"scale": "x", "value": 0},
-              "x2": {"scale": "x", "field": "shared"},
-              "y": {"scale": "y", "field": "sequence", "offset": 1},
-              "height": {"scale": "y", "band": true, "offset": -2},
-              "fill": {"scale": "c", "value": "Genuine reads"},
-              "fillOpacity": {"value": 0.8}
+              "x": [
+                {"test": "datum.thedatum", "scale": "x", "value": 0},
+                {"scale": "x", "value": 0, "offset": 0.5}
+              ],
+              "x2": [
+                {"test": "datum.thedatum", "scale": "x", "field": "shared"},
+                {"scale": "x", "field": "shared", "offset": -0.5}
+              ],
+              "y": [
+                {"test": "datum.thedatum", "scale": "y", "field": "sequence", "offset": 1},
+                {"scale": "y", "field": "sequence", "offset": 1.5}
+              ],
+              "height": [
+                {"test": "datum.thedatum", "scale": "y", "band": true, "offset": -2},
+                {"scale": "y", "band": true, "offset": -3}
+              ],
+              "fill": [
+                {"test": "datum.thedatum", "scale": "c", "value": "Genuine reads"}
+              ],
+              "stroke": [
+                {"test": "!datum.thedatum", "scale": "c", "value": "Genuine reads"}
+              ],
+              "strokeWidth": [
+                {"test": "datum.thedatum || datum.shared == 0", "value": 0},
+                {"value": 1}
+              ],
+              "fillOpacity": {"value": 0.8},
+              "strokeOpacity": {"value": 0.8}
             }
           }
         },
@@ -613,12 +594,34 @@
           "type": "rect",
           "properties": {
             "update": {
-              "x": {"scale": "x", "field": "corr_shared"},
-              "x2": {"scale": "x", "field": "corr_decreased"},
-              "y": {"scale": "y", "field": "sequence", "offset": 1},
-              "height": {"scale": "y", "band": true, "offset": -2},
-              "fill": {"scale": "c", "value": "Noise reads"},
-              "fillOpacity": {"value": 0.8}
+              "x": [
+                {"test": "datum.thedatum", "scale": "x", "field": "corr_shared"},
+                {"scale": "x", "field": "corr_shared", "offset": 0.5}
+              ],
+              "x2": [
+                {"test": "datum.thedatum", "scale": "x", "field": "corr_decreased"},
+                {"scale": "x", "field": "corr_decreased", "offset": -0.5}
+              ],
+              "y": [
+                {"test": "datum.thedatum", "scale": "y", "field": "sequence", "offset": 1},
+                {"scale": "y", "field": "sequence", "offset": 1.5}
+              ],
+              "height": [
+                {"test": "datum.thedatum", "scale": "y", "band": true, "offset": -2},
+                {"scale": "y", "band": true, "offset": -3}
+              ],
+              "fill": [
+                {"test": "datum.thedatum", "scale": "c", "value": "Noise reads"}
+              ],
+              "stroke": [
+                {"test": "!datum.thedatum", "scale": "c", "value": "Noise reads"}
+              ],
+              "strokeWidth": [
+                {"test": "datum.thedatum || datum.corr_shared == datum.corr_decreased", "value": 0},
+                {"value": 1}
+              ],
+              "fillOpacity": {"value": 0.8},
+              "strokeOpacity": {"value": 0.8}
             }
           }
         },
@@ -626,12 +629,34 @@
           "type": "rect",
           "properties": {
             "update": {
-              "x": {"scale": "x", "field": "total_corr"},
-              "x2": {"scale": "x", "field": "corr_shared"},
-              "y": {"scale": "y", "field": "sequence", "offset": 1},
-              "height": {"scale": "y", "band": true, "offset": -2},
-              "fill": {"scale": "c", "value": "Noise/recovered overlap"},
-              "fillOpacity": {"value": 0.8}
+              "x": [
+                {"test": "datum.thedatum", "scale": "x", "field": "total_corr"},
+                {"scale": "x", "field": "total_corr", "offset": 0.5}
+              ],
+              "x2": [
+                {"test": "datum.thedatum", "scale": "x", "field": "corr_shared"},
+                {"scale": "x", "field": "corr_shared", "offset": -0.5}
+              ],
+              "y": [
+                {"test": "datum.thedatum", "scale": "y", "field": "sequence", "offset": 1},
+                {"scale": "y", "field": "sequence", "offset": 1.5}
+              ],
+              "height": [
+                {"test": "datum.thedatum", "scale": "y", "band": true, "offset": -2},
+                {"scale": "y", "band": true, "offset": -3}
+              ],
+              "fill": [
+                {"test": "datum.thedatum", "scale": "c", "value": "Noise/recovered overlap"}
+              ],
+              "stroke": [
+                {"test": "!datum.thedatum", "scale": "c", "value": "Noise/recovered overlap"}
+              ],
+              "strokeWidth": [
+                {"test": "datum.thedatum || datum.total_corr == datum.corr_shared", "value": 0},
+                {"value": 1}
+              ],
+              "fillOpacity": {"value": 0.8},
+              "strokeOpacity": {"value": 0.8}
             }
           }
         },
@@ -639,12 +664,34 @@
           "type": "rect",
           "properties": {
             "update": {
-              "x": {"scale": "x", "field": "corr_shared"},
-              "x2": {"scale": "x", "field": "total_added"},
-              "y": {"scale": "y", "field": "sequence", "offset": 1},
-              "height": {"scale": "y", "band": true, "offset": -2},
-              "fill": {"scale": "c", "value": "Recovered reads"},
-              "fillOpacity": {"value": 0.8}
+              "x": [
+                {"test": "datum.thedatum", "scale": "x", "field": "corr_shared"},
+                {"scale": "x", "field": "corr_shared", "offset": 0.5}
+              ],
+              "x2": [
+                {"test": "datum.thedatum", "scale": "x", "field": "total_added"},
+                {"scale": "x", "field": "total_added", "offset": -0.5}
+              ],
+              "y": [
+                {"test": "datum.thedatum", "scale": "y", "field": "sequence", "offset": 1},
+                {"scale": "y", "field": "sequence", "offset": 1.5}
+              ],
+              "height": [
+                {"test": "datum.thedatum", "scale": "y", "band": true, "offset": -2},
+                {"scale": "y", "band": true, "offset": -3}
+              ],
+              "fill": [
+                {"test": "datum.thedatum", "scale": "c", "value": "Recovered reads"}
+              ],
+              "stroke": [
+                {"test": "!datum.thedatum", "scale": "c", "value": "Recovered reads"}
+              ],
+              "strokeWidth": [
+                {"test": "datum.thedatum || datum.corr_shared == datum.total_added", "value": 0},
+                {"value": 1}
+              ],
+              "fillOpacity": {"value": 0.8},
+              "strokeOpacity": {"value": 0.8}
             }
           }
         },
@@ -704,30 +751,20 @@
                   "baseline": {"value": "middle"},
                   "align": {"value": "right"},
                   "text": {"field": "sequence"},
-                  "fill": {
-                    "rule": [
-                      {
-                        "predicate": {
-                          "name": "isSelected",
-                          "sequence": {"field": "thedatum"}
-                        },
-                        "value": "green"
-                      },
-                      {"value": "#aaaaaa"}
-                    ]
-                  },
-                  "fontStyle": {
-                    "rule": [
-                      {
-                        "predicate": {
-                          "name": "isSelected",
-                          "sequence": {"field": "thedatum"}
-                        },
-                        "value": "normal"
-                      },
-                      {"value": "italic"}
-                    ]
-                  }
+                  "fill": [
+                    {
+                      "test": "datum.thedatum && indata('selectedAlleles', datum.thedatum._id, 'thedatum._id')",
+                      "value": "green"
+                    },
+                    {"value": "#aaaaaa"}
+                  ],
+                  "fontStyle": [
+                    {
+                      "test": "datum.thedatum && indata('selectedAlleles', datum.thedatum._id, 'thedatum._id')",
+                      "value": "normal"
+                    },
+                    {"value": "italic"}
+                  ]
                 }
               }
             }
@@ -742,7 +779,10 @@
               "width": {"field": {"group": "width"}},
               "y": {"scale": "y", "field": "sequence"},
               "height": {"scale": "y", "band": true},
-              "fill": {"value": "transparent"}
+              "fill": {"value": "transparent"},
+              "cursor": [
+                {"test": "datum.thedatum", "value": "pointer"}
+              ]
             }
           }
         }

@@ -72,6 +72,9 @@
         {
           "type": "sort",
           "by": ["name", "sequence"]
+        },
+        {
+          "type": "rank"
         }
       ]
     },
@@ -227,7 +230,7 @@
           "name": "y",
           "type": "ordinal",
           "range": "height",
-          "domain": {"field": "sequence"}
+          "domain": {"field": "sequence", "sort": {"field": "rank", "op": "min"}}
         }
       ],
       "axes": [
