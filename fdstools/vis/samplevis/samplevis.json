@@ -535,7 +535,8 @@
           "scale": "y",
           "properties": {
             "labels": {
-              "fill": {"value": "transparent"}
+              "fill": {"value": "transparent"},
+              "fill": {"fontSize": 0}
             }
           }
         }
