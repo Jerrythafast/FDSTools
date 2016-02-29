@@ -1,8 +1,5 @@
 To-do:
 * Samplevis:
-  * Add option to enable/disable truncating long allele names.
-    * Breaking issue: vega/vega#538. Causes bars to be merged together in case
-      of sequence name collisions after shortening the sequence name.
   * Option to choose complete table download (all columns, not all rows).
   * Option to freely adjust the sorting (currently CE length toggle only).
   * When we have them, add default values to table filtering (for reference).
@@ -21,10 +18,9 @@ To-do:
     (maybe also additional value for confidence interval).
   * Visualisation to display highest remaining background (positive and
     negative) in known samples after BGCorrect analysis.
-* Add option to Samplestats to keep negatives when filtering (abs filter).
 * Add options to Libconvert to generate a template for STR or non-STR markers.
 * Add options to Samplevis, Samplestats (and possibly other relevant tools) to
-  filter alleles by sequence length.
+  filter alleles by sequence length. The TSSV tool already supports this.
 * Add plotting of raw data points to StuttermodelVis.
 * Add a print stylesheet for the other visualisations (only Samplevis has one).
 * Add visualisation with all markers in one graph ("samplesummaryvis"?).
@@ -55,8 +51,6 @@ To-do:
   (TODO: Write this list)
 
 Open Vega issues:
-* Transforms after aggregate are not processed in order.
-  https://github.com/vega/vega/issues/538
 * Bug in aggregate transform w.r.t. signals.
   https://github.com/vega/vega/issues/530
 * Lookup transform only takes simple field names for the onKey parameter.
@@ -118,7 +112,7 @@ output file options         allelefinder,bgcorrect,bgestimate,bghomraw,bghomstat
 sample tag parsing options  allelefinder,bgcorrect,bgestimate,bghomraw,bghomstats,blame,samplestats,seqconvert,stuttermark,stuttermodel
 allele detection options    bgestimate,bghomraw,bghomstats,blame,stuttermodel
 interpretation options      samplestats
-filtering options           allelefinder,bgcorrect,bgestimate,bghomraw,bghomstats,bgpredict,blame,samplestats,stuttermark,stuttermodel
+filtering options           allelefinder,bgcorrect,bgestimate,bghomraw,bghomstats,bgpredict,blame,samplestats,stuttermark,stuttermodel,tssv
 sequence format options     allelefinder,bgcorrect,bgestimate,bghomraw,bghomstats,bgmerge,bgpredict,blame,stuttermark,stuttermodel,tssv
 random subsampling options  bgestimate,bghomstats,stuttermodel
 visualisation options       vis

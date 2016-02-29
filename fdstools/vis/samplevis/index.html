@@ -515,19 +515,23 @@
             <div class="optionheader">Display options</div>
             <table>
                 <tr>
-                    <td><label for="graphwidth">Graph width</label></td>
+                    <td colspan="2"><label for="graphwidth">Graph width</label></td>
                     <td colspan="2"><label><input type="text" value="600" id="graphwidth" size="3" class="num"> px</label></td>
                 </tr>
                 <tr>
-                    <td><label for="barwidth">Bar width</label></td>
+                    <td colspan="2"><label for="barwidth">Bar width</label></td>
                     <td colspan="2"><label><input type="text" value="15" id="barwidth" size="3" class="num"> px</label></td>
                 </tr>
                 <tr>
-                    <td><label for="subgraphoffset">Marker spacing</label></td>
+                    <td colspan="2"><label for="subgraphoffset">Marker spacing</label></td>
                     <td colspan="2"><label><input type="text" value="70" id="subgraphoffset" size="3" class="num"> px</label></td>
                 </tr>
                 <tr>
-                    <td colspan="3">
+                    <td colspan="2"><label for="subgraphoffset">Truncate sequences to</label></td>
+                    <td colspan="2"><label><input type="text" value="70" id="maxseqlen" size="3" class="num"> characters</label></td>
+                </tr>
+                <tr>
+                    <td colspan="4">
                         <label>
                             <input type="checkbox" id="splitmarkers" checked>
                             Split markers
@@ -535,7 +539,7 @@
                     </td>
                 </tr>
                 <tr>
-                    <td colspan="3">
+                    <td colspan="4">
                         <label>
                             <input type="checkbox" id="commonrange" disabled>
                             Common axis range
@@ -544,7 +548,7 @@
                     </td>
                 </tr>
                 <tr>
-                    <td colspan="3">
+                    <td colspan="4">
                         <label>
                             <input type="checkbox" id="sortstrbylength">
                             Sort STR alleles by length
@@ -553,12 +557,12 @@
                 </tr>
                 <tr>
                     <td>Axis scale</td>
-                    <td><label><input type="radio" name="scale" value="linear" id="scaleLinear" checked> Linear</label></td>
+                    <td colspan="2"><label><input type="radio" name="scale" value="linear" id="scaleLinear" checked> Linear</label></td>
                     <td><label><input type="radio" name="scale" value="sqrt" id="scaleLog"> Square root</label></td>
                 </tr>
                 <tr class="noprint">
                     <td>Renderer</td>
-                    <td><label><input type="radio" name="renderer" value="svg" id="renderSVG" checked> SVG</label></td>
+                    <td colspan="2"><label><input type="radio" name="renderer" value="svg" id="renderSVG" checked> SVG</label></td>
                     <td><label><input type="radio" name="renderer" value="canvas" id="renderCanvas"> Canvas</label></td>
                 </tr>
             </table>
@@ -1141,6 +1145,12 @@ function onLoadSpec(has_data){
             return;
         setSignalValue("subgraphoffset", value);
     }, false);
+    document.getElementById("maxseqlen").addEventListener('change', function(){
+        var value = parseFloat(this.value);
+        if(isNaN(value))
+            return;
+        setSignalValue("max_seq_len", value);
+    }, false);
     document.getElementById("splitmarkers").addEventListener('change', function(){
         if(graphs !== false)
             parse(true);
@@ -1235,6 +1245,7 @@ function onLoadSpec(has_data){
     document.getElementById("graphwidth").value = getSignalValue("width");
     document.getElementById("barwidth").value = getSignalValue("barwidth");
     document.getElementById("subgraphoffset").value = getSignalValue("subgraphoffset");
+    document.getElementById("maxseqlen").value = getSignalValue("max_seq_len");
     document.getElementById("minN").value = getSignalValue("amplitude_threshold");
     document.getElementById("minP").value = getSignalValue("amplitude_pct_threshold");
     document.getElementById("minT").value = getSignalValue("amplitude_markerpct_threshold");

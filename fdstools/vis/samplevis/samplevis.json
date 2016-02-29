@@ -52,6 +52,10 @@
       "init": 70
     },
     {
+      "name": "max_seq_len",
+      "init": 70
+    },
+    {
       "name": "clickedAllele",
       "verbose": true,
       "streams": [
@@ -325,6 +329,11 @@
           "type": "formula",
           "field": "rank",
           "expr": "datum.sequence == 'Other sequences'? 1/0 : datum.rank"
+        },
+        {
+          "type": "formula",
+          "field": "sequence_disp",
+          "expr": "length(datum.sequence) > max_seq_len+1? substring(datum.sequence, 0, max_seq_len) + '\u2026' : datum.sequence"
         }
       ]
     },
@@ -750,7 +759,7 @@
                   "y": {"scale": "balance", "value": 50},
                   "baseline": {"value": "middle"},
                   "align": {"value": "right"},
-                  "text": {"field": "sequence"},
+                  "text": {"field": "sequence_disp"},
                   "fill": [
                     {
                       "test": "datum.thedatum && indata('selectedAlleles', datum.thedatum._id, 'thedatum._id')",

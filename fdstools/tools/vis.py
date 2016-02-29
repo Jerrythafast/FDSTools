@@ -69,6 +69,10 @@ _DEF_BAR_WIDTH = 15
 # This value can be overridden by the -p command line option.
 _DEF_SUBGRAPH_PADDING = 70
 
+# Default maximum length of sequences to display.
+# This value can be overridden by the -x command line option.
+_DEF_MAX_SEQ_LEN = 70
+
 # Default graph width in pixels.
 # This value can be overridden by the -w command line option.
 _DEF_WIDTH = 600
@@ -133,7 +137,7 @@ def create_visualisation(vistype, infile, outfile, vega, online, tidy, min_abs,
                          min_pct_of_max, min_pct_of_sum, min_per_strand,
                          bias_threshold, bar_width, padding, marker, width,
                          height, log_scale, repeat_unit, no_alldata,
-                         no_aggregate, no_ce_length_sort, title):
+                         no_aggregate, no_ce_length_sort, max_seq_len, title):
     # Get graph spec.
     spec = json.load(resource_stream(
         "fdstools", "vis/%svis/%svis.json" % (vistype, vistype)))
@@ -173,6 +177,7 @@ def create_visualisation(vistype, infile, outfile, vega, online, tidy, min_abs,
         set_signal_value(spec, "amplitude_markerpct_threshold", min_pct_of_sum)
         set_signal_value(spec, "show_other", not no_aggregate)
         set_signal_value(spec, "sort_str_by_length", not no_ce_length_sort)
+        set_signal_value(spec, "max_seq_len", max_seq_len)
 
     # Apply axis scale settings.
     if vistype != "stuttermodel" and vistype != "allele":
@@ -333,6 +338,10 @@ def add_arguments(parser):
         default=_DEF_HEIGHT,
         help="[stuttermodel, allele] height of the graph area in pixels "
              "(default: %(default)s)")
+    visgroup.add_argument('-x', '--max-seq-len', type=pos_int_arg,
+        default=_DEF_MAX_SEQ_LEN,
+        help="[sample] truncate long sequences to this number of characters "
+             "(default: %(default)s)")
 #add_arguments
 
 
@@ -361,5 +370,5 @@ def run(args):
                          args.bar_width, args.padding, args.marker, args.width,
                          args.height, args.log_scale, args.repeat_unit,
                          args.no_alldata, args.no_aggregate,
-                         args.no_ce_length_sort, args.title)
+                         args.no_ce_length_sort, args.max_seq_len, args.title)
 #run

@@ -53,7 +53,7 @@ def add_sample_data(data, sample_data, sample_alleles, min_pct, min_abs):
 
     # Enter the read counts into data and check the thresholds.
     for marker, sequence in sample_data:
-        if marker not in sample_alleles or sequence is False:
+        if marker not in sample_alleles:
             # Sample does not participate in this marker.
             continue
         allele = sample_alleles[marker]

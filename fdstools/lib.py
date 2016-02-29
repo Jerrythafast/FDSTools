@@ -160,9 +160,6 @@ def call_variants(template, sequence, location="suffix", cache=True,
         raise ValueError("Unknown location %r. It should be 'prefix', "
             "'suffix', or a tuple (chromosome, position [, endpos])" %
             location)
-    elif location[0] == "M":
-        # No need to avoid gaps in mtDNA notation.
-        GAP_OPEN_SCORE = -1
 
     for i in range(len(matrix_match)):
         x = i % row_offset
@@ -414,6 +411,7 @@ def parse_library_ini(handle):
       "length_adjust": {},
       "block_length": {},
       "max_expected_copies": {},
+      "expected_length": {},
       "aliases": {}
     }
     markers = set()
@@ -557,6 +555,25 @@ def parse_library_ini(handle):
                         "Reference sequence '%s' of marker %s is invalid" %
                         (value, marker))
                 library["nostr_reference"][marker] = value
+                markers.add(marker)
+            elif section_low == "expected_allele_length":
+                values = PAT_SPLIT.split(value)
+                try:
+                    min_length = int(values[0])
+                except:
+                    raise ValueError(
+                        "Minimum expected allele length '%s' of marker %s "
+                        "is not a valid integer" % (values[0], marker))
+                if len(values) > 1:
+                    try:
+                        max_length = int(values[1])
+                    except:
+                        raise ValueError(
+                            "Maximum expected allele length '%s' of marker %s "
+                            "is not a valid integer" % (values[1], marker))
+                else:
+                    max_length = sys.maxint
+                library["expected_length"][marker] = (min_length, max_length)
                 markers.add(marker)
 
     # Sanity check: prohibit prefix/suffix for aliases of non-STRs.
@@ -1179,12 +1196,21 @@ def get_repeat_pattern(seq):
 
 def read_sample_data_file(infile, data, annotation_column=None, seqformat=None,
                           library=None, default_marker=None,
-                          drop_special_seq=False):
+                          drop_special_seq=False, after_correction=False):
     """Add data from infile to data dict as [marker, sequence]=reads."""
     # Get column numbers.
     column_names = infile.readline().rstrip("\r\n").split("\t")
-    colid_sequence, colid_forward, colid_reverse = \
-        get_column_ids(column_names, "sequence", "forward", "reverse")
+    colid_sequence = get_column_ids(column_names, "sequence")
+    colid_forward = None
+    colid_reverse = None
+    if after_correction:
+        colid_forward, colid_reverse = get_column_ids(column_names,
+            "forward_corrected", "reverse_corrected",
+            optional=(after_correction != "require"))
+    if colid_forward is None:
+        colid_forward = get_column_ids(column_names, "forward")
+    if colid_reverse is None:
+        colid_reverse = get_column_ids(column_names, "reverse")
 
     # Get marker name column if it exists.
     colid_marker = get_column_ids(column_names, "marker", optional=True)
@@ -1224,24 +1250,22 @@ def reduce_read_counts(data, limit_reads):
         return
 
     remove = sorted(random.sample(xrange(sum_reads), sum_reads - limit_reads))
-    i = 0
+    removed = 0
     seen = 0
-    while i < len(remove) and seen > remove[i]:
-        # Skip the reads filtered out above.
-        i += 1
     for markerallele in data:
         for direction in (0, 1):
             seen += data[markerallele][direction]
-            while i < len(remove) and seen > remove[i]:
+            while removed < len(remove) and seen > remove[removed]:
                 data[markerallele][direction] -= 1
-                i += 1
+                removed += 1
 #reduce_read_counts
 
 
 def get_sample_data(tags_to_files, callback, allelelist=None,
                     annotation_column=None, seqformat=None, library=None,
                     marker=None, homozygotes=False, limit_reads=sys.maxint,
-                    drop_samples=0, drop_special_seq=False):
+                    drop_samples=0, drop_special_seq=False,
+                    after_correction=False):
     if drop_samples:
         sample_tags = tags_to_files.keys()
         for tag in random.sample(xrange(len(sample_tags)),
@@ -1255,7 +1279,7 @@ def get_sample_data(tags_to_files, callback, allelelist=None,
             infile = sys.stdin if infile == "-" else open(infile, "r")
             alleles.update(read_sample_data_file(
                 infile, data, annotation_column, seqformat, library, marker,
-                drop_special_seq))
+                drop_special_seq, after_correction))
             if infile != sys.stdin:
                 infile.close()
         if limit_reads < sys.maxint:

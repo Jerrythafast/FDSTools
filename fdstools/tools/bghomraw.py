@@ -50,7 +50,7 @@ def add_sample_data(data, sample_data, sample_alleles, min_pct, min_abs, tag):
 
     # Enter the read counts into data and check the thresholds.
     for marker, sequence in sample_data:
-        if marker not in sample_alleles or sequence is False:
+        if marker not in sample_alleles:
             # Sample does not participate in this marker.
             continue
         allele = sample_alleles[marker]
@@ -136,11 +136,11 @@ def compute_ratios(samples_in, outfile, allelefile, annotation_column, min_pct,
                 outfile.write("\t".join([
                     data[marker, allele][sequence]["tag"][i], marker, allele,
                     sequence] + [
-                    "%.3g" % x if abs(x) > 0.0000000001 else "0" for x in (
                         data[marker, allele][sequence]["forward"][i],
                         data[marker, allele][sequence]["reverse"][i],
                         data[marker, allele][sequence]["forward"][i] +
-                        data[marker, allele][sequence]["reverse"][i],
+                        data[marker, allele][sequence]["reverse"][i]] + [
+                    "%.3g" % x if abs(x) > 0.0000000001 else "0" for x in (
                         data[marker, allele][sequence]["fnoise"][i],
                         data[marker, allele][sequence]["rnoise"][i],
                         data[marker, allele][sequence]["tnoise"][i])]) + "\n")

@@ -150,8 +150,8 @@ COLUMN_ORDER = [
 
 def compute_stats(infile, outfile, min_reads,
                   min_per_strand, min_pct_of_max, min_pct_of_sum,
-                  min_correction, min_recovery, filter_action, min_reads_filt,
-                  min_per_strand_filt, min_pct_of_max_filt,
+                  min_correction, min_recovery, filter_action, filter_absolute,
+                  min_reads_filt, min_per_strand_filt, min_pct_of_max_filt,
                   min_pct_of_sum_filt, min_correction_filt, min_recovery_filt):
     # Check presence of required columns.
     column_names = infile.readline().rstrip("\r\n").split("\t")
@@ -419,22 +419,23 @@ def compute_stats(infile, outfile, min_reads,
                 else row[ci["total_correction_pct"]]
             recovery = 0 if "total_added_pct" not in ci \
                 else row[ci["total_added_pct"]]
-            min_strand = min(
+            strands = [
                 row[ci["forward"]] if "forward_corrected" not in ci
                     else row[ci["forward_corrected"]],
                 row[ci["reverse"]] if "reverse_corrected" not in ci
-                    else row[ci["reverse_corrected"]])
+                    else row[ci["reverse_corrected"]]]
+            fn = abs if filter_absolute else lambda x: x
 
             # Check if this sequence should be filtered out.
             # Always filter/combine existing 'Other sequences'.
             if filter_action != "off" and (
                     row[ci["sequence"]] == "Other sequences" or (
-                    total_added < min_reads_filt or
-                    pct_of_max < min_pct_of_max_filt or
-                    pct_of_sum < min_pct_of_sum_filt or
+                    fn(total_added) < min_reads_filt or
+                    fn(pct_of_max) < min_pct_of_max_filt or
+                    fn(pct_of_sum) < min_pct_of_sum_filt or
                     (correction < min_correction_filt and
                     recovery < min_recovery_filt) or
-                    min_strand < min_per_strand_filt)):
+                    min(map(fn, strands)) < min_per_strand_filt)):
                 filtered[marker].append(row)
 
             # Check if this sequence is an allele.
@@ -444,7 +445,7 @@ def compute_stats(infile, outfile, min_reads,
                     pct_of_sum >= min_pct_of_sum and
                     (correction >= min_correction or
                     recovery >= min_recovery) and
-                    min_strand >= min_per_strand):
+                    min(strands) >= min_per_strand):
                 row[ci["flags"]].append("allele")
             row[ci["flags"]] = ",".join(row[ci["flags"]])
 
@@ -616,7 +617,12 @@ def compute_stats(infile, outfile, min_reads,
 
             for i in (ci[column] for column in COLUMN_ORDER if column in ci
                     and column not in ("total", "forward", "reverse")):
-                combined[i] = "%#.3g" % combined[i]
+                if combined[i] >= 10000:
+                    combined[i] = "%#.5g" % combined[i]
+                elif combined[i] >= 1000:
+                    combined[i] = "%#.4g" % combined[i]
+                else:
+                    combined[i] = "%#.3g" % combined[i]
             outfile.write("\t".join(map(str,
                 (combined[new_order[i]] for i in range(len(combined))))) +"\n")
 #compute_stats
@@ -660,6 +666,10 @@ def add_arguments(parser):
              "filtered sequences by a single line with aggregate values per "
              "marker; 'delete', remove filtered sequences without leaving a "
              "trace (default: %(default)s)")
+    filtergroup.add_argument('-A', '--filter-absolute', action="store_true",
+        help="if specified, apply filters to absolute read counts (i.e., with "
+             "the sign removed), which may keep over-corrected sequences that "
+             "would otherwise be filtered out")
     filtergroup.add_argument('-N', '--min-reads-filt', metavar="N", type=float,
         default=_DEF_MIN_READS_FILT,
         help="the minimum number of reads (default: %(default)s)")
@@ -703,9 +713,10 @@ def run(args):
                       args.min_reads, args.min_per_strand, args.min_pct_of_max,
                       args.min_pct_of_sum, args.min_correction,
                       args.min_recovery, args.filter_action,
-                      args.min_reads_filt, args.min_per_strand_filt,
-                      args.min_pct_of_max_filt, args.min_pct_of_sum_filt,
-                      args.min_correction_filt, args.min_recovery_filt)
+                      args.filter_absolute, args.min_reads_filt,
+                      args.min_per_strand_filt, args.min_pct_of_max_filt,
+                      args.min_pct_of_sum_filt, args.min_correction_filt,
+                      args.min_recovery_filt)
         if infile != sys.stdin:
             infile.close()
 #run

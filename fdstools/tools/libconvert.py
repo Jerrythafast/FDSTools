@@ -310,6 +310,16 @@ def convert_library(infile, outfile, aliases=False):
                 "mitochondrial DNA or")
         ini.set("max_expected_copies",
                 "; on the Y chromosome).")
+        ini.add_section("expected_allele_length")
+        ini.set("expected_allele_length",
+                "; Specify one or two values for each marker. The first value "
+                "gives the expected")
+        ini.set("expected_allele_length",
+                "; minimum length of the alleles and the second value (if "
+                "given) specifies the")
+        ini.set("expected_allele_length",
+                "; maximum allele length expected for this marker (both "
+                "inclusive).")
 
         # Enter flanking sequences and STR definitions.
         fmt = "%%-%is" % reduce(max, map(len,

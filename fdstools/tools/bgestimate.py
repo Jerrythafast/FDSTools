@@ -340,9 +340,6 @@ def add_sample_data(data, sample_data, sample_alleles, min_pct, min_abs, tag):
         if marker not in sample_alleles or not sample_alleles[marker]:
             # Sample does not participate in this marker (no alleles).
             continue
-        if allele is False:
-            # This was a special sequence value, skip it.
-            continue
 
         p = data[marker]["profiles"]
         try:
