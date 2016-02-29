@@ -536,7 +536,7 @@
           "properties": {
             "labels": {
               "fill": {"value": "transparent"},
-              "fill": {"fontSize": 0}
+              "fontSize": {"value": 0}
             }
           }
         }
