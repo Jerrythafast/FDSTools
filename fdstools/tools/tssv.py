@@ -42,10 +42,18 @@ def convert_library(library, threshold):
                 for data in (
                     (marker, library["flanks"][marker])
                         for marker in library["flanks"])}
+#convert_library
+
+
+def seq_pass_filt(sequence, reads, threshold, explen=None):
+    """Return False if the sequence does not meet the criteria."""
+    return (reads >= threshold and PAT_SEQ_RAW.match(sequence) is not None and
+        (explen is None or explen[0] <= len(sequence) <= explen[1]))
+#seq_pass_filt
 
 
 def run_tssv_lite(infile, outfile, reportfile, is_fastq, library, seqformat,
-                  threshold, minimum, aggregate_below_minimum,
+                  threshold, minimum, aggregate_filtered,
                   missing_marker_action, dirname):
     file_format = "fastq" if is_fastq else "fasta"
     tssv_library = convert_library(library, threshold)
@@ -60,12 +68,13 @@ def run_tssv_lite(infile, outfile, reportfile, is_fastq, library, seqformat,
         infile, file_format, tssv_library, outfiles)
 
     # Filter out sequences with low read counts and invalid bases now.
-    if aggregate_below_minimum:
+    if aggregate_filtered:
         aggregates = {}
         for marker in sequences:
             for sequence in sequences[marker]:
-                if (sum(sequences[marker][sequence]) < minimum or
-                        PAT_SEQ_RAW.match(sequence) is None):
+                if not seq_pass_filt(sequence,
+                        sum(sequences[marker][sequence]), minimum,
+                        library.get("expected_length", {}).get(marker)):
                     if marker not in aggregates:
                         aggregates[marker] = [0, 0]
                     aggregates[marker][0] += sequences[marker][sequence][0]
@@ -73,8 +82,9 @@ def run_tssv_lite(infile, outfile, reportfile, is_fastq, library, seqformat,
     sequences = {marker:
         {sequence: sequences[marker][sequence]
             for sequence in sequences[marker]
-            if sum(sequences[marker][sequence]) >= minimum
-            and PAT_SEQ_RAW.match(sequence) is not None}
+            if seq_pass_filt(sequence,
+                sum(sequences[marker][sequence]), minimum,
+                library.get("expected_length", {}).get(marker))}
         for marker in sequences}
 
     # Check presence of all markers.
@@ -87,7 +97,7 @@ def run_tssv_lite(infile, outfile, reportfile, is_fastq, library, seqformat,
                     raise ValueError("Marker %s was not detected!" % marker)
 
     # Add aggregate rows if the user requested so.
-    if aggregate_below_minimum:
+    if aggregate_filtered:
         for marker in aggregates:
             sequences[marker]["Other sequences"] = aggregates[marker]
 
@@ -137,23 +147,6 @@ def add_arguments(parser):
     add_input_output_args(parser, True, False, True)
     parser.add_argument("-q", "--is_fastq", action="store_true",
         help="if specified, treat the input as a FASTQ file instead of FASTA")
-    parser.add_argument("-m", "--mismatches", type=float,
-        default=_DEF_MISMATCHES,
-        help="number of mismatches per nucleotide to allow in flanking "
-             "sequences (default: %(default)s)")
-    parser.add_argument("-a", "--minimum", type=pos_int_arg,
-        default=_DEF_MINIMUM,
-        help="report only sequences with this minimum number of reads "
-             "(default: %(default)s)")
-    parser.add_argument("-A", "--aggregate-below-minimum", action="store_true",
-        help="if specified, sequences that have less than the number of reads "
-             "specified with the -a/--minimum option will be aggregated per "
-             "marker and reported as 'Other sequences'")
-    parser.add_argument("-M", "--missing-marker-action", metavar="ACTION",
-        choices=("include", "exclude", "halt"),
-        default="include",
-        help="action to take when no sequences are linked to a marker: one of "
-             "%(choices)s (default: %(default)s)")
     parser.add_argument("-D", "--dir",
         help="output directory for verbose output; when given, a subdirectory "
              "will be created for each marker, each with a separate "
@@ -161,6 +154,28 @@ def add_arguments(parser):
              "unrecognised reads (unknown.fa), recognised reads "
              "(Marker/paired.fa), and reads that lack one of the flanks of a "
              "marker (Marker/noend.fa and Marker/nostart.fa")
+    filtergroup = parser.add_argument_group("filtering options")
+    filtergroup.add_argument("-m", "--mismatches", type=float,
+        default=_DEF_MISMATCHES,
+        help="number of mismatches per nucleotide to allow in flanking "
+             "sequences (default: %(default)s)")
+    filtergroup.add_argument("-a", "--minimum", type=pos_int_arg,
+        default=_DEF_MINIMUM,
+        help="report only sequences with this minimum number of reads "
+             "(default: %(default)s)")
+    filtergroup.add_argument("-L", "--check-length", action="store_true",
+        help="if specified, enforce the minimum and maximum allele lengths "
+             "specified in the library (FDSTools library format only)")
+    filtergroup.add_argument("-A", "--aggregate-filtered", action="store_true",
+        help="if specified, sequences that have been filtered (as per the "
+             "-a/--minimum and -L/--check-length options, or with ambiguous "
+             "bases) will be aggregated per marker and reported as 'Other "
+             "sequences'")
+    filtergroup.add_argument("-M", "--missing-marker-action", metavar="ACTION",
+        choices=("include", "exclude", "halt"),
+        default="include",
+        help="action to take when no sequences are linked to a marker: one of "
+             "%(choices)s (default: %(default)s)")
 #add_arguments
 
 
@@ -184,7 +199,7 @@ def run(args):
     infile = sys.stdin if files[0] == "-" else open(files[0], "r")
     run_tssv_lite(infile, files[1], args.report, args.is_fastq, args.library,
                   args.sequence_format, args.mismatches, args.minimum,
-                  args.aggregate_below_minimum, args.missing_marker_action,
+                  args.aggregate_filtered, args.missing_marker_action,
                   args.dir)
     if infile != sys.stdin:
         infile.close()
