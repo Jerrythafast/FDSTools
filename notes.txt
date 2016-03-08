@@ -193,6 +193,8 @@ name    tssv    OK
 Find TODOs and FIXMEs in the code:
 grep "TODO\|FIXME" *.py */*.py */*/*.py
 
-
-Number of lines, excluding empty lines and comments:
+Number of lines of Python, excluding empty lines and comments:
 grep -v "^\s*\(#.*\)\?$" *.py */*.py */*/*.py | wc -l
+
+Number of lines of JSON, excluding empty lines and those with only a brace:
+grep -v "^\s*[{}]\?\[\?\]\?,\?$"  */*/*/*.json | wc -l

@@ -143,11 +143,23 @@ def call_variants(template, sequence, location="suffix", cache=True,
     matrix_match = [0] * row_offset * (len(sequence)+1)
     matrix_gap1 = [-sys.maxint-1] * row_offset * (len(sequence)+1)
     matrix_gap2 = [-sys.maxint-1] * row_offset * (len(sequence)+1)
+    matrix_direction = [0] * row_offset * (len(sequence)+1)
 
+    # Matrix and arrow enum constants.
+    M_MATCH = 0
+    M_GAP1 = 1
+    M_GAP2 = 2
+    A_MATCH = 1
+    A_HORZ_O = 2
+    A_HORZ_E = 4
+    A_VERT_O = 8
+    A_VERT_E = 16
+
+    # Settings.
     MATCH_SCORE = 1
-    MISMATCH_SCORE = -1
-    GAP_OPEN_SCORE = -10
-    GAP_EXTEND_SCORE = -1
+    MISMATCH_SCORE = -3
+    GAP_OPEN_SCORE = -7
+    GAP_EXTEND_SCORE = -2
     variant_format = "%i%s>%s"
 
     if location == "prefix":
@@ -171,28 +183,47 @@ def call_variants(template, sequence, location="suffix", cache=True,
                 # Top row.
                 matrix_gap1[i] = GAP_OPEN_SCORE + GAP_EXTEND_SCORE * (x - 1)
                 matrix_match[i] = matrix_gap1[i]
+                matrix_direction[i] = A_HORZ_E | (A_HORZ_O if x == 1 else 0)
             elif y != 0:
                 # Left column.
                 matrix_gap2[i] = GAP_OPEN_SCORE + GAP_EXTEND_SCORE * (y - 1)
                 matrix_match[i] = matrix_gap2[i]
+                matrix_direction[i] = A_VERT_E | (A_VERT_O if y == 1 else 0)
+            else:
+                # Top left corner.
+                matrix_direction[i] = A_MATCH
             continue
-
-        matrix_gap1[i] = max(
-            matrix_match[i-1] + GAP_OPEN_SCORE,
-            matrix_gap1[i-1] + GAP_EXTEND_SCORE)
-        matrix_gap2[i] = max(
-            matrix_match[i-row_offset] + GAP_OPEN_SCORE,
-            matrix_gap2[i-row_offset] + GAP_EXTEND_SCORE)
 
         if template[x-1] == sequence[y-1]:
             match = MATCH_SCORE
         else:
             match = MISMATCH_SCORE
 
-        matrix_match[i] = max(
+        options_gap1 = (
+            matrix_match[i-1] + GAP_OPEN_SCORE,
+            matrix_gap1[i-1] + GAP_EXTEND_SCORE)
+        matrix_gap1[i] = max(options_gap1)
+        if options_gap1[0] > options_gap1[1]:
+            matrix_direction[i] |= A_HORZ_O  # Must exit M_GAP1 here.
+
+        options_gap2 = (
+            matrix_match[i-row_offset] + GAP_OPEN_SCORE,
+            matrix_gap2[i-row_offset] + GAP_EXTEND_SCORE)
+        matrix_gap2[i] = max(options_gap2)
+        if options_gap2[0] > options_gap2[1]:
+            matrix_direction[i] |= A_VERT_O  # Must exit M_GAP2 here.
+
+        options = (
             matrix_match[i-1-row_offset] + match,
             matrix_gap1[i],
             matrix_gap2[i])
+        matrix_match[i] = max(options)
+        if options[0] == matrix_match[i]:
+            matrix_direction[i] |= A_MATCH  # Can stay in M_MATCH here.
+        if options[1] == matrix_match[i]:
+            matrix_direction[i] |= A_HORZ_E  # Can enter M_GAP1 here.
+        if options[2] == matrix_match[i]:
+            matrix_direction[i] |= A_VERT_E  # Can enter M_GAP2 here.
 
     if debug:
         print("GAP1")
@@ -204,6 +235,16 @@ def call_variants(template, sequence, location="suffix", cache=True,
         print("Match")
         for i in range(0, len(matrix_match), row_offset):
             print(("%5i" * row_offset) % tuple(matrix_match[i:i+row_offset]))
+        print("FLAGS")
+        for i in range(0, len(matrix_direction), row_offset):
+            print(("%5s|" * row_offset) % tuple("".join([
+                "h" if x & A_HORZ_O else " ",
+                "H" if x & A_HORZ_E else " ",
+                "D" if x & A_MATCH else " ",
+                "V" if x & A_VERT_E else " ",
+                "v" if x & A_VERT_O else " "
+            ]) for x in matrix_direction[i:i+row_offset]))
+        print("Traceback")
 
 
     # Backtracking.
@@ -211,25 +252,48 @@ def call_variants(template, sequence, location="suffix", cache=True,
     variant_template = 0
     variant_sequence = 0
     i = len(matrix_match) - 1
+    in_matrix = M_MATCH  # May change before first step.
     while i >= 0:
         x = i % row_offset
         y = i / row_offset
+        if debug:
+            print("(%i, %i)" % (x,y))
 
-        if matrix_gap1[i] == matrix_match[i]:
+        if in_matrix == M_MATCH:
+            # Make gaps as soon as possible (pushed right).
+            if matrix_direction[i] & A_HORZ_E:
+                in_matrix = M_GAP1
+            elif matrix_direction[i] & A_VERT_E:
+                in_matrix = M_GAP2
+            elif not (matrix_direction[i] & A_MATCH):
+                raise ValueError(
+                    "Alignment error: Dead route! (This is a bug.) [%s,%s]" % (template,sequence))
+
+        if in_matrix == M_GAP1:
             # Go horizontally.  Deletion.
             variant_template += 1
+            if matrix_direction[i] & A_HORZ_O:
+                # End of gap, go diagonally after this.
+                in_matrix = M_MATCH
             i -= 1
             continue
 
-        if matrix_gap2[i] == matrix_match[i]:
+        if in_matrix == M_GAP2:
             # Go vertically.  Insertion.
             variant_sequence += 1
+            if matrix_direction[i] & A_VERT_O:
+                # End of gap, go diagonally after this.
+                in_matrix = M_MATCH
             i -= row_offset
             continue
 
-        # Only backtracking diagonally if a gap is out of the question.
         # Go diagonally.  Either match or mismatch.
-        if i == 0 or template[x - 1] == sequence[y - 1]:
+        if i != 0 and template[x - 1] != sequence[y - 1]:
+            # Start/extend mismatch.
+            variant_template += 1
+            variant_sequence += 1
+
+        else:
             # Match.  Flush variants.
             if variant_template or variant_sequence:
                 if location[0] == "M":
@@ -256,10 +320,6 @@ def call_variants(template, sequence, location="suffix", cache=True,
                         sequence[y:y+variant_sequence] or "-"))
                 variant_template = 0
                 variant_sequence = 0
-        else:
-            # Start/extend mismatch.
-            variant_template += 1
-            variant_sequence += 1
         i -= 1 + row_offset
 
     # Variants were called from right to left.  Reverse their order.
