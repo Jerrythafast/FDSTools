@@ -31,7 +31,7 @@ from ..lib import get_column_ids, reverse_complement, get_repeat_pattern,\
                   mutate_sequence, SEQ_SPECIAL_VALUES,\
                   PAT_SEQ_RAW, ensure_sequence_format, add_sequence_format_args
 
-__version__ = "0.1dev"
+__version__ = "1.0.0"
 
 
 # Default values for parameters are specified below.

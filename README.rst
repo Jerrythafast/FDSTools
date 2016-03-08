@@ -7,7 +7,7 @@ description of each tool, run:
 
     ``fdstools -h``
 
-For a complete description of the command line arguments of a specific tool,
+For a complete description of a specific tool and its command line arguments,
 run:
 
     ``fdstools -h TOOLNAME``
@@ -30,7 +30,29 @@ Alternatively, FDSTools can be installed by running:
 FDSTools Changelog
 ------------------
 v0.0.3
-    - Includes Stuttermark v1.5
+    - Updated bundled JavaScript library Vega to v2.5.0
+    - Updated bundled JavaScript library D3 to v3.5.12
+    - Includes Allelefinder v1.0.0
+    - Includes BGCorrect v1.0.0
+    - Includes BGEstimate v1.0.0
+    - Includes BGHomRaw v1.0.0
+    - Includes BGHomStats v1.0.0
+    - Includes BGMerge v1.0.0
+    - Includes BGPredict v1.0.0
+    - Includes Blame v1.0.0
+    - Includes FindNewAlleles v1.0.0
+    - Includes Libconvert v1.0.0
+    - Includes Samplestats v1.0.0
+    - Includes Seqconvert v1.0.0
+    - Includes Stuttermark v1.5.0
+    - Includes Stuttermodel v1.0.0
+    - Includes TSSV v1.0.0
+    - Includes Vis v1.0.0
+    - Includes Allelevis v1.0.0beta1
+    - Includes BGRawvis v1.0.0
+    - Includes Profilevis v1.0.0
+    - Includes Samplevis v2.0.0
+    - Includes Stuttermodelvis v1.0.0beta1
 
 v0.0.2
     - Added global -d/--debug switch
@@ -41,91 +63,157 @@ v0.0.1
     - Includes Stuttermark v1.3
 
 
-Stuttermark
------------
-
-Mark potential stutter products by assuming a fixed maximum percentage of
-stutter product vs the parent allele.
-
-Input
-    Tab-seperated file with the following columns:
-        - 'allele': the allele name, as a TSSV_-style sequence, e.g.,
-          "``AGAT(12)TGAT(4)``" (required)
-        - 'total': the total number of reads (required)
-        - 'name': the name of the marker (optional)
-
-    This format is compatible with 'knownalleles.csv' files created by TSSV_.
-    If raw sequences or allele names are provided, Stuttermark can convert
-    those to TSSV-style sequences automatically if a library file is given as
-    well.
-
-Output
-    The same file, with an additional column (named 'annotation' by default).
-    The new column contains '``STUTTER``' for possible stutter products, or
-    '``ALLELE``' otherwise. Lines that were not evaluated are annotated as
-    '``UNKNOWN``'. The ``STUTTER`` annotation contains additional information.
-    For example,
-
-        ``STUTTER:146.6x1(2-1):10.4x2(2-1x9-1)``
-
-    This is a stutter product for which at most 146.6 reads have come from the
-    first sequence in the output file ("``146.6x1``") and at most 10.4 reads
-    have come from the second sequence in the output file ("``10.4x2``"). This
-    sequence differs from the first sequence in the output file by a loss of
-    one repeat of the second repeat block ("``2-1``") and it differs from the
-    second sequence by the loss of one repeat in the second block *and* one
-    repeat in the ninth block ("``2-1x9-1``").
+Allelefinder
+~~~~~~~~~~~~
+v1.0.0
+    - Initial version
 
 
-Changelog
+BGCorrect
 ~~~~~~~~~
+v1.0.0
+    - Initial version
 
-v1.5
+
+BGEstimate
+~~~~~~~~~~
+v1.0.0
+    - Initial version
+
+
+BGHomRaw
+~~~~~~~~
+v1.0.0
+    - Initial version
+
+
+BGHomStats
+~~~~~~~~~~
+v1.0.0
+    - Initial version
+
+
+BGMerge
+~~~~~~~
+v1.0.0
+    - Initial version
+
+
+BGPredict
+~~~~~~~~~
+v1.0.0
+    - Initial version
+
+
+Blame
+~~~~~
+v1.0.0
+    - Initial version
+
+
+FindNewAlleles
+~~~~~~~~~~~~~~
+v1.0.0
+    - Initial version
+
+
+Libconvert
+~~~~~~~~~~
+v1.0.0
+    - Initial version
+
+
+Samplestats
+~~~~~~~~~~~
+v1.0.0
+    - Initial version
+
+
+Seqconvert
+~~~~~~~~~~
+v1.0.0
+    - Initial version
+
+
+Stuttermark
+~~~~~~~~~~~
+v1.5.0
     - Changed column names 'name' and 'allele' to 'marker' and 'sequence',
       respectively. WARNING: Stuttermark is now INCOMPATIBLE with output
-      from TSSV but made compatible with TSSV-Lite instead.
+      from TSSV_ but made compatible with TSSV-Lite and the new, bundled TSSV
+      tool instead.
 
-v1.4
+v1.4.0
     - Stuttermark now accepts raw sequences and allele names as input, which
       are automatically rewritten as TSSV-style sequences using a specified
       library file
     - The 'name' column is now optional
 
-v1.3
+v1.3.0
     - First version of Stuttermark to be included in ``fdstools``
     - Fixed crash that occurred when an empty allele (e.g., a primer dimer)
       was encountered
     - Stuttermark now prints a warning if an allele is encountered that is
       not a TSSV_-style sequence
 
-v1.2
+v1.2.0
     - All settings are now available from the command line
     - Use 1-based indexing in ``STUTTER`` annotations
 
-v1.1
+v1.1.0
     - Stuttermark now accepts file names and the minimum number of reads to
       evaluate as command line arguments
 
-v1.0
+v1.0.0
     - Initial version
 
 
-Libconvert
-----------
-
-Convert between TSSV (tab-separated) and FDSTools (ini-style) library formats.
-
-
-Seqconvert
-----------
-
-Convert between raw sequences, TSSV-style sequences, and allele names.
+Stuttermodel
+~~~~~~~~~~~~
+v1.0.0
+    - Initial version
 
 
-Allelefinder
-------------
+TSSV
+~~~~
+v1.0.0
+    - Initial version
 
-Find true alleles in a single-person reference sample.
+
+Vis
+~~~
+v1.0.0
+    - Initial version
+
+
+Allelevis
+~~~~~~~~~
+v1.0.0beta1
+    - Initial version
+
+
+BGRawvis
+~~~~~~~~
+v1.0.0
+    - Initial version
+
+
+Profilevis
+~~~~~~~~~~
+v1.0.0
+    - Initial version
+
+
+Samplevis
+~~~~~~~~~
+v2.0.0
+    - Initial version
+
+
+Stuttermodelvis
+~~~~~~~~~~~~~~~
+v1.0.0beta1
+    - Initial version
 
 
 .. _TSSV: https://pypi.python.org/pypi/tssv/

@@ -41,7 +41,7 @@ from ..lib import get_column_ids, ensure_sequence_format, parse_library,\
                   reverse_complement, add_input_output_args,\
                   get_input_output_files, SEQ_SPECIAL_VALUES
 
-__version__ = "0.1dev"
+__version__ = "1.0.0"
 
 
 # Default values for parameters are specified below.

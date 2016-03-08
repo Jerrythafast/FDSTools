@@ -28,7 +28,7 @@ from ..lib import load_profiles, ensure_sequence_format, get_column_ids, \
                   nnls, add_sequence_format_args, SEQ_SPECIAL_VALUES, \
                   add_input_output_args, get_input_output_files
 
-__version__ = "0.1dev"
+__version__ = "1.0.0"
 
 
 def get_sample_data(infile, convert_to_raw=False, library=None):

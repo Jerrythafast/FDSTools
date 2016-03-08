@@ -34,7 +34,7 @@ from pkg_resources import resource_stream, resource_string
 
 from ..lib import pos_int_arg
 
-__version__ = "0.1dev"
+__version__ = "1.0.0"
 
 
 # Default values for parameters are specified below.

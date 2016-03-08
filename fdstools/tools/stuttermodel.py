@@ -16,7 +16,7 @@ from ..lib import pos_int_arg, add_input_output_args, get_input_output_files,\
                   add_random_subsampling_args, reverse_complement,\
                   get_repeat_pattern
 
-__version__ = "0.1dev"
+__version__ = "1.0.0"
 
 
 # Default values for parameters are specified below.

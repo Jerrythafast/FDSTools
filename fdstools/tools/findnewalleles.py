@@ -12,7 +12,7 @@ from ..lib import ensure_sequence_format, add_sequence_format_args, \
                   get_column_ids, add_input_output_args, SEQ_SPECIAL_VALUES, \
                   get_input_output_files
 
-__version__ = "0.1dev"
+__version__ = "1.0.0"
 
 
 def read_known(infile, library, default_marker=None):

@@ -33,7 +33,7 @@ import sys
 from ..lib import add_sequence_format_args, add_input_output_args, \
                   get_input_output_files, get_column_ids
 
-__version__ = "0.1dev"
+__version__ = "1.0.0"
 
 
 # Default values for parameters are specified below.

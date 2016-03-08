@@ -35,7 +35,7 @@ from ..lib import pos_int_arg, print_db, PAT_TSSV_BLOCK, get_column_ids, \
                   ensure_sequence_format, add_sequence_format_args, \
                   SEQ_SPECIAL_VALUES
 
-__version__ = "1.5"
+__version__ = "1.5.0"
 
 
 # Default values for parameters are specified below.

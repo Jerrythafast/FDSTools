@@ -44,7 +44,7 @@ from ..lib import parse_library
 from ConfigParser import RawConfigParser
 from StringIO import StringIO
 
-__version__ = "0.1dev"
+__version__ = "1.0.0"
 
 
 # If no input is given, convert the following to FDSTools format.

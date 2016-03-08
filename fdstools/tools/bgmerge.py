@@ -22,7 +22,7 @@ import sys
 from ..lib import load_profiles, ensure_sequence_format,\
                   add_sequence_format_args
 
-__version__ = "0.1dev"
+__version__ = "1.0.0"
 
 
 def merge_profiles(infiles, outfile, seqformat, library):

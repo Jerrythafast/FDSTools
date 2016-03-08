@@ -19,7 +19,7 @@ from ..lib import pos_int_arg, add_input_output_args, get_input_output_files,\
                   add_sequence_format_args, reverse_complement, PAT_SEQ_RAW,\
                   get_column_ids
 
-__version__ = "0.1dev"
+__version__ = "1.0.0"
 
 
 # Default values for parameters are specified below.
