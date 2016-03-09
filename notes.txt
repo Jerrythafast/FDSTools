@@ -190,6 +190,15 @@ name    tssv    OK
 
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
+Tool and visualisation version numbering, e.g., v1.2.3:
+1   major version, changes only with large, disruptive, fundamental changes
+2   minor version, changes when the default output is altered, or when it is
+    otherwise likely that user pipelines will break when updating
+3   patch version, changes with any other changes (bug fixes, new optional
+    features, etc.)
+
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
 Find TODOs and FIXMEs in the code:
 grep "TODO\|FIXME" *.py */*.py */*/*.py
 

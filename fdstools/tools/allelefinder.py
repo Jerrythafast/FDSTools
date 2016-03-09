@@ -81,7 +81,7 @@ def find_alleles_sample(data, outfile, reportfile, tag, min_reads,
             top_allele[marker] = 0
             top_noise[marker] = ["-", 0]
 
-        if sequence == "Other Sequences" and reads >= top_noise[marker][1]:
+        if sequence == "Other sequences" and reads >= top_noise[marker][1]:
             # Aggregated sequences are new highest noise!
             top_noise[marker] = [sequence, reads]
         elif reads > top_allele[marker]:
