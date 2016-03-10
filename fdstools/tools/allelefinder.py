@@ -18,7 +18,7 @@ this file to do their job.  One may use the allelefinder report
 of what might be wrong.
 """
 from ..lib import pos_int_arg, add_input_output_args, get_input_output_files, \
-                  ensure_sequence_format, get_sample_data, \
+                  ensure_sequence_format, get_sample_data, SEQ_SPECIAL_VALUES,\
                   add_sequence_format_args
 
 __version__ = "1.0.0"
@@ -59,7 +59,7 @@ def find_alleles(samples_in, outfile, reportfile, min_reads, min_allele_pct,
         lambda tag, data: find_alleles_sample(
             data if stuttermark_column is None
                  else {key: data[key] for key in data if key[0] in
-                       allelelist[tag]},
+                       allelelist[tag] and key[1] in allelelist[tag][key[0]]},
             outfile, reportfile, tag, min_reads, min_allele_pct, max_noise_pct,
             max_alleles, max_noisy, seqformat, library),
         allelelist,
@@ -81,10 +81,10 @@ def find_alleles_sample(data, outfile, reportfile, tag, min_reads,
             top_allele[marker] = 0
             top_noise[marker] = ["-", 0]
 
-        if sequence == "Other sequences" and reads >= top_noise[marker][1]:
-            # Aggregated sequences are new highest noise!
-            top_noise[marker] = [sequence, reads]
-        elif reads > top_allele[marker]:
+        if sequence in SEQ_SPECIAL_VALUES:
+            continue
+
+        if reads > top_allele[marker]:
             # New highest allele!
             top_allele[marker] = reads
             for allele in alleles[marker].keys():

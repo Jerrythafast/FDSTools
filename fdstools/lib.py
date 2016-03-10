@@ -172,6 +172,11 @@ def call_variants(template, sequence, location="suffix", cache=True,
         raise ValueError("Unknown location %r. It should be 'prefix', "
             "'suffix', or a tuple (chromosome, position [, endpos])" %
             location)
+    elif location[0] == "M":
+        MATCH_SCORE = 1
+        MISMATCH_SCORE = -1
+        GAP_OPEN_SCORE = -2
+        GAP_EXTEND_SCORE = -1
 
     for i in range(len(matrix_match)):
         x = i % row_offset
