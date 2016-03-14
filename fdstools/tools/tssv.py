@@ -87,6 +87,11 @@ def run_tssv_lite(infile, outfile, reportfile, is_fastq, library, seqformat,
                 library.get("expected_length", {}).get(marker))}
         for marker in sequences}
 
+    # Add aggregate rows if the user requested so.
+    if aggregate_filtered:
+        for marker in aggregates:
+            sequences[marker]["Other sequences"] = aggregates[marker]
+
     # Check presence of all markers.
     if missing_marker_action != "exclude":
         for marker in library["flanks"]:
@@ -96,11 +101,6 @@ def run_tssv_lite(infile, outfile, reportfile, is_fastq, library, seqformat,
                 else:
                     raise ValueError("Marker %s was not detected!" % marker)
 
-    # Add aggregate rows if the user requested so.
-    if aggregate_filtered:
-        for marker in aggregates:
-            sequences[marker]["Other sequences"] = aggregates[marker]
-
     column_names, tables = make_sequence_tables(sequences, 0)
 
     # Convert sequences to the desired format.
@@ -108,8 +108,6 @@ def run_tssv_lite(infile, outfile, reportfile, is_fastq, library, seqformat,
     if seqformat != "raw":
         for marker in tables:
             for line in tables[marker]:
-                if line[colid_sequence] == "No Data":
-                    continue
                 line[colid_sequence] = ensure_sequence_format(
                     line[colid_sequence], seqformat, library=library,
                     marker=marker)
