@@ -692,6 +692,7 @@ function parse(maintainSelection){
                     datum._prev = null;
                     sa._id = datum._id;
                     sa.aggr._id = datum.aggr._id;
+                    sa.rank = datum.rank;
                     sa.thedatum = null;
                     datum.thedatum = null;
                     var equal = vg.util.equal(sa, datum);

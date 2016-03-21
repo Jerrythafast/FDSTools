@@ -161,14 +161,11 @@ def add_arguments(parser):
         default=_DEF_MINIMUM,
         help="report only sequences with this minimum number of reads "
              "(default: %(default)s)")
-    filtergroup.add_argument("-L", "--check-length", action="store_true",
-        help="if specified, enforce the minimum and maximum allele lengths "
-             "specified in the library (FDSTools library format only)")
     filtergroup.add_argument("-A", "--aggregate-filtered", action="store_true",
         help="if specified, sequences that have been filtered (as per the "
-             "-a/--minimum and -L/--check-length options, or with ambiguous "
-             "bases) will be aggregated per marker and reported as 'Other "
-             "sequences'")
+             "-a/--minimum option, the expected_allele_length section in the "
+             "library file, as well as all sequences with ambiguous bases) "
+             "will be aggregated per marker and reported as 'Other sequences'")
     filtergroup.add_argument("-M", "--missing-marker-action", metavar="ACTION",
         choices=("include", "exclude", "halt"),
         default="include",

@@ -10,7 +10,14 @@ To-do:
     next chunk through "window.setTimeout(nextChunkFunction);". The page will
     be repainted between each chunk. One major issue with this is that user
     input events may get scheduled between the chunks.
+  * Add 'Save page' button that also saves the alleles clicked by the user.
+  * Add options to set the Table filtering options in the Vis tool.
 * Additions needed for publication:
+  * Check whether there is a difference between filtering short artefacts in
+    TSSV vs having BGEstimate/BGCorrect filter them.
+    * vWA GATGGAT
+    * D2S441 GGCGCCCCAGCATTCTAACAAGGAATGTGGGTGCTGGGAGCCAGGAACCTGGACAAAAACCAAAACGCATATCC
+    * D2S441 AGCACCCCAGCATTCTAACAAGCAATGTAGGCATTGGGAGCCAGGAGCCTGGACAAAATCCAATACGCATATCC
   * [If not too difficult to implement] BGEstimate should start with homozygous
     samples and add heterozygous samples later to optimise correction.
   * Summary statistics for BGEstimate based on top N genotypes per marker,

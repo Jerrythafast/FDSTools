@@ -431,9 +431,9 @@ def add_arguments(parser):
              "stutter (default: %(default)s)")
     filtergroup.add_argument('-r', '--min-report', metavar="N", type=float,
         default=_DEF_MIN_REPORT,
-        help="sequence are only annotated as a stutter of some other sequence "
-             "if the expected number of stutter occurances of this other "
-             "sequence is above this value (default: %(default)s)")
+        help="a sequence is only annotated as a stutter of some other "
+             "sequence if the expected number of stutter occurances of this "
+             "other sequence is above this value (default: %(default)s)")
     add_sequence_format_args(parser, "tssv", True)  # Force tssv seqs.
 #add_arguments
 
