@@ -1,7 +1,5 @@
 To-do:
 * Samplevis:
-  * Add absolute number of reads before correction, noise reads, and recovered
-    reads to the tables in HTML visualisations.
   * Option to choose complete table download (all columns, not all rows).
   * Option to freely adjust the sorting (currently CE length toggle only).
   * When we have them, add default values to table filtering (for reference).
