@@ -1,5 +1,7 @@
 To-do:
 * Samplevis:
+  * Add absolute number of reads before correction, noise reads, and recovered
+    reads to the tables in HTML visualisations.
   * Option to choose complete table download (all columns, not all rows).
   * Option to freely adjust the sorting (currently CE length toggle only).
   * When we have them, add default values to table filtering (for reference).
@@ -12,6 +14,8 @@ To-do:
     input events may get scheduled between the chunks.
   * Add 'Save page' button that also saves the alleles clicked by the user.
   * Add options to set the Table filtering options in the Vis tool.
+  * Add ability to mark sequences that have a '*' in the 'new_allele' column
+    (if that column exists at all). Used together with FindNewAlleles.
 * Additions needed for publication:
   * Check whether there is a difference between filtering short artefacts in
     TSSV vs having BGEstimate/BGCorrect filter them.
@@ -25,6 +29,10 @@ To-do:
     (maybe also additional value for confidence interval).
   * Visualisation to display highest remaining background (positive and
     negative) in known samples after BGCorrect analysis.
+    * And similarly for PctRecovery...
+* Add section to the library file where genomic positions of known pathogenic
+  variants are specified. The TSSV tool should always output the reference base
+  at these positions to comply with ethical regulations.
 * Add options to Libconvert to generate a template for STR or non-STR markers.
 * Add options to Samplevis, Samplestats (and possibly other relevant tools) to
   filter alleles by sequence length. The TSSV tool already supports this.

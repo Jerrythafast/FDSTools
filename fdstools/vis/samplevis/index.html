@@ -749,7 +749,7 @@ function autoSelectAlleles(graph){
                datum.pct_of_max >= minPa &&
                datum.pct_of_sum >= minTa &&
                ((datum.total_added/datum.total*100-100) >= minCa ||
-               (datum.total_add/datum.total*100) >= minAa) &&
+               (datum.total_add/datum.total_added*100) >= minAa) &&
                Math.min(datum.forward_added, datum.reverse_added) >= minOa){
                 if(autoSelected.indexOf(datum) == -1)
                     autoSelected.push(datum);
@@ -968,7 +968,7 @@ function saveTable(){
                     datum.pct_of_max.toFixed(2),
                     datum.pct_of_sum.toFixed(2),
                     (datum.total_added/datum.total*100-100).toFixed(2),
-                    (datum.total_add/datum.total*100).toFixed(2),
+                    (datum.total_add/datum.total_added*100).toFixed(2),
                     datum.forwardpct.toFixed(2),
                     notes.join(",")].join("\t");
             }).join(linebreak)
@@ -1027,7 +1027,7 @@ function updateTable(i){
         row.insertCell().appendChild(document.createTextNode(datum.pct_of_sum.toFixed(2) + "%")).parentNode.setAttribute("class", "num");
         var corrAmount = datum.total_added/datum.total*100-100;
         row.insertCell().appendChild(document.createTextNode((corrAmount < 0? "" : "+") + corrAmount.toFixed(2) + "%")).parentNode.setAttribute("class", "num");
-        row.insertCell().appendChild(document.createTextNode((datum.total_add/datum.total*100).toFixed(2) + "%")).parentNode.setAttribute("class", "num");
+        row.insertCell().appendChild(document.createTextNode((datum.total_add/datum.total_added*100).toFixed(2) + "%")).parentNode.setAttribute("class", "num");
         var cell = row.insertCell();
         cell.appendChild(document.createTextNode(datum.forwardpct.toFixed(2) + "%"));
         cell.setAttribute("class", "num");

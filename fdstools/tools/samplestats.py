@@ -27,6 +27,8 @@ X_correction_pct: The difference between the values of X_corrected and
 X, as a percentage of the value of X.
 X_removed_pct: The value of X_noise, as a percentage of the value of X.
 X_added_pct: The value of X_add, as a percentage of the value of X.
+X_recovery_pct: The value of X_add, as a percentage of the value of
+X_corrected.
 """
 import sys
 
@@ -61,7 +63,7 @@ _DEF_MIN_PCT_OF_SUM = 3.
 _DEF_MIN_CORRECTION = 0
 
 # Default minimum number of recovered reads as a percentage of the
-# original number of reads to mark as allele.
+# number of reads after correction to mark as allele.
 # This value can be overridden by the -r command line option.
 _DEF_MIN_RECOVERY = 0
 
@@ -88,7 +90,7 @@ _DEF_MIN_PCT_OF_SUM_FILT = 0.
 _DEF_MIN_CORRECTION_FILT = 0
 
 # Default minimum number of recovered reads as a percentage of the
-# original number of reads for filtering.
+# number of reads after correction for filtering.
 # This value can be overridden by the -R command line option.
 _DEF_MIN_RECOVERY_FILT = 0
 
@@ -97,15 +99,18 @@ COLUMN_ORDER = [
     "total_corrected_mp_sum",
     "total_corrected_mp_max",
     "total_correction_pct",
+    "total_recovery_pct",
     "forward_corrected_pct",
     "forward_corrected",
     "forward_corrected_mp_sum",
     "forward_corrected_mp_max",
     "forward_correction_pct",
+    "forward_recovery_pct",
     "reverse_corrected",
     "reverse_corrected_mp_sum",
     "reverse_corrected_mp_max",
     "reverse_correction_pct",
+    "reverse_recovery_pct",
 
     "total",
     "total_mp_sum",
@@ -167,14 +172,20 @@ def compute_stats(infile, outfile, min_reads,
         column_names.append("total_correction_pct")
         if "forward_corrected" in column_names:
             column_names.append("forward_corrected_pct")
+        if "total_add" in column_names:
+            column_names.append("total_recovery")
     if "forward_corrected" in column_names:
         column_names.append("forward_corrected_mp_sum")
         column_names.append("forward_corrected_mp_max")
         column_names.append("forward_correction_pct")
+        if "forward_add" in column_names:
+            column_names.append("forward_recovery")
     if "reverse_corrected" in column_names:
         column_names.append("reverse_corrected_mp_sum")
         column_names.append("reverse_corrected_mp_max")
         column_names.append("reverse_correction_pct")
+        if "reverse_add" in column_names:
+            column_names.append("reverse_recovery")
     column_names.append("total_mp_sum")
     column_names.append("total_mp_max")
     column_names.append("forward_pct")
@@ -308,6 +319,10 @@ def compute_stats(infile, outfile, min_reads,
                         row[ci["forward_corrected"]]/row[ci["total_corrected"]]
                         if row[ci["total_corrected"]]
                         else row[ci["forward_corrected"]] > 0))
+                if "total_add" in ci:
+                    row.append(100.*row[ci["total_add"]] /
+                    row[ci["total_corrected"]]
+                    if row[ci["total_corrected"]] else 0)
             if "forward_corrected" in ci:
                 row.append(100.*row[ci["forward_corrected"]] /
                     marker_forward_corrected_sum
@@ -320,6 +335,10 @@ def compute_stats(infile, outfile, min_reads,
                     if row[ci["forward"]]
                     else ((row[ci["forward_corrected"]]>0)*200-100
                         if row[ci["forward_corrected"]] else 0))
+                if "forward_add" in ci:
+                    row.append(100.*row[ci["forward_add"]] /
+                    row[ci["forward_corrected"]]
+                    if row[ci["forward_corrected"]] else 0)
             if "reverse_corrected" in ci:
                 row.append(100.*row[ci["reverse_corrected"]] /
                     marker_reverse_corrected_sum
@@ -332,6 +351,10 @@ def compute_stats(infile, outfile, min_reads,
                     if row[ci["reverse"]]
                     else ((row[ci["reverse_corrected"]]>0)*200-100
                         if row[ci["reverse_corrected"]] else 0))
+                if "reverse_add" in ci:
+                    row.append(100.*row[ci["reverse_add"]] /
+                    row[ci["reverse_corrected"]]
+                    if row[ci["reverse_corrected"]] else 0)
             row.append(100.*row[ci["total"]]/marker_total_sum
                 if marker_total_sum else 0)
             row.append(100.*row[ci["total"]]/marker_total_max
@@ -417,8 +440,8 @@ def compute_stats(infile, outfile, min_reads,
                 not in ci else row[ci["total_corrected_mp_max"]]
             correction = 0 if "total_correction_pct" not in ci \
                 else row[ci["total_correction_pct"]]
-            recovery = 0 if "total_added_pct" not in ci \
-                else row[ci["total_added_pct"]]
+            recovery = 0 if "total_recovery" not in ci \
+                else row[ci["total_recovery"]]
             strands = [
                 row[ci["forward"]] if "forward_corrected" not in ci
                     else row[ci["forward_corrected"]],
@@ -656,7 +679,7 @@ def add_arguments(parser):
         type=float, default=_DEF_MIN_RECOVERY,
         help="the minimum number of reads that was recovered thanks to "
              "noise correction (by e.g., bgcorrect), as a percentage of the "
-             "original number of reads (default: %(default)s)")
+             "total number of reads after correction (default: %(default)s)")
     filtergroup = parser.add_argument_group("filtering options",
         "sequences that match the -C or -Y option (or both) and all of the "
         "other settings are retained, all others are filtered")
@@ -693,7 +716,7 @@ def add_arguments(parser):
         type=float, default=_DEF_MIN_RECOVERY_FILT,
         help="the minimum number of reads that was recovered thanks to "
              "noise correction (by e.g., bgcorrect), as a percentage of the "
-             "original number of reads (default: %(default)s)")
+             "total number of reads after correction (default: %(default)s)")
 #add_arguments
 
 
