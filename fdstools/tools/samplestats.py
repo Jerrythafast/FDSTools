@@ -1,4 +1,25 @@
 #!/usr/bin/env python
+
+#
+# Copyright (C) 2016 Jerry Hoogenboom
+#
+# This file is part of FDSTools, data analysis tools for Next
+# Generation Sequencing of forensic DNA markers.
+#
+# FDSTools is free software: you can redistribute it and/or modify it
+# under the terms of the GNU General Public License as published by the
+# Free Software Foundation, either version 3 of the License, or (at
+# your option) any later version.
+#
+# FDSTools is distributed in the hope that it will be useful, but
+# WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+# General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with FDSTools.  If not, see <http://www.gnu.org/licenses/>.
+#
+
 """
 Compute various statistics for each sequence in the given sample data
 file.
@@ -27,7 +48,7 @@ X_correction_pct: The difference between the values of X_corrected and
 X, as a percentage of the value of X.
 X_removed_pct: The value of X_noise, as a percentage of the value of X.
 X_added_pct: The value of X_add, as a percentage of the value of X.
-X_recovery_pct: The value of X_add, as a percentage of the value of
+X_recovery: The value of X_add, as a percentage of the value of
 X_corrected.
 """
 import sys
@@ -35,7 +56,7 @@ import sys
 from ..lib import add_sequence_format_args, add_input_output_args, \
                   get_input_output_files, get_column_ids
 
-__version__ = "1.0.0"
+__version__ = "1.0.1"
 
 
 # Default values for parameters are specified below.
@@ -99,18 +120,19 @@ COLUMN_ORDER = [
     "total_corrected_mp_sum",
     "total_corrected_mp_max",
     "total_correction_pct",
-    "total_recovery_pct",
+    "total_recovery",
+    "weight",
     "forward_corrected_pct",
     "forward_corrected",
     "forward_corrected_mp_sum",
     "forward_corrected_mp_max",
     "forward_correction_pct",
-    "forward_recovery_pct",
+    "forward_recovery",
     "reverse_corrected",
     "reverse_corrected_mp_sum",
     "reverse_corrected_mp_max",
     "reverse_correction_pct",
-    "reverse_recovery_pct",
+    "reverse_recovery",
 
     "total",
     "total_mp_sum",
@@ -235,7 +257,7 @@ def compute_stats(infile, outfile, min_reads,
         row[ci["total"]] = int(row[ci["total"]])
         for i in (ci[column] for column in (
                 "forward_corrected", "reverse_corrected", "total_corrected",
-                "forward_noise", "reverse_noise", "total_noise",
+                "forward_noise", "reverse_noise", "total_noise", "weight",
                 "forward_add", "reverse_add", "total_add") if column in ci):
             row[i] = float(row[i])
         if len(row) == ci["flags"]:
@@ -321,8 +343,8 @@ def compute_stats(infile, outfile, min_reads,
                         else row[ci["forward_corrected"]] > 0))
                 if "total_add" in ci:
                     row.append(100.*row[ci["total_add"]] /
-                    row[ci["total_corrected"]]
-                    if row[ci["total_corrected"]] else 0)
+                        row[ci["total_corrected"]]
+                        if row[ci["total_corrected"]] else 0)
             if "forward_corrected" in ci:
                 row.append(100.*row[ci["forward_corrected"]] /
                     marker_forward_corrected_sum
@@ -337,8 +359,8 @@ def compute_stats(infile, outfile, min_reads,
                         if row[ci["forward_corrected"]] else 0))
                 if "forward_add" in ci:
                     row.append(100.*row[ci["forward_add"]] /
-                    row[ci["forward_corrected"]]
-                    if row[ci["forward_corrected"]] else 0)
+                        row[ci["forward_corrected"]]
+                        if row[ci["forward_corrected"]] else 0)
             if "reverse_corrected" in ci:
                 row.append(100.*row[ci["reverse_corrected"]] /
                     marker_reverse_corrected_sum
@@ -353,8 +375,8 @@ def compute_stats(infile, outfile, min_reads,
                         if row[ci["reverse_corrected"]] else 0))
                 if "reverse_add" in ci:
                     row.append(100.*row[ci["reverse_add"]] /
-                    row[ci["reverse_corrected"]]
-                    if row[ci["reverse_corrected"]] else 0)
+                        row[ci["reverse_corrected"]]
+                        if row[ci["reverse_corrected"]] else 0)
             row.append(100.*row[ci["total"]]/marker_total_sum
                 if marker_total_sum else 0)
             row.append(100.*row[ci["total"]]/marker_total_max
@@ -563,10 +585,17 @@ def compute_stats(infile, outfile, min_reads,
                         row[ci["reverse_add_mp_sum"]]
                     combined[ci["reverse_add_mp_max"]] += \
                         row[ci["reverse_add_mp_max"]]
+                if "weight" in ci:
+                    combined[ci["weight"]] += row[ci["weight"]]
             elif filter_action == "off" or row not in filtered[marker]:
                 for i in (ci[col] for col in COLUMN_ORDER if col in ci
                         and col not in ("total", "forward", "reverse")):
-                    row[i] = "%#.3g" % row[i]
+                    if row[i] >= 10000:
+                        row[i] = "%#.5g" % row[i]
+                    elif row[i] >= 1000:
+                        row[i] = "%#.4g" % row[i]
+                    else:
+                        row[i] = "%#.3g" % row[i]
                 outfile.write("\t".join(map(str,
                     (row[new_order[i]] for i in range(len(row))))) + "\n")
 
@@ -585,6 +614,11 @@ def compute_stats(infile, outfile, min_reads,
                             combined[ci["total_corrected"]]
                         if combined[ci["total_corrected"]]
                         else combined[ci["forward_corrected"]] > 0)
+                if "total_add" in ci:
+                    combined[ci["total_recovery"]] = (
+                        100.*combined[ci["total_add"]]/
+                            combined[ci["total_corrected"]]
+                            if combined[ci["total_corrected"]] else 0)
             if "forward_corrected" in ci:
                 combined[ci["forward_correction_pct"]] = (
                     100.*combined[ci["forward_corrected"]]/
@@ -592,6 +626,11 @@ def compute_stats(infile, outfile, min_reads,
                     if combined[ci["forward"]]
                     else ((combined[ci["forward_corrected"]]>0)*200-100
                         if combined[ci["forward_corrected"]] else 0))
+                if "forward_add" in ci:
+                    combined[ci["forward_recovery"]] = (
+                        100.*combined[ci["forward_add"]]/
+                            combined[ci["forward_corrected"]]
+                            if combined[ci["forward_corrected"]] else 0)
             if "reverse_corrected" in ci:
                 combined[ci["reverse_correction_pct"]] = (
                     100.*combined[ci["reverse_corrected"]]/
@@ -599,6 +638,11 @@ def compute_stats(infile, outfile, min_reads,
                     if combined[ci["reverse"]]
                     else ((combined[ci["reverse_corrected"]]>0)*200-100
                         if combined[ci["reverse_corrected"]] else 0))
+                if "reverse_add" in ci:
+                    combined[ci["reverse_recovery"]] = (
+                        100.*combined[ci["reverse_add"]]/
+                            combined[ci["reverse_corrected"]]
+                            if combined[ci["reverse_corrected"]] else 0)
             combined[ci["forward_pct"]] = 100.*(
                 1.*combined[ci["forward"]]/combined[ci["total"]]
                 if combined[ci["total"]] else combined[ci["forward"]] > 0)

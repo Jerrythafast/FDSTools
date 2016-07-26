@@ -1,4 +1,25 @@
 #!/usr/bin/env python
+
+#
+# Copyright (C) 2016 Jerry Hoogenboom
+#
+# This file is part of FDSTools, data analysis tools for Next
+# Generation Sequencing of forensic DNA markers.
+#
+# FDSTools is free software: you can redistribute it and/or modify it
+# under the terms of the GNU General Public License as published by the
+# Free Software Foundation, either version 3 of the License, or (at
+# your option) any later version.
+#
+# FDSTools is distributed in the hope that it will be useful, but
+# WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+# General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with FDSTools.  If not, see <http://www.gnu.org/licenses/>.
+#
+
 from setuptools import setup, find_packages
 
 requires = ["numpy"]
@@ -32,18 +53,18 @@ x = setup(
     author="Jerry Hoogenboom",
     author_email="jerryhoogenboom@outlook.com",
     url="https://git.lumc.nl/jhoogenboom/fdstools/blob/master/README.rst",
-    license="LGPLv3+",
+    license="GPLv3+",
     platforms=["any"],
     classifiers=[
         "Development Status :: 3 - Alpha",
         "Intended Audience :: Science/Research",
         "Intended Audience :: Legal Industry",
-        "License :: OSI Approved :: GNU Lesser General Public License v3 or "
-            "later (LGPLv3+)",
+        "License :: OSI Approved :: GNU General Public License v3 or "
+            "later (GPLv3+)",
         "Operating System :: OS Independent",
         "Programming Language :: Python :: 2",
         "Topic :: Scientific/Engineering :: Bio-Informatics"],
-    keywords='bioinformatics forensics stutter NGS sequencing STR',
+    keywords='bioinformatics forensics stutter NGS MPS DNA sequencing STR',
     entry_points={
         'console_scripts': [
             "fdstools=fdstools.fdstools:main"

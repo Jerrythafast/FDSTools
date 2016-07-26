@@ -1,14 +1,33 @@
 <!DOCTYPE html>
 <html>
 <head>
+    <!--
+    # Copyright (C) 2016 Jerry Hoogenboom
+    #
+    # This file is part of FDSTools, data analysis tools for Next
+    # Generation Sequencing of forensic DNA markers.
+    #
+    # FDSTools is free software: you can redistribute it and/or modify it
+    # under the terms of the GNU General Public License as published by the
+    # Free Software Foundation, either version 3 of the License, or (at
+    # your option) any later version.
+    #
+    # FDSTools is distributed in the hope that it will be useful, but
+    # WITHOUT ANY WARRANTY; without even the implied warranty of
+    # MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+    # General Public License for more details.
+    #
+    # You should have received a copy of the GNU General Public License
+    # along with FDSTools.  If not, see <http://www.gnu.org/licenses/>.
+    -->
     <meta http-equiv="X-UA-Compatible" content="IE=edge">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta charset="UTF-8">
     <title>Sample Visualisation - FDSTools</title>
-    <!-- VERSION 2.0.0 -->
+    <!-- VERSION 2.0.1 -->
     <!-- BEGIN_LIBRARIES -->
-    <script src="http://vega.github.io/vega-editor/vendor/d3.min.js"></script>
-    <script src="http://vega.github.io/vega/vega.min.js"></script>
+    <script src="https://vega.github.io/vega-editor/vendor/d3.min.js"></script>
+    <script src="https://vega.github.io/vega/vega.min.js"></script>
     <!-- END_LIBRARIES -->
     <style>
     input {
@@ -75,6 +94,8 @@
             flex: 0 0 auto;
             background-color: hsl(220, 20%, 77%);
             padding: .2rem;
+            max-height: 3.8em;
+            overflow: auto;
             cursor: default;
         }
         #optscrollbox {
@@ -552,7 +573,7 @@
                     <td><label><input type="text" value="70" id="subgraphoffset" size="3" class="num"> px</label></td>
                 </tr>
                 <tr>
-                    <td><label for="subgraphoffset">Truncate sequences to</label></td>
+                    <td><label for="maxseqlen">Truncate sequences to</label></td>
                     <td><label><input type="text" value="70" id="maxseqlen" size="3" class="num"> characters</label></td>
                 </tr>
                 <tr>
@@ -642,13 +663,19 @@ function parse(maintainSelection){
     var splitMarkers = document.getElementById("splitmarkers").checked;
     var markerFilter = document.getElementById("markerFilter").value;
     var markerNames = [];
-    if(splitMarkers){
-        var patt = new RegExp('(?:' + markerFilter.trim().replace(/(^| )=(.*?)(?= |$)/g, '$1^$2$$').replace(/ +/g, ')|(?:') + ')');
+    var patt;
+    try{
+        patt = compileFilter(markerFilter.trim());
+    }
+    catch(e){
+        patt = new RegExp('(?:^$)');
+        markerFilter = "=";
+    }
+    if(splitMarkers)
         data_values.forEach(function(datum){
             if(patt.test(datum.marker))
                 markerNames.push("=" + datum.marker);
         });
-    }
     else
         markerNames.push(markerFilter);
     var prevMarker;
@@ -662,7 +689,7 @@ function parse(maintainSelection){
         for(i in graph_spec.signals)
             if(graph_spec.signals[i].name == "filter_marker")
                 graph_spec.signals[i].init = marker;
-        var patt = new RegExp('(?:' + marker.replace(/(^| )=(.*?)(?= |$)/g, '$1^$2$$').replace(/ +/g, ')|(?:') + ')');
+        var patt = compileFilter(marker);
         graph_spec.data[0].values = data_values.filter(function(datum){return patt.test(datum.marker)});
 
         //Render graph for this marker.
@@ -744,6 +771,10 @@ function parse(maintainSelection){
     });
     if(missing_markers.length)
         setMessage("Warning: Some markers were not detected in this sample:\n" + missing_markers.join(", "), true, "warning");
+}
+
+function compileFilter(filter){
+    return new RegExp('(?:' + filter.replace(/(^| )=(.*?)(?= |$)/g, '$1^$2$$').replace(/ +/g, ')|(?:') + ')')
 }
 
 function setMessage(message, printed, messagetype){
@@ -1098,6 +1129,7 @@ function updateTable(i){
         cell.setAttribute("class", "num");
         if(datum.biasmark !== "")
             cell.style.backgroundColor = "#ffaaaa";
+        cell = row.insertCell();
         var notes = [];
         if(autoSelected.indexOf(datum) >= 0 && userDeselected.indexOf(datum) >= 0){
             notes.push("User-removed");
@@ -1110,18 +1142,26 @@ function updateTable(i){
                 notes.push("BGCorrect-BGEstimate");
             else if(datum.correction_flags == "corrected_bghomstats")
                 notes.push("BGCorrect-BGHomStats");
-            else if(datum.correction_flags == "corrected_bgpredict")
+            else if(datum.correction_flags == "corrected_bgpredict"){
                 notes.push("BGCorrect-BGPredict");
-            else if(datum.correction_flags == "corrected_as_background_only")
+                cell.style.backgroundColor = "#ffe8c8";
+            }
+            else if(datum.correction_flags == "corrected_as_background_only"){
                 notes.push("BGCorrect-as-background-only");
-            else if(datum.correction_flags == "not_in_ref_db")
+                cell.style.backgroundColor = "#ffe8c8";
+            }
+            else if(datum.correction_flags == "not_in_ref_db"){
                 notes.push("BGCorrect-not-in-ref-db");
-            else if(datum.correction_flags == "not_corrected")
+                cell.style.backgroundColor = "#ffe8c8";
+            }
+            else if(datum.correction_flags == "not_corrected"){
                 notes.push("BGCorrect-not-corrected");
+                cell.style.backgroundColor = "#ffe8c8";
+            }
             else
                 notes.push(datum.correction_flags);
         }
-        row.insertCell().appendChild(document.createTextNode(notes.join(", ")));
+        cell.appendChild(document.createTextNode(notes.join(", ")));
     });
     var tabdiv = document.getElementById("tab" + i);
     removeChildren(tabdiv);

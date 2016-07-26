@@ -1,4 +1,25 @@
 #!/usr/bin/env python
+
+#
+# Copyright (C) 2016 Jerry Hoogenboom
+#
+# This file is part of FDSTools, data analysis tools for Next
+# Generation Sequencing of forensic DNA markers.
+#
+# FDSTools is free software: you can redistribute it and/or modify it
+# under the terms of the GNU General Public License as published by the
+# Free Software Foundation, either version 3 of the License, or (at
+# your option) any later version.
+#
+# FDSTools is distributed in the hope that it will be useful, but
+# WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+# General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with FDSTools.  If not, see <http://www.gnu.org/licenses/>.
+#
+
 """
 Create a data visualisation web page or Vega graph specification.
 
@@ -34,7 +55,7 @@ from pkg_resources import resource_stream, resource_string
 
 from ..lib import pos_int_arg
 
-__version__ = "1.0.0"
+__version__ = "1.0.1"
 
 
 # Default values for parameters are specified below.
@@ -80,6 +101,10 @@ _DEF_WIDTH = 600
 # Default graph height in pixels.
 # This value can be overridden by the -H command line option.
 _DEF_HEIGHT = 400
+
+# Default amount of jitter.
+# This value can be overridden by the -j command line option.
+_DEF_JITTER = 0.25
 
 # Default marker name matching regular expression.
 # This value can be overridden by the -M command line option.
@@ -137,7 +162,8 @@ def create_visualisation(vistype, infile, outfile, vega, online, tidy, min_abs,
                          min_pct_of_max, min_pct_of_sum, min_per_strand,
                          bias_threshold, bar_width, padding, marker, width,
                          height, log_scale, repeat_unit, no_alldata,
-                         no_aggregate, no_ce_length_sort, max_seq_len, title):
+                         no_aggregate, no_ce_length_sort, max_seq_len, jitter,
+                         title):
     # Get graph spec.
     spec = json.load(resource_stream(
         "fdstools", "vis/%svis/%svis.json" % (vistype, vistype)))
@@ -153,6 +179,7 @@ def create_visualisation(vistype, infile, outfile, vega, online, tidy, min_abs,
     spec["width"] = width
     if vistype == "stuttermodel":
         set_signal_value(spec, "graphheight", height)
+        set_signal_value(spec, "jitter", jitter)
     elif vistype == "allele":
         spec["height"] = height
     else:
@@ -277,7 +304,7 @@ def add_arguments(parser):
     visgroup = parser.add_argument_group("visualisation options",
         description="words in [brackets] indicate applicable visualisation "
                     "types")
-    visgroup.add_argument('-n', '--min-abs', metavar="N", type=pos_int_arg,
+    visgroup.add_argument('-n', '--min-abs', metavar="N", type=int,
         default=_DEF_THRESHOLD_ABS,
         help="[sample, bgraw] only show sequences with this minimum number of "
              "reads (default: %(default)s)")
@@ -292,7 +319,7 @@ def add_arguments(parser):
         help="[sample] only show sequences with at least this percentage of "
              "the total number of reads of a marker (default: %(default)s)")
     visgroup.add_argument('-s', '--min-per-strand', metavar="N",
-        type=pos_int_arg, default=_DEF_THRESHOLD_ORIENTATION,
+        type=int, default=_DEF_THRESHOLD_ORIENTATION,
         help="[sample] only show sequences with this minimum number of reads "
              "for both orientations (forward/reverse) (default: %(default)s)")
     visgroup.add_argument('-B', '--bias-threshold', metavar="N", type=float,
@@ -338,10 +365,14 @@ def add_arguments(parser):
         default=_DEF_HEIGHT,
         help="[stuttermodel, allele] height of the graph area in pixels "
              "(default: %(default)s)")
-    visgroup.add_argument('-x', '--max-seq-len', type=pos_int_arg,
+    visgroup.add_argument('-x', '--max-seq-len', metavar="N", type=pos_int_arg,
         default=_DEF_MAX_SEQ_LEN,
         help="[sample] truncate long sequences to this number of characters "
              "(default: %(default)s)")
+    visgroup.add_argument('-j', '--jitter', metavar="N", type=float,
+        default=_DEF_JITTER,
+        help="[stuttermodel] apply this amount of jitter to raw data points "
+             "(between 0 and 1, default: %(default)s)")
 #add_arguments
 
 
@@ -370,5 +401,6 @@ def run(args):
                          args.bar_width, args.padding, args.marker, args.width,
                          args.height, args.log_scale, args.repeat_unit,
                          args.no_alldata, args.no_aggregate,
-                         args.no_ce_length_sort, args.max_seq_len, args.title)
+                         args.no_ce_length_sort, args.max_seq_len, args.jitter,
+                         args.title)
 #run

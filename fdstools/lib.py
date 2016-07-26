@@ -1,5 +1,25 @@
 #!/usr/bin/env python
 
+#
+# Copyright (C) 2016 Jerry Hoogenboom
+#
+# This file is part of FDSTools, data analysis tools for Next
+# Generation Sequencing of forensic DNA markers.
+#
+# FDSTools is free software: you can redistribute it and/or modify it
+# under the terms of the GNU General Public License as published by the
+# Free Software Foundation, either version 3 of the License, or (at
+# your option) any later version.
+#
+# FDSTools is distributed in the hope that it will be useful, but
+# WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+# General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with FDSTools.  If not, see <http://www.gnu.org/licenses/>.
+#
+
 import re, sys, argparse, random, itertools
 #import numpy as np  # Imported only when calling nnls()
 
@@ -46,6 +66,8 @@ PAT_STR_DEF_BLOCK = re.compile("([ACGT]+)\s+(\d+)\s+(\d+)")
 
 # Pattern to split a comma-, semicolon-, or space-separated list.
 PAT_SPLIT = re.compile("\s*[,; \t]\s*")
+PAT_SPLIT_QUOTED = re.compile(
+    r""""((?:\\"|[^"])*)"|'((?:\\'|[^'])*)'|(\S+)""")
 
 # Pattern that matches a chromosome name/number.
 PAT_CHROMOSOME = re.compile(
@@ -689,6 +711,7 @@ def parse_library_ini(handle):
 
 
 def load_profiles(profilefile, library=None):
+    # TODO: To be replaced with load_profiles_new (less memory).
     column_names = profilefile.readline().rstrip("\r\n").split("\t")
     (colid_marker, colid_allele, colid_sequence, colid_fmean, colid_rmean,
      colid_tool) = get_column_ids(column_names, "marker", "allele", "sequence",
@@ -750,6 +773,41 @@ def load_profiles(profilefile, library=None):
 
     return profiles
 #load_profiles
+
+
+def load_profiles_new(profilefile, library=None):
+    # TODO, rename this to load_profiles to complete transition.
+    column_names = profilefile.readline().rstrip("\r\n").split("\t")
+    (colid_marker, colid_allele, colid_sequence, colid_fmean, colid_rmean,
+     colid_tool) = get_column_ids(column_names, "marker", "allele", "sequence",
+        "fmean", "rmean", "tool")
+
+    profiles = {}
+    for line in profilefile:
+        line = line.rstrip("\r\n").split("\t")
+        if line == [""]:
+            continue
+        marker = line[colid_marker]
+        if marker not in profiles:
+            profiles[marker] = {}
+        allele = ensure_sequence_format(line[colid_allele], "raw",
+            library=library, marker=marker)
+        sequence = ensure_sequence_format(line[colid_sequence], "raw",
+            library=library, marker=marker)
+        if allele not in profiles[marker]:
+            profiles[marker][allele] = {}
+        elif sequence in profiles[marker][allele]:
+            raise ValueError(
+                "Invalid background noise profiles file: encountered "
+                "multiple values for marker '%s' allele '%s' sequence '%s'" %
+                (marker, allele, sequence))
+        profiles[marker][allele][sequence] = {
+            "forward": float(line[colid_fmean]),
+            "reverse": float(line[colid_rmean]),
+            "tool": line[colid_tool]}
+
+    return profiles
+#load_profiles_new
 
 
 def pattern_longest_match(pattern, subject):
@@ -1261,21 +1319,32 @@ def get_repeat_pattern(seq):
 
 def read_sample_data_file(infile, data, annotation_column=None, seqformat=None,
                           library=None, default_marker=None,
-                          drop_special_seq=False, after_correction=False):
+                          drop_special_seq=False, after_correction=False,
+                          extra_columns=None):
     """Add data from infile to data dict as [marker, sequence]=reads."""
     # Get column numbers.
     column_names = infile.readline().rstrip("\r\n").split("\t")
     colid_sequence = get_column_ids(column_names, "sequence")
     colid_forward = None
     colid_reverse = None
+    numtype = int
     if after_correction:
         colid_forward, colid_reverse = get_column_ids(column_names,
             "forward_corrected", "reverse_corrected",
             optional=(after_correction != "require"))
     if colid_forward is None:
         colid_forward = get_column_ids(column_names, "forward")
+    else:
+        numtype = float
     if colid_reverse is None:
         colid_reverse = get_column_ids(column_names, "reverse")
+    else:
+        numtype = float
+    if extra_columns is not None:
+        extra_colids = {c: i for c, i in
+            ((c, get_column_ids(column_names, c, optional=extra_columns[c]))
+                for c in extra_columns)
+            if i is not None}
 
     # Get marker name column if it exists.
     colid_marker = get_column_ids(column_names, "marker", optional=True)
@@ -1300,8 +1369,11 @@ def read_sample_data_file(infile, data, annotation_column=None, seqformat=None,
         if (annotation_column is not None and
                 line[colid_annotation].startswith("ALLELE")):
             found_alleles.append((marker, sequence))
-        data[marker, sequence] = map(int,
+        data[marker, sequence] = map(numtype,
             (line[colid_forward], line[colid_reverse]))
+        if extra_columns is not None:
+            data[marker, sequence].append(
+                {c: line[extra_colids[c]] for c in extra_colids})
 
     return found_alleles
 #read_sample_data_file
@@ -1330,7 +1402,7 @@ def get_sample_data(tags_to_files, callback, allelelist=None,
                     annotation_column=None, seqformat=None, library=None,
                     marker=None, homozygotes=False, limit_reads=sys.maxint,
                     drop_samples=0, drop_special_seq=False,
-                    after_correction=False):
+                    after_correction=False, extra_columns=None):
     if drop_samples:
         sample_tags = tags_to_files.keys()
         for tag in random.sample(xrange(len(sample_tags)),
@@ -1344,7 +1416,7 @@ def get_sample_data(tags_to_files, callback, allelelist=None,
             infile = sys.stdin if infile == "-" else open(infile, "r")
             alleles.update(read_sample_data_file(
                 infile, data, annotation_column, seqformat, library, marker,
-                drop_special_seq, after_correction))
+                drop_special_seq, after_correction, extra_columns))
             if infile != sys.stdin:
                 infile.close()
         if limit_reads < sys.maxint:
@@ -1620,7 +1692,8 @@ def get_input_output_files(args, single=False, batch_support=False):
                 for infile in infiles]
 
         if len(outfiles) == 1:
-            outfile = outfiles[0]
+            outfile = sys.stdout if outfiles[0] == "-" else outfiles[0]
+
             if outfile == sys.stdout and len(set(tags)) == 1:
                 # Write output of single sample to stdout.
                 return ((tag, infiles, outfile) for tag in set(tags))
@@ -1645,6 +1718,16 @@ def get_input_output_files(args, single=False, batch_support=False):
         raise NotImplementedError(
             "Multi-input with optional multi-output not supported yet.")
 #get_input_output_files
+
+
+def split_quoted_string(text):
+    return reduce(
+        lambda x, y: x + ["".join([
+            y[0].replace("\\\"", "\""),
+            y[1].replace("\\'", "'"),
+            y[2]])],
+        PAT_SPLIT_QUOTED.findall(text), [])
+#split_quoted_string
 
 
 def print_db(text, debug):

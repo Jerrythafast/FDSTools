@@ -1,4 +1,25 @@
 #!/usr/bin/env python
+
+#
+# Copyright (C) 2016 Jerry Hoogenboom
+#
+# This file is part of FDSTools, data analysis tools for Next
+# Generation Sequencing of forensic DNA markers.
+#
+# FDSTools is free software: you can redistribute it and/or modify it
+# under the terms of the GNU General Public License as published by the
+# Free Software Foundation, either version 3 of the License, or (at
+# your option) any later version.
+#
+# FDSTools is distributed in the hope that it will be useful, but
+# WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+# General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with FDSTools.  If not, see <http://www.gnu.org/licenses/>.
+#
+
 """
 Predict background profiles of new alleles based on a model of stutter
 occurrence obtained from stuttermodel.
@@ -31,7 +52,7 @@ from ..lib import get_column_ids, reverse_complement, get_repeat_pattern,\
                   mutate_sequence, SEQ_SPECIAL_VALUES,\
                   PAT_SEQ_RAW, ensure_sequence_format, add_sequence_format_args
 
-__version__ = "1.0.0"
+__version__ = "1.0.1"
 
 
 # Default values for parameters are specified below.
@@ -202,8 +223,10 @@ def predict_profiles(stuttermodel, seqsfile, outfile, default_marker,
     # Parse stutter model file.
     model = parse_stuttermodel(stuttermodel, min_r2, use_all_data)
 
-    # Read list of sequences.
-    seqlist = {}
+    outfile.write("\t".join(
+        ["marker", "allele", "sequence", "fmean", "rmean", "tool"]) + "\n")
+
+    # Read list of sequences and compute stutter profiles for each.
     column_names = seqsfile.readline().rstrip("\r\n").split("\t")
     colid_sequence = get_column_ids(column_names, "sequence")
     colid_marker = get_column_ids(column_names, "marker", optional=True)
@@ -219,90 +242,56 @@ def predict_profiles(stuttermodel, seqsfile, outfile, default_marker,
                 continue
         if line[colid_sequence] in SEQ_SPECIAL_VALUES:
             continue
-        sequence = ensure_sequence_format(line[colid_sequence], "raw",
+        allele = ensure_sequence_format(line[colid_sequence], "raw",
                                           library=library, marker=marker)
-        try:
-            seqlist[marker].append(sequence)
-        except KeyError:
-            seqlist[marker] = [sequence]
-
-    outfile.write("\t".join(
-        ["marker", "allele", "sequence", "fmean", "rmean", "tool"]) + "\n")
-    for marker in seqlist:
-        p = {
-            "true alleles": len(seqlist[marker]),
-            "alleles": seqlist[marker],
-            "profiles_forward":
-                [[100 if i == j else 0
-                  for i in range(len(seqlist[marker]))]
-                 for j in range(len(seqlist[marker]))],
-            "profiles_reverse":
-                [[100 if i == j else 0
-                  for i in range(len(seqlist[marker]))]
-                 for j in range(len(seqlist[marker]))]}
         if library and "flanks" in library and marker in library["flanks"]:
-            flanks = library["flanks"][marker]
-            flanks_r = map(reverse_complement, reversed(flanks))
+            flanks = (library["flanks"][marker],
+                map(reverse_complement, reversed(library["flanks"][marker])))
         else:
-            flanks = ["", ""]
-            flanks_r = flanks
-        for ai in range(len(seqlist[marker])):
-            allele = seqlist[marker][ai]
-            for rc in (False, True):
-                if rc:
-                    allele = reverse_complement(allele)
-                stutters = get_all_stutters(allele, flanks_r if rc else flanks,
-                                            model[marker], min_pct)
-                combinations = get_all_combinations(stutters)
-                frequencies = get_relative_frequencies(stutters, combinations)
-                for i in range(len(combinations)):
-                    freq = frequencies[i] * 100.
-                    if freq < min_pct:
-                        continue
-                    sequence = mutate_sequence(allele, [
-                        "%+i.1->%s" %
-                            (s["end"], allele[s["end"]-s["stutlen"]:s["end"]])
-                        if s["fold"] > 0 else
-                            "%+i%s>-" % (s["end"]-s["stutlen"]+1,
-                                allele[s["end"]-s["stutlen"]:s["end"]])
-                        for s in combinations[i]])
-                    if rc:
-                        sequence = reverse_complement(sequence)
-                    try:
-                        si = p["alleles"].index(sequence)
-                    except ValueError:
-                        p["alleles"].append(sequence)
-                        for profile in p["profiles_forward"]:
-                            profile.append(0)
-                        for profile in p["profiles_reverse"]:
-                            profile.append(0)
-                        si = -1
-                    if rc:
-                        p["profiles_reverse"][ai][si] = freq
-                    else:
-                        p["profiles_forward"][ai][si] = freq
-
-        # Round to 3 digits to get rid of funny rounding effects.
-        # This method is not that precise anyway.
-        for profile in p["profiles_forward"]:
-            for i in range(len(profile)):
-                profile[i] = round(profile[i], 3)
-        for profile in p["profiles_reverse"]:
-            for i in range(len(profile)):
-                profile[i] = round(profile[i], 3)
-
-        for i in range(p["true alleles"]):
-            for j in range(len(p["alleles"])):
-                if not (p["profiles_forward"][i][j] +
-                        p["profiles_reverse"][i][j]):
+            flanks = (["", ""], ["", ""])
+        p = {"sequences": [allele], "forward": [100], "reverse": [100]}
+        for rc in (False, True):
+            if rc:
+                allele = reverse_complement(allele)
+            stutters = get_all_stutters(
+                allele, flanks[rc], model[marker], min_pct)
+            if not stutters:
+                continue
+            combinations = get_all_combinations(stutters)
+            frequencies = get_relative_frequencies(stutters, combinations)
+            for i in range(len(combinations)):
+                freq = round(frequencies[i] * 100., 3)
+                if not freq:
                     continue
-                outfile.write("\t".join([marker] +
-                    [ensure_sequence_format(seq, seqformat, library=library,
-                            marker=marker)
-                        for seq in (p["alleles"][i], p["alleles"][j])] +
-                    map(str, [p["profiles_forward"][i][j],
-                              p["profiles_reverse"][i][j]]) +
-                    ["bgpredict"]) + "\n")
+                sequence = mutate_sequence(allele, [
+                    "%+i.1->%s" %
+                        (s["end"], allele[s["end"]-s["stutlen"]:s["end"]])
+                    if s["fold"] > 0 else
+                        "%+i%s>-" % (s["end"]-s["stutlen"]+1,
+                            allele[s["end"]-s["stutlen"]:s["end"]])
+                    for s in combinations[i]])
+                if rc:
+                    sequence = reverse_complement(sequence)
+                try:
+                    i = p["sequences"].index(sequence)
+                except ValueError:
+                    p["sequences"].append(sequence)
+                    p["forward"].append(0)
+                    p["reverse"].append(0)
+                    i = -1
+                p["reverse" if rc else "forward"][i] = freq
+        allele = ensure_sequence_format(
+            p["sequences"][0], seqformat, library=library,  marker=marker)
+        for i in range(len(p["sequences"])):
+            if (p["forward"][i] < min_pct and p["reverse"][i] < min_pct):
+                continue
+            outfile.write("\t".join([
+                marker,
+                allele,
+                ensure_sequence_format(p["sequences"][i], seqformat,
+                    library=library, marker=marker)] +
+                map(str, (p["forward"][i], p["reverse"][i])) +
+                ["bgpredict"]) + "\n")
 #predict_profiles
 
 

@@ -1,5 +1,5 @@
 {
-  "fdstools_visversion": "1.0.0beta1",
+  "fdstools_visversion": "1.0.0beta2",
   "width": 600,
   "height": 500,
   "data": [
@@ -11,17 +11,17 @@
         {
           "type": "formula",
           "field": "samplemarker",
-          "expr": "datum.sample + datum.marker"
+          "expr": "datum.sample + '\t' + datum.marker"
         },
         {
           "type": "formula",
           "field": "markerallele",
-          "expr": "datum.marker + datum.allele"
+          "expr": "datum.marker + '\t' + datum.allele"
         },
         {
           "type": "formula",
           "field": "samplemarkerallele",
-          "expr": "datum.samplemarker + datum.allele"
+          "expr": "datum.samplemarker + '\t' + datum.allele"
         }
       ]
     },
@@ -80,7 +80,7 @@
         {
           "type": "formula",
           "field": "markerallele",
-          "expr": "datum.a.marker + datum.a.allele"
+          "expr": "datum.a.marker + '\t' + datum.a.allele"
         },
         {
           "type": "aggregate",
@@ -104,7 +104,7 @@
         {
           "type": "formula",
           "field": "markerallele",
-          "expr": "datum.marker + datum.allele"
+          "expr": "datum.marker + '\t' + datum.allele"
         },
         {
           "type": "lookup",
@@ -135,7 +135,7 @@
         {
           "type": "formula",
           "field": "samplemarkerallele",
-          "expr": "datum.a.samples.sample + datum.target.marker + datum.target.allele"
+          "expr": "datum.a.samples.sample + '\t' + datum.target.marker + '\t' + datum.target.allele"
         },
         {
           "type": "lookup",
@@ -185,7 +185,11 @@
     {
       "name": "c",
       "type": "ordinal",
-      "range": "category20",
+      "range": [
+        "#1f77b4", "#aec7e8", "#ff7f0e", "#ffbb78", "#4E843C", "#2ca02c",
+        "#98df8a", "#F73939", "#e05f5f", "#ff9896", "#9467bd", "#c5b0d5",
+        "#8c564b", "#c49c94", "#e377c2", "#f7b6d2", "#7f7f7f", "#c7c7c7",
+        "#bcbd22", "#dbdb8d", "#17becf", "#9edae5"],
       "domain": {"data": "raw", "field": "marker", "sort": true}
     },
     {

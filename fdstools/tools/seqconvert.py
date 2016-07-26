@@ -1,4 +1,25 @@
 #!/usr/bin/env python
+
+#
+# Copyright (C) 2016 Jerry Hoogenboom
+#
+# This file is part of FDSTools, data analysis tools for Next
+# Generation Sequencing of forensic DNA markers.
+#
+# FDSTools is free software: you can redistribute it and/or modify it
+# under the terms of the GNU General Public License as published by the
+# Free Software Foundation, either version 3 of the License, or (at
+# your option) any later version.
+#
+# FDSTools is distributed in the hope that it will be useful, but
+# WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+# General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with FDSTools.  If not, see <http://www.gnu.org/licenses/>.
+#
+
 """
 Convert between raw sequences, TSSV-style sequences, and allele names.
 
@@ -41,7 +62,7 @@ from ..lib import get_column_ids, ensure_sequence_format, parse_library,\
                   reverse_complement, add_input_output_args,\
                   get_input_output_files, SEQ_SPECIAL_VALUES
 
-__version__ = "1.0.0"
+__version__ = "1.0.1"
 
 
 # Default values for parameters are specified below.
@@ -101,7 +122,7 @@ def convert_sequences(infile, outfile, to_format, library=None,
 
 
 def add_arguments(parser):
-    parser.add_argument('format', metavar="FORMAT",
+    parser.add_argument('sequence-format', metavar="FORMAT",
         choices=("raw", "tssv", "allelename"),
         help="the format to convert to: one of %(choices)s")
     add_input_output_args(parser, True, True, False)
@@ -115,7 +136,7 @@ def add_arguments(parser):
              "(default: '%(default)s')")
     parser.add_argument('-c', '--output-column', metavar="COLNAME",
         help="name of the column to write the output to "
-             "(default: same as --allele-column')")
+             "(default: same as -a/--allele-column')")
     parser.add_argument('-M', '--marker', metavar="MARKER",
         help="assume the specified marker for all sequences")
     parser.add_argument('-l', '--library', metavar="LIBRARY",
@@ -145,7 +166,8 @@ def run(args):
     for tag, infiles, outfile in gen:
         for infile in infiles:  # Should be just one, but whatever.
             infile = sys.stdin if infile == "-" else open(infile, "r")
-            convert_sequences(infile, outfile, args.format, library,
+            convert_sequences(infile, outfile,
+                              getattr(args, "sequence-format"), library,
                               args.marker, args.marker_column,
                               args.allele_column, args.output_column, library2,
                               args.reverse_complement)

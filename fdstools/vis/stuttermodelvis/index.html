@@ -1,13 +1,32 @@
 <!DOCTYPE html>
 <html>
 <head>
+    <!--
+    # Copyright (C) 2016 Jerry Hoogenboom
+    #
+    # This file is part of FDSTools, data analysis tools for Next
+    # Generation Sequencing of forensic DNA markers.
+    #
+    # FDSTools is free software: you can redistribute it and/or modify it
+    # under the terms of the GNU General Public License as published by the
+    # Free Software Foundation, either version 3 of the License, or (at
+    # your option) any later version.
+    #
+    # FDSTools is distributed in the hope that it will be useful, but
+    # WITHOUT ANY WARRANTY; without even the implied warranty of
+    # MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+    # General Public License for more details.
+    #
+    # You should have received a copy of the GNU General Public License
+    # along with FDSTools.  If not, see <http://www.gnu.org/licenses/>.
+    -->
     <meta http-equiv="X-UA-Compatible" content="IE=edge">
     <meta charset="UTF-8">
     <title>Stutter Model Visualisation - FDSTools</title>
-    <!-- VERSION 1.0.0beta1 -->
+    <!-- VERSION 1.0.0beta2 -->
     <!-- BEGIN_LIBRARIES -->
-    <script src="http://vega.github.io/vega-editor/vendor/d3.min.js"></script>
-    <script src="http://vega.github.io/vega/vega.min.js"></script>
+    <script src="https://vega.github.io/vega-editor/vendor/d3.min.js"></script>
+    <script src="https://vega.github.io/vega/vega.min.js"></script>
     <!-- END_LIBRARIES -->
     <style>
         * {
@@ -56,6 +75,41 @@
             left: 0px;
             text-align: right;
         }
+        input[type=range]::-moz-range-track {
+            background-image: linear-gradient(to right, #eee, #000);
+            border: 1px solid black;
+            height: 11px;
+        }
+        input[type=range]::-webkit-slider-runnable-track {
+            background-image: linear-gradient(to right, #eee, #000);
+            border: 1px solid black;
+            height: 11px;
+        }
+        input[type=range]::-webkit-slider-thumb {
+            margin-top: -6px;
+        }
+        input[type=range]::-ms-track {
+            background-image: linear-gradient(to right, #eee, #000);
+            border: 1px solid black;
+            height: 11px;
+        }
+        input[type=range]::-ms-fill-lower, input[type=range]::-ms-fill-upper {
+            background: transparent;
+        }
+        input[type=range] {
+            margin: 0px;
+            padding: 0px;
+            width: 150px;
+        }
+        td.jitterleft {
+           text-align: right;
+        }
+        td.jittermiddle {
+           text-align: center;
+        }
+        td.jitterleft {
+           text-align: left;
+        }
     </style>
 </head>
 <body>
@@ -74,6 +128,23 @@
                 </tr>
                 <tr>
                     <td>(or drag a file onto this page)</td>
+                </tr>
+            </table>
+            <table class="optiongroup">
+                <tr>
+                    <th colspan="4">Raw data points</th>
+                </tr>
+                <tr>
+                    <td colspan="4">Raw data points file:</td>
+                </tr>
+                <tr>
+                    <td colspan="4"><input id="fileselect2" type="file"></td>
+                </tr>
+                <tr>
+                    <td>Jitter</td>
+                    <td class="jitterleft">Low</td>
+                    <td class="jittermiddle"><input type="range" min="0" max="100" value="25" step="any" id="jitter"></td>
+                    <td class="jitterright">High</td>
                 </tr>
             </table>
             <table class="optiongroup">
@@ -123,22 +194,7 @@
             </table>
             <a id="saveLink" href="javascript:void(saveImage())" style="display: none">Save image</a>
         </div>
-    </div> <!--
-            Show:
-                <input type="checkbox" id="showPoints" checked>Raw homozygotes data (as circles),
-                <input type="checkbox" id="showFromProfiles" checked>Profile means (as diamonds and for AGAT only);
-                Dithering: <select id="dither">
-                    <option value="0.0">Off</option>
-                    <option>0.1</option>
-                    <option>0.2</option>
-                    <option>0.3</option>
-                    <option>0.4</option>
-                    <option selected>0.5</option>
-                    <option>0.6</option>
-                    <option>0.7</option>
-                    <option>0.8</option>
-                    <option>0.9</option>
-                </select> -->
+    </div>
     <div id="vis"></div>
     <script type="text/javascript">
         var graph = false;
@@ -159,6 +215,10 @@
                 //Scroll to the right; the graph is more interesting than the long labels.
                 visdiv.scrollLeft = visdiv.scrollWidth;
             });
+        }
+
+        function compileFilter(filter){
+            return new RegExp('(?:' + filter.replace(/(^| )=(.*?)(?= |$)/g, '$1^$2$$').replace(/ +/g, ')|(?:') + ')')
         }
 
         function setSignalValue(signalname, value){
@@ -207,20 +267,54 @@
                 document.title = value + " - Stutter Model Visualisation - FDSTools";
         }
 
-        //Load the data (input is a fileList object; only the first file is loaded).
-        var currentlyLoadedFile = "no/file/loaded";
-        function loadDataset(fileList){
-            if(!graph_spec || !fileList || !fileList.length || fileList[0].name == currentlyLoadedFile)
+        var currentlyLoadedFitFunctionsFile = "no/file/loaded";
+        function loadFitFunctions(filename, data){
+            if(filename == currentlyLoadedFitFunctionsFile)
+                return false;
+            if(filename)
+                setFileName(filename.substr(0, filename.lastIndexOf(".")));
+            else
+                setFileName(false);
+            graph_spec.data[0].values = data;
+            return true;
+        }
+        var currentlyLoadedRawDataFile = "no/file/loaded";
+        function loadRawData(filename, data){
+            if(filename == currentlyLoadedRawDataFile)
+                return false;
+            graph_spec.data[1].values = data;
+            return !!graph;
+        }
+        function setSelectedFiles(input, fileList){
+            //Try to clear the currently displayed file, then try to set
+            //the drag-'n-dropped file as the selected one on the file input.
+            //Both actions are not supported in all major browsers.
+            input.value = "";
+            input.files = fileList;
+        }
+
+        //Input is a fileList object; only the first file is loaded.
+        function loadFile(fileList, setInput){
+            if(!graph_spec || !fileList || !fileList.length)
                 return;
-            currentlyLoadedFile = fileList[0].name;
             var reader = new FileReader();
             reader.onload = function(e){
-                if(fileList && fileList.length && fileList[0].name)
-                    setFileName(fileList[0].name.substr(0, fileList[0].name.lastIndexOf(".")));
-                else
-                    setFileName(false);
-                graph_spec.data[0].values = reader.result;
-                parse();
+                var success;
+                var cols = reader.result.substr(0, reader.result.indexOf("\n")).split("\t");
+                if(Math.min(cols.indexOf("length"), cols.indexOf("forward"), cols.indexOf("reverse")) == -1){
+                    //This is a file with fit functions.
+                    success = loadFitFunctions(fileList[0].name, reader.result);
+                    if(setInput)
+                        setSelectedFiles(document.getElementById("fileselect"), fileList);
+                }
+                else{
+                    //This is a file with raw data points.
+                    success = loadRawData(fileList[0].name, reader.result);
+                    if(setInput)
+                        setSelectedFiles(document.getElementById("fileselect2"), fileList);
+                }
+                if(success)
+                    parse();
             };
             reader.readAsText(fileList[0]);
         }
@@ -254,7 +348,7 @@
             if(!has_data){
                 //Handle files from the file input.
                 document.getElementById("fileselect").addEventListener('change', function(){
-                    loadDataset(document.getElementById("fileselect").files);
+                    loadFile(document.getElementById("fileselect").files);
                 }, false);
                 document.getElementById("fileselectgroup").style.display = "table";
 
@@ -266,13 +360,7 @@
                 document.addEventListener('drop', function(evt){
                     evt.stopPropagation();
                     evt.preventDefault();
-
-                    //Try to clear the currently displayed file, then try to set
-                    //the drag-'n-dropped file as the selected one on the file input.
-                    //Both actions are not supported in all major browsers.
-                    document.getElementById("fileselect").value = "";
-                    document.getElementById("fileselect").files = evt.dataTransfer.files;
-                    loadDataset(evt.dataTransfer.files);
+                    loadFile(evt.dataTransfer.files, true);
                 }, false);
             }
             else if(graph_spec.data[0].fdstools_filename)
@@ -304,13 +392,44 @@
                 setSignalValue("subgraphoffset", value);
             }, false);
             document.getElementById("unitFilter").addEventListener('change', function(){
-                setSignalValue("filter_unit", this.value);
+                var value = this.value;
+                try{
+                    compileFilter(value.trim());
+                }
+                catch(e){
+                    value = "=";
+                }
+                setSignalValue("filter_unit", value);
             }, false);
             document.getElementById("markerFilter").addEventListener('change', function(){
-                setSignalValue("filter_marker", this.value);
+                var value = this.value;
+                try{
+                    compileFilter(value.trim());
+                }
+                catch(e){
+                    value = "=";
+                }
+                setSignalValue("filter_marker", value);
             }, false);
             document.getElementById("allDataFilter").addEventListener('change', function(){
                 setSignalValue("show_all_data", this.checked);
+            }, false);
+            document.getElementById("fileselect2").addEventListener('change', function(){
+                loadFile(document.getElementById("fileselect2").files);
+            }, false);
+            document.getElementById("jitter").addEventListener('mouseup', function(){
+                var value = parseFloat(this.value)/100;
+                if(isNaN(value) || value == getSignalValue("jitter"))
+                    return;
+                console.log(value);
+                setSignalValue("jitter", value);
+            }, false);
+            document.getElementById("jitter").addEventListener('keyup', function(){
+                var value = parseFloat(this.value)/100;
+                if(isNaN(value) || value == getSignalValue("jitter"))
+                    return;
+                console.log(value);
+                setSignalValue("jitter", value);
             }, false);
 
             //Toggle options visibility.
@@ -329,6 +448,7 @@
             document.getElementById("graphwidth").value = getSignalValue("width");
             document.getElementById("graphheight").value = getSignalValue("graphheight");
             document.getElementById("subgraphoffset").value = getSignalValue("subgraphoffset");
+            document.getElementById("jitter").value = getSignalValue("jitter")*100;
             if(has_data){
                 document.getElementById("options").style.display = "none";
                 parse();

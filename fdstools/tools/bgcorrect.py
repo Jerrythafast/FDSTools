@@ -1,4 +1,25 @@
 #!/usr/bin/env python
+
+#
+# Copyright (C) 2016 Jerry Hoogenboom
+#
+# This file is part of FDSTools, data analysis tools for Next
+# Generation Sequencing of forensic DNA markers.
+#
+# FDSTools is free software: you can redistribute it and/or modify it
+# under the terms of the GNU General Public License as published by the
+# Free Software Foundation, either version 3 of the License, or (at
+# your option) any later version.
+#
+# FDSTools is distributed in the hope that it will be useful, but
+# WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+# General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with FDSTools.  If not, see <http://www.gnu.org/licenses/>.
+#
+
 """
 Match background noise profiles (obtained from e.g., bgestimate) to
 samples.
@@ -28,7 +49,7 @@ from ..lib import load_profiles, ensure_sequence_format, get_column_ids, \
                   nnls, add_sequence_format_args, SEQ_SPECIAL_VALUES, \
                   add_input_output_args, get_input_output_files
 
-__version__ = "1.0.0"
+__version__ = "1.0.1"
 
 
 def get_sample_data(infile, convert_to_raw=False, library=None):
@@ -47,6 +68,7 @@ def get_sample_data(infile, convert_to_raw=False, library=None):
     column_names.append("reverse_corrected")
     column_names.append("total_corrected")
     column_names.append("correction_flags")
+    column_names.append("weight")
     colid_marker, colid_sequence, colid_forward, colid_reverse =get_column_ids(
         column_names, "marker", "sequence", "forward", "reverse")
     data = {}
@@ -64,10 +86,11 @@ def get_sample_data(infile, convert_to_raw=False, library=None):
         cols.append(0)
         cols.append(0)
         cols.append(0)
-        cols.append(int(cols[colid_forward]))
-        cols.append(int(cols[colid_reverse]))
-        cols.append(int(cols[colid_forward]) + int(cols[colid_reverse]))
+        cols.append(cols[colid_forward])
+        cols.append(cols[colid_reverse])
+        cols.append(cols[colid_forward] + cols[colid_reverse])
         cols.append("not_corrected")
+        cols.append((cols[colid_forward] + cols[colid_reverse]) / 100.)
         if marker not in data:
             data[marker] = []
         data[marker].append(cols)
@@ -81,11 +104,11 @@ def match_profile(column_names, data, profile, convert_to_raw, library,
      colid_forward_noise, colid_reverse_noise, colid_total_noise,
      colid_forward_add, colid_reverse_add, colid_total_add,
      colid_forward_corrected, colid_reverse_corrected,
-     colid_total_corrected, colid_correction_flags) = get_column_ids(
-        column_names, "marker", "sequence", "forward", "reverse", "total",
-        "forward_noise", "reverse_noise", "total_noise", "forward_add",
-        "reverse_add", "total_add", "forward_corrected", "reverse_corrected",
-        "total_corrected", "correction_flags")
+     colid_total_corrected, colid_correction_flags, colid_weight) = \
+        get_column_ids(column_names, "marker", "sequence", "forward",
+        "reverse", "total", "forward_noise", "reverse_noise", "total_noise",
+        "forward_add", "reverse_add", "total_add", "forward_corrected",
+        "reverse_corrected", "total_corrected", "correction_flags", "weight")
 
     # Enter profiles into P.
     P1 = np.matrix(profile["forward"])
@@ -127,10 +150,11 @@ def match_profile(column_names, data, profile, convert_to_raw, library,
     reverse_add = np.multiply(A, P2.sum(1).T)
 
     # Round values to 3 decimal positions.
-    forward_noise.round(3, forward_noise);
-    reverse_noise.round(3, reverse_noise);
-    forward_add.round(3, forward_add);
-    reverse_add.round(3, reverse_add);
+    A.round(3, A)
+    forward_noise.round(3, forward_noise)
+    reverse_noise.round(3, reverse_noise)
+    forward_add.round(3, forward_add)
+    reverse_add.round(3, reverse_add)
 
     j = 0
     for line in data:
@@ -163,8 +187,10 @@ def match_profile(column_names, data, profile, convert_to_raw, library,
                 line[colid_correction_flags] = "corrected_bgpredict"
             else:
                 line[colid_correction_flags] = "corrected"
+            line[colid_weight] = A[0, i]
         else:
             line[colid_correction_flags] = "corrected_as_background_only"
+            line[colid_weight] = line[colid_total_corrected] / 100.
 
     # Add sequences that are in the profile but not in the sample.
     for i in range(profile["m"]):
@@ -201,11 +227,13 @@ def match_profile(column_names, data, profile, convert_to_raw, library,
                     line[colid_correction_flags] = "corrected_bgpredict"
                 else:
                     line[colid_correction_flags] = "corrected"
+                line[colid_weight] = A[0, i]
             else:
                 line[colid_forward_add] = 0
                 line[colid_reverse_add] = 0
                 line[colid_total_add] = 0
                 line[colid_correction_flags] = "corrected_as_background_only"
+                line[colid_weight] = line[colid_total_corrected] / 100.
             data.append(line)
 #match_profile
 

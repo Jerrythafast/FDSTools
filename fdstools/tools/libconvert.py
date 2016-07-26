@@ -1,4 +1,25 @@
 #!/usr/bin/env python
+
+#
+# Copyright (C) 2016 Jerry Hoogenboom
+#
+# This file is part of FDSTools, data analysis tools for Next
+# Generation Sequencing of forensic DNA markers.
+#
+# FDSTools is free software: you can redistribute it and/or modify it
+# under the terms of the GNU General Public License as published by the
+# Free Software Foundation, either version 3 of the License, or (at
+# your option) any later version.
+#
+# FDSTools is distributed in the hope that it will be useful, but
+# WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+# General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with FDSTools.  If not, see <http://www.gnu.org/licenses/>.
+#
+
 """
 Convert between TSSV (tab-separated) and FDSTools (ini-style) library
 formats.  When no input is given, an empty FDSTools library is produced.
@@ -44,7 +65,7 @@ from ..lib import parse_library
 from ConfigParser import RawConfigParser
 from StringIO import StringIO
 
-__version__ = "1.0.0"
+__version__ = "1.0.1"
 
 
 # If no input is given, convert the following to FDSTools format.
@@ -369,6 +390,8 @@ def add_arguments(parser):
 
 
 def run(args):
+    if args.infile == "-":
+        args.infile = sys.stdin
     if (args.infile != sys.stdin and args.outfile == sys.stdout
             and not os.path.exists(args.infile)):
         # One filename given, and it does not exist.  Assume outfile.

@@ -1,5 +1,5 @@
 {
-  "fdstools_visversion": "1.0.0",
+  "fdstools_visversion": "1.0.1",
   "width": 600,
   "height": 10,
   "signals": [
@@ -71,95 +71,39 @@
           "type": "rank"
         },
         {
-          "type":
-          "formula",
+          "type": "formula",
           "field": "minnoise",
           "expr": "max(0.001, min(datum.fnoise, datum.rnoise, datum.tnoise))"
         }
       ]
     },
     {
-      "name": "barcounts",
+      "name": "yscale",
       "source": "table",
       "transform": [
         {
           "type": "aggregate",
-          "groupby": ["name"],
-          "summarize": [{"field": "sequence", "ops": ["distinct"], "as": ["count"]}]
-        }
-      ]
-    },
-    {
-      "name": "subgraphpadding",
-      "source": "barcounts",
-      "transform": [
-        {
-          "type": "cross",
-          "diagonal": false,
-          "filter": "datum.b.name < datum.a.name"
+          "groupby": ["name", "sequence"],
+          "summarize": []
         },
         {
-          "type": "formula",
-          "field": "name",
-          "expr": "datum.a.name"
+          "type": "rank"
         },
         {
           "type": "aggregate",
           "groupby": ["name"],
-          "summarize": [{"field": "b.name", "ops": ["distinct"], "as": ["cumulpadding"]}]
-        }
-      ]
-    },
-    {
-      "name": "subgraphoffsets",
-      "source": "barcounts",
-      "transform": [
-        {
-          "type": "cross",
-          "with": "table",
-          "filter": "datum.b.name < datum.a.name"
+          "summarize": [
+            {"field": "sequence", "ops": ["count"], "as": ["count"]},
+            {"field": "rank", "ops": ["min"], "as": ["cumulcount"]}
+          ]
         },
         {
-          "type": "formula",
-          "field": "namesequence",
-          "expr": "datum.b.name + datum.b.sequence"
-        },
-        {
-          "type": "formula",
-          "field": "name",
-          "expr": "datum.a.name"
-        },
-        {
-          "type": "aggregate",
-          "groupby": ["name"],
-          "summarize": [{"field": "namesequence", "ops": ["distinct"], "as": ["cumulcount"]}]
-        }
-      ]
-    },
-    {
-      "name": "yscale",
-      "source": "barcounts",
-      "transform": [
-        {
-          "type": "lookup",
-          "on": "subgraphpadding",
-          "onKey": "name",
-          "keys": ["name"],
-          "as": ["paddingobj"],
-          "default": {"cumulpadding": 0}
-        },
-        {
-          "type": "lookup",
-          "on": "subgraphoffsets",
-          "onKey": "name",
-          "keys": ["name"],
-          "as": ["offsetobj"],
-          "default": {"cumulcount": 0}
+          "type": "rank"
         },
         {
           "type": "formula",
           "field": "offset",
-          "expr": "(10+barwidth)*datum.offsetobj.cumulcount + subgraphoffset*datum.paddingobj.cumulpadding"
+          "expr": "(10+barwidth)*(datum.cumulcount-1) + subgraphoffset*(datum.rank-1)"
         },
         {
           "type": "formula",

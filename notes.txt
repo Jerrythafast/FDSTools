@@ -1,42 +1,49 @@
 To-do:
+* Additions needed for publication:
+  * Add tool that takes a configuration file and runs a pipeline of other
+    tools. Include basic config files in the paper.
+    * Reference sample preparation
+    * Reference database creation
+    * Case sample analysis
+  * Add new library tool to replace libconvert.
+  * Group tools by function in the command line help and put the new pipeline
+    tool on top.
+  * [If not too difficult to implement] Give BGEstimate a background profiles
+    file to start with (such as computed from homozygous samples only).
+* Stuttermodelvis:
+  * Add points file selection to the Vis tool (it currently remains empty).
 * Samplevis:
+  * Allow table filtering options to be specified for each marker separately.
+  * Detect whether correction was performed; hide related columns if not.
   * Option to choose complete table download (all columns, not all rows).
   * Option to freely adjust the sorting (currently CE length toggle only).
   * When we have them, add default values to table filtering (for reference).
   * Some of the media query breakpoints overlap, fix this.
   * Perhaps it is desirable to be able to request a list of 'Other sequences'.
+  * Add 'Save page' button that also saves the alleles clicked by the user.
+  * Add options to set the Table filtering options in the Vis tool.
+  * Add ability to mark sequences that have a '*' in the 'new_allele' column
+    (if that column exists at all). Used together with FindNewAlleles.
   * Make Samplevis more responsive when rendering/updating graphs. To do this,
     the work should be broken up into chunks and each chunk should set off the
     next chunk through "window.setTimeout(nextChunkFunction);". The page will
     be repainted between each chunk. One major issue with this is that user
     input events may get scheduled between the chunks.
-  * Add 'Save page' button that also saves the alleles clicked by the user.
-  * Add options to set the Table filtering options in the Vis tool.
-  * Add ability to mark sequences that have a '*' in the 'new_allele' column
-    (if that column exists at all). Used together with FindNewAlleles.
-* Additions needed for publication:
-  * Check whether there is a difference between filtering short artefacts in
-    TSSV vs having BGEstimate/BGCorrect filter them.
-    * vWA GATGGAT
-    * D2S441 GGCGCCCCAGCATTCTAACAAGGAATGTGGGTGCTGGGAGCCAGGAACCTGGACAAAAACCAAAACGCATATCC
-    * D2S441 AGCACCCCAGCATTCTAACAAGCAATGTAGGCATTGGGAGCCAGGAGCCTGGACAAAATCCAATACGCATATCC
-  * [If not too difficult to implement] BGEstimate should start with homozygous
-    samples and add heterozygous samples later to optimise correction.
-  * Summary statistics for BGEstimate based on top N genotypes per marker,
-    which is the highest percentage remaining background in reference database
-    (maybe also additional value for confidence interval).
-  * Visualisation to display highest remaining background (positive and
-    negative) in known samples after BGCorrect analysis.
-    * And similarly for PctRecovery...
+* Add per-marker allele calling settings to Samplestats.
+* Exceptions to general mtDNA nomenclature: http://empop.online/methods
+* Reduce noise profile memory usage:
+  * Use sparse matrices in BGEstimate, BGCorrect, and Blame.  May save over 90%
+    of memory for the profile matrix after BGMerge of BGEstimate and BGPredict.
+* Add 'BGDiff' tool to compare noise profiles.
 * Add section to the library file where genomic positions of known pathogenic
   variants are specified. The TSSV tool should always output the reference base
   at these positions to comply with ethical regulations.
 * Add options to Libconvert to generate a template for STR or non-STR markers.
 * Add options to Samplevis, Samplestats (and possibly other relevant tools) to
   filter alleles by sequence length. The TSSV tool already supports this.
-* Add plotting of raw data points to StuttermodelVis.
 * Add a print stylesheet for the other visualisations (only Samplevis has one).
 * Add visualisation with all markers in one graph ("samplesummaryvis"?).
+* Add tool to analyse within-marker and between-marker coverage variation.
 * Allow loading multiple files into HTML visualisations and provide prev/next
   buttons to browse them.
 * Samplevis HTML visualisations in IE11:
@@ -47,7 +54,6 @@ To-do:
   * When printing, IE11 respects the pagebreak hints. Chrome and FF are bugged!
 * [Known bug]: pattern_longest_match does not give the longest match if a
   shorter match is possible and found earlier at the same position.
-* Add tool that takes a configuration file and runs a pipeline of other tools.
 * Add "allow_N" flag to [no_repeat] markers.  If the flag is specified, the
   reference sequence may contain Ns.  People might need this for the rCRS mtDNA
   reference sequence.
@@ -56,6 +62,8 @@ To-do:
   the left half and the reverse profile in the right half.  The benefit of this
   is that this ensures the same A is used for both strands, that is, the
   estimated allele balance is the same.
+* Idea to make Stuttermodel for heterozygotes: compute a fit to the (weighted)
+  profiles from BGEstimate.
 * Adjust BGEstimate so that it takes strand bias in the allele itself into
   account as well.
 * Perhaps there should be a version of BGEstimate that makes a profile for each
@@ -63,20 +71,22 @@ To-do:
 * Add tool to summarise various statistics about the entire analysis pipeline:
   (TODO: Write this list)
 
+
 Open Vega issues:
 * Bug in aggregate transform w.r.t. signals.
   https://github.com/vega/vega/issues/530
-* Lookup transform only takes simple field names for the onKey parameter.
+* [Feat] Lookup transform onKey parameter only takes simple field names.
   https://github.com/vega/vega/issues/526
-* Sorting needs the Rank transform, but that is not released yet.
+* [Docs] Multi-column sorting relies on the rank transform.
   https://github.com/vega/vega/issues/509
-* Feature request: Id-based refs for Force transform's source and target.
+* [Feat] Id-based refs for Force transform's source and target.
   https://github.com/vega/vega/issues/471
 * Tick labels of log scale axes don't respect number formatting.
+  Proposed fix in https://github.com/vega/vega/pull/568
   https://github.com/vega/vega/issues/470
 * Legend and axis corruption on signal changes.
   https://github.com/vega/vega/issues/446
-* Feature request for lines (or arbitrary shapes) for legend items.
+* [Feat] Feature request for lines (or arbitrary shapes) for legend items.
   https://github.com/vega/vega/issues/408
 
 
@@ -176,7 +186,7 @@ Reserved option letters:
 
 Action for special values in sequence columns:
 TOOL            'No data'                   'Other sequences'
-allelefinder    Not suitable for marker     Treated as single noise sequence
+allelefinder    Not suitable for marker     Ignored (Not suitable for marker)
 bgcorrect       Transparent                 Transparent
 bgestimate      Ignored                     Ignored
 bghomraw        Ignored                     Ignored

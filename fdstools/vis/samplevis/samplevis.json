@@ -1,5 +1,5 @@
 {
-  "fdstools_visversion": "2.0.0",
+  "fdstools_visversion": "2.0.1",
   "width": 600,
   "height": 10,
   "signals": [
@@ -339,83 +339,32 @@
       ]
     },
     {
-      "name": "barcounts",
+      "name": "yscale",
       "source": "table",
       "transform": [
         {
           "type": "aggregate",
-          "groupby": ["marker"],
-          "summarize": {"*": "count"}
-        }
-      ]
-    },
-    {
-      "name": "subgraphpadding",
-      "source": "barcounts",
-      "transform": [
-        {
-          "type": "cross",
-          "diagonal": false,
-          "filter": "datum.b.marker < datum.a.marker"
+          "groupby": ["marker", "sequence"],
+          "summarize": []
         },
         {
-          "type": "formula",
-          "field": "marker",
-          "expr": "datum.a.marker"
+          "type": "rank"
         },
         {
           "type": "aggregate",
           "groupby": ["marker"],
-          "summarize": [{"field": "*", "ops": ["count"], "as": ["cumulpadding"]}]
-        }
-      ]
-    },
-    {
-      "name": "subgraphoffsets",
-      "source": "barcounts",
-      "transform": [
-        {
-          "type": "cross",
-          "with": "table",
-          "diagonal": false,
-          "filter": "datum.b.marker < datum.a.marker"
+          "summarize": [
+            {"field": "sequence", "ops": ["count"], "as": ["count"]},
+            {"field": "rank", "ops": ["min"], "as": ["cumulcount"]}
+          ]
         },
         {
-          "type": "formula",
-          "field": "marker",
-          "expr": "datum.a.marker"
-        },
-        {
-          "type": "aggregate",
-          "groupby": ["marker"],
-          "summarize": [{"field": "*", "ops": ["count"], "as": ["cumulcount"]}]
-        }
-      ]
-    },
-    {
-      "name": "yscale",
-      "source": "barcounts",
-      "transform": [
-        {
-          "type": "lookup",
-          "on": "subgraphpadding",
-          "onKey": "marker",
-          "keys": ["marker"],
-          "as": ["paddingobj"],
-          "default": {"cumulpadding": 0}
-        },
-        {
-          "type": "lookup",
-          "on": "subgraphoffsets",
-          "onKey": "marker",
-          "keys": ["marker"],
-          "as": ["offsetobj"],
-          "default": {"cumulcount": 0}
+          "type": "rank"
         },
         {
           "type": "formula",
           "field": "offset",
-          "expr": "barwidth*datum.offsetobj.cumulcount + subgraphoffset*datum.paddingobj.cumulpadding"
+          "expr": "barwidth*(datum.cumulcount-1) + subgraphoffset*(datum.rank-1)"
         },
         {
           "type": "formula",

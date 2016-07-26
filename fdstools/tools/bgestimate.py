@@ -1,4 +1,25 @@
 #!/usr/bin/env python
+
+#
+# Copyright (C) 2016 Jerry Hoogenboom
+#
+# This file is part of FDSTools, data analysis tools for Next
+# Generation Sequencing of forensic DNA markers.
+#
+# FDSTools is free software: you can redistribute it and/or modify it
+# under the terms of the GNU General Public License as published by the
+# Free Software Foundation, either version 3 of the License, or (at
+# your option) any later version.
+#
+# FDSTools is distributed in the hope that it will be useful, but
+# WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+# General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with FDSTools.  If not, see <http://www.gnu.org/licenses/>.
+#
+
 """
 Estimate allele-centric background noise profiles (means) from reference
 samples.
@@ -17,7 +38,7 @@ from ..lib import pos_int_arg, add_input_output_args, get_input_output_files,\
                   parse_allelelist, get_sample_data, \
                   add_random_subsampling_args
 
-__version__ = "1.0.0"
+__version__ = "1.1.0"
 
 
 # Default values for parameters are specified below.
@@ -40,6 +61,10 @@ _DEF_MIN_SAMPLES = 2
 # samples with a certain true allele.
 # This value can be overridden by the -S command line option.
 _DEF_MIN_SAMPLE_PCT = 80.
+
+# Default minimum number of heterozygous genotypes for each true allele.
+# This value can be overridden by the -g command line option.
+_DEF_MIN_GENOTYPES = 3
 
 
 def solve_profile_mixture(forward, reverse, genotypes, n, variance=False,
@@ -246,11 +271,11 @@ def solve_profile_mixture_single(samples, genotypes, n, variance=False,
         return P.tolist(), V.tolist()
     else:
         return P.tolist()
-#solve_profile_mixture
+#solve_profile_mixture_single
 
 
-def ensure_min_samples(allelelist, min_samples):
-    if min_samples <= 1:
+def filter_data(allelelist, min_samples, min_genotypes):
+    if min_samples <= 1 and min_genotypes <= 1:
         return
 
     marker_names = set()
@@ -258,33 +283,51 @@ def ensure_min_samples(allelelist, min_samples):
         marker_names.update(allelelist[tag].keys())
 
     for marker in marker_names:
-        # Get a sample count of each true allele of this marker.
+        # Get a sample count of each true allele of this marker
+        # and a sample count of each unique genotype of each allele.
         true_alleles = {}
         for tag in allelelist:
             if marker not in allelelist[tag]:
                 continue
             for true_allele in allelelist[tag][marker]:
                 try:
-                    true_alleles[true_allele] += 1
+                    true_alleles[true_allele][0] += 1
                 except KeyError:
-                    true_alleles[true_allele] = 1
+                    true_alleles[true_allele] = [1, {}]
+                if len(allelelist[tag][marker]) == 1:  # Got homozygote!
+                    true_alleles[true_allele][1] = None
+                elif true_alleles[true_allele][1] is not None:
+                    genotype = "\t".join(sorted(allelelist[tag][marker]))
+                    try:
+                        true_alleles[true_allele][1][genotype] += 1
+                    except KeyError:
+                        true_alleles[true_allele][1][genotype] = 1
 
         # Drop any alleles that occur in less than min_samples samples
+        # or in less than min_genotypes unique heterozygous genotypes
         # (by dropping the sample for this marker completely).
         repeat = True
         while repeat:
             repeat = False
             for true_allele in true_alleles:
-                if 0 < true_alleles[true_allele] < min_samples:
+                if 0 < true_alleles[true_allele][0] < min_samples or (
+                        true_alleles[true_allele][1] is not None and
+                        0 < len(true_alleles[true_allele][1]) < min_genotypes):
                     repeat = True
                     for tag in allelelist:
                         if marker not in allelelist[tag]:
                             continue
                         if true_allele in allelelist[tag][marker]:
+                            genotype = "\t".join(
+                                sorted(allelelist[tag][marker]))
                             for allele in allelelist[tag][marker]:
-                                true_alleles[allele] -= 1
+                                true_alleles[allele][0] -= 1
+                                if true_alleles[allele][1] is not None:
+                                    true_alleles[allele][1][genotype] -= 1
+                                    if not true_alleles[allele][1][genotype]:
+                                        del true_alleles[allele][1][genotype]
                             del allelelist[tag][marker]
-#ensure_min_samples
+#filter_data
 
 
 def add_sample_data(data, sample_data, sample_alleles, min_pct, min_abs, tag):
@@ -398,8 +441,8 @@ def preprocess_data(data, min_sample_pct):
 
 def generate_profiles(samples_in, outfile, reportfile, allelefile,
                       annotation_column, min_pct, min_abs, min_samples,
-                      min_sample_pct, seqformat, library, marker, homozygotes,
-                      limit_reads, drop_samples):
+                      min_sample_pct, min_genotypes, seqformat, library,
+                      marker, homozygotes, limit_reads, drop_samples):
     if reportfile:
         t0 = time.time()
 
@@ -414,9 +457,9 @@ def generate_profiles(samples_in, outfile, reportfile, allelefile,
                     allelelist, annotation_column, seqformat, library, marker,
                     homozygotes, limit_reads, drop_samples, True)
 
-    # Ensure minimum number of samples per allele.
+    # Ensure minimum number of samples and genotypes per allele.
     allelelist = {tag: allelelist[tag] for tag in sample_data}
-    ensure_min_samples(allelelist, min_samples)
+    filter_data(allelelist, min_samples, min_genotypes)
 
     # Combine data from all samples.  This takes most time.
     data = {}
@@ -501,6 +544,11 @@ def add_arguments(parser):
         help="require this minimum number of samples for each background "
              "product, as a percentage of the number of samples with a "
              "particular true allele (default: %(default)s)")
+    filtergroup.add_argument('-g', '--min-genotypes', metavar="N",
+        type=pos_int_arg, default=_DEF_MIN_GENOTYPES,
+        help="require this minimum number of unique heterozygous genotypes "
+             "for each allele for which no homozygous samples are available "
+             "(default: %(default)s)")
     filtergroup.add_argument('-M', '--marker', metavar="MARKER",
         help="work only on MARKER")
     filtergroup.add_argument('-H', '--homozygotes', action="store_true",
@@ -522,6 +570,7 @@ def run(args):
     generate_profiles(files[0], files[1], args.report, args.allelelist,
                       args.annotation_column, args.min_pct, args.min_abs,
                       args.min_samples, args.min_sample_pct,
-                      args.sequence_format, args.library, args.marker,
-                      args.homozygotes, args.limit_reads, args.drop_samples)
+                      args.min_genotypes, args.sequence_format, args.library,
+                      args.marker, args.homozygotes, args.limit_reads,
+                      args.drop_samples)
 #run

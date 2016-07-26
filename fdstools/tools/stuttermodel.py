@@ -1,4 +1,25 @@
 #!/usr/bin/env python
+
+#
+# Copyright (C) 2016 Jerry Hoogenboom
+#
+# This file is part of FDSTools, data analysis tools for Next
+# Generation Sequencing of forensic DNA markers.
+#
+# FDSTools is free software: you can redistribute it and/or modify it
+# under the terms of the GNU General Public License as published by the
+# Free Software Foundation, either version 3 of the License, or (at
+# your option) any later version.
+#
+# FDSTools is distributed in the hope that it will be useful, but
+# WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+# General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with FDSTools.  If not, see <http://www.gnu.org/licenses/>.
+#
+
 """
 Train a stutter prediction model using homozygous reference samples.
 
@@ -16,7 +37,7 @@ from ..lib import pos_int_arg, add_input_output_args, get_input_output_files,\
                   add_random_subsampling_args, reverse_complement,\
                   get_repeat_pattern
 
-__version__ = "1.0.0"
+__version__ = "1.1.0"
 
 
 # Default values for parameters are specified below.
@@ -123,12 +144,10 @@ def test_fit(fit, lengths, observed_amounts):
 
 def print_fit(outfile, fit, lengths, seq, marker, stutter_fold, direction,
               lower_bound, r2):
-    if lower_bound < max(lengths):
-        outfile.write("%s\t%s\t%+i\t%i\t%i\t%i\t%s\t%0.3f\t" %
-            (seq, marker, stutter_fold, lower_bound, min(lengths),
-             max(lengths), direction, r2))
-        outfile.write("\t".join("%.3e" % x for x in reversed(fit.tolist())) +
-                      "\n")
+    outfile.write("%s\t%s\t%+i\t%i\t%i\t%i\t%s\t%0.3f\t" %
+        (seq, marker, stutter_fold, lower_bound, min(lengths), max(lengths),
+         direction, r2))
+    outfile.write("\t".join("%.3e" % x for x in reversed(fit.tolist())) + "\n")
 #print_fit
 
 
@@ -184,9 +203,9 @@ def filter_data(data, min_samples):
 
 
 def fit_stutter(samples_in, outfile, allelefile, annotation_column, min_pct,
-                min_abs, min_lengths, min_samples, library, min_r2, degree,
-                same_shape, ignore_zeros, max_unit_length, raw_outfile, marker,
-                limit_reads, drop_samples):
+                min_abs, min_lengths, min_samples, library, min_r2, orphans,
+                degree, same_shape, ignore_zeros, max_unit_length, raw_outfile,
+                marker, limit_reads, drop_samples):
 
     # Parse allele list.
     allelelist = {} if allelefile is None \
@@ -226,7 +245,7 @@ def fit_stutter(samples_in, outfile, allelefile, annotation_column, min_pct,
         while True:
             if fit_stutter_model(outfile, raw_outfile, data, library, seq,
                     patterns[seq], min_r2, min_lengths, degree, same_shape,
-                    ignore_zeros, stutter_fold):
+                    ignore_zeros, stutter_fold, orphans):
                 stutter_fold += 1 if stutter_fold > 0 else -1
             elif stutter_fold < 0:
                 stutter_fold = 1
@@ -237,8 +256,10 @@ def fit_stutter(samples_in, outfile, allelefile, annotation_column, min_pct,
 
 def fit_stutter_model(outfile, raw_outfile, data, library, seq, patterns,
                       min_r2, min_lengths, degree, same_shape, ignore_zeros,
-                      stutter_fold):
+                      stutter_fold, orphans):
     success = False
+    found_fits = {marker: [False, False] for marker in data["alleles"]}
+    found_fits["All data"] = [False, False]
 
     stutlen = len(seq) * abs(stutter_fold)
     all_lengths = []
@@ -327,9 +348,7 @@ def fit_stutter_model(outfile, raw_outfile, data, library, seq, patterns,
                         observed_amounts[i].tolist())) + "\n")
 
         # Compute per-marker fit for this marker.
-        if raw_outfile == outfile or same_shape:
-            continue
-        if len(set(lengths)) < min_lengths:
+        if same_shape or len(set(lengths)) < min_lengths:
             continue
         lengths = np.array(lengths)
         for i in (0, 1):
@@ -349,12 +368,12 @@ def fit_stutter_model(outfile, raw_outfile, data, library, seq, patterns,
             if fit is not None:
                 r2, lower_bound = test_fit(fit, lengths,
                                            observed_amounts[:, i])
-                if r2 < min_r2:
+                if r2 < min_r2 or lower_bound >= this_lengths.max():
                     continue
-                print_fit(outfile, fit, this_lengths.tolist(), seq, marker,
-                          stutter_fold,
-                          "reverse" if i else "forward", lower_bound, r2)
                 success = True
+                if raw_outfile != outfile:
+                    found_fits[marker][i] = (fit, this_lengths.tolist(),
+                        lower_bound, r2)
 
     """
     With same_shape=True, the following Least Squares setting is used:
@@ -376,9 +395,7 @@ def fit_stutter_model(outfile, raw_outfile, data, library, seq, patterns,
 
     # Compute same shape fit and the fit to all data at once.
     all_observed_amounts = np.array(all_observed_amounts)
-    if raw_outfile == outfile or not all_observed_amounts.any():
-        return success
-    if len(set(all_lengths)) < min_lengths:
+    if not all_observed_amounts.any() or len(set(all_lengths)) < min_lengths:
         return success
     all_lengths = np.array(all_lengths)
     if same_shape:
@@ -425,24 +442,35 @@ def fit_stutter_model(outfile, raw_outfile, data, library, seq, patterns,
                     r2, lower_bound = test_fit(marker_f,
                         all_lengths[marker_rows],
                         all_observed_amounts[marker_rows, i])
-                    if r2 < min_r2:
+                    if r2 < min_r2 or lower_bound >= max(marker_lengths):
                         continue
                     success = True
-                    print_fit(outfile, marker_f, marker_lengths, seq,
-                              this_markers[marker_i], stutter_fold,
-                              "reverse" if i else "forward", lower_bound, r2)
+                    if raw_outfile != outfile:
+                        found_fits[this_markers[marker_i]][i] = (marker_f,
+                        marker_lengths, lower_bound, r2)
 
         # Fit a polynomial to all data at once as well.
         fit = compute_fit(this_lengths, this_amounts, degree)
         if fit is not None:
             r2, lower_bound = test_fit(fit, all_lengths,
                                        all_observed_amounts[:, i])
-            if r2 < min_r2:
+            if r2 < min_r2 or lower_bound >= this_lengths.max():
                 continue
             success = True
-            print_fit(outfile, fit, this_lengths.tolist(), seq, "All data",
-                      stutter_fold,
-                      "reverse" if i else "forward", lower_bound, r2)
+            if raw_outfile != outfile:
+                found_fits["All data"][i] = (fit, this_lengths.tolist(),
+                     lower_bound, r2)
+
+    for marker in found_fits:
+        if not orphans and not all(found_fits[marker]):
+            continue
+        for i in (0, 1):
+            if not found_fits[marker][i]:
+                continue
+            print_fit(outfile, found_fits[marker][i][0],
+                      found_fits[marker][i][1], seq, marker, stutter_fold,
+                      "reverse" if i else "forward", found_fits[marker][i][2],
+                      found_fits[marker][i][3])
 
     return success
 #fit_stutter_model
@@ -473,8 +501,10 @@ def add_arguments(parser):
     filtergroup.add_argument('-t', '--min-r2', type=float,
         default=_DEF_MIN_R2, metavar="N",
         help="minimum required r-squared score (default: %(default)s)")
-
-
+    filtergroup.add_argument('-O', '--orphans', action="store_true",
+        help="if specified, a fit on one strand is reported even if no fit "
+             "was obtained on the other strand for the same marker, unit, and "
+             "stutter depth")
     parser.add_argument('-D', '--degree', type=pos_int_arg,
         default=_DEF_DEGREE, metavar="N",
         help="degree of polynomials to fit (default: %(default)s)")
@@ -507,7 +537,8 @@ def run(args):
                          "of another program")
     fit_stutter(files[0], files[1], args.allelelist, args.annotation_column,
                 args.min_pct, args.min_abs, args.min_lengths, args.min_samples,
-                args.library, args.min_r2, args.degree, args.same_shape,
-                args.ignore_zeros, args.max_unit_length, args.raw_outfile,
-                args.marker, args.limit_reads, args.drop_samples)
+                args.library, args.min_r2, args.orphans, args.degree,
+                args.same_shape, args.ignore_zeros, args.max_unit_length,
+                args.raw_outfile, args.marker, args.limit_reads,
+                args.drop_samples)
 #run

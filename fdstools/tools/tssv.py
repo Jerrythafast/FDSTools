@@ -1,4 +1,25 @@
 #!/usr/bin/env python
+
+#
+# Copyright (C) 2016 Jerry Hoogenboom
+#
+# This file is part of FDSTools, data analysis tools for Next
+# Generation Sequencing of forensic DNA markers.
+#
+# FDSTools is free software: you can redistribute it and/or modify it
+# under the terms of the GNU General Public License as published by the
+# Free Software Foundation, either version 3 of the License, or (at
+# your option) any later version.
+#
+# FDSTools is distributed in the hope that it will be useful, but
+# WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+# General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with FDSTools.  If not, see <http://www.gnu.org/licenses/>.
+#
+
 """
 Link raw reads in a FastA or FastQ file to markers and count the number
 of reads for each unique sequence.
@@ -17,9 +38,9 @@ import math
 
 from ..lib import pos_int_arg, add_input_output_args, get_input_output_files,\
                   add_sequence_format_args, reverse_complement, PAT_SEQ_RAW,\
-                  get_column_ids
+                  get_column_ids, ensure_sequence_format
 
-__version__ = "1.0.0"
+__version__ = "1.0.1"
 
 
 # Default values for parameters are specified below.
@@ -143,7 +164,7 @@ def run_tssv_lite(infile, outfile, reportfile, is_fastq, library, seqformat,
 def add_arguments(parser):
     add_sequence_format_args(parser, "raw", False, True)
     add_input_output_args(parser, True, False, True)
-    parser.add_argument("-q", "--is_fastq", action="store_true",
+    parser.add_argument("-q", "--is-fastq", action="store_true",
         help="if specified, treat the input as a FASTQ file instead of FASTA")
     parser.add_argument("-D", "--dir",
         help="output directory for verbose output; when given, a subdirectory "
@@ -151,13 +172,13 @@ def add_arguments(parser):
              "sequences.csv file and a number of FASTA/FASTQ files containing "
              "unrecognised reads (unknown.fa), recognised reads "
              "(Marker/paired.fa), and reads that lack one of the flanks of a "
-             "marker (Marker/noend.fa and Marker/nostart.fa")
+             "marker (Marker/noend.fa and Marker/nostart.fa)")
     filtergroup = parser.add_argument_group("filtering options")
     filtergroup.add_argument("-m", "--mismatches", type=float,
         default=_DEF_MISMATCHES,
         help="number of mismatches per nucleotide to allow in flanking "
              "sequences (default: %(default)s)")
-    filtergroup.add_argument("-a", "--minimum", type=pos_int_arg,
+    filtergroup.add_argument("-a", "--minimum", metavar="N", type=pos_int_arg,
         default=_DEF_MINIMUM,
         help="report only sequences with this minimum number of reads "
              "(default: %(default)s)")

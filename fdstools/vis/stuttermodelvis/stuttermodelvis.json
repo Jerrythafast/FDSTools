@@ -1,5 +1,5 @@
 {
-  "fdstools_visversion": "1.0.0beta1",
+  "fdstools_visversion": "1.0.0beta2",
   "width": 600,
   "height": 10,
   "signals": [
@@ -32,6 +32,10 @@
     {
       "name": "subgraphoffset",
       "init": 70
+    },
+    {
+      "name": "jitter",
+      "init": 0.25
     }
   ],
   "data": [
@@ -70,23 +74,48 @@
       ]
     },
     {
-      "name": "subgraphpadding",
-      "source": "fitfunctions",
+      "name": "points",
+      "values": "",
+      "format": {
+        "type": "tsv",
+        "parse": {
+          "stutter": "number",
+          "length": "number",
+          "forward": "number",
+          "reverse": "number"
+        }
+      },
       "transform": [
         {
-          "type": "cross",
-          "diagonal": false,
-          "filter": "length(datum.b.unit) < length(datum.a.unit) || (length(datum.b.unit) == length(datum.a.unit) && datum.b.unit < datum.a.unit) || (datum.b.unit == datum.a.unit && datum.b.stutter < datum.a.stutter)"
+          "type": "filter",
+          "test": "((datum.marker != 'All data' && test(marker_regex, datum.marker)) || (datum.marker == 'All data' && show_all_data)) && test(unit_regex, datum.unit)"
+        },
+        {
+          "type": "formula",
+          "field": "length_jit",
+          "expr": "datum.length+random()*jitter-jitter/2"
         },
         {
           "type": "formula",
           "field": "subgraph",
-          "expr": "datum.a.subgraph"
+          "expr": "(datum.stutter > 0? '+' : '') + datum.stutter + ' stutter in ' + datum.unit + ' repeats'"
         },
         {
-          "type": "aggregate",
-          "groupby": ["subgraph"],
-          "summarize": [{"field": "b.subgraph", "ops": ["distinct"], "as": ["cumulpadding"]}]
+          "type": "fold",
+          "fields": ["forward", "reverse"],
+          "output": {"key": "direction", "value": "value"}
+        },
+        {
+          "type": "formula",
+          "field": "markerdirection",
+          "expr": "datum.marker + ' ' + datum.direction"
+        },
+        {
+          "type": "sort",
+          "by": ["markerdirection", "length"]
+        },
+        {
+          "type": "rank"
         }
       ]
     },
@@ -96,21 +125,25 @@
       "transform": [
         {
           "type": "aggregate",
-          "groupby": ["subgraph"],
+          "groupby": ["subgraph", "unit", "stutter"],
           "summarize": []
         },
         {
-          "type": "lookup",
-          "on": "subgraphpadding",
-          "onKey": "subgraph",
-          "keys": ["subgraph"],
-          "as": ["paddingobj"],
-          "default": {"cumulpadding": 0}
+          "type": "formula",
+          "field": "unitlen",
+          "expr": "length(datum.unit)"
+        },
+        {
+          "type": "sort",
+          "by": ["unitlen", "unit", "stutter"]
+        },
+        {
+          "type": "rank"
         },
         {
           "type": "formula",
           "field": "offset",
-          "expr": "(graphheight+subgraphoffset)*datum.paddingobj.cumulpadding"
+          "expr": "(graphheight+subgraphoffset)*(datum.rank-1)"
         },
         {
           "type": "formula",
@@ -193,6 +226,20 @@
           "type": "rank"
         }
       ]
+    },
+    {
+      "name": "points_aggr",
+      "source": "points",
+      "transform": [
+        {
+          "type": "aggregate",
+          "groupby": ["subgraph"],
+          "summarize": [
+            {"field": "length_jit", "ops": ["min", "max"], "as": ["min_length", "max_length"]},
+            {"field": "value", "ops": ["min", "max"]}
+          ]
+        }
+      ]
     }
   ],
   "marks": [
@@ -218,6 +265,14 @@
       "from": {
         "data": "table",
         "transform": [
+          {
+            "type": "lookup",
+            "on": "points_aggr",
+            "onKey": "subgraph",
+            "keys": ["subgraph"],
+            "as": ["points"],
+            "default": {"min_length": 0, "max_length": 0, "min_value": 0, "max_value": 0}
+          },
           {
             "type": "facet",
             "groupby": ["subgraph"]
@@ -246,14 +301,14 @@
           "type": "linear",
           "nice": true,
           "range": "width",
-          "domain": {"field": "length"}
+          "domain": {"field": ["length", "points.min_length", "points.max_length"]}
         },
         {
           "name": "y",
           "type": "linear",
           "nice": true,
           "range": "height",
-          "domain": {"field": "value"}
+          "domain": {"field": ["value", "points.min_value", "points.max_value"]}
         },
         {
           "name": "c",
@@ -328,202 +383,34 @@
               }
             }
           ]
-        }
-      ]
-    }
-  ],
-  "DISABLED": {"data": [
-    {
-      "name": "points",
-      "url": "points-m050-n1-f1.tsv",
-      "format": {
-        "type": "tsv",
-        "parse": {
-          "length": "number",
-          "forward": "number",
-          "reverse": "number"
-        }
-      },
-      "transform": [
-        {
-          "type": "filter",
-          "test": "d.data.unit=='AGAT'"
         },
-        {
-          "type": "filter",
-          "test": "true"
-        },
-        {
-          "type": "formula",
-          "field": "length",
-          "expr": "d.data.length+random()*0.8-0.4"
-        },
-        {
-          "type": "formula",
-          "field": "markerf",
-          "expr": "d.data.marker+' forward'"
-        },
-        {
-          "type": "formula",
-          "field": "markerr",
-          "expr": "d.data.marker+' reverse'"
-        },
-        {
-          "type": "formula",
-          "field": "valuef",
-          "expr": "100*d.data.forward"
-        },
-        {
-          "type": "formula",
-          "field": "valuer",
-          "expr": "100*d.data.reverse"
-        },
-        {
-          "type": "sort",
-          "by": ["data.marker", "data.length"]
-        }
-      ]
-    },
-    {
-      "name": "fromprofiles",
-      "url": "fromprofiles-m050-n1-s2-f1.tsv",
-      "format": {
-        "type": "tsv",
-        "parse": {
-          "length": "number",
-          "forward": "number",
-          "reverse": "number"
-        }
-      },
-      "transform": [
-        {
-          "type": "filter",
-          "test": "d.data.unit=='AGAT'"
-        },
-        {
-          "type": "filter",
-          "test": "true"
-        },
-        {
-          "type": "formula",
-          "field": "length",
-          "expr": "d.data.length+random()*0.8-0.4"
-        },
-        {
-          "type": "formula",
-          "field": "markerf",
-          "expr": "d.data.marker+' forward'"
-        },
-        {
-          "type": "formula",
-          "field": "markerr",
-          "expr": "d.data.marker+' reverse'"
-        },
-        {
-          "type": "sort",
-          "by": ["data.marker", "data.length"]
-        }
-      ]
-    }
-  ],
-  "marks": [
-    {
-      "type": "group",
-      "from": {
-        "data": "points",
-        "transform": [
-          {"type": "facet", "keys": ["data.marker"]}
-        ]
-      },
-      "marks": [
         {
           "type": "symbol",
+          "from": {
+            "transform": [
+              {
+                "type": "aggregate",
+                "groupby": ["subgraph", "markerdirection"],
+                "summarize": []
+              },
+              {
+                "type": "cross",
+                "with": "points",
+                "filter": "datum.a.subgraph == datum.b.subgraph && datum.a.markerdirection == datum.b.markerdirection"
+              }
+            ]
+          },
           "properties": {
-            "enter": {
-              "x": {"scale": "x", "field": "length"},
-              "y": {"scale": "y", "field": "valuef"},
-              "fill": {"scale": "c", "field": "markerf"}
-            },
             "update": {
-              "size": {"value": 50},
+              "x": {"scale": "x", "field": "b.length_jit"},
+              "y": {"scale": "y", "field": "b.value"},
+              "fill": {"scale": "c", "field": "b.markerdirection"},
+              "size": {"value": 40},
               "stroke": {"value": "transparent"},
               "fillOpacity": {"value": 0.7}
             },
             "hover": {
-              "size": {"value": 150},
-              "stroke": {"value": "white"},
-              "fillOpacity": {"value": 1}
-            }
-          }
-        },
-        {
-          "type": "symbol",
-          "properties": {
-            "enter": {
-              "x": {"scale": "x", "field": "length"},
-              "y": {"scale": "y", "field": "valuer"},
-              "fill": {"scale": "c", "field": "markerr"}
-            },
-            "update": {
-              "size": {"value": 50},
-              "stroke": {"value": "transparent"},
-              "fillOpacity": {"value": 0.7}
-            },
-            "hover": {
-              "size": {"value": 150},
-              "stroke": {"value": "white"},
-              "fillOpacity": {"value": 1}
-            }
-          }
-        }
-      ]
-    },
-    {
-      "type": "group",
-      "from": {
-        "data": "fromprofiles",
-        "transform": [
-          {"type": "facet", "keys": ["data.marker"]}
-        ]
-      },
-      "marks": [
-        {
-          "type": "symbol",
-          "properties": {
-            "enter": {
-              "x": {"scale": "x", "field": "length"},
-              "y": {"scale": "y", "field": "data.forward"},
-              "fill": {"scale": "c", "field": "markerf"},
-              "shape": {"value": "diamond"}
-            },
-            "update": {
-              "size": {"value": 150},
-              "stroke": {"value": "transparent"},
-              "fillOpacity": {"value": 0.7}
-            },
-            "hover": {
-              "size": {"value": 450},
-              "stroke": {"value": "white"},
-              "fillOpacity": {"value": 1}
-            }
-          }
-        },
-        {
-          "type": "symbol",
-          "properties": {
-            "enter": {
-              "x": {"scale": "x", "field": "length"},
-              "y": {"scale": "y", "field": "data.reverse"},
-              "fill": {"scale": "c", "field": "markerr"},
-              "shape": {"value": "diamond"}
-            },
-            "update": {
-              "size": {"value": 150},
-              "stroke": {"value": "transparent"},
-              "fillOpacity": {"value": 0.7}
-            },
-            "hover": {
-              "size": {"value": 450},
+              "size": {"value": 125},
               "stroke": {"value": "white"},
               "fillOpacity": {"value": 1}
             }
@@ -532,5 +419,4 @@
       ]
     }
   ]
-}
 }

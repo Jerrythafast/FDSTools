@@ -1,4 +1,25 @@
 #!/usr/bin/env python
+
+#
+# Copyright (C) 2016 Jerry Hoogenboom
+#
+# This file is part of FDSTools, data analysis tools for Next
+# Generation Sequencing of forensic DNA markers.
+#
+# FDSTools is free software: you can redistribute it and/or modify it
+# under the terms of the GNU General Public License as published by the
+# Free Software Foundation, either version 3 of the License, or (at
+# your option) any later version.
+#
+# FDSTools is distributed in the hope that it will be useful, but
+# WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+# General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with FDSTools.  If not, see <http://www.gnu.org/licenses/>.
+#
+
 """
 Merge multiple files containing background noise profiles.
 
@@ -19,42 +40,39 @@ Example: fdstools bgpredict ... | fdstools bgmerge old.txt > out.txt
 import argparse
 import sys
 
-from ..lib import load_profiles, ensure_sequence_format,\
+from ..lib import load_profiles_new, ensure_sequence_format,\
                   add_sequence_format_args
 
-__version__ = "1.0.0"
+__version__ = "1.0.1"
 
 
 def merge_profiles(infiles, outfile, seqformat, library):
-    amounts = {}
-    for infile in infiles:
-        if infile == "-":
-            profiles = load_profiles(sys.stdin, library)
-        else:
-            with open(infile, "r") as handle:
-                profiles = load_profiles(handle, library)
-        for marker in profiles:
-            if marker not in amounts:
-                amounts[marker] = {}
-            for i in range(profiles[marker]["n"]):
-                for j in range(profiles[marker]["m"]):
-                    key = (profiles[marker]["seqs"][i],
-                           profiles[marker]["seqs"][j])
-                    if key not in amounts[marker]:
-                        this_amounts = (profiles[marker]["forward"][i][j],
-                                        profiles[marker]["reverse"][i][j],
-                                        profiles[marker]["tool"][i][j])
-                        if sum(this_amounts[:2]):
-                            amounts[marker][key] = this_amounts
-
     outfile.write("\t".join(
         ["marker", "allele", "sequence", "fmean", "rmean", "tool"]) + "\n")
-    for marker in amounts:
-        for allele, sequence in amounts[marker]:
-            outfile.write("\t".join([marker] +
-                [ensure_sequence_format(seq, seqformat, library=library,
-                    marker=marker) for seq in (allele, sequence)] +
-                map(str, amounts[marker][allele, sequence])) + "\n")
+    seen = {}
+    for infile in infiles:
+        if infile == "-":
+            profiles = load_profiles_new(sys.stdin, library)
+        else:
+            with open(infile, "r") as handle:
+                profiles = load_profiles_new(handle, library)
+        for marker in profiles:
+            for allele in profiles[marker]:
+                for sequence in profiles[marker][allele]:
+                    if marker not in seen:
+                        seen[marker] = {}
+                    if allele not in seen[marker]:
+                        seen[marker][allele] = set()
+                    elif sequence in seen[marker][allele]:
+                        continue
+                    outfile.write("\t".join([marker] + [
+                        ensure_sequence_format(seq, seqformat, library=library,
+                            marker=marker) for seq in (allele, sequence)] +
+                        map(str, (
+                            profiles[marker][allele][sequence]["forward"],
+                            profiles[marker][allele][sequence]["reverse"])) +
+                        [profiles[marker][allele][sequence]["tool"]]) + "\n")
+                    seen[marker][allele].add(sequence)
 #merge_profiles
 
 
