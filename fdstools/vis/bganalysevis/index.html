@@ -23,8 +23,8 @@
     <meta http-equiv="X-UA-Compatible" content="IE=edge">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta charset="UTF-8">
-    <title>Stutter Model Visualisation - FDSTools</title>
-    <!-- VERSION 2.0.0 -->
+    <title>Background Analysis Visualisation - FDSTools</title>
+    <!-- VERSION 1.0.0 -->
     <!-- BEGIN_LIBRARIES -->
     <script src="https://vega.github.io/vega-editor/vendor/d3.min.js"></script>
     <script src="https://vega.github.io/vega/vega.min.js"></script>
@@ -122,7 +122,7 @@
         .optiongroup > table td:not(:last-child) {
             padding-right: .4rem;
         }
-        .optiongroup > table tr.fileselectrow, .optiongroup > table tr.fileselect2row, .optiongroup > table tr.filenamedisplayrow {
+        .optiongroup > table tr.fileselectrow, .optiongroup > table tr.filenamedisplayrow {
             display: none;
         }
         .optiongroup > table tr.filenamedisplayrow #filenamedisplay {
@@ -133,20 +133,10 @@
             font-style: italic;
             white-space: wrap;
         }
-        .optiongroup > table select {
-            font-size: inherit;
-            font-family: inherit;
-        }
         .help {
             cursor: help;
             font-weight: bold;
             border-bottom: 1px dotted hsl(220, 20%, 3%);
-        }
-        .hidden {
-            display: none;
-        }
-        .special-option {
-            font-style: italic;
         }
         #vis {
             direction: rtl;
@@ -169,41 +159,6 @@
         td.wrap {
             white-space: normal !important;
             width: 1em;
-        }
-        input[type=range]::-moz-range-track {
-            background-image: linear-gradient(to right, #eee, #000);
-            border: 1px solid black;
-            height: 11px;
-        }
-        input[type=range]::-webkit-slider-runnable-track {
-            background-image: linear-gradient(to right, #eee, #000);
-            border: 1px solid black;
-            height: 11px;
-        }
-        input[type=range]::-webkit-slider-thumb {
-            margin-top: -6px;
-        }
-        input[type=range]::-ms-track {
-            background-image: linear-gradient(to right, #eee, #000);
-            border: 1px solid black;
-            height: 11px;
-        }
-        input[type=range]::-ms-fill-lower, input[type=range]::-ms-fill-upper {
-            background: transparent;
-        }
-        input[type=range] {
-            margin: 0px;
-            padding: 0px;
-            width: 150px;
-        }
-        td.jitterleft {
-           text-align: right;
-        }
-        td.jittermiddle {
-           text-align: center;
-        }
-        td.jitterleft {
-           text-align: left;
         }
     }
     /*
@@ -290,7 +245,7 @@
             font-family: Helvetica Neue, Helvetica, Arial, sans-serif;
             font-size: 10pt;
         }
-        .noprint, .help, .hidden {
+        .noprint, .help {
             display: none;
         }
         #optscrollbox {
@@ -335,18 +290,6 @@
         }
         .optiongroup > table input {
             border: none;
-        }
-        .optiongroup > table select {
-            /* No dropdow box arrow on FF and Webkit-based browsers */
-            -webkit-appearance: none;
-            -moz-appearance: none;
-            appearance: none;
-            font-size: inherit;
-            border: none;
-        }
-        select::-ms-expand {
-            /* No dropdown box arrow on IE10+ */
-            display: none;
         }
         .optiongroup > table input[type=checkbox] {
             height: 1em;
@@ -394,7 +337,7 @@
             <div class="optionheader">Input &amp; output</div>
             <table>
                 <tr class="fileselectrow filenamedisplayrow">
-                    <td>Stutter model file:</td>
+                    <td>Background analysis data file:</td>
                 </tr>
                 <tr class="fileselectrow">
                     <td><input id="fileselect" type="file"></td>
@@ -412,62 +355,72 @@
                 </tr>
             </table>
         </div>
-        <div class="optiongroup noprint">
-            <div class="optionheader">Raw data points</div>
-            <table>
-                <tr class="fileselect2row">
-                    <td colspan="4">Raw data points file:</td>
-                </tr>
-                <tr class="fileselect2row">
-                    <td colspan="4"><input id="fileselect2" type="file"></td>
-                </tr>
-                <tr class="fileselect2row">
-                    <td colspan="4">(or drag a file onto this page)</td>
-                </tr>
-                <tr>
-                    <td><label for="jitter">Jitter</label></td>
-                    <td class="jitterleft"><label for="jitter">Low</label></td>
-                    <td class="jittermiddle"><label><input type="range" min="0" max="100" value="25" step="any" id="jitter"></label></td>
-                    <td class="jitterright"><label for="jitter">High</label></td>
-                </tr>
-            </table>
-        </div>
         <div class="optiongroup">
             <div class="optionheader">Filtering options</div>
             <table>
                 <tr>
-                    <td rowspan="2"><label for="unitSelect">Repeat unit</label></td>
+                    <td><label for="groupby">Group by</label></td>
                     <td>
-                        <select id="unitSelect">
-                            <option value="" class="special-option" selected>Show all</option>
-                            <option value="CUSTOM" class="special-option">Custom filter</option>
+                        <select id="groupby">
+                            <option value="sample" selected>Sample</option>
+                            <option value="genotype">Genotype</option>
+                            <option value="marker">Marker</option>
                         </select>
+                        <a href="javascript:void(makePrimarySort('groupname'))">Sort</a>
                     </td>
                 </tr>
                 <tr>
-                    <td id="unitFilterRow" class="hidden">
-                        <label>
-                            <input type="text" id="unitFilter" size="20">
-                            <span class="help" title="Type AG to show all repeat units containing 'AG'. Type =AG to show the 'AG' repeat unit only. Separate multiple values with spaces.">?</span>
-                       </label>
-                    </td>
-                </tr><!--
-                <tr>
-                    <td><label for="foldFilter">Stutter amount</label></td>
-                    <td><input type="text" value="" id="foldFilter" size="3"></td>
-                </tr>-->
-                <tr>
-                    <td><label for="markerFilter">Marker name</label></td>
+                    <td><label for="markerFilter">Marker(s)</label></td>
                     <td>
                         <label>
-                            <input type="text" id="markerFilter" size="20">
+                            <input type="text" id="markerFilter" size="15">
                             <span class="help" title="Type xyz to show all markers with 'xyz' in their names. Type =xyz to show only the marker 'xyz'. Separate multiple values with spaces.">?</span>
                         </label>
                     </td>
                 </tr>
                 <tr>
-                    <td><label for="allDataFilter">Fit to all data</label></td>
-                    <td><label><input type="checkbox" id="allDataFilter" checked> show</label></td>
+                    <td><label for="markerFilter">Target coverage</label></td>
+                    <td>
+                        <label>
+                            <input type="text" id="targetcoverage" value="3000" size="5">
+                        <a href="javascript:void(makePrimarySort('mean_total_reads_marker'))">Sort</a>
+                    </td>
+                </tr>
+                <tr>
+                    <td colspan="2">
+                        <label>
+                            <input type="checkbox" id="showlowest" checked>
+                            Show lowest background
+                        </label>
+                        <a href="javascript:void(makePrimarySort('mean_lowest_as_pct_of_allelic'))">Sort</a>
+                    </td>
+                </tr>
+                <tr>
+                    <td colspan="2">
+                        <label>
+                            <input type="checkbox" id="showhighest" checked>
+                            Show highest background
+                        </label>
+                        <a href="javascript:void(makePrimarySort('-max_highest_as_pct_of_allelic'))">Sort</a>
+                    </td>
+                </tr>
+                <tr>
+                    <td colspan="2">
+                        <label>
+                            <input type="checkbox" id="showtotal">
+                            Show total background
+                        </label>
+                        <a href="javascript:void(makePrimarySort('-mean_total_as_pct_of_allelic'))">Sort</a>
+                    </td>
+                </tr>
+                <tr>
+                    <td colspan="2">
+                        <label>
+                            <input type="checkbox" id="showrecovery">
+                            Show highest recovery
+                        </label>
+                        <a href="javascript:void(makePrimarySort('-mean_highest_recovery'))">Sort</a>
+                    </td>
                 </tr>
             </table>
         </div>
@@ -475,14 +428,19 @@
             <div class="optionheader">Display options</div>
             <table>
                 <tr>
-                    <td>Graph dimensions</td>
-                    <td colspan="2"><input type="text" value="600" id="graphwidth" size="3"> x <input type="text" value="400" id="graphheight" size="3"> px</td>
+                    <td><label for="graphwidth">Graph width</label></td>
+                    <td colspan="2"><label><input type="text" value="600" id="graphwidth" size="3" class="num"> px</label></td>
                 </tr>
                 <tr>
-                    <td><label for="subgraphoffset">Subgraph spacing</label></td>
-                    <td colspan="2"><label><input type="text" value="70" id="subgraphoffset" size="3"> px</label></td>
+                    <td><label for="barwidth">Bar width</label></td>
+                    <td colspan="2"><label><input type="text" value="15" id="barwidth" size="3"> px</label></td>
                 </tr>
                 <tr>
+                    <td>Axis scale</td>
+                    <td><label><input type="radio" name="scale" value="linear" id="scaleLinear" checked> Linear</label></td>
+                    <td><label><input type="radio" name="scale" value="sqrt" id="scaleLog"> Square root</label></td>
+                </tr>
+                <tr class="noprint">
                     <td>Renderer</td>
                     <td><label><input type="radio" name="renderer" value="svg" id="renderSVG" checked> SVG</label></td>
                     <td><label><input type="radio" name="renderer" value="canvas" id="renderCanvas"> Canvas</label></td>
@@ -496,18 +454,25 @@
 </div>
 </div>
 <script type="text/javascript">
-var graph = false;
+var graphs = false;
 var data_format = {};
 var data_values = [];
-var fileName = "stuttermodel";
+var missing_markers = [];
+var fileName = "bganalyse";
 var stamp = 0;
 function parse(){
     var this_stamp = ++stamp;
     var visdiv = document.getElementById("vis");
     var scrolldiv = document.getElementById("visscrollbox");
     var rendererName = document.querySelector("input[name=renderer]:checked").value;
+    graphs = [];
     removeChildren(visdiv);
     document.getElementById("saveImageLink").setAttribute("class", "disabled");
+
+    //Set up graph spec.
+    graph_spec.data[0].values = data_values;
+
+    //Render graph for this marker.
     vg.parse.spec(graph_spec, function(chart){
         //Cancel rendering if a new parse() call was made.
         if(this_stamp != stamp)
@@ -518,10 +483,11 @@ function parse(){
         newvis.setAttribute("id", "vis0");
         visdiv.appendChild(newvis);
 
-        graph = chart({el: newvis, renderer: rendererName});
+        var graph = chart({el: newvis, renderer: rendererName});
         graph.update();
         if(rendererName == "svg")
             updateViewBox(graph._el.childNodes[0]);
+        graphs.push(graph);
         document.getElementById("saveImageLink").setAttribute("class", "");
 
         //Scroll to the right; the graph is more interesting than the long labels.
@@ -545,6 +511,30 @@ function removeChildren(el){
     }
 }
 
+function setScale(value){
+    if(!graph_spec)
+        return;
+    //for(i in graph_spec.marks)
+    //    if(graph_spec.marks[i].scales)
+            for(j in graph_spec/*.marks[i]*/.scales)
+                if(graph_spec/*.marks[i]*/.scales[j].name == "x")
+                    graph_spec/*.marks[i]*/.scales[j].type = value;
+
+    if(graphs !== false)
+        parse(true);
+}
+
+function getScale(){
+    if(!graph_spec)
+        return "linear";
+    //for(i in graph_spec.marks)
+    //    if(graph_spec.marks[i].scales)
+            for(j in graph_spec/*.marks[i]*/.scales)
+                if(graph_spec/*.marks[i]*/.scales[j].name == "x")
+                    return graph_spec/*.marks[i]*/.scales[j].type;
+    return "linear";
+}
+
 function setSignalValue(signalname, value){
     if(!graph_spec)
         return;
@@ -552,17 +542,20 @@ function setSignalValue(signalname, value){
     var scrollRight = (scrolldiv.scrollLeft >= scrolldiv.scrollWidth - scrolldiv.clientWidth);
     if(signalname == "width")
         graph_spec.width = value;
+    if(signalname == "height")
+        graph_spec.height = value;
     for(i in graph_spec.signals){
         if(graph_spec.signals[i].name == signalname){
             graph_spec.signals[i].init = value;
             break;
         }
     }
-    if(graph){
-        graph.signal(signalname, value).padding("auto").update();
-        if(document.getElementById("renderSVG").checked)
-            updateViewBox(graph._el.childNodes[0]);
-    }
+    if(graphs !== false)
+        graphs.forEach(function(graph, i){
+            graph.signal(signalname, value).padding("auto").update();
+            if(document.getElementById("renderSVG").checked)
+                updateViewBox(graph._el.childNodes[0]);
+        });
     if(scrollRight)
         scrolldiv.scrollLeft = scrolldiv.scrollWidth;
     return;
@@ -573,6 +566,8 @@ function getSignalValue(signalname){
         return false;
     if(signalname == "width")
         return graph_spec.width;
+    if(signalname == "height")
+        return graph_spec.height;
     for(i in graph_spec.signals)
         if(graph_spec.signals[i].name == signalname)
             return graph_spec.signals[i].init;
@@ -580,123 +575,51 @@ function getSignalValue(signalname){
 }
 
 function setRenderer(value){
-    if(graph){
-        graph.renderer(value).update();
-        if(value == "svg")
-            updateViewBox(graph._el.childNodes[0]);
-    }
+    if(graphs !== false)
+        graphs.forEach(function(graph){
+            graph.renderer(value).update();
+            if(value == "svg")
+                updateViewBox(graph._el.childNodes[0]);
+        });
+}
+
+function makePrimarySort(value){
+    if(!graph_spec)
+        return false;
+    graph_spec.data[1].transform[2].by.sort(function(a, b){
+        if(a == value) return -1;
+        if(b == value) return 1;
+        return 0;
+    });
+    if(graphs !== false)
+        parse();
 }
 
 function setFileName(value){
     if(!value)
-        value = "stuttermodel";
+        value = "bganalyse";
     fileName = value;
-    if(value == "stuttermodel")
-        document.title = "Stutter Model Visualisation - FDSTools";
+    if(value == "bganalyse")
+        document.title = "Background Analysis Visualisation - FDSTools";
     else
-        document.title = value + " - Stutter Model Visualisation - FDSTools";
+        document.title = value + " - Background Analysis Visualisation - FDSTools";
 }
 
-function makeUnitSelectionOptions(data){
-    var sel = document.getElementById("unitSelect");
-    var val = sel.value;
-    removeChildren(sel);
-    var opt = document.createElement("option");
-    opt.setAttribute("value", "");
-    opt.setAttribute("class", "special-option");
-    opt.innerText = "Show all";
-    sel.appendChild(opt);
-
-    var units = {}
-    var validValue = (val == "CUSTOM");
-    data.forEach(function(datum){
-        units[datum.unit] = true;
-    });
-    Object.keys(units).sort(function(a, b){
-        if(a.length == b.length){
-            if(a < b)
-                return -1;
-            else if(a > b)
-                return 1;
-            return 0;
-        }
-        return a.length - b.length;
-    }).forEach(function(unit){
-        opt = document.createElement("option");
-        opt.setAttribute("value", "=" + unit);
-        opt.innerText = unit;
-        sel.appendChild(opt);
-        if(val == "=" + unit)
-            validValue = true;
-    });
-    opt = document.createElement("option");
-    opt.setAttribute("value", "CUSTOM");
-    opt.setAttribute("class", "special-option");
-    opt.innerText = "Custom filter";
-    sel.appendChild(opt);
-    sel.value = validValue? val : "";
-    if(!validValue){
-        document.getElementById("unitFilter").value = "";
-        if(graph)  // Don't overwrite the filter_unit on initial data load.
-            setSignalValue("filter_unit", "");
-    }
-}
-
-var currentlyLoadedFitFunctionsFile = "no/file/loaded";
-function loadFitFunctions(filename, data){
-    if(filename == currentlyLoadedFitFunctionsFile)
-        return false;
-    currentlyLoadedFitFunctionsFile = filename;
-    if(filename)
-        setFileName(filename.substr(0, filename.lastIndexOf(".")));
-    else
-        setFileName(false);
-    data_values = vg.util.read(data, data_format);
-    graph_spec.data[0].values = data_values;
-    makeUnitSelectionOptions(data_values);
-    return true;
-}
-var currentlyLoadedRawDataFile = "no/file/loaded";
-function loadRawData(filename, data){
-    if(filename == currentlyLoadedRawDataFile)
-        return false;
-    currentlyLoadedRawDataFile = filename;
-    graph_spec.data[1].values = data;
-    return !!graph;
-}
-function setSelectedFiles(input, fileList){
-    //Try to clear the currently displayed file, then try to set
-    //the drag-'n-dropped file as the selected one on the file input.
-    //Both actions are not supported in all major browsers.
-    input.value = "";
-    input.files = fileList;
-}
-
-//Input is a fileList object; only the first file is loaded.
-var embeddedFiles = 0;
-function loadFile(fileList, setInput){
-    if(!graph_spec || !fileList || !fileList.length)
+//Load the data (input is a fileList object; only the first file is loaded).
+var currentlyLoadedFile = "no/file/loaded";
+function loadDataset(fileList){
+    if(!graph_spec || !fileList || !fileList.length || fileList[0].name == currentlyLoadedFile)
         return;
+    currentlyLoadedFile = fileList[0].name;
     var reader = new FileReader();
     reader.onload = function(e){
-        var success;
-        var cols = reader.result.substr(0, reader.result.indexOf("\n")).split("\t");
-        if(Math.min(cols.indexOf("length"), cols.indexOf("forward"), cols.indexOf("reverse")) == -1){
-            //This is a file with fit functions.
-            if((embeddedFiles & 1) == 0){
-                success = loadFitFunctions(fileList[0].name, reader.result);
-                if(setInput)
-                    setSelectedFiles(document.getElementById("fileselect"), fileList);
-            }
-        }
-        else if((embeddedFiles & 2) == 0){
-            //This is a file with raw data points.
-            success = loadRawData(fileList[0].name, reader.result);
-            if(setInput)
-                setSelectedFiles(document.getElementById("fileselect2"), fileList);
-        }
-        if(success)
-            parse();
+        if(fileList && fileList.length && fileList[0].name)
+            setFileName(fileList[0].name.substr(0, fileList[0].name.lastIndexOf(".")));
+        else
+            setFileName(false);
+        missing_markers = []
+        data_values = vg.util.read(reader.result, data_format);
+        parse();
     };
     reader.readAsText(fileList[0]);
 }
@@ -711,15 +634,15 @@ function saveImage(){
         //Internet Explorer has its own ways of doing things.
         var b;
         if(imageType == "svg")
-            b = new Blob([graph._el.innerHTML], {type: "image/svg+xml;charset=utf-8"});
+            b = new Blob([graphs[0]._el.innerHTML], {type: "image/svg+xml;charset=utf-8"});
         else
-            b = graph._el.firstChild.msToBlob();
+            b = graphs[0]._el.firstChild.msToBlob();
         window.navigator.msSaveOrOpenBlob(b, fileName + "." + imageType);
         if(b.msClose)
             b.msClose();
     }
     else{
-        link.setAttribute("href", graph.toImageURL(imageType));
+        link.setAttribute("href", graphs[0].toImageURL(imageType));
         link.setAttribute("download", fileName + "." + imageType);
         link.click();
         link.setAttribute("href", "javascript:void(saveImage())");
@@ -728,35 +651,16 @@ function saveImage(){
     return false;
 }
 
-function onLoadSpec(has_data, has_rawdata){
+function onLoadSpec(has_data){
     if(!has_data){
         //Handle files from the file input.
         document.getElementById("fileselect").addEventListener('change', function(){
-            loadFile(document.getElementById("fileselect").files);
+            loadDataset(document.getElementById("fileselect").files);
         }, false);
         var rows = document.querySelectorAll(".fileselectrow");
         for (var i = 0; i < rows.length; i++)
             rows[i].style.display = "table-row";
-    }
-    else if(graph_spec.data[0].fdstools_filename){
-        var rows = document.querySelectorAll(".filenamedisplayrow");
-        for (var i = 0; i < rows.length; i++)
-            rows[i].style.display = "table-row";
-        var cell = document.getElementById("filenamedisplay");
-        removeChildren(cell);
-        cell.appendChild(document.createTextNode(graph_spec.data[0].fdstools_filename));
-        setFileName(graph_spec.data[0].fdstools_filename);
-    }
-    if(!has_rawdata){
-        //Handle files from the file input.
-        document.getElementById("fileselect2").addEventListener('change', function(){
-            loadFile(document.getElementById("fileselect2").files);
-        }, false);
-        var rows = document.querySelectorAll(".fileselect2row");
-        for (var i = 0; i < rows.length; i++)
-            rows[i].style.display = "table-row";
-    }
-    if(!has_data || !has_rawdata){
+
         //Allow files to be dragged onto the page.
         document.addEventListener('dragover', function(evt){
             evt.stopPropagation();
@@ -765,23 +669,48 @@ function onLoadSpec(has_data, has_rawdata){
         document.addEventListener('drop', function(evt){
             evt.stopPropagation();
             evt.preventDefault();
-            loadFile(evt.dataTransfer.files, true);
+
+            //Try to clear the currently displayed file, then try to set
+            //the drag-'n-dropped file as the selected one on the file input.
+            //Both actions are not supported in all major browsers.
+            document.getElementById("fileselect").value = "";
+            document.getElementById("fileselect").files = evt.dataTransfer.files;
+            loadDataset(evt.dataTransfer.files);
         }, false);
     }
-    embeddedFiles = (has_data? 1:0) + (has_rawdata? 2:0);
 
     //Parse data outside of Vega.
     data_format = graph_spec.data[0].format;
     graph_spec.data[0].format = null;
-    if(has_data)
-        loadFitFunctions(fileName, graph_spec.data[0].values);
+    if(has_data){
+        data_values = vg.util.read(graph_spec.data[0].values, data_format);
+        if(graph_spec.data[0].fdstools_filename){
+            var rows = document.querySelectorAll(".filenamedisplayrow");
+            for (var i = 0; i < rows.length; i++)
+                rows[i].style.display = "table-row";
+            var cell = document.getElementById("filenamedisplay");
+            removeChildren(cell);
+            cell.appendChild(document.createTextNode(graph_spec.data[0].fdstools_filename));
+            setFileName(graph_spec.data[0].fdstools_filename);
+        }
+    }
 
-    //Update graph when rendering mode is changed.
+
+    //Update graph when rendering mode or axis scale is changed.
     document.getElementById("renderCanvas").addEventListener('change', function(){
         setRenderer(this.value);
     }, false);
     document.getElementById("renderSVG").addEventListener('change', function(){
         setRenderer(this.value);
+    }, false);
+    document.getElementById("scaleLinear").addEventListener('change', function(){
+        setScale(this.value);
+    }, false);
+    document.getElementById("scaleLog").addEventListener('change', function(){
+        setScale(this.value);
+    }, false);
+    document.getElementById("groupby").addEventListener('change', function(){
+        setSignalValue("groupby", this.value);
     }, false);
     document.getElementById("graphwidth").addEventListener('change', function(){
         var value = parseFloat(this.value);
@@ -789,36 +718,11 @@ function onLoadSpec(has_data, has_rawdata){
             return;
         setSignalValue("width", value);
     }, false);
-    document.getElementById("graphheight").addEventListener('change', function(){
+    document.getElementById("barwidth").addEventListener('change', function(){
         var value = parseFloat(this.value);
         if(isNaN(value))
             return;
-        setSignalValue("graphheight", value);
-    }, false);
-    document.getElementById("subgraphoffset").addEventListener('change', function(){
-        var value = parseFloat(this.value);
-        if(isNaN(value))
-            return;
-        setSignalValue("subgraphoffset", value);
-    }, false);
-    document.getElementById("unitSelect").addEventListener('change', function(){
-        if(this.value == "CUSTOM")
-            document.getElementById("unitFilterRow").setAttribute("class", "");
-        else{
-            document.getElementById("unitFilterRow").setAttribute("class", "hidden");
-            document.getElementById("unitFilter").value = this.value;
-            setSignalValue("filter_unit", this.value);
-        }
-    }, false);
-    document.getElementById("unitFilter").addEventListener('change', function(){
-        var value = this.value;
-        try{
-            compileFilter(value.trim());
-        }
-        catch(e){
-            value = "=";
-        }
-        setSignalValue("filter_unit", value);
+        setSignalValue("barwidth", value);
     }, false);
     document.getElementById("markerFilter").addEventListener('change', function(){
         var value = this.value;
@@ -830,37 +734,44 @@ function onLoadSpec(has_data, has_rawdata){
         }
         setSignalValue("filter_marker", value);
     }, false);
-    document.getElementById("allDataFilter").addEventListener('change', function(){
-        setSignalValue("show_all_data", this.checked);
-    }, false);
-    document.getElementById("jitter").addEventListener('mouseup', function(){
-        var value = parseFloat(this.value)/100;
-        if(isNaN(value) || value == getSignalValue("jitter"))
+    document.getElementById("targetcoverage").addEventListener('change', function(){
+        var value = parseFloat(this.value);
+        if(isNaN(value))
             return;
-        setSignalValue("jitter", value);
+        setSignalValue("target_coverage", value);
     }, false);
-    document.getElementById("jitter").addEventListener('keyup', function(){
-        var value = parseFloat(this.value)/100;
-        if(isNaN(value) || value == getSignalValue("jitter"))
-            return;
-        setSignalValue("jitter", value);
+    document.getElementById("showlowest").addEventListener('change', function(){
+        setSignalValue("show_lowest", this.checked);
+    }, false);
+    document.getElementById("showhighest").addEventListener('change', function(){
+        setSignalValue("show_highest", this.checked);
+    }, false);
+    document.getElementById("showtotal").addEventListener('change', function(){
+        setSignalValue("show_total", this.checked);
+    }, false);
+    document.getElementById("showrecovery").addEventListener('change', function(){
+        setSignalValue("show_recovery", this.checked);
     }, false);
 
     //Sync graph_spec and display.
-    var uf = getSignalValue("filter_unit");
-    document.getElementById("unitFilter").value = uf;
-    var us = document.getElementById("unitSelect");
-    us.value = "CUSTOM";
-    for(i = 0; i < us.options.length; i++)
-        if(uf == us.options.item(i).value)
-            us.value = uf;
-    document.getElementById("unitFilterRow").setAttribute("class", us.value == "CUSTOM"? "" : "hidden");
+    if(getScale() == "linear"){
+        document.getElementById("scaleLinear").checked = true;
+        document.getElementById("scaleLog").checked = false;
+    }
+    else{
+        document.getElementById("scaleLinear").checked = false;
+        document.getElementById("scaleLog").checked = true;
+    }
+    document.getElementById("groupby").value = getSignalValue("groupby");
     document.getElementById("markerFilter").value = getSignalValue("filter_marker");
-    document.getElementById("allDataFilter").checked = getSignalValue("show_all_data");
+    document.getElementById("targetcoverage").value = getSignalValue("target_coverage");
+    document.getElementById("showlowest").checked = getSignalValue("show_lowest");
+    document.getElementById("showhighest").checked = getSignalValue("show_highest");
+    document.getElementById("showtotal").checked = getSignalValue("show_total");
+    document.getElementById("showrecovery").checked = getSignalValue("show_recovery");
     document.getElementById("graphwidth").value = getSignalValue("width");
-    document.getElementById("graphheight").value = getSignalValue("graphheight");
-    document.getElementById("subgraphoffset").value = getSignalValue("subgraphoffset");
-    document.getElementById("jitter").value = getSignalValue("jitter")*100;
+    document.getElementById("barwidth").value = getSignalValue("barwidth");
+
     if(has_data)
         parse();
 }
@@ -868,9 +779,9 @@ function onLoadSpec(has_data, has_rawdata){
 <!-- BEGIN_LOAD_SCRIPT -->
 <script type="text/javascript">
 var graph_spec = false;
-vg.util.load({url: "stuttermodelvis.json"}, function(err, result){
+vg.util.load({url: "bganalysevis.json"}, function(err, result){
     graph_spec = JSON.parse(result);
-    onLoadSpec(false, false);
+    onLoadSpec(false);
 });
 </script>
 <!-- END_LOAD_SCRIPT -->

@@ -22,62 +22,41 @@
 
 """
 Convert between TSSV (tab-separated) and FDSTools (ini-style) library
-formats.  When no input is given, an empty FDSTools library is produced.
+formats.
 
-FDSTools uses library files to convert sequences to allele names and
-vice versa.  Because FDSTools was made to work with the output of TSSV,
-it has been made compatible with TSSV's library files as well.  The TSSV
-library format is much less suitable for the generation of allele names,
-which makes FDSTools libraries the recommended choice.  The libconvert
-tool can be used to create a compatible TSSV library.
+This is a convenience tool for users migrating from the standalone
+'TSSV' programme.  Use the 'library' tool if you wish to create a new,
+empty FDSTools library file to start with.
 
-In FDSTools, sequences of STR alleles are split up into three parts: a
-prefix, the STR, and a suffix.  The prefix and suffix are optional and
-are meant to fill the gap between the STR and the primer binding sites.
-The primer binding sites are called 'flanks' in the library file.
+Both FDSTools and the standalone 'TSSV' programme use a library file to
+store the names, flanking (primer) sequences, and STR repeat structure
+of forensic STR markers.  However, the TSSV library file format is not
+suitable for non-STR markers and automatic generation of allele names.
+FDSTools therefore employs a different (ini-style) library file format
+that can store more details about the markers used.  The libconvert tool
+can be used to convert between the two formats.
 
-For non-STR markers, FDSTools library files simply contain the reference
-sequence of the region between the flanks.  All markers in TSSV library
-files are assumed to be STR markers, but the libconvert tool will
-include the non-STR markers on a best-effort basis when converting to
-the TSSV format.
-
-Allele names typically consist of an allele number compatible with those
-obtained from Capillary Electrophoresis (CE), followed by the STR
-sequence in a shortened form and any substitutions or other variants
-that occur in the prefix and suffix.  The first prefix/suffix in the
-library file is used as the reference sequence for calling variants.
-
-Special alleles, such as the 'X' and 'Y' allele from the Amelogenin
-gender test, may be given an explicit allele name by specifying an Alias
-in the FDSTools library file.
-
-Run libconvert without any arguments to obtain a default FDSTools
-library to start with.  The default library contains commentary lines
-that explain the use of each section in more detail.
+Please refer to the help of the 'library' tool for more information
+about FDSTools library files.
 """
 import argparse
 import sys
 import re
 import os.path
 
-from ..lib import parse_library
+from ..lib import parse_library, INI_COMMENT
+from library import make_empty_library_ini
 from ConfigParser import RawConfigParser
-from StringIO import StringIO
 
-__version__ = "1.0.1"
+__version__ = "1.1.0"
 
-
-# If no input is given, convert the following to FDSTools format.
-_DEFAULT_LIBRARY = "\t".join([
-    "MyMarker",
-    "CTGTTTCTGAGTTTCAAGTATGTCTGAG",
-    "TTACATGCTCGTGCACCTTATGGAGGGG",
-    "GT 0 4 AGGGGA 1 1 GTGA 0 5 GT 8 25"])
 
 def convert_library(infile, outfile, aliases=False):
     pattern_reverse = re.compile("\(([ACGT]+)\)\{(\d+),(\d+)\}")
-    library = parse_library(infile, stream=True)
+    if infile is not None:
+        library = parse_library(infile, stream=True)
+    else:
+        library = {"flanks": {}, "regex": {}}
     if "aliases" in library:
         # FDSTools -> TSSV
         markers = set()
@@ -208,139 +187,9 @@ def convert_library(infile, outfile, aliases=False):
 
     else:
         # TSSV -> FDSTools
-        outfile.write("; Lines beginning with a semicolon (;) are ignored by "
-            "FDSTools.\n\n")
-        ini = RawConfigParser(allow_no_value=True)
-        ini.optionxform = str
-
-        # Create sections.  Most of them will be empty but we will put
-        # comments in them to explain how to use them.
-        ini.add_section("aliases")
-        ini.set("aliases",
-                "; Specify three comma-separated values: marker name, "
-                "sequence, and allele name.")
-        ini.set("aliases",
-                "; You may use the alias name to specify flanks, prefix, and "
-                "suffix for this")
-        ini.set("aliases",
-                "; allele specifically. You cannot specify a repeat structure "
-                "for an alias.")
-        ini.set("aliases",
-                ";MyAlias = MyMarker, AGCTAGC, MySpecialAlleleName")
-        ini.add_section("flanks")
-        ini.set("flanks",
-                "; Specify two comma-separated values: left flank and right "
-                "flank.")
-        ini.add_section("prefix")
-        ini.set("prefix",
-                "; Specify all known prefix sequences separated by commas. "
-                "The first sequence")
-        ini.set("prefix",
-                "; listed is used as the reference sequence when generating "
-                "allele names. The")
-        ini.set("prefix",
-                "; prefix is the sequence between the left flank and the "
-                "repeat and is omitted")
-        ini.set("prefix",
-                "; from allele names. Deviations from the reference are "
-                "expressed as variants.")
-        ini.add_section("suffix")
-        ini.set("suffix",
-                "; Specify all known suffix sequences separated by commas. "
-                "The first sequence")
-        ini.set("suffix",
-                "; listed is used as the reference sequence when generating "
-                "allele names. The")
-        ini.set("suffix",
-                "; suffix is the sequence between the repeat and the right "
-                "flank.")
-        ini.add_section("repeat")
-        ini.set("repeat",
-                "; Specify the STR repeat structure in space-separated "
-                "triples of sequence,")
-        ini.set("repeat",
-                "; minimum number of repeats, and maximum number of repeats.")
-        ini.add_section("no_repeat")
-        ini.set("no_repeat",
-                "; Specify the reference sequence for non-STR markers.")
-        ini.set("no_repeat",
-                ";MySNPMarker = TTTTAACACAAAAAATTTAAAATAAGAAGAATAAATAGTGCTTGCTTT")
-        ini.set("no_repeat",
-                ";MyMtMarker  = AACCCCCCCT")
-        ini.add_section("genome_position")
-        ini.set("genome_position",
-                "; Specify the chromosome number and position of the first "
-                "base after the first")
-        ini.set("genome_position",
-                "; flank of each marker. Optionally, you may specify the "
-                "position of the last")
-        ini.set("genome_position",
-                "; base of the fragment as well. Specify 'M' as the "
-                "chromosome name for markers")
-        ini.set("genome_position",
-                "; on mitochondrial DNA. Allele names generated for these "
-                "markers will follow")
-        ini.set("genome_position",
-                "; mtDNA nomenclature guidelines. If one of your mtDNA "
-                "fragments starts near the")
-        ini.set("genome_position",
-                "; end of the reference sequence and continues at the "
-                "beginning, you can obtain")
-        ini.set("genome_position",
-                "; correct base numbering by specifying the fragment's genome "
-                "position as")
-        ini.set("genome_position",
-                "; \"M, (starting position), 16569, 1, (ending position)\". "
-                "This tells FDSTools")
-        ini.set("genome_position",
-                "; that the marker is a concatenation of two fragments, where "
-                "the first fragment")
-        ini.set("genome_position",
-                "; ends at position 16569 and the second fragment starts at "
-                "position 1.")
-        ini.set("genome_position",
-                "; Using human genome build GRCh38 and rCRS for human mtDNA.")
-        ini.set("genome_position",
-                ";MyMarker    = 9, 36834400")
-        ini.set("genome_position",
-                ";MySNPMarker = X, 21214600")
-        ini.set("genome_position",
-                ";MyMtMarker  = M, 301")
-        ini.add_section("length_adjust")
-        ini.set("length_adjust",
-                "; When generating allele names for STR alleles, the CE "
-                "allele number is based")
-        ini.set("length_adjust",
-                "; on the length of the sequence (prefix+repeat+suffix) minus "
-                "the adjustment")
-        ini.set("length_adjust",
-                "; specified here.")
-        ini.add_section("block_length")
-        ini.set("block_length",
-                "; Specify the repeat unit length of each STR marker. The "
-                "default length is 4.")
-        ini.add_section("max_expected_copies")
-        ini.set("max_expected_copies",
-                "; Specify the maximum expected number of copies (i.e., "
-                "alleles) for each")
-        ini.set("max_expected_copies",
-                "; marker in a single reference sample (only used for "
-                "allelefinder). The default")
-        ini.set("max_expected_copies",
-                "; is 2. Specify 1 here for haploid markers (i.e., those on "
-                "mitochondrial DNA or")
-        ini.set("max_expected_copies",
-                "; on the Y chromosome).")
-        ini.add_section("expected_allele_length")
-        ini.set("expected_allele_length",
-                "; Specify one or two values for each marker. The first value "
-                "gives the expected")
-        ini.set("expected_allele_length",
-                "; minimum length of the alleles and the second value (if "
-                "given) specifies the")
-        ini.set("expected_allele_length",
-                "; maximum allele length expected for this marker (both "
-                "inclusive).")
+        outfile.write(INI_COMMENT.fill("Lines beginning with a semicolon (;) "
+            "are ignored by FDSTools.") + "\n\n")
+        ini = make_empty_library_ini("full", aliases)
 
         # Enter flanking sequences and STR definitions.
         fmt = "%%-%is" % reduce(max, map(len,
@@ -355,7 +204,7 @@ def convert_library(infile, outfile, aliases=False):
             # Try to infer block length from the regular expression.
             length_counts = {0: 0}
             for block in blocks:
-                amount = (int(block[1])+int(block[2]))/2.
+                amount = (int(block[1]) + int(block[2])) / 2.
                 if len(block[0]) not in length_counts:
                     length_counts[len(block[0])] = amount
                 else:
@@ -363,10 +212,10 @@ def convert_library(infile, outfile, aliases=False):
             block_length = sorted(
                 length_counts, key=lambda x: -length_counts[x])[0]
             if block_length != 0 and block_length < 10:
-                ini.set("block_length", fmt%marker, block_length)
+                ini.set("block_length", fmt % marker, block_length)
 
             # Write max_expected_copies=2 for all markers explicitly.
-            ini.set("max_expected_copies", fmt%marker, 2)
+            ini.set("max_expected_copies", fmt % marker, 2)
 
             # TODO: I could also do some fiddling for prefix/suffix...
 
@@ -383,9 +232,12 @@ def add_arguments(parser):
         default=sys.stdout, type=argparse.FileType('w'),
         help="the file to write the output to (default: write to stdout)")
     parser.add_argument('-a', '--aliases', action="store_true",
-        help="if specified, aliases in FDSTools libraries are converted to "
-             "separate markers in the output library; otherwise, they are "
-             "merged into their respective markers")
+        help="when converting to TSSV format, aliases in FDSTools libraries "
+             "are converted to separate markers in the output library when "
+             "this option is specified; otherwise, they are merged into their "
+             "respective markers; when converting to FDSTools format, the "
+             "[aliases] section is included in the output if this option is "
+             "specified")
 #add_arguments
 
 
@@ -403,7 +255,7 @@ def run(args):
         args.infile = open(args.infile, 'r')
     elif args.infile.isatty():
         # No input given.  Produce a default FDSTools library.
-        args.infile = StringIO(_DEFAULT_LIBRARY)
+        args.infile = None
 
     convert_library(args.infile, args.outfile, args.aliases)
 #run

@@ -1,5 +1,5 @@
 {
-  "fdstools_visversion": "1.0.1",
+  "fdstools_visversion": "2.0.0",
   "width": 600,
   "height": 10,
   "signals": [
@@ -19,6 +19,10 @@
       "name": "marker_regex",
       "init": {"expr": "regexp('(?:' + replace(replace(replace(filter_marker, /^ *(.*?) *$/, '$1'), /(^| )=(.*?)(?= |$)/g, '$1^$2$$'), / +/g, ')|(?:') + ')')"},
       "expr": "regexp('(?:' + replace(replace(replace(filter_marker, /^ *(.*?) *$/, '$1'), /(^| )=(.*?)(?= |$)/g, '$1^$2$$'), / +/g, ')|(?:') + ')')"
+    },
+    {
+      "name": "sort_str_by_length",
+      "init": true
     },
     {
       "name": "barwidth",
@@ -64,8 +68,18 @@
           "expr": "datum.marker + ' ' + datum.allele"
         },
         {
+          "type": "formula",
+          "field": "al_order",
+          "expr": "(sort_str_by_length && test(/^CE\\d+\\.?\\d*_/, datum.allele))? parseFloat(substring(datum.allele, 2, indexof(datum.allele, '_'))) : 1/0"
+        },
+        {
+          "type": "formula",
+          "field": "seq_order",
+          "expr": "(sort_str_by_length && test(/^CE\\d+\\.?\\d*_/, datum.sequence))? parseFloat(substring(datum.sequence, 2, indexof(datum.sequence, '_'))) : 1/0"
+        },
+        {
           "type": "sort",
-          "by": ["name", "-tnoise", "-maxnoise"]
+          "by": ["marker", "al_order", "name", "seq_order", "-tnoise", "-maxnoise"]
         },
         {
           "type": "rank"
@@ -84,7 +98,13 @@
         {
           "type": "aggregate",
           "groupby": ["name", "sequence"],
-          "summarize": []
+          "summarize": [
+            {"field": "rank", "ops": ["min"], "as": ["oldrank"]}
+          ]
+        },
+        {
+          "type": "sort",
+          "by": ["oldrank"]
         },
         {
           "type": "rank"
@@ -96,6 +116,10 @@
             {"field": "sequence", "ops": ["count"], "as": ["count"]},
             {"field": "rank", "ops": ["min"], "as": ["cumulcount"]}
           ]
+        },
+        {
+          "type": "sort",
+          "by": ["cumulcount"]
         },
         {
           "type": "rank"

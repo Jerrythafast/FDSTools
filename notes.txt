@@ -1,23 +1,15 @@
 To-do:
 * Additions needed for publication:
-  * Add tool that takes a configuration file and runs a pipeline of other
-    tools. Include basic config files in the paper.
-    * Reference sample preparation
-    * Reference database creation
-    * Case sample analysis
-  * Add new library tool to replace libconvert.
   * Group tools by function in the command line help and put the new pipeline
     tool on top.
   * [If not too difficult to implement] Give BGEstimate a background profiles
     file to start with (such as computed from homozygous samples only).
-* Stuttermodelvis:
-  * Add points file selection to the Vis tool (it currently remains empty).
+* Add built-in glob pattern matching for Windows.
 * Samplevis:
-  * Allow table filtering options to be specified for each marker separately.
   * Detect whether correction was performed; hide related columns if not.
   * Option to choose complete table download (all columns, not all rows).
   * Option to freely adjust the sorting (currently CE length toggle only).
-  * When we have them, add default values to table filtering (for reference).
+  * Visualise table filtering thresholds in the graphs.
   * Some of the media query breakpoints overlap, fix this.
   * Perhaps it is desirable to be able to request a list of 'Other sequences'.
   * Add 'Save page' button that also saves the alleles clicked by the user.
@@ -29,11 +21,14 @@ To-do:
     next chunk through "window.setTimeout(nextChunkFunction);". The page will
     be repainted between each chunk. One major issue with this is that user
     input events may get scheduled between the chunks.
+  * Allow table filtering options to be specified for each marker separately.
+* Add grouping, show/hide options, and target coverage for BGAnalyseVis to the
+  Vis tool.
 * Add per-marker allele calling settings to Samplestats.
 * Exceptions to general mtDNA nomenclature: http://empop.online/methods
 * Reduce noise profile memory usage:
-  * Use sparse matrices in BGEstimate, BGCorrect, and Blame.  May save over 90%
-    of memory for the profile matrix after BGMerge of BGEstimate and BGPredict.
+  * Use sparse matrices in BGEstimate, and BGCorrect.  May save over 90% of
+    memory for the profile matrix after BGMerge of BGEstimate and BGPredict.
 * Add 'BGDiff' tool to compare noise profiles.
 * Add section to the library file where genomic positions of known pathogenic
   variants are specified. The TSSV tool should always output the reference base
@@ -79,6 +74,8 @@ Open Vega issues:
   https://github.com/vega/vega/issues/526
 * [Docs] Multi-column sorting relies on the rank transform.
   https://github.com/vega/vega/issues/509
+* [Feat] Concatenation of data sources.
+  https://github.com/vega/vega/issues/484
 * [Feat] Id-based refs for Force transform's source and target.
   https://github.com/vega/vega/issues/471
 * Tick labels of log scale axes don't respect number formatting.
@@ -104,10 +101,10 @@ DONE    stuttermark         Mark stutter products in sample
 DONE    analyze-background  BGEstimate: generate background profiles
 DONE    profilemark         BGCorrect: find and correct for noise in samples
 DONE    gen-bg-profiles     Compute statistics on noise in homozygous samples
-DONE    blame               Find dirty samples in the reference database
 DONE    allelenames-update  Convert allele names from one library to another
 DONE    polyfit-repeat-len  Stuttermodel: predict stutter from sequence
 DONE    common-background   Compute noise ratios in homozygous samples
+DROP    blame               Find dirty samples in the reference database
 DROP    alleles-convert     Convert allele names using lookup table
 DROP    block-dedup         Remove duplicate blocks in TSSV-style sequences
 DROP    graphgen            Create bar graph from a sample's data
@@ -118,7 +115,6 @@ DROP    strandbias          Find strand bias in the data
 DROP    annotate-alleles    Annotate true alleles in sample based on allelelist
 
 Visualisations:
-LOW     blame               Common alleles
 LOW     qqplot              Q-Q plot of normal/lognormal distribution
 LOW     stability           Profile distance vs amount of subsampling
 DONE    samplevis           Sample data
@@ -126,30 +122,31 @@ DONE    profiles            Background profiles
 DONE    bg                  Dotplots of noise ratios in homozygous samples
 DONE    trends              Fit repeat length vs stutter amount
 DONE    allelegraph         Homozygosity/heterozygosity
+DROP    blame               Common alleles
 
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 Argument group order*:
 input file options          bgcorrect,samplestats,seqconvert,stuttermark
-output file options         allelefinder,bgcorrect,bgestimate,bghomraw,bghomstats,bgmerge,blame,samplestats,seqconvert,stuttermark,stuttermodel,tssv
-sample tag parsing options  allelefinder,bgcorrect,bgestimate,bghomraw,bghomstats,blame,samplestats,seqconvert,stuttermark,stuttermodel
-allele detection options    bgestimate,bghomraw,bghomstats,blame,stuttermodel
+output file options         allelefinder,bganalyse,bgcorrect,bgestimate,bghomraw,bghomstats,bgmerge,samplestats,seqconvert,stuttermark,stuttermodel,tssv
+sample tag parsing options  allelefinder,bganalyse,bgcorrect,bgestimate,bghomraw,bghomstats,samplestats,seqconvert,stuttermark,stuttermodel
+allele detection options    bganalyse,bgestimate,bghomraw,bghomstats,stuttermodel
 interpretation options      samplestats
-filtering options           allelefinder,bgcorrect,bgestimate,bghomraw,bghomstats,bgpredict,blame,samplestats,stuttermark,stuttermodel,tssv
-sequence format options     allelefinder,bgcorrect,bgestimate,bghomraw,bghomstats,bgmerge,bgpredict,blame,stuttermark,stuttermodel,tssv
+filtering options           allelefinder,bgcorrect,bgestimate,bghomraw,bghomstats,bgpredict,samplestats,stuttermark,stuttermodel,tssv
+sequence format options     allelefinder,bganalyse,bgcorrect,bgestimate,bghomraw,bghomstats,bgmerge,bgpredict,stuttermark,stuttermodel,tssv
 random subsampling options  bgestimate,bghomstats,stuttermodel
 visualisation options       vis
 *tssv has sequence format options before output file options
 
 Input/output of tools:      INPUT           OUTPUT
 allelefinder    list of sample files        *single output + report
+bganalyse       list of sample files        single output
 bgcorrect       bg file + single sample (b) single sample (batches supported)
 bgestimate      list of sample files        single output + report
 bghomraw        list of sample files        single output
 bghomstats      list of sample files        single output
 bgmerge^        list of bg files            single output
 bgpredict^      model + seqfile             single output
-blame           bg file + list of samples   single output
 libconvert^     single input library        single output
 samplestats     single sample file (batch)  single sample (batches supported)
 seqconvert      single sample file (batch)  single sample (batches supported)
@@ -187,13 +184,13 @@ Reserved option letters:
 Action for special values in sequence columns:
 TOOL            'No data'                   'Other sequences'
 allelefinder    Not suitable for marker     Ignored (Not suitable for marker)
+bganalyse       Ignored                     Ignored
 bgcorrect       Transparent                 Transparent
 bgestimate      Ignored                     Ignored
 bghomraw        Ignored                     Ignored
 bghomstats      Ignored                     Ignored
 bgmerge         Transparent                 Transparent
 bgpredict       Ignored                     Ignored
-blame           Ignored                     Ignored
 samplestats     Transparent                 Transparent; may remove or add more
 seqconvert      Transparent                 Transparent
 stuttermark     Marked as 'UNKNOWN'         Marked as 'UNKNOWN'

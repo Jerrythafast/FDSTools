@@ -21,380 +21,833 @@
     # along with FDSTools.  If not, see <http://www.gnu.org/licenses/>.
     -->
     <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta charset="UTF-8">
     <title>Background Noise Profile Visualisation - FDSTools</title>
-    <!-- VERSION 1.0.1 -->
+    <!-- VERSION 2.0.0 -->
     <!-- BEGIN_LIBRARIES -->
     <script src="https://vega.github.io/vega-editor/vendor/d3.min.js"></script>
     <script src="https://vega.github.io/vega/vega.min.js"></script>
     <!-- END_LIBRARIES -->
     <style>
-        * {
-            font-family: Helvetica Neue, Helvetica, Arial, sans-serif;
+    input {
+        font-family: inherit;
+        font-size: 1em;
+    }
+    .icon {
+        padding: 1em;
+        margin-right: .25em;
+        background-size: contain;
+        background-position: center;
+        background-repeat: no-repeat;
+    }
+    @media screen {
+        html, body {
+            /* First the UI fonts of WinVista+, OSX10.11, OSX10.10, OSX10.9-, WinXP-, Ubuntu. Then some fallbacks. */
+            font-family: Segoe UI, San Francisco, Helvetica Neue, Lucida Grande, Tahoma, Ubuntu, Helvetica, Arial, sans-serif;
             font-size: 10pt;
         }
         body {
-            margin: 0px;
+            margin: 0rem;
         }
-        div.options {
-            position: absolute;
-            padding: 5px;
-            background-color: rgba(255, 255, 255, 0.8);
-            z-index: 10;
+        a {
+            color: inherit;
+            text-decoration: inherit;
+            border-bottom: 1px dotted;
         }
-        div.options span.help {
+        a:hover {
+            border-bottom: 1px solid;
+        }
+        a.disabled {
+            color: hsl(220, 20%, 53%);
+        }
+        a.disabled:hover {
+            color: hsl(220, 20%, 53%);
+            border-bottom: 1px dotted;
+            cursor: default;
+        }
+        #outer {
+            display: flex;
+            flex-flow: column nowrap;
+            height: 100vh;
+            overflow: hidden;
+        }
+        #inner {
+            display: flex;
+            flex-flow: row nowrap;
+            flex: 1 1 auto;
+            overflow: hidden;
+        }
+        #optscrollbox {
+            display: flex;
+            flex-flow: column nowrap;
+            flex: 0 0 auto;
+            width: 22.5em;
+            order: -1;
+            overflow: auto;
+            background-color: hsl(220, 20%, 77%);
+            border-right: 1px solid hsl(220, 20%, 3%);
+            border-bottom: none;
+            cursor: default;
+        }
+        #visscrollbox {
+            flex: 1 1 auto;
+            overflow: auto;
+            background-color: hsl(220, 20%, 97%); /* eef8ff */
+            text-align: right;
+        }
+        .optiongroup {
+            flex: 0 0 auto;
+            padding: .2rem .2rem 1rem;
+        }
+        .optiongroup:last-child {
+            padding: .2rem;
+        }
+        .optiongroup > table {
+            margin: 0rem;
+            border-spacing: 0rem;
+            border: none;
+        }
+        .optiongroup > .optionheader {
+            text-align: left;
+            font-weight: bold;
+            text-transform: uppercase;
+        }
+        .optiongroup > .optionheader:first-letter {
+            font-size: 1.25em;
+        }
+        .optiongroup > table td {
+            white-space: nowrap;
+        }
+        .optiongroup > table td:not(:last-child) {
+            padding-right: .4rem;
+        }
+        .optiongroup > table tr.fileselectrow, .optiongroup > table tr.fileselect2row, .optiongroup > table tr.fileselect3row, .optiongroup > table tr.filenamedisplayrow {
+            display: none;
+        }
+        .optiongroup > table tr.filenamedisplayrow #filenamedisplay {
+            max-width: 20em;
+            width: auto;
+        }
+        .optiongroup > table td.footnote {
+            font-style: italic;
+            white-space: wrap;
+        }
+        .optiongroup > table select {
+            font-size: inherit;
+            font-family: inherit;
+        }
+        .help {
             cursor: help;
             font-weight: bold;
-            border-bottom: 1px dashed black;
+            border-bottom: 1px dotted hsl(220, 20%, 3%);
         }
-        table.optiongroup {
-            padding: 10px 0px 0px 0px;
+        .hidden {
+            display: none;
+        }
+        .special-option {
+            font-style: italic;
+        }
+        #vis {
+            direction: rtl;
+            display: inline-block;
+        }
+        #vis div {
+            direction: ltr;
+        }
+        #vis div:nth-child(2n+3) {
+            border-top: 1px solid hsl(220, 20%, 3%);
+            padding-top: .8rem;
+            margin-top: .8rem;
+        }
+        #vis div:last-child {
+            padding-bottom: .8rem;
+        }
+        td.num {
+            text-align: right;
+        }
+        td.wrap {
+            white-space: normal !important;
+            width: 1em;
+        }
+    }
+    /*
+    portrait, height >= 55:
+
+      small collapsed   large collapsed   small top    large top
+    |-----------------|-----------------|------------|------------>  width
+    0                 45                60           68
+
+
+    portrait, height < 55:
+
+      small collapsed   large collapsed
+    |-----------------|------------------------------------------->  width
+    0                 45
+
+
+    landscape:
+
+      small collapsed   large collapsed   small left   large left
+    |-----------------|-----------------|------------|------------>  width
+    0                 45                60           68
+    */
+    @media only screen and (min-aspect-ratio: 40000/30000) and (min-width: 60em) and (max-width: 68em), /* Full menu is at the side, but viewport is not very wide */
+           only screen and (max-aspect-ratio: 40000/30000) and (min-height: 55em) and (min-width: 60em) and (max-width: 68em), /* Full menus at the top, but viewport not wide enough */
+           only screen and (max-width: 45em) { /* Very narrow; menu names don't fit anymore */
+        /* Limited width: make menu smaller */
+        #optscrollbox {
+            font-size: .85em;
+        }
+    }
+    @media only screen and (max-aspect-ratio: 40000/30000), only screen and (max-width: 60em) {
+        /* Portrait or near-portrait, or rather narrow: menu at the top */
+        #inner {
+            flex-direction: column;
+        }
+        #optscrollbox {
+            flex: 0 0 auto;
+            flex-flow: row nowrap;
+            width: 100%;
+            border-right: none;
+            border-bottom: 1px solid hsl(220, 20%, 3%);
+        }
+        #visscrollbox {
+            flex: 1 1 auto;
+        }
+        .optiongroup {
+            flex: 1 0 auto;
+            padding: .2rem 1rem .2rem .2rem;
+        }
+    }
+    @media only screen and (max-aspect-ratio: 40000/30000) and (max-height: 55em), only screen and (max-width: 60em) {
+        /* Portrait or near-portrait combined with very limited height, or rather narrow: collapse menu */
+        #optscrollbox {
+            overflow: visible;
+            z-index: 100;
+            border-bottom: 1px solid hsl(220, 20%, 3%);
+        }
+        .optiongroup {
+            position: relative;
+        }
+        .optiongroup > table {
+            display: none;
+            position: absolute;
+            top: 100%;
+            background-color: hsl(220, 20%, 77%);
+            border: 1px solid hsl(220, 20%, 3%);
+            border-top: none;
+        }
+        .optiongroup:last-child > table {
+            left: auto;
+            right: .2rem;
+        }
+        .optiongroup:hover > .optionheader {
+            color: hsl(220, 20%, 97%);
+        }
+        .optiongroup:hover > table {
+            display: table;
+        }
+    }
+
+    @media print {
+        html, body {
+            font-family: Helvetica Neue, Helvetica, Arial, sans-serif;
+            font-size: 10pt;
+        }
+        .noprint, .help, .hidden {
+            display: none;
+        }
+        #optscrollbox {
+            display: flex;
+            box-sizing: border-box;
+            flex-flow: row wrap;
+            align-items: stretch;
+            width: 100%;
+            border-top: 1pt solid black;
+            border-right: 1pt solid black;
+            font-size: 7pt;
+        }
+        .optiongroup {
+            flex-grow: 1;
+            padding: 5pt;
+            border-left: 1pt solid black;
+            border-bottom: 1pt solid black;
+        }
+        .optiongroup > table {
+            padding: 0px;
             margin: 0px;
             border-spacing: 0px;
             border: none;
         }
-        table.optiongroup td {
-            padding-right: 10px;
-        }
-        table.optiongroup th {
+        .optiongroup > .optionheader {
             text-align: left;
             font-weight: bold;
-            padding-top: 5px;
+            text-transform: uppercase;
         }
-        #optionsheader {
-            cursor: pointer;
-            font-variant: small-caps;
-            border-bottom: 1px dashed black;
+        .optiongroup > .optionheader:first-letter {
+            font-size: 1.25em;
         }
-        div#vis {
-            position: absolute;
-            overflow: auto;
-            bottom: 0px;
-            top: 0px;
-            right: 0px;
-            left: 0px;
+        .optiongroup > table td {
+            white-space: nowrap;
+        }
+        .optiongroup > table td:not(:last-child) {
+            padding-right: 5pt;
+        }
+        .optiongroup > table td.footnote {
+            font-style: italic;
+            white-space: wrap;
+        }
+        .optiongroup > table input {
+            border: none;
+        }
+        .optiongroup > table select {
+            /* No dropdow box arrow on FF and Webkit-based browsers */
+            -webkit-appearance: none;
+            -moz-appearance: none;
+            appearance: none;
+            font-size: inherit;
+            border: none;
+        }
+        select::-ms-expand {
+            /* No dropdown box arrow on IE10+ */
+            display: none;
+        }
+        .optiongroup > table input[type=checkbox] {
+            height: 1em;
+            width: 1em;
+        }
+        #vis {
+            width: 100%;
+        }
+        #vis > div {
+            width: 100%;
+            direction: rtl;
             text-align: right;
         }
+        #vis > div > * {
+            direction: ltr;
+        }
+        .vega, canvas {
+            max-width: 100%;
+            height: auto;
+            overflow: visible;
+        }
+        svg {
+            /* Using slightly smaller width to prevent clipping in Chrome */
+            max-width: 98%;
+            height: auto;
+            overflow: visible;
+        }
+        canvas {
+            object-fit: scale-down;
+        }
+        .num {
+            text-align: right;
+        }
+        td.wrap {
+            white-space: normal !important;
+        }
+    }
     </style>
 </head>
 <body>
-    <div class="options">
-        <strong id="optionsheader">Options</strong><br>
-        <div id="options">
-            <table class="optiongroup" id="fileselectgroup" style="display: none">
-                <tr>
-                    <th>Input file</th>
-                </tr>
-                <tr>
+<div id="outer">
+<div id="inner">
+    <div id="optscrollbox">
+        <div class="optiongroup noprint">
+            <div class="optionheader">Input &amp; output</div>
+            <table>
+                <tr class="fileselectrow filenamedisplayrow">
                     <td>Background noise profiles file:</td>
                 </tr>
-                <tr>
+                <tr class="fileselectrow">
                     <td><input id="fileselect" type="file"></td>
                 </tr>
-                <tr>
+                <tr class="filenamedisplayrow">
+                    <td id="filenamedisplay" class="wrap"></td>
+                </tr>
+                <tr class="fileselect2row">
+                    <td>Raw per-sample background noise file:</td>
+                </tr>
+                <tr class="fileselect2row">
+                    <td><input id="fileselect2" type="file"></td>
+                </tr>
+                <tr class="fileselect3row">
                     <td>(or drag a file onto this page)</td>
                 </tr>
-            </table>
-            <table class="optiongroup">
                 <tr>
-                    <th colspan="2">Filtering options</th>
-                </tr>
-                <tr>
-                    <td>Minimum noise ratio</td>
-                    <td><input type="text" value="0.5" id="minP" size="3">%</td>
-                </tr>
-                <tr>
-                    <td>Marker name</td>
                     <td>
-                        <input type="text" id="markerFilter" size="20">
-                        <span class="help" title="Type xyz to show all markers with 'xyz' in their names. Type =xyz to show only the marker 'xyz'. Separate multiple values with spaces.">?</span>
+                        <a id="saveImageLink" href="javascript:void(saveImage())" class="disabled">Save image</a>
                     </td>
                 </tr>
             </table>
-            <table class="optiongroup">
+        </div>
+        <div class="optiongroup">
+            <div class="optionheader">Filtering options</div>
+            <table>
                 <tr>
-                    <th colspan="3">Display options</th>
+                    <td><label for="minN">Require at least</label></td>
+                    <td>
+                        <label>
+                            <input type="text" value="5" id="minN" size="3"> reads
+                            <span class="help" title="This option applies only to raw per-sample data points.">?</span>
+                        </label>
+                    </td>
                 </tr>
                 <tr>
-                    <td>Graph width</td>
-                    <td colspan="2"><input type="text" value="600" id="graphwidth" size="3"> px</td>
+                    <td><label for="minP">Minimum noise ratio</label></td>
+                    <td><label><input type="text" value="0.5" id="minP" size="3">%</label></td>
                 </tr>
                 <tr>
-                    <td>Bar width</td>
-                    <td colspan="2"><input type="text" value="15" id="barwidth" size="3"> px</td>
+                    <td rowspan="2"><label for="markerSelect">Marker name</label></td>
+                    <td>
+                        <select id="markerSelect">
+                            <option value="" class="special-option" selected>Show all</option>
+                            <option value="CUSTOM" class="special-option">Custom filter</option>
+                        </select>
+                    </td>
                 </tr>
                 <tr>
-                    <td>Subgraph spacing</td>
-                    <td colspan="2"><input type="text" value="70" id="subgraphoffset" size="3"> px</td>
+                    <td id="markerFilterRow" class="hidden">
+                        <label>
+                            <input type="text" id="markerFilter" size="15">
+                            <span class="help" title="Type xyz to show all markers with 'xyz' in their names. Type =xyz to show only the marker 'xyz'. Separate multiple values with spaces.">?</span>
+                        </label>
+                    </td>
+                </tr>
+            </table>
+        </div>
+        <div class="optiongroup noprint">
+            <div class="optionheader">Display options</div>
+            <table>
+                <tr>
+                    <td><label for="graphwidth">Graph width</label></td>
+                    <td colspan="2"><label><input type="text" value="600" id="graphwidth" size="3"> px</label></td>
+                </tr>
+                <tr>
+                    <td><label for="barwidth">Bar width</label></td>
+                    <td colspan="2"><label><input type="text" value="15" id="barwidth" size="3"> px</label></td>
+                </tr>
+                <tr>
+                    <td><label for="subgraphoffset">Subgraph spacing</label></td>
+                    <td colspan="2"><label><input type="text" value="70" id="subgraphoffset" size="3"> px</label></td>
                 </tr>
                 <tr>
                     <td>Axis scale</td>
-                    <td><input type="radio" name="scale" value="linear" id="scaleLinear" checked> Linear</td>
-                    <td><input type="radio" name="scale" value="log" id="scaleLog"> Logarithmic
-                    </td>
+                    <td><label><input type="radio" name="scale" value="linear" id="scaleLinear" checked> Linear</label></td>
+                    <td><label><input type="radio" name="scale" value="log" id="scaleLog"> Logarithmic</label></td>
                 </tr>
                 <tr>
                     <td>Renderer</td>
-                    <td><input type="radio" name="renderer" value="svg" id="renderSVG" checked> SVG</td>
-                    <td><input type="radio" name="renderer" value="canvas" id="renderCanvas"> Canvas</td>
+                    <td><label><input type="radio" name="renderer" value="svg" id="renderSVG" checked> SVG</label></td>
+                    <td><label><input type="radio" name="renderer" value="canvas" id="renderCanvas"> Canvas</label></td>
                 </tr>
             </table>
-            <a id="saveLink" href="javascript:void(saveImage())" style="display: none">Save image</a>
         </div>
     </div>
-    <div id="vis"></div>
-    <script type="text/javascript">
-        var graph = false;
-        var fileName = "graph";
-        var stamp = 0;
-        function parse(){
-            var this_stamp = ++stamp;
-            vg.parse.spec(graph_spec, function(chart){
-                //Cancel rendering if a new parse() call was made.
-                if(this_stamp != stamp)
-                    return;
-
-                var visdiv = document.getElementById("vis");
-                graph = chart({el: visdiv, renderer: document.querySelector("input[name=renderer]:checked").value});
-                graph.update();
-                document.getElementById("saveLink").style.display = "inline";
-
-                //Scroll to the right; the graph is more interesting than the long labels.
-                visdiv.scrollLeft = visdiv.scrollWidth;
-            });
-        }
-
-        function compileFilter(filter){
-            return new RegExp('(?:' + filter.replace(/(^| )=(.*?)(?= |$)/g, '$1^$2$$').replace(/ +/g, ')|(?:') + ')')
-        }
-
-        function setScale(value){
-            if(!graph_spec)
-                return;
-            for(i in graph_spec.marks)
-                if(graph_spec.marks[i].scales)
-                    for(j in graph_spec.marks[i].scales)
-                        if(graph_spec.marks[i].scales[j].name == "x")
-                            graph_spec.marks[i].scales[j].type = value;
-            setSignalValue("low", value == "log"? 0.001 : 0);
-
-            if(graph)
-                parse();
-        }
-
-        function getScale(){
-            if(!graph_spec)
-                return "linear";
-            for(i in graph_spec.marks)
-                if(graph_spec.marks[i].scales)
-                    for(j in graph_spec.marks[i].scales)
-                        if(graph_spec.marks[i].scales[j].name == "x")
-                            return graph_spec.marks[i].scales[j].type;
-            return "linear";
-        }
-
-        function setSignalValue(signalname, value){
-            if(!graph_spec)
-                return;
-            var visdiv = document.getElementById("vis");
-            var scrollRight = (visdiv.scrollLeft >= visdiv.scrollWidth - visdiv.clientWidth);
-            if(signalname == "width")
-                graph_spec.width = value;
-            for(i in graph_spec.signals){
-                if(graph_spec.signals[i].name == signalname){
-                    graph_spec.signals[i].init = value;
-                    break;
-                }
-            }
-            if(graph)
-                graph.signal(signalname, value).padding("auto").update();
-            if(scrollRight)
-                visdiv.scrollLeft = visdiv.scrollWidth;
+    <div id="visscrollbox">
+        <div id="vis"></div>
+    </div>
+</div>
+</div>
+<script type="text/javascript">
+var graph = false;
+var data_format = {};
+var data_values = [];
+var fileName = "bgprofile";
+var stamp = 0;
+function parse(){
+    var this_stamp = ++stamp;
+    var visdiv = document.getElementById("vis");
+    var scrolldiv = document.getElementById("visscrollbox");
+    var rendererName = document.querySelector("input[name=renderer]:checked").value;
+    removeChildren(visdiv);
+    document.getElementById("saveImageLink").setAttribute("class", "disabled");
+    vg.parse.spec(graph_spec, function(chart){
+        //Cancel rendering if a new parse() call was made.
+        if(this_stamp != stamp)
             return;
-        }
 
-        function getSignalValue(signalname){
-            if(!graph_spec)
-                return false;
-            if(signalname == "width")
-                return graph_spec.width;
-            for(i in graph_spec.signals)
-                if(graph_spec.signals[i].name == signalname)
-                    return graph_spec.signals[i].init;
-            return false;
-        }
+        //Add new visualisation divs.
+        var newvis = document.createElement("div");
+        newvis.setAttribute("id", "vis0");
+        visdiv.appendChild(newvis);
 
-        function setRenderer(value){
-            if(graph)
-                graph.renderer(value).update();
-        }
+        graph = chart({el: newvis, renderer: rendererName});
+        graph.update();
+        if(rendererName == "svg")
+            updateViewBox(graph._el.childNodes[0]);
+        document.getElementById("saveImageLink").setAttribute("class", "");
 
-        function setFileName(value){
-            if(!value)
-                value = "graph";
-            fileName = value;
-            if(value == "graph")
-                document.title = "Background Noise Profile Visualisation - FDSTools";
-            else
-                document.title = value + " - Background Noise Profile Visualisation - FDSTools";
-        }
+        //Scroll to the right; the graph is more interesting than the long labels.
+        scrolldiv.scrollLeft = scrolldiv.scrollWidth;
+    });
+}
 
-        //Load the data (input is a fileList object; only the first file is loaded).
-        var currentlyLoadedFile = "no/file/loaded";
-        function loadDataset(fileList){
-            if(!graph_spec || !fileList || !fileList.length || fileList[0].name == currentlyLoadedFile)
-                return;
-            currentlyLoadedFile = fileList[0].name;
-            var reader = new FileReader();
-            reader.onload = function(e){
-                if(fileList && fileList.length && fileList[0].name)
-                    setFileName(fileList[0].name.substr(0, fileList[0].name.lastIndexOf(".")));
-                else
-                    setFileName(false);
-                graph_spec.data[0].values = reader.result;
-                parse();
-            };
-            reader.readAsText(fileList[0]);
-        }
+function compileFilter(filter){
+    return new RegExp('(?:' + filter.replace(/(^| )=(.*?)(?= |$)/g, '$1^$2$$').replace(/ +/g, ')|(?:') + ')')
+}
 
-        //Save image function.
-        function saveImage(){
-            var imageType = document.getElementById("renderSVG").checked? "svg": "png";
-            if(window.navigator.msSaveOrOpenBlob){
-                //Internet Explorer has its own ways of doing things.
-                var b;
-                if(imageType == "svg")
-                    b = new Blob([graph._el.innerHTML], {type: "image/svg+xml;charset=utf-8"});
-                else
-                    b = graph._el.firstChild.msToBlob();
-                window.navigator.msSaveOrOpenBlob(b, fileName + "." + imageType);
-                if(b.msClose)
-                    b.msClose();
+function updateViewBox(svg){
+    //Setting the viewBox enables shrink-to-fit behaviour when printing.
+    svg.setAttribute("viewBox",
+        "0 0 " + svg.getAttribute("width") + " " + svg.getAttribute("height"));
+}
+
+function removeChildren(el){
+    while(el.lastChild){
+      el.removeChild(el.lastChild);
+    }
+}
+
+function setScale(value){
+    if(!graph_spec)
+        return;
+    for(i in graph_spec.marks)
+        if(graph_spec.marks[i].scales)
+            for(j in graph_spec.marks[i].scales)
+                if(graph_spec.marks[i].scales[j].name == "x")
+                    graph_spec.marks[i].scales[j].type = value;
+    setSignalValue("low", value == "log"? 0.001 : 0);  //Need this for profile bars.
+
+    if(graph)
+        parse();
+}
+
+function getScale(){
+    if(!graph_spec)
+        return "linear";
+    for(i in graph_spec.marks)
+        if(graph_spec.marks[i].scales)
+            for(j in graph_spec.marks[i].scales)
+                if(graph_spec.marks[i].scales[j].name == "x")
+                    return graph_spec.marks[i].scales[j].type;
+    return "linear";
+}
+
+function setSignalValue(signalname, value){
+    if(!graph_spec)
+        return;
+    var scrolldiv = document.getElementById("visscrollbox");
+    var scrollRight = (scrolldiv.scrollLeft >= scrolldiv.scrollWidth - scrolldiv.clientWidth);
+    if(signalname == "width")
+        graph_spec.width = value;
+    for(i in graph_spec.signals){
+        if(graph_spec.signals[i].name == signalname){
+            graph_spec.signals[i].init = value;
+            break;
+        }
+    }
+    if(graph){
+        graph.signal(signalname, value).padding("auto").update();
+        if(document.getElementById("renderSVG").checked)
+            updateViewBox(graph._el.childNodes[0]);
+    }
+    if(scrollRight)
+        scrolldiv.scrollLeft = scrolldiv.scrollWidth;
+    return;
+}
+
+function getSignalValue(signalname){
+    if(!graph_spec)
+        return false;
+    if(signalname == "width")
+        return graph_spec.width;
+    for(i in graph_spec.signals)
+        if(graph_spec.signals[i].name == signalname)
+            return graph_spec.signals[i].init;
+    return false;
+}
+
+function setRenderer(value){
+    if(graph){
+        graph.renderer(value).update();
+        if(value == "svg")
+            updateViewBox(graph._el.childNodes[0]);
+    }
+}
+
+function setFileName(value){
+    if(!value)
+        value = "bgprofile";
+    fileName = value;
+    if(value == "bgprofile")
+        document.title = "Background Noise Profile Visualisation - FDSTools";
+    else
+        document.title = value + " - Background Noise Profile Visualisation - FDSTools";
+}
+
+function makeMarkerSelectionOptions(data){
+    var sel = document.getElementById("markerSelect");
+    var val = sel.value;
+    removeChildren(sel);
+    var opt = document.createElement("option");
+    opt.setAttribute("value", "");
+    opt.setAttribute("class", "special-option");
+    opt.innerText = "Show all";
+    sel.appendChild(opt);
+
+    var markerNames = {}
+    var validValue = (val == "CUSTOM");
+    data.forEach(function(datum){
+        markerNames[datum.marker] = true;
+    });
+    Object.keys(markerNames).sort().forEach(function(marker){
+        opt = document.createElement("option");
+        opt.setAttribute("value", "=" + marker);
+        opt.innerText = marker;
+        sel.appendChild(opt);
+        if(val == "=" + marker)
+            validValue = true;
+    });
+    opt = document.createElement("option");
+    opt.setAttribute("value", "CUSTOM");
+    opt.setAttribute("class", "special-option");
+    opt.innerText = "Custom filter";
+    sel.appendChild(opt);
+    sel.value = validValue? val : "";
+    if(!validValue){
+        document.getElementById("markerFilter").value = "";
+        if(graph)  // Don't overwrite the filter_marker on initial data load.
+            setSignalValue("filter_marker", "");
+    }
+}
+
+var currentlyLoadedProfilesFile = "no/file/loaded";
+function loadProfiles(filename, data){
+    if(filename == currentlyLoadedProfilesFile)
+        return false;
+    currentlyLoadedProfilesFile = filename;
+    if(filename)
+        setFileName(filename.substr(0, filename.lastIndexOf(".")));
+    else
+        setFileName(false);
+    data_values = vg.util.read(data, data_format);
+    graph_spec.data[0].values = data_values;
+    makeMarkerSelectionOptions(data_values);
+    return true;
+}
+var currentlyLoadedRawDataFile = "no/file/loaded";
+function loadRawData(filename, data){
+    if(filename == currentlyLoadedRawDataFile)
+        return false;
+    currentlyLoadedRawDataFile = filename;
+    graph_spec.data[1].values = data;
+    return !!graph;
+}
+function setSelectedFiles(input, fileList){
+    //Try to clear the currently displayed file, then try to set
+    //the drag-'n-dropped file as the selected one on the file input.
+    //Both actions are not supported in all major browsers.
+    input.value = "";
+    input.files = fileList;
+}
+
+//Input is a fileList object; only the first file is loaded.
+var embeddedFiles = 0;
+function loadFile(fileList, setInput){
+    if(!graph_spec || !fileList || !fileList.length)
+        return;
+    var reader = new FileReader();
+    reader.onload = function(e){
+        var success;
+        var cols = reader.result.substr(0, reader.result.indexOf("\n")).split("\t");
+        if(Math.min(cols.indexOf("fnoise"), cols.indexOf("rnoise"), cols.indexOf("tnoise")) == -1){
+            //This is a file with background noise profiles.
+            if((embeddedFiles & 1) == 0){
+                success = loadProfiles(fileList[0].name, reader.result);
+                if(setInput)
+                    setSelectedFiles(document.getElementById("fileselect"), fileList);
             }
-            else{
-                var link = document.getElementById("saveLink");
-                link.setAttribute("href", graph.toImageURL(imageType));
-                link.setAttribute("download", fileName + "." + imageType);
-                link.click();
-                link.setAttribute("href", "javascript:void(saveImage())");
-                link.removeAttribute("download");
-            }
-            return false;
         }
-
-        function onLoadSpec(has_data){
-            if(!has_data){
-                //Handle files from the file input.
-                document.getElementById("fileselect").addEventListener('change', function(){
-                    loadDataset(document.getElementById("fileselect").files);
-                }, false);
-                document.getElementById("fileselectgroup").style.display = "table";
-
-                //Allow files to be dragged onto the page.
-                document.addEventListener('dragover', function(evt){
-                    evt.stopPropagation();
-                    evt.preventDefault();
-                }, false);
-                document.addEventListener('drop', function(evt){
-                    evt.stopPropagation();
-                    evt.preventDefault();
-
-                    //Try to clear the currently displayed file, then try to set
-                    //the drag-'n-dropped file as the selected one on the file input.
-                    //Both actions are not supported in all major browsers.
-                    document.getElementById("fileselect").value = "";
-                    document.getElementById("fileselect").files = evt.dataTransfer.files;
-                    loadDataset(evt.dataTransfer.files);
-                }, false);
-            }
-            else if(graph_spec.data[0].fdstools_filename)
-                setFileName(graph_spec.data[0].fdstools_filename);
-
-            //Update graph when rendering mode or axis scale is changed.
-            document.getElementById("renderCanvas").addEventListener('change', function(){
-                setRenderer(this.value);
-            }, false);
-            document.getElementById("renderSVG").addEventListener('change', function(){
-                setRenderer(this.value);
-            }, false);
-            document.getElementById("scaleLinear").addEventListener('change', function(){
-                setScale(this.value);
-            }, false);
-            document.getElementById("scaleLog").addEventListener('change', function(){
-                setScale(this.value);
-            }, false);
-            document.getElementById("graphwidth").addEventListener('change', function(){
-                var value = parseFloat(this.value);
-                if(isNaN(value))
-                    return;
-                setSignalValue("width", value);
-            }, false);
-            document.getElementById("barwidth").addEventListener('change', function(){
-                var value = parseFloat(this.value);
-                if(isNaN(value))
-                    return;
-                setSignalValue("barwidth", value);
-            }, false);
-            document.getElementById("subgraphoffset").addEventListener('change', function(){
-                var value = parseFloat(this.value);
-                if(isNaN(value))
-                    return;
-                setSignalValue("subgraphoffset", value);
-            }, false);
-            document.getElementById("minP").addEventListener('change', function(){
-                var value = parseFloat(this.value);
-                if(isNaN(value))
-                    return;
-                setSignalValue("filter_threshold", value);
-            }, false);
-            document.getElementById("markerFilter").addEventListener('change', function(){
-                var value = this.value;
-                try{
-                    compileFilter(value.trim());
-                }
-                catch(e){
-                    value = "=";
-                }
-                setSignalValue("filter_marker", value);
-            }, false);
-
-            //Toggle options visibility.
-            document.getElementById("optionsheader").addEventListener('click', function(){
-                var opts = document.getElementById("options");
-                if(opts.style.display == "none")
-                    document.getElementById("options").style.display = "block";
-                else
-                    document.getElementById("options").style.display = "none";
-            }, false);
-
-            //Sync graph_spec and display.
-            if(getScale() == "linear"){
-                document.getElementById("scaleLinear").checked = true;
-                document.getElementById("scaleLog").checked = false;
-            }
-            else{
-                document.getElementById("scaleLinear").checked = false;
-                document.getElementById("scaleLog").checked = true;
-            }
-            document.getElementById("markerFilter").value = getSignalValue("filter_marker");
-            document.getElementById("graphwidth").value = getSignalValue("width");
-            document.getElementById("barwidth").value = getSignalValue("barwidth");
-            document.getElementById("subgraphoffset").value = getSignalValue("subgraphoffset");
-            document.getElementById("minP").value = getSignalValue("filter_threshold");
-            if(has_data){
-                document.getElementById("options").style.display = "none";
-                parse();
-            }
+        else if((embeddedFiles & 2) == 0){
+            //This is a file with raw data points.
+            success = loadRawData(fileList[0].name, reader.result);
+            if(setInput)
+                setSelectedFiles(document.getElementById("fileselect2"), fileList);
         }
-    </script>
-    <!-- BEGIN_LOAD_SCRIPT -->
-    <script type="text/javascript">
-        var graph_spec = false;
-        vg.util.load({url: "profilevis.json"}, function(err, result){
-            graph_spec = JSON.parse(result);
-            onLoadSpec(false);
-        });
-    </script>
-    <!-- END_LOAD_SCRIPT -->
+        if(success)
+            parse();
+    };
+    reader.readAsText(fileList[0]);
+}
+
+//Save image function.
+function saveImage(){
+    var link = document.getElementById("saveImageLink");
+    if(link.getAttribute("class") == "disabled")
+        return false;
+    var imageType = document.getElementById("renderSVG").checked? "svg": "png";
+    if(window.navigator.msSaveOrOpenBlob){
+        //Internet Explorer has its own ways of doing things.
+        var b;
+        if(imageType == "svg")
+            b = new Blob([graph._el.innerHTML], {type: "image/svg+xml;charset=utf-8"});
+        else
+            b = graph._el.firstChild.msToBlob();
+        window.navigator.msSaveOrOpenBlob(b, fileName + "." + imageType);
+        if(b.msClose)
+            b.msClose();
+    }
+    else{
+        link.setAttribute("href", graph.toImageURL(imageType));
+        link.setAttribute("download", fileName + "." + imageType);
+        link.click();
+        link.setAttribute("href", "javascript:void(saveImage())");
+        link.removeAttribute("download");
+    }
+    return false;
+}
+
+function onLoadSpec(has_data, has_rawdata){
+    if(!has_data){
+        //Handle files from the file input.
+        document.getElementById("fileselect").addEventListener('change', function(){
+            loadFile(document.getElementById("fileselect").files);
+        }, false);
+        var rows = document.querySelectorAll(".fileselectrow");
+        for (var i = 0; i < rows.length; i++)
+            rows[i].style.display = "table-row";
+    }
+    else if(graph_spec.data[0].fdstools_filename){
+        var rows = document.querySelectorAll(".filenamedisplayrow");
+        for (var i = 0; i < rows.length; i++)
+            rows[i].style.display = "table-row";
+        var cell = document.getElementById("filenamedisplay");
+        removeChildren(cell);
+        cell.appendChild(document.createTextNode(graph_spec.data[0].fdstools_filename));
+        setFileName(graph_spec.data[0].fdstools_filename);
+    }
+    if(!has_rawdata){
+        //Handle files from the file input.
+        document.getElementById("fileselect2").addEventListener('change', function(){
+            loadFile(document.getElementById("fileselect2").files);
+        }, false);
+        var rows = document.querySelectorAll(".fileselect2row");
+        for (var i = 0; i < rows.length; i++)
+            rows[i].style.display = "table-row";
+    }
+    if(!has_data || !has_rawdata){
+        //Allow files to be dragged onto the page.
+        document.addEventListener('dragover', function(evt){
+            evt.stopPropagation();
+            evt.preventDefault();
+        }, false);
+        document.addEventListener('drop', function(evt){
+            evt.stopPropagation();
+            evt.preventDefault();
+            loadFile(evt.dataTransfer.files, true);
+        }, false);
+        var rows = document.querySelectorAll(".fileselect3row");
+        for (var i = 0; i < rows.length; i++)
+            rows[i].style.display = "table-row";
+    }
+    embeddedFiles = (has_data? 1:0) + (has_rawdata? 2:0);
+
+    //Parse data outside of Vega.
+    data_format = graph_spec.data[0].format;
+    graph_spec.data[0].format = null;
+    if(has_data)
+        loadProfiles(fileName, graph_spec.data[0].values);
+
+    //Update graph when rendering mode or axis scale is changed.
+    document.getElementById("renderCanvas").addEventListener('change', function(){
+        setRenderer(this.value);
+    }, false);
+    document.getElementById("renderSVG").addEventListener('change', function(){
+        setRenderer(this.value);
+    }, false);
+    document.getElementById("scaleLinear").addEventListener('change', function(){
+        setScale(this.value);
+    }, false);
+    document.getElementById("scaleLog").addEventListener('change', function(){
+        setScale(this.value);
+    }, false);
+    document.getElementById("graphwidth").addEventListener('change', function(){
+        var value = parseFloat(this.value);
+        if(isNaN(value))
+            return;
+        setSignalValue("width", value);
+    }, false);
+    document.getElementById("barwidth").addEventListener('change', function(){
+        var value = parseFloat(this.value);
+        if(isNaN(value))
+            return;
+        setSignalValue("barwidth", value);
+    }, false);
+    document.getElementById("subgraphoffset").addEventListener('change', function(){
+        var value = parseFloat(this.value);
+        if(isNaN(value))
+            return;
+        setSignalValue("subgraphoffset", value);
+    }, false);
+    document.getElementById("minN").addEventListener('change', function(){
+        var value = parseFloat(this.value);
+        if(isNaN(value))
+            return;
+        setSignalValue("amplitude_threshold", value);
+    }, false);
+    document.getElementById("minP").addEventListener('change', function(){
+        var value = parseFloat(this.value);
+        if(isNaN(value))
+            return;
+        setSignalValue("amplitude_pct_threshold", value);
+    }, false);
+    document.getElementById("markerSelect").addEventListener('change', function(){
+        if(this.value == "CUSTOM")
+            document.getElementById("markerFilterRow").setAttribute("class", "");
+        else{
+            document.getElementById("markerFilterRow").setAttribute("class", "hidden");
+            document.getElementById("markerFilter").value = this.value;
+            setSignalValue("filter_marker", this.value);
+        }
+    }, false);
+    document.getElementById("markerFilter").addEventListener('change', function(){
+        var value = this.value;
+        try{
+            compileFilter(value.trim());
+        }
+        catch(e){
+            value = "=";
+        }
+        setSignalValue("filter_marker", value);
+    }, false);
+
+    //Sync graph_spec and display.
+    if(getScale() == "linear"){
+        document.getElementById("scaleLinear").checked = true;
+        document.getElementById("scaleLog").checked = false;
+    }
+    else{
+        document.getElementById("scaleLinear").checked = false;
+        document.getElementById("scaleLog").checked = true;
+    }
+    var mf = getSignalValue("filter_marker");
+    document.getElementById("markerFilter").value = mf;
+    var ms = document.getElementById("markerSelect");
+    ms.value = "CUSTOM";
+    for(i = 0; i < ms.options.length; i++)
+        if(mf == ms.options.item(i).value)
+            ms.value = mf;
+    document.getElementById("markerFilterRow").setAttribute("class", ms.value == "CUSTOM"? "" : "hidden");
+    document.getElementById("graphwidth").value = getSignalValue("width");
+    document.getElementById("barwidth").value = getSignalValue("barwidth");
+    document.getElementById("subgraphoffset").value = getSignalValue("subgraphoffset");
+    document.getElementById("minN").value = getSignalValue("amplitude_threshold");
+    document.getElementById("minP").value = getSignalValue("amplitude_pct_threshold");
+    if(has_data)
+        parse();
+}
+</script>
+<!-- BEGIN_LOAD_SCRIPT -->
+<script type="text/javascript">
+var graph_spec = false;
+vg.util.load({url: "profilevis.json"}, function(err, result){
+    graph_spec = JSON.parse(result);
+    onLoadSpec(false, false);
+});
+</script>
+<!-- END_LOAD_SCRIPT -->
 </body>
 </html>

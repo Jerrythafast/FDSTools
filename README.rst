@@ -29,13 +29,29 @@ Alternatively, FDSTools can be installed by running:
 
 FDSTools Changelog
 ------------------
+v0.0.5
+    - The Blame tool was removed in favour of BGAnalyse
+    - Includes BGAnalyse v1.0.0
+    - Includes Libconvert v1.1.0
+    - Includes Library v1.0.0
+    - Includes Pipeline v1.0.0
+    - Includes Samplestats v1.1.0
+    - Includes TSSV v1.0.2
+    - Includes Vis v1.0.2
+    - Includes Allelevis v2.0.0
+    - Includes BGAnalysevis v1.0.0
+    - Includes BGRawvis v2.0.0
+    - Includes Profilevis v2.0.0
+    - Includes Samplevis v1.1.0
+    - Includes Stuttermodelvis v2.0.0
+
 v0.0.4
     - FDSTools will now print profiling information to stdout when the
-      -d/--debug option was specified.
+      -d/--debug option was specified
     - Fixed bug where specifying '-' as the output filename would be taken
       literally, while it should have been interpreted as 'write to standard
-      out' (Affected tools: BGCorrect, Samplestats, Seqconvert, Stuttermark).
-    - Added more detailed license information to FDSTools.
+      out' (Affected tools: BGCorrect, Samplestats, Seqconvert, Stuttermark)
+    - Added more detailed license information to FDSTools
     - Updated bundled JavaScript library Vega to v2.6.0
     - Updated bundled JavaScript library D3 to v3.5.17
     - Includes BGCorrect v1.0.1
@@ -90,6 +106,12 @@ v0.0.1
 
 Allelefinder
 ~~~~~~~~~~~~
+v1.0.0
+    - Initial version
+
+
+BGAnalyse
+~~~~~~~~~
 v1.0.0
     - Initial version
 
@@ -158,12 +180,6 @@ v1.0.0
     - Initial version
 
 
-Blame
-~~~~~
-v1.0.0
-    - Initial version
-
-
 FindNewAlleles
 ~~~~~~~~~~~~~~
 v1.0.0
@@ -172,6 +188,18 @@ v1.0.0
 
 Libconvert
 ~~~~~~~~~~
+v1.1.0
+    - When converting to FDSTools format, Libconvert automatically creates an
+      empty FDSTools library file with the same contents as what would be
+      obtained from the new Library tool without arguments.
+    - The -a/--aliases option was modified such that it has the same effect as
+      the -a/--aliases option of the new Library tool. This means that without
+      this option specified, the [aliases] section will not be present in the
+      output anymore.
+    - The ability of the Libconvert tool to produce an empty FDSTools library
+      file if no input file was given has been removed from the documentation
+      (but not from the tool itself).
+
 v1.0.1
     - Specifying '-' as the first positional argument to libconvert will now
       correctly interpret this as "read from stdin" instead of throwing a "file
@@ -181,8 +209,26 @@ v1.0.0
     - Initial version
 
 
+Library
+~~~~~~~
+v1.0.0
+    - Initial version
+
+
+Pipeline
+~~~~~~~~
+v1.0.0
+    - Initial version
+
+
 Samplestats
 ~~~~~~~~~~~
+v1.1.0
+    - Changed default allele calling option thresholds:
+        - Changed default value of -m/--min-pct-of-max from 5.0 to 2.0
+        - Changed default value of -p/--min-pct-of-sum from 3.0 to 1.5
+    - Mentioned allele calling in the tool descriptions
+
 v1.0.1
     - Samplestats will now round to 4 or 5 significant digits if a value is
       above 1000 or 10000, respectively. Previously, this was only done for the
@@ -262,6 +308,12 @@ v1.0.0
 
 TSSV
 ~~~~
+v1.0.2
+    - Added new option -n/--indel-score which can be used to increase the
+      penalty given to insertions and deletions in the flanking sequences
+      w.r.t. the penalty given to mismatches.
+    - NOTE: Requires TSSV v0.4.0 or newer to be installed.
+
 v1.0.1
     - Renamed the '--is_fastq' option to '--is-fastq', which was the only
       option with an underscore instead of a hyphen in FDSTools
@@ -274,6 +326,12 @@ v1.0.0
 
 Vis
 ~~~
+v1.0.2
+    - Changed default value of -n/--min-abs from 15 to 5
+    - Added -I/--input2 option, which allows for specifying a file with raw
+      data points for Stuttermodelvis and Profilevis
+    - Added support for creating BGAnalysevis visualisations
+
 v1.0.1
     - Added -j/--jitter option for Stuttermodelvis (default: 0.25)
     - Fixed bug where Vis would not allow the -n/--min-abs and the
@@ -285,6 +343,13 @@ v1.0.0
 
 Allelevis
 ~~~~~~~~~
+v2.0.0
+    - Replaced the simple Options overlay with responsive design options panels
+      in HTML visualisations
+    - Reduced Vega graph spec complexity by using the new Rank transform to
+      position the subgraphs
+    - Fixed glitch that caused unnecessary padding around the graph
+
 v1.0.0beta2
     - Fixed potential crash/corruption that could occur with very unfortunate
       combinations of sample names and marker names
@@ -297,8 +362,21 @@ v1.0.0beta1
     - Initial version
 
 
+BGAnalysevis
+~~~~~~~~~~~~
+v1.0.0
+    - Initial version
+
+
 BGRawvis
 ~~~~~~~~
+v2.0.0
+    - Replaced the simple Options overlay with responsive design options panels
+      in HTML visualisations
+    - Sequences are now sorted by CE allele length when applicable
+    - Changed default minimum number of reads from 15 to 5
+    - Added marker selection menu for easier filtering
+
 v1.0.1
     - Fixed a JavaScript crash that would occur in HTML visualisations if the
       Marker name filter resulted in an invalid regular expression (e.g., when
@@ -314,6 +392,13 @@ v1.0.0
 
 Profilevis
 ~~~~~~~~~~
+v2.0.0
+    - Replaced the simple Options overlay with responsive design options panels
+      in HTML visualisations
+    - Alleles and sequences are now sorted by CE allele length when applicable
+    - Added option to plot BGHomRaw data on top of the profiles
+    - Added marker selection menu for easier filtering
+
 v1.0.1
     - Fixed a JavaScript crash that would occur in HTML visualisations if the
       Marker name filter resulted in an invalid regular expression (e.g., when
@@ -329,6 +414,13 @@ v1.0.0
 
 Samplevis
 ~~~~~~~~~
+v2.1.0
+    - Changed default minimum number of reads for graph filtering from 15 to 5
+    - Changed default table filtering options:
+        - Percentage of highest allele per marker changed from 5% to 2%
+        - Percentage of the marker's total reads changed from 3% to 1.5%
+        - Minimum number of reads in both orientations changed from 0 to 1
+
 v2.0.1
     - Fixed a JavaScript crash that would occur in HTML visualisations if the
       Marker name filter resulted in an invalid regular expression (e.g., when
@@ -352,6 +444,15 @@ v2.0.0
 
 Stuttermodelvis
 ~~~~~~~~~~~~~~~
+v2.0.0
+    - Replaced the simple Options overlay with responsive design options panels
+      in HTML visualisations
+    - Fixed glitch that caused the graphs to be re-rendered twice when loading
+      a file by drag-and-drop in HTML visualisations
+    - Fixed glitch that made it possible to replace the data that was embedded
+      in an HTML visualisation through drag-and-drop
+    - Added repeat unit selection menu for easier filtering
+
 v1.0.0beta2
     - HTML visualisations now support drawing raw data points on top of the fit
       functions. The points can be drawn with an adjustable jitter to reduce

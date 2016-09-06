@@ -55,14 +55,14 @@ from pkg_resources import resource_stream, resource_string
 
 from ..lib import pos_int_arg
 
-__version__ = "1.0.1"
+__version__ = "1.0.2"
 
 
 # Default values for parameters are specified below.
 
 # Default minimum number of reads to require.
 # This value can be overridden by the -n command line option.
-_DEF_THRESHOLD_ABS = 15
+_DEF_THRESHOLD_ABS = 5
 
 # Default minimum amount of reads to require, as a percentage of the
 # highest allele of each marker.
@@ -158,12 +158,12 @@ def set_axis_scale(spec, scalename, value):
 #set_axis_scale
 
 
-def create_visualisation(vistype, infile, outfile, vega, online, tidy, min_abs,
-                         min_pct_of_max, min_pct_of_sum, min_per_strand,
-                         bias_threshold, bar_width, padding, marker, width,
-                         height, log_scale, repeat_unit, no_alldata,
-                         no_aggregate, no_ce_length_sort, max_seq_len, jitter,
-                         title):
+def create_visualisation(vistype, infile, infile2, outfile, vega, online, tidy,
+                         min_abs, min_pct_of_max, min_pct_of_sum,
+                         min_per_strand, bias_threshold, bar_width, padding,
+                         marker, width, height, log_scale, repeat_unit,
+                         no_alldata, no_aggregate, no_ce_length_sort,
+                         max_seq_len, jitter, title):
     # Get graph spec.
     spec = json.load(resource_stream(
         "fdstools", "vis/%svis/%svis.json" % (vistype, vistype)))
@@ -174,6 +174,9 @@ def create_visualisation(vistype, infile, outfile, vega, online, tidy, min_abs,
         # Vega should load data from somewhere in headless mode.
         del spec["data"][0]["values"]
         spec["data"][0]["url"] = _DEF_DATA_FILENAME
+    if vistype in ("profile", "stuttermodel") and infile2 is not None:
+        # Embed given raw data points file.
+        spec["data"][1]["values"] = infile2.read()
 
     # Apply width, height, and padding settings.
     spec["width"] = width
@@ -185,20 +188,20 @@ def create_visualisation(vistype, infile, outfile, vega, online, tidy, min_abs,
     else:
         set_signal_value(spec, "barwidth", bar_width)
     if vistype != "allele":
-        set_signal_value(spec, "subgraphoffset", padding)
+        if vistype != "bganalyse":
+            set_signal_value(spec, "subgraphoffset", padding)
         set_signal_value(spec, "filter_marker", marker)
 
     # Apply type-specific settings.
     if vistype == "stuttermodel":
         set_signal_value(spec, "filter_unit", repeat_unit)
         set_signal_value(spec, "show_all_data", False if no_alldata else True)
-    elif vistype == "sample" or vistype == "bgraw":
+    elif vistype == "sample" or vistype == "bgraw" or vistype == "profile":
         set_signal_value(spec, "amplitude_threshold", min_abs)
         set_signal_value(spec, "amplitude_pct_threshold", min_pct_of_max)
-    elif vistype == "profile":
-        set_signal_value(spec, "filter_threshold", min_pct_of_max)
+    if vistype == "profile":
         set_signal_value(spec, "low", 0.001 if log_scale else 0)
-    if vistype == "sample":
+    elif vistype == "sample":
         set_signal_value(spec, "orientation_threshold", min_per_strand)
         set_signal_value(spec, "bias_threshold", bias_threshold)
         set_signal_value(spec, "amplitude_markerpct_threshold", min_pct_of_sum)
@@ -210,7 +213,7 @@ def create_visualisation(vistype, infile, outfile, vega, online, tidy, min_abs,
     if vistype != "stuttermodel" and vistype != "allele":
         if not log_scale:
             set_axis_scale(spec, "x", "linear")
-        elif vistype == "sample":
+        elif vistype == "sample" or vistype == "bganalyse":
             set_axis_scale(spec, "x", "sqrt")
         else:
             set_axis_scale(spec, "x", "log")
@@ -239,15 +242,18 @@ def create_visualisation(vistype, infile, outfile, vega, online, tidy, min_abs,
     html = resource_string("fdstools", "vis/%svis/index.html" % vistype)
     match = _PAT_LOAD_SCRIPT.search(html)
     if match:
-        html = "".join([html[:match.start(1)],
-                        _SCRIPT_BEGIN,
-                        "var graph_spec=",
-                        spec,
-                        ";onLoadSpec(",
-                        "true" if infile is not None else "false",
-                        ");",
-                        _SCRIPT_END,
-                        html[match.end(1):]])
+        html = "".join([
+            html[:match.start(1)],
+            _SCRIPT_BEGIN,
+            "var graph_spec=",
+            spec,
+            ";onLoadSpec(",
+            "true" if infile is not None else "false",
+            "" if vistype not in ("profile", "stuttermodel") else
+                ", true" if infile2 is not None else ", false",
+            ");",
+            _SCRIPT_END,
+            html[match.end(1):]])
 
     if not online:
         # Replace external libraries with inline libraries.
@@ -267,15 +273,17 @@ def create_visualisation(vistype, infile, outfile, vega, online, tidy, min_abs,
 
 def add_arguments(parser):
     parser.add_argument('type', metavar="TYPE",
-        choices=("sample", "profile", "bgraw", "stuttermodel", "allele"),
+        choices=("sample", "profile", "bgraw", "stuttermodel", "allele",
+            "bganalyse"),
         help="the type of data to visualise; use 'sample' to visualise "
              "sample data files and bgcorrect output; use 'profile' to "
              "visualise background noise profiles obtained with bgestimate, "
              "bghomstats, and bgpredict; use 'bgraw' to visualise raw "
              "background noise data obtained with bghomraw; use "
              "'stuttermodel' to visualise models of stutter obtained from "
-             "stuttermodel; use 'allele' to visualise the allele list "
-             "obtained from allelefinder")
+             "stuttermodel; 'bganalyse' to visualise data obtained from "
+             "bganalyse; use 'allele' to visualise the allele list obtained "
+             "from allelefinder")
     parser.add_argument('infile', metavar="IN", nargs="?",
         help="file containing the data to embed in the visualisation file; if "
              "not specified, HTML visualisation files will contain a file "
@@ -306,8 +314,8 @@ def add_arguments(parser):
                     "types")
     visgroup.add_argument('-n', '--min-abs', metavar="N", type=int,
         default=_DEF_THRESHOLD_ABS,
-        help="[sample, bgraw] only show sequences with this minimum number of "
-             "reads (default: %(default)s)")
+        help="[sample, profile, bgraw] only show sequences with this minimum "
+             "number of reads (default: %(default)s)")
     visgroup.add_argument('-m', '--min-pct-of-max', metavar="PCT", type=float,
         default=_DEF_THRESHOLD_PCT_OF_MAX,
         help="[sample, profile, bgraw] for sample: only show sequences with "
@@ -330,10 +338,10 @@ def add_arguments(parser):
         help="[sample] if specified, do not sort STR alleles by length")
     visgroup.add_argument('-M', '--marker', metavar="MARKER",
         default=_DEF_MARKER_NAME,
-        help="[sample, profile, bgraw, stuttermodel] only show graphs for the "
-             "markers that contain the given value in their name; separate "
-             "multiple values with spaces; prepend any value with '=' for an "
-             "exact match (default: show all markers)")
+        help="[sample, profile, bgraw, stuttermodel, bganalyse] only show "
+             "graphs for the markers that contain the given value in their "
+             "name; separate multiple values with spaces; prepend any value "
+             "with '=' for an exact match (default: show all markers)")
     visgroup.add_argument('-U', '--repeat-unit', metavar="UNIT",
         default=_DEF_UNIT,
         help="[stuttermodel] only show graphs for the repeat units that "
@@ -346,12 +354,13 @@ def add_arguments(parser):
         help="[sample] if specified, do not replace filtered sequences with a"
              "per-marker aggregate 'Other sequences' entry")
     visgroup.add_argument('-L', '--log-scale', action="store_true",
-        help="[sample, profile, bgraw] use logarithmic scale (for sample: "
-             "square root scale) instead of linear scale")
+        help="[sample, profile, bgraw, bganalyse] use logarithmic scale (for "
+             "sample and bganalyse: square root scale) instead of linear "
+             "scale")
     visgroup.add_argument('-b', '--bar-width', metavar="N", type=pos_int_arg,
         default=_DEF_BAR_WIDTH,
-        help="[sample, profile, bgraw] width of the bars in pixels (default: "
-             "%(default)s)")
+        help="[sample, profile, bgraw, bganalyse] width of the bars in pixels "
+             "(default: %(default)s)")
     visgroup.add_argument('-p', '--padding', metavar="N", type=pos_int_arg,
         default=_DEF_SUBGRAPH_PADDING,
         help="[sample, profile, bgraw, stuttermodel] amount of padding (in "
@@ -359,8 +368,8 @@ def add_arguments(parser):
              "%(default)s)")
     visgroup.add_argument('-w', '--width', metavar="N", type=pos_int_arg,
         default=_DEF_WIDTH,
-        help="[sample, profile, bgraw, stuttermodel, allele] width of the "
-             "graph area in pixels (default: %(default)s)")
+        help="[sample, profile, bgraw, stuttermodel, bganalyse, allele] width "
+             "of the graph area in pixels (default: %(default)s)")
     visgroup.add_argument('-H', '--height', metavar="N", type=pos_int_arg,
         default=_DEF_HEIGHT,
         help="[stuttermodel, allele] height of the graph area in pixels "
@@ -373,6 +382,12 @@ def add_arguments(parser):
         default=_DEF_JITTER,
         help="[stuttermodel] apply this amount of jitter to raw data points "
              "(between 0 and 1, default: %(default)s)")
+    visgroup.add_argument('-I', '--input2', dest="infile2", metavar="FILE",
+        type=argparse.FileType("r"),
+        help="[profile, stuttermodel] raw data points file to overlay on the "
+             "background noise profiles or stutter model graphs; if not "
+             "specified, HTML visualisation files will contain a file "
+             "selection control")
 #add_arguments
 
 
@@ -394,8 +409,8 @@ def run(args):
         # Open the specified input file.
         args.infile = open(args.infile, 'r')
 
-    create_visualisation(args.type, args.infile, args.outfile, args.vega,
-                         args.online, args.tidy, args.min_abs,
+    create_visualisation(args.type, args.infile, args.infile2, args.outfile,
+                         args.vega, args.online, args.tidy, args.min_abs,
                          args.min_pct_of_max, args.min_pct_of_sum,
                          args.min_per_strand, args.bias_threshold,
                          args.bar_width, args.padding, args.marker, args.width,

@@ -1,0 +1,465 @@
+{
+  "fdstools_visversion": "1.0.0",
+  "width": 600,
+  "height": 10,
+  "signals": [
+    {
+      "name": "filter_marker",
+      "init": ""
+    },
+    {
+      "name": "marker_regex",
+      "init": {"expr": "regexp('(?:' + replace(replace(replace(filter_marker, /^ *(.*?) *$/, '$1'), /(^| )=(.*?)(?= |$)/g, '$1^$2$$'), / +/g, ')|(?:') + ')')"},
+      "expr": "regexp('(?:' + replace(replace(replace(filter_marker, /^ *(.*?) *$/, '$1'), /(^| )=(.*?)(?= |$)/g, '$1^$2$$'), / +/g, ')|(?:') + ')')"
+    },
+    {
+      "name": "show_highest",
+      "init": true
+    },
+    {
+      "name": "show_lowest",
+      "init": true
+    },
+    {
+      "name": "show_total",
+      "init": false
+    },
+    {
+      "name": "show_recovery",
+      "init": false
+    },
+    {
+      "name": "groupby",
+      "init": "sample"
+    },
+    {
+      "name": "barwidth",
+      "init": 15
+    },
+    {
+      "name": "target_coverage",
+      "init": 3000
+    },
+    {
+      "name": "lowcov_scale",
+      "init": {"expr": "target_coverage/2"},
+      "expr": "target_coverage/2"
+    }
+  ],
+  "data": [
+    {
+      "name": "raw",
+      "values": "bganalyse_file_contents_here",
+      "format": {
+        "type": "tsv",
+        "parse": {
+          "allelic_reads": "number",
+          "highest_remaining_bg_reads": "number",
+          "lowest_remaining_bg_reads": "number",
+          "total_remaining_bg_reads": "number",
+          "highest_as_pct_of_allelic": "number",
+          "lowest_as_pct_of_allelic": "number",
+          "total_as_pct_of_allelic": "number",
+          "highest_recovery": "number",
+          "total_reads_marker": "number",
+          "total_reads_sample": "number"
+        }
+      },
+      "transform": [
+        {
+          "type": "filter",
+          "test": "test(marker_regex, datum.marker)"
+        },
+        {
+          "type": "formula",
+          "field": "groupname",
+          "expr": "datum[groupby]"
+        }
+      ]
+    },
+    {
+      "name": "groupranks",
+      "source": "raw",
+      "transform": [
+        {
+          "type": "aggregate",
+          "groupby": ["groupname"],
+          "summarize": {
+            "*": "count",
+            "total_as_pct_of_allelic": "mean",
+            "highest_as_pct_of_allelic": "max",
+            "lowest_as_pct_of_allelic": "mean",
+            "highest_recovery": "mean",
+            "total_reads_marker": "mean"
+          }
+        },
+        {
+          "type": "filter",
+          "test": "groupby == 'sample' || datum.count > 5"
+        },
+        {
+          "type": "sort",
+          "by": [
+            "-max_highest_as_pct_of_allelic",
+            "-mean_total_as_pct_of_allelic",
+            "mean_lowest_as_pct_of_allelic",
+            "mean_total_reads_marker",
+            "-mean_highest_recovery",
+            "groupname"
+          ]
+        },
+        {
+          "type": "rank"
+        }
+      ]
+    },
+    {
+      "name": "totalcount",
+      "source": "groupranks",
+      "transform": [
+        {
+          "type": "aggregate",
+          "groupby": [],
+          "summarize": {"*": "count"}
+        },
+        {
+          "type": "formula",
+          "field": "totalheight",
+          "expr": "datum.count * barwidth"
+        }
+      ]
+    },
+    {
+      "name": "table",
+      "source": "raw",
+      "transform": [
+        {
+          "type": "lookup",
+          "on": "groupranks",
+          "onKey": "groupname",
+          "keys": ["groupname"],
+          "as": ["grouprank"]
+        },
+        {
+          "type": "filter",
+          "test": "datum.grouprank"
+        },
+        {
+          "type": "formula",
+          "field": "rank",
+          "expr": "datum.grouprank.rank"
+        }
+      ]
+    },
+    {
+      "name": "symbols",
+      "values": ["Highest", "Total", "Lowest", "Recovery"],
+      "transform": [
+        {
+          "type": "rank"
+        },
+        {
+          "type": "filter",
+          "test": "(datum.data=='Highest'&&show_highest) || (datum.data=='Total'&&show_total) || (datum.data=='Lowest'&&show_lowest) || (datum.data=='Recovery'&&show_recovery)"
+        }
+      ]
+    },
+    {
+      "name": "highsize",
+      "values": [{"bla": "blabla"}],
+      "transform": [
+        {
+          "type": "formula",
+          "field": "value",
+          "expr": "target_coverage"
+        }
+      ]
+    }
+  ],
+  "scales": [
+    {
+      "name": "x",
+      "type": "linear",
+      "domain": {"data": "table", "field": ["total_as_pct_of_allelic", "highest_as_pct_of_allelic", "lowest_as_pct_of_allelic", "highest_recovery"]},
+      "range": "width",
+      "nice": true
+    },
+    {
+      "name": "color",
+      "type": "ordinal",
+      "domain": {"data": "table", "field": "marker", "sort": true},
+      "range": ["#1f77b4", "#ff7f0e", "#2ca02c", "#d62728", "#9467bd", "#8c564b", "#e377c2", "#7f7f7f", "#bcbd22", "#17becf", "#aec7e8", "#ffbb78", "#98df8a", "#ff9896", "#c5b0d5", "#c49c94", "#f7b6d2", "#c7c7c7", "#dbdb8d", "#9edae5"]
+    },
+    {
+      "name": "shape",
+      "type": "ordinal",
+      "domain": {"data": "symbols", "field": "data", "sort": {"field": "rank", "op": "min"}}
+    },
+    {
+      "name": "lowsize",
+      "type": "linear",
+      "domainMin": 0,
+      "domainMax": {"signal": "lowcov_scale"},
+      "range": ["#000000", "#d7301f"],
+      "clip": true,
+      "zero": false,
+      "nice": false
+    },
+    {
+      "name": "size",
+      "type": "linear",
+      "domainMin": {"signal": "lowcov_scale"},
+      "domainMax": {"signal": "target_coverage"},
+      "range": ["#d7301f", "#fef0d9"],
+      "clip": true,
+      "zero": false,
+      "nice": false
+    },
+    {
+      "name": "highsize",
+      "type": "ordinal",
+      "domain": {"data": "highsize", "field": "value"},
+      "range": ["#fef0d9"]
+    }
+  ],
+  "legends": [
+    {
+      "title": "Legend",
+      "shape": "shape",
+      "properties": {
+        "symbols": {
+          "fill": {"value": "black"},
+          "size": {"value": 50},
+          "stroke": {"value": "transparent"},
+          "fillOpacity": {"value": 0.8},
+          "shape": [
+            {"test": "datum.label=='Lowest'", "value": "triangle-down"},
+            {"test": "datum.label=='Highest'", "value": "triangle-up"},
+            {"test": "datum.label=='Recovery'", "value": "cross"},
+            {"value": "circle"}
+          ]
+        }
+      }
+    },
+    {
+      "title": "Coverage",
+      "fill": "lowsize",
+      "properties": {
+        "gradient": {
+          "height": {"value": 10},
+          "width": {"value": 80},
+          "stroke": {"value": "transparent"}
+        }
+      }
+    },
+    {
+      "fill": "size",
+      "properties": {
+        "gradient": {
+          "height": {"value": 10},
+          "width": {"value": 80},
+          "stroke": {"value": "transparent"}
+        }
+      }
+    },
+    {
+      "fill": "highsize",
+      "properties": {
+        "symbols": {
+          "size": {"value": 100},
+          "stroke": {"value": "transparent"}
+        },
+        "labels": {
+          "x": {"value": 83},
+          "align": {"value": "right"},
+          "text": {"template": "> {{datum.label|number:',.0f'}}"}
+        }
+      }
+    },
+    {
+      "title": "Marker",
+      "fill": "color",
+      "properties": {
+        "symbols": {
+          "size": {"value": 100},
+          "stroke": {"value": "transparent"},
+          "fillOpacity": {"value": 0.8}
+        }
+      }
+    }
+  ],
+  "marks": [
+    {
+      "type": "group",
+      "from": {"data": "totalcount"},
+      "properties": {
+        "update": {
+          "width": {"field": {"group": "width"}},
+          "height": {"field": "totalheight"}
+        }
+      },
+      "scales": [
+        {
+          "name": "group",
+          "type": "ordinal",
+          "domain": {"data": "table", "field": "groupname", "sort": {"field": "rank", "op": "min"}},
+          "range": "height",
+          "points": true
+        }
+      ],
+      "axes": [
+        {
+          "type": "y",
+          "scale": "group",
+          "grid": true,
+          "layer": "back",
+          "tickPadding": 10
+        },
+        {"type": "x", "scale": "x", "grid": true, "layer": "back"},
+        {"type": "x", "scale": "x", "orient": "top"}
+      ],
+      "marks": [
+        {
+          "type": "symbol",
+          "from": {
+            "data": "table",
+            "transform": [
+              {
+                "type": "filter",
+                "test": "indata('symbols', 'Lowest', 'data')"
+              }
+            ]
+          },
+          "properties": {
+            "update": {
+              "x": {"scale": "x", "field": "lowest_as_pct_of_allelic"},
+              "y": {"scale": "group", "field": "groupname"},
+              "shape": {"value": "triangle-down"},
+              "fill": {"scale": "color", "field": "marker"},
+              "fillOpacity": {"value": 0.8},
+              "size": {"value": 50},
+              "stroke": {"value": "transparent"}
+            },
+            "hover": {
+              "size": {"value": 100},
+              "stroke": {"value": "white"}
+            }
+          }
+        },
+        {
+          "type": "symbol",
+          "from": {
+            "data": "table",
+            "transform": [
+              {
+                "type": "filter",
+                "test": "indata('symbols', 'Highest', 'data')"
+              }
+            ]
+          },
+          "properties": {
+            "update": {
+              "x": {"scale": "x", "field": "highest_as_pct_of_allelic"},
+              "y": {"scale": "group", "field": "groupname"},
+              "shape": {"value": "triangle-up"},
+              "fill": {"scale": "color", "field": "marker"},
+              "fillOpacity": {"value": 0.8},
+              "size": {"value": 50},
+              "stroke": {"value": "transparent"}
+            },
+            "hover": {
+              "size": {"value": 100},
+              "stroke": {"value": "white"}
+            }
+          }
+        },
+        {
+          "type": "symbol",
+          "from": {
+            "data": "table",
+            "transform": [
+              {
+                "type": "filter",
+                "test": "indata('symbols', 'Total', 'data')"
+              }
+            ]
+          },
+          "properties": {
+            "update": {
+              "x": {"scale": "x", "field": "total_as_pct_of_allelic"},
+              "y": {"scale": "group", "field": "groupname"},
+              "shape": {"value": "circle"},
+              "fill": {"scale": "color", "field": "marker"},
+              "fillOpacity": {"value": 0.8},
+              "size": {"value": 50},
+              "stroke": {"value": "transparent"}
+            },
+            "hover": {
+              "size": {"value": 100},
+              "stroke": {"value": "white"}
+            }
+          }
+        },
+        {
+          "type": "symbol",
+          "from": {
+            "data": "table",
+            "transform": [
+              {
+                "type": "filter",
+                "test": "indata('symbols', 'Recovery', 'data')"
+              }
+            ]
+          },
+          "properties": {
+            "update": {
+              "x": {"scale": "x", "field": "highest_recovery"},
+              "y": {"scale": "group", "field": "groupname"},
+              "shape": {"value": "cross"},
+              "fill": {"scale": "color", "field": "marker"},
+              "fillOpacity": {"value": 0.8},
+              "size": {"value": 50},
+              "stroke": {"value": "transparent"}
+            },
+            "hover": {
+              "size": {"value": 100},
+              "stroke": {"value": "white"}
+            }
+          }
+        },
+        {
+          "type": "symbol",
+          "from": {"data": "groupranks"},
+          "properties": {
+            "update": {
+              "x": {"value": -10},
+              "y": {"scale": "group", "field": "groupname"},
+              "fill": [
+                {"test": "datum.mean_total_reads_marker < lowcov_scale", "scale": "lowsize", "field": "mean_total_reads_marker"},
+                {"test": "datum.mean_total_reads_marker < target_coverage", "scale": "size", "field": "mean_total_reads_marker"},
+                {"value": "#fef0d9"}
+              ],
+              "shape": {"value": "circle"},
+              "size": {"value": 50},
+              "stroke": {"value": "transparent"}
+            }
+          }
+        },
+        {
+          "type": "text",
+          "properties": {
+            "update": {
+              "x": {"field": {"group": "width"}, "mult": 0.5},
+              "y": {"value": -30},
+              "fill": {"value": "black"},
+              "fontWeight": {"value": "bold"},
+              "align": {"value": "center"},
+              "baseline": {"value": "middle"},
+              "text": {"value": "Noise reads per 100 allelic reads"}
+            }
+          }
+        }
+      ]
+    }
+  ]
+}

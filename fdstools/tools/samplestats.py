@@ -22,7 +22,11 @@
 
 """
 Compute various statistics for each sequence in the given sample data
-file.
+file and perform threshold-based allele calling.
+
+Updates the 'flags' column (or adds it, if it was not present in the
+input data) to include 'allele' for all sequences that meet various
+allele calling thresholds.
 
 Adds the following columns to the input data.  Some columns may be
 omitted from the output if the input does not contain the required
@@ -56,7 +60,7 @@ import sys
 from ..lib import add_sequence_format_args, add_input_output_args, \
                   get_input_output_files, get_column_ids
 
-__version__ = "1.0.1"
+__version__ = "1.1.0"
 
 
 # Default values for parameters are specified below.
@@ -72,12 +76,12 @@ _DEF_MIN_PER_STRAND = 1
 # Default minimum percentage of reads w.r.t. the highest allele of the
 # marker to mark as allele.
 # This value can be overridden by the -m command line option.
-_DEF_MIN_PCT_OF_MAX = 5.
+_DEF_MIN_PCT_OF_MAX = 2.
 
 # Default minimum percentage of reads w.r.t. the marker's total number
 # of reads to mark as allele.
 # This value can be overridden by the -p command line option.
-_DEF_MIN_PCT_OF_SUM = 3.
+_DEF_MIN_PCT_OF_SUM = 1.5
 
 # Default minimum percentage of correction to mark as allele.
 # This value can be overridden by the -c command line option.

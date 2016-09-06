@@ -1,7 +1,7 @@
 {
-  "fdstools_visversion": "1.0.0beta2",
+  "fdstools_visversion": "2.0.0",
   "width": 600,
-  "height": 500,
+  "height": 400,
   "data": [
     {
       "name": "raw",
@@ -58,48 +58,16 @@
       ]
     },
     {
-      "name": "samplecounts",
+      "name": "nodes",
       "source": "raw",
       "transform": [
         {
           "type": "aggregate",
           "groupby": ["marker", "allele"],
           "summarize": {"*": "count"}
-        }
-      ]
-    },
-    {
-      "name": "indices",
-      "source": "samplecounts",
-      "transform": [
-        {
-          "type": "cross",
-          "diagonal": false,
-          "filter": "datum.a._id > datum.b._id"
         },
         {
-          "type": "formula",
-          "field": "markerallele",
-          "expr": "datum.a.marker + '\t' + datum.a.allele"
-        },
-        {
-          "type": "aggregate",
-          "groupby": ["markerallele"],
-          "summarize": [{"field": "*", "ops": ["count"], "as": ["index"]}]
-        }
-      ]
-    },
-    {
-      "name": "nodes",
-      "source": "samplecounts",
-      "transform": [
-        {
-          "type": "lookup",
-          "on": "indices",
-          "onKey": "markerallele",
-          "keys": ["markerallele"],
-          "as": ["indexobj"],
-          "default": {"index": 0}
+          "type": "rank"
         },
         {
           "type": "formula",
@@ -152,12 +120,12 @@
         {
           "type": "formula",
           "field": "source",
-          "expr": "datum.a.source.indexobj.index"
+          "expr": "datum.a.source.rank - 1"
         },
         {
           "type": "formula",
           "field": "target",
-          "expr": "datum.target.indexobj.index"
+          "expr": "datum.target.rank - 1"
         },
         {
           "type": "aggregate",
@@ -210,10 +178,7 @@
         }
       }
     },
-    {
-      "size": "legend_sizes",
-      "values": [1, 5, 10, 20, 50]
-    }
+    {"size": "legend_sizes"}
   ],
   "marks": [
     {

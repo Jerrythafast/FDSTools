@@ -20,7 +20,7 @@
 # along with FDSTools.  If not, see <http://www.gnu.org/licenses/>.
 #
 
-import re, sys, argparse, random, itertools
+import re, sys, argparse, random, itertools, textwrap
 #import numpy as np  # Imported only when calling nnls()
 
 from ConfigParser import RawConfigParser, MissingSectionHeaderError
@@ -94,6 +94,10 @@ COMPL = {"A": "T", "T": "A", "U": "A", "G": "C", "C": "G", "R": "Y", "Y": "R",
 
 # Special values that may appear in the place of a sequence.
 SEQ_SPECIAL_VALUES = ("No data", "Other sequences")
+
+# TextWrapper object for formatting help texts in generated INI files.
+INI_COMMENT = textwrap.TextWrapper(width=79, initial_indent="; ",
+    subsequent_indent="; ", break_on_hyphens=False)
 
 
 def get_genome_pos(location, x, invert=False):

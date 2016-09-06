@@ -24,7 +24,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta charset="UTF-8">
     <title>Sample Visualisation - FDSTools</title>
-    <!-- VERSION 2.0.1 -->
+    <!-- VERSION 2.1.0 -->
     <!-- BEGIN_LIBRARIES -->
     <script src="https://vega.github.io/vega-editor/vendor/d3.min.js"></script>
     <script src="https://vega.github.io/vega/vega.min.js"></script>
@@ -483,7 +483,7 @@
                     <td colspan="2">Show sequences with at least:</td>
                 </tr>
                 <tr>
-                    <td colspan="2"><label><input type="text" value="15" id="minN" size="3" class="num"> reads</label></td>
+                    <td colspan="2"><label><input type="text" value="5" id="minN" size="3" class="num"> reads</label></td>
                 </tr>
                 <tr>
                     <td colspan="2"><label><input type="text" value="0.5" id="minP" size="3" class="num">% of highest allele per marker</label></td>
@@ -535,10 +535,10 @@
                     <td><label><input type="text" value="30" id="minNa" size="3" class="num"> reads</label></td>
                 </tr>
                 <tr>
-                    <td><label><input type="text" value="5" id="minPa" size="3" class="num">% of highest allele per marker</label></td>
+                    <td><label><input type="text" value="2" id="minPa" size="3" class="num">% of highest allele per marker</label></td>
                 </tr>
                 <tr>
-                    <td><label><input type="text" value="3" id="minTa" size="3" class="num">% of the marker's total reads</label></td>
+                    <td><label><input type="text" value="1.5" id="minTa" size="3" class="num">% of the marker's total reads</label></td>
                 </tr>
                 <tr>
                     <td><label><input type="text" value="0" id="minCa" size="3" class="num">% correction*</label></td>
@@ -547,7 +547,7 @@
                     <td><label><input type="text" value="0" id="minAa" size="3" class="num">% recovery*</label></td>
                 </tr>
                 <tr>
-                    <td><label><input type="text" value="0" id="minOa" size="3" class="num"> reads in both orientations</label></td>
+                    <td><label><input type="text" value="1" id="minOa" size="3" class="num"> reads in both orientations</label></td>
                 </tr>
                 <tr>
                     <td class="footnote">*Of these criteria, at least one must be met</td>

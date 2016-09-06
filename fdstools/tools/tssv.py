@@ -40,7 +40,7 @@ from ..lib import pos_int_arg, add_input_output_args, get_input_output_files,\
                   add_sequence_format_args, reverse_complement, PAT_SEQ_RAW,\
                   get_column_ids, ensure_sequence_format
 
-__version__ = "1.0.1"
+__version__ = "1.0.2"
 
 
 # Default values for parameters are specified below.
@@ -49,6 +49,11 @@ __version__ = "1.0.1"
 # sequences to allow.
 # This value can be overridden by the -m command line option.
 _DEF_MISMATCHES = 0.08
+
+# Default penalty multiplier for insertions and deletions in the
+# flanking sequences.
+# This value can be overridden by the -n command line option.
+_DEF_INDEL_SCORE = 1
 
 # Default minimum number of reads to consider.
 # This value can be overridden by the -a command line option.
@@ -75,7 +80,7 @@ def seq_pass_filt(sequence, reads, threshold, explen=None):
 
 def run_tssv_lite(infile, outfile, reportfile, is_fastq, library, seqformat,
                   threshold, minimum, aggregate_filtered,
-                  missing_marker_action, dirname):
+                  missing_marker_action, dirname, indel_score):
     file_format = "fastq" if is_fastq else "fasta"
     tssv_library = convert_library(library, threshold)
 
@@ -86,7 +91,7 @@ def run_tssv_lite(infile, outfile, reportfile, is_fastq, library, seqformat,
         outfiles = None
 
     total_reads, unrecognised, counters, sequences = process_file(
-        infile, file_format, tssv_library, outfiles)
+        infile, file_format, tssv_library, outfiles, indel_score)
 
     # Filter out sequences with low read counts and invalid bases now.
     if aggregate_filtered:
@@ -178,6 +183,11 @@ def add_arguments(parser):
         default=_DEF_MISMATCHES,
         help="number of mismatches per nucleotide to allow in flanking "
              "sequences (default: %(default)s)")
+    filtergroup.add_argument("-n", "--indel-score", metavar="N",
+        type=pos_int_arg, default=_DEF_INDEL_SCORE,
+        help="insertions and deletions in the flanking sequences are "
+             "penalised this number of times more heavily than mismatches "
+             "(default: %(default)s)")
     filtergroup.add_argument("-a", "--minimum", metavar="N", type=pos_int_arg,
         default=_DEF_MINIMUM,
         help="report only sequences with this minimum number of reads "
@@ -204,9 +214,9 @@ def run(args):
             make_statistics_table, prepare_output_dir
     except ImportError:
         raise ValueError(
-            "This tool requires the 'tssvl' program (TSSV-Lite) to be "
-            "installed. Please download and install the latest version of "
-            "TSSV from https://pypi.python.org/pypi/tssv.")
+            "This tool requires version 0.4.0 or later of the 'tssvl' program "
+            "(TSSV-Lite) to be installed. Please download and install the "
+            "latest version of TSSV from https://pypi.python.org/pypi/tssv.")
 
     files = get_input_output_files(args, True, False)
     if not files:
@@ -216,7 +226,7 @@ def run(args):
     run_tssv_lite(infile, files[1], args.report, args.is_fastq, args.library,
                   args.sequence_format, args.mismatches, args.minimum,
                   args.aggregate_filtered, args.missing_marker_action,
-                  args.dir)
+                  args.dir, args.indel_score)
     if infile != sys.stdin:
         infile.close()
 #run

@@ -1,10 +1,14 @@
 {
-  "fdstools_visversion": "1.0.1",
+  "fdstools_visversion": "2.0.0",
   "width": 600,
   "height": 10,
   "signals": [
     {
-      "name": "filter_threshold",
+      "name": "amplitude_threshold",
+      "init": 5
+    },
+    {
+      "name": "amplitude_pct_threshold",
       "init": 0.5
     },
     {
@@ -15,6 +19,10 @@
       "name": "marker_regex",
       "init": {"expr": "regexp('(?:' + replace(replace(replace(filter_marker, /^ *(.*?) *$/, '$1'), /(^| )=(.*?)(?= |$)/g, '$1^$2$$'), / +/g, ')|(?:') + ')')"},
       "expr": "regexp('(?:' + replace(replace(replace(filter_marker, /^ *(.*?) *$/, '$1'), /(^| )=(.*?)(?= |$)/g, '$1^$2$$'), / +/g, ')|(?:') + ')')"
+    },
+    {
+      "name": "sort_str_by_length",
+      "init": true
     },
     {
       "name": "barwidth",
@@ -43,7 +51,7 @@
       "transform": [
         {
           "type": "filter",
-          "test": "datum.allele != datum.sequence && max(datum.fmean, datum.rmean) >= filter_threshold && test(marker_regex, datum.marker)"
+          "test": "datum.allele != datum.sequence && max(datum.fmean, datum.rmean) >= amplitude_pct_threshold && test(marker_regex, datum.marker)"
         },
         {
           "type": "formula",
@@ -71,11 +79,68 @@
           "expr": "datum.marker + ' ' + datum.allele"
         },
         {
+          "type": "formula",
+          "field": "al_order",
+          "expr": "(sort_str_by_length && test(/^CE\\d+\\.?\\d*_/, datum.allele))? parseFloat(substring(datum.allele, 2, indexof(datum.allele, '_'))) : 1/0"
+        },
+        {
+          "type": "formula",
+          "field": "seq_order",
+          "expr": "(sort_str_by_length && test(/^CE\\d+\\.?\\d*_/, datum.sequence))? parseFloat(substring(datum.sequence, 2, indexof(datum.sequence, '_'))) : 1/0"
+        },
+        {
           "type": "sort",
-          "by": ["name", "sequence"]
+          "by": ["marker", "al_order", "name", "seq_order", "sequence"]
         },
         {
           "type": "rank"
+        }
+      ]
+    },
+    {
+      "name": "points",
+      "values": "VALUES HERE",
+      "format": {
+        "type": "tsv",
+        "parse": {
+          "forward": "number",
+          "reverse": "number",
+          "total": "number",
+          "fnoise": "number",
+          "rnoise": "number",
+          "tnoise": "number"
+        }
+      },
+      "transform": [
+        {
+          "type": "filter",
+          "test": "datum.allele != datum.sequence"
+        },
+        {
+          "type": "formula",
+          "field": "maxnoise",
+          "expr": "max(datum.fnoise, datum.rnoise, datum.tnoise)"
+        },
+        {
+          "type": "filter",
+          "test": "datum.total >= 1 && datum.total >= amplitude_threshold && datum.maxnoise >= amplitude_pct_threshold && test(marker_regex, datum.marker)"
+        },
+        {
+          "type": "formula",
+          "field": "name",
+          "expr": "datum.marker + ' ' + datum.allele"
+        },
+        {
+          "type": "sort",
+          "by": ["name", "-tnoise", "-maxnoise"]
+        },
+        {
+          "type": "rank"
+        },
+        {
+          "type": "formula",
+          "field": "minnoise",
+          "expr": "max(0.001, min(datum.fnoise, datum.rnoise, datum.tnoise))"
         }
       ]
     },
@@ -92,6 +157,10 @@
           ]
         },
         {
+          "type": "sort",
+          "by": ["cumulcount"]
+        },
+        {
           "type": "rank"
         },
         {
@@ -105,14 +174,36 @@
           "expr": "datum.offset + 2*barwidth*datum.count"
         }
       ]
+    },
+    {
+      "name": "points_aggr",
+      "source": "points",
+      "transform": [
+        {
+          "type": "aggregate",
+          "groupby": ["name"],
+          "summarize": {"fnoise": "max", "rnoise": "max", "tnoise": "max"}
+        }
+      ]
     }
   ],
   "scales": [
     {
+      "name": "gx",
+      "type": "linear",
+      "nice": true,
+      "range": "width",
+      "domainMin": {"signal": "low"},
+      "domainMax": {"fields": [
+        {"data": "table", "field": ["fmean", "rmean"]},
+        {"data": "points", "field": ["fnoise", "rnoise", "tnoise"]}
+      ]}
+    },
+    {
       "name": "c",
       "type": "ordinal",
-      "range": ["#5e3c99", "#e66101"],
-      "domain": ["Forward reads", "Reverse reads"]
+      "range": ["#5e3c99", "#fdb863", "#e66101"],
+      "domain": ["Total reads", "Forward reads", "Reverse reads"]
     }
   ],
   "marks": [
@@ -138,6 +229,14 @@
       "from": {
         "data": "table",
         "transform": [
+          {
+            "type": "lookup",
+            "on": "points_aggr",
+            "onKey": "name",
+            "keys": ["name"],
+            "as": ["points"],
+            "default": {"max_fnoise": 0, "max_rnoise": 0, "max_tnoise": 0}
+          },
           {
             "type": "facet",
             "groupby": ["name"]
@@ -167,11 +266,19 @@
           "nice": true,
           "range": "width",
           "domainMin": {"signal": "low"},
-          "domainMax": {"data": "table", "field": ["fmean", "rmean"]}
+          "domainMax": {"field": ["fmean", "rmean", "points.max_fnoise", "points.max_rnoise", "points.max_tnoise"]}
         },
         {
           "name": "y",
           "type": "ordinal",
+          "range": "height",
+          "domain": {"field": "sequence", "sort": {"field": "rank", "op": "min"}}
+        },
+        {
+          "name": "y2",
+          "type": "ordinal",
+          "points": "true",
+          "padding": 1,
           "range": "height",
           "domain": {"field": "sequence", "sort": {"field": "rank", "op": "min"}}
         }
@@ -186,12 +293,15 @@
         },
         {
           "type": "y",
-          "scale": "y"
+          "scale": "y",
+          "grid": true,
+          "layer": "back"
         }
       ],
       "legends": [
         {
           "fill": "c",
+          "title": "Noise ratio in:",
           "properties": {
             "symbols": {
               "size": {"value": 100},
@@ -292,6 +402,120 @@
               }
             }
           ]
+        },
+        {
+          "type": "symbol",
+          "from": {
+            "transform": [
+              {
+                "type": "aggregate",
+                "groupby": ["name", "sequence"],
+                "summarize": []
+              },
+              {
+                "type": "cross",
+                "with": "points",
+                "filter": "datum.a.name == datum.b.name && datum.a.sequence == datum.b.sequence"
+              },
+              {
+                "type": "filter",
+                "test": "datum.b.forward >= 1 && datum.b.forward >= amplitude_threshold"
+              },
+              {
+                "type": "filter",
+                "test": "datum.b.fnoise >= amplitude_pct_threshold"
+              }
+            ]
+          },
+          "properties": {
+            "update": {
+              "x": {"scale": "x", "field": "b.fnoise"},
+              "y": {"scale": "y2", "field": "b.sequence", "offset": -5},
+              "fill": {"scale": "c", "value": "Forward reads"},
+              "fillOpacity": {"value": 0.8},
+              "size": {"value": 70},
+              "stroke": {"value": "white"}
+            },
+            "hover": {
+              "size": {"value": 300}
+            }
+          }
+        },
+        {
+          "type": "symbol",
+          "from": {
+            "transform": [
+              {
+                "type": "aggregate",
+                "groupby": ["name", "sequence"],
+                "summarize": []
+              },
+              {
+                "type": "cross",
+                "with": "points",
+                "filter": "datum.a.name == datum.b.name && datum.a.sequence == datum.b.sequence"
+              },
+              {
+                "type": "filter",
+                "test": "datum.b.reverse >= 1 && datum.b.reverse >= amplitude_threshold"
+              },
+              {
+                "type": "filter",
+                "test": "datum.b.rnoise >= amplitude_pct_threshold"
+              }
+            ]
+          },
+          "properties": {
+            "update": {
+              "x": {"scale": "x", "field": "b.rnoise"},
+              "y": {"scale": "y2", "field": "b.sequence", "offset": 5},
+              "fill": {"scale": "c", "value": "Reverse reads"},
+              "fillOpacity": {"value": 0.8},
+              "size": {"value": 70},
+              "stroke": {"value": "white"}
+            },
+            "hover": {
+              "size": {"value": 300}
+            }
+          }
+        },
+        {
+          "type": "symbol",
+          "from": {
+            "transform": [
+              {
+                "type": "aggregate",
+                "groupby": ["name", "sequence"],
+                "summarize": []
+              },
+              {
+                "type": "cross",
+                "with": "points",
+                "filter": "datum.a.name == datum.b.name && datum.a.sequence == datum.b.sequence"
+              },
+              {
+                "type": "filter",
+                "test": "datum.b.total >= 1 && datum.b.total >= amplitude_threshold"
+              },
+              {
+                "type": "filter",
+                "test": "datum.b.tnoise >= amplitude_pct_threshold"
+              }
+            ]
+          },
+          "properties": {
+            "update": {
+              "x": {"scale": "x", "field": "b.tnoise"},
+              "y": {"scale": "y2", "field": "b.sequence"},
+              "fill": {"scale": "c", "value": "Total reads"},
+              "fillOpacity": {"value": 0.8},
+              "size": {"value": 70},
+              "stroke": {"value": "white"}
+            },
+            "hover": {
+              "size": {"value": 300}
+            }
+          }
         }
       ]
     }
