@@ -57,7 +57,7 @@ from ..lib import INI_COMMENT
 from ConfigParser import RawConfigParser
 from types import MethodType
 
-__version__ = "1.0.0"
+__version__ = "1.0.1"
 
 
 def ini_add_comment(ini, section, comment):
@@ -70,7 +70,7 @@ def make_empty_library_ini(type, aliases=False):
     ini = RawConfigParser(allow_no_value=True)
     ini.optionxform = str
     ini.add_comment = MethodType(ini_add_comment, ini)
-    # TODO: Add good examples for aliases and non-STR markers.
+    # TODO: Add good examples for aliases and non-STR markers
 
     # Create sections and add comments to explain how to use them.
     if aliases:
@@ -100,19 +100,19 @@ def make_empty_library_ini(type, aliases=False):
         ini.add_section("prefix")
         ini.add_comment("prefix",
             "Specify all known prefix sequences of each STR marker, "
-            "separated by commas. The first sequence listed is used as "
-            "the reference sequence for that marker when generating "
-            "allele names. The prefix is the sequence between the left "
-            "flank and the repeat and is omitted from allele names. "
-            "Deviations from the reference are expressed as variants.")
+            "separated by commas. The prefix is the sequence between the left "
+            "flank and the repeat and is omitted from allele names. The first "
+            "sequence listed is used as the reference sequence for that "
+            "marker when generating allele names. Deviations from the "
+            "reference are expressed as variants.")
         ini.set("prefix", ";CSF1P0 = CTAAGTACTTC")
         ini.add_section("suffix")
         ini.add_comment("suffix",
             "Specify all known suffix sequences of each STR marker, "
-            "separated by commas. The first sequence listed is used as "
+            "separated by commas. The suffix is the sequence between the "
+            "repeat and the right flank. The first sequence listed is used as "
             "the reference sequence for that marker when generating "
-            "allele names. The suffix is the sequence between the repeat "
-            "and the right flank.")
+            "allele names.")
         ini.set("suffix",
             ";CSF1P0 = CTAATCTATCTATCTTCTATCTATGAAGGCAGTTACTGTTAATATCTTCATTTTA"
             "CAGGTAGGAAAACTGAGACACAGGGTGGTTAGCAACCTGCTAGTCCTTGGCAGACTCAG, CTAA"
@@ -141,14 +141,14 @@ def make_empty_library_ini(type, aliases=False):
         "position of the last base of the fragment as well.%s" % (
             " Specify 'M' as the chromosome name for markers on mitochondrial "
             "DNA. Allele names generated for these markers will follow mtDNA "
-            "nomenclature guidelines. If one of your mtDNA fragments starts "
-            "near the end of the reference sequence and continues at the "
-            "beginning, you can obtain correct base numbering by specifying "
-            "the fragment's genome position as \"M, (starting position), "
-            "16569, 1, (ending position)\". This tells FDSTools that the "
-            "marker is a concatenation of two fragments, where the first "
-            "fragment ends at position 16569 and the second fragment starts "
-            "at position 1." if type != "str" else ""))
+            "nomenclature guidelines (Parson et al., 2014). If one of your "
+            "mtDNA fragments starts near the end of the reference sequence "
+            "and continues at the beginning, you can obtain correct base "
+            "numbering by specifying the fragment's genome position as \"M, "
+            "(starting position), 16569, 1, (ending position)\". This tells "
+            "FDSTools that the marker is a concatenation of two fragments, "
+            "where the first fragment ends at position 16569 and the second "
+            "fragment starts at position 1." if type != "str" else ""))
     ini.add_comment("genome_position",
         "Using human genome build GRCh38%s." % (
             " and rCRS for human mtDNA" if type != "str" else ""))
@@ -161,8 +161,9 @@ def make_empty_library_ini(type, aliases=False):
     if type == "str" or type == "full":
         ini.add_section("length_adjust")
         ini.add_comment("length_adjust",
-            "When generating allele names for STR alleles, the CE allele "
-            "number is based on the length of the sequence "
+            "To prevent discrepancies between traditional CE allele numbers "
+            "and the CE number in FDSTools allele names, the CE allele number "
+            "as calculated by FDSTools is based on the length of the sequence "
             "(prefix+repeat+suffix) minus the adjustment specified here.")
         ini.set("length_adjust", ";CSF1P0 = 0")
         ini.add_section("block_length")
@@ -186,9 +187,11 @@ def make_empty_library_ini(type, aliases=False):
     ini.add_section("expected_allele_length")
     ini.add_comment("expected_allele_length",
         "Specify one or two values for each marker. The first value gives the "
-        "expected minimum length (in nucleotides) of the alleles and the "
-        "second value (if given) specifies the maximum allele length expected "
-        "for that marker (both inclusive).")
+        "expected minimum length (in nucleotides, %sexcluding flanks) of the "
+        "alleles and the second value (if given) specifies the maximum allele "
+        "length expected for that marker (both inclusive). TSSV will filter "
+        "sequences that have a length outside this range." %
+        ("including prefix and suffix, " if type != "non-str" else ""))
     if type != "non-str":
         ini.set("expected_allele_length", ";CSF1P0 = 100")
     return ini

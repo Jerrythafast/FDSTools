@@ -47,17 +47,17 @@ tools in FDSTools.  Please refer to the tool-specific help for a full
 description of each tool.  Type 'fdstools -h TOOL' to get help with the
 given TOOL.
 """
-import pkgutil, sys, os, tempfile, re, argparse, glob
+import pkgutil, sys, os, tempfile, re, argparse
 #import threading, subprocess  # Only imported when running this tool.
 
 import fdstools.tools
 
 from ..lib import split_quoted_string, DEF_TAG_EXPR, DEF_TAG_FORMAT, get_tag, \
-                  regex_arg, INI_COMMENT
+                  regex_arg, INI_COMMENT, glob_path
 from ConfigParser import RawConfigParser, NoSectionError, NoOptionError
 
 
-__version__ = "1.0.0"
+__version__ = "1.0.1"
 
 
 # Pattern that matches a long argparse argument name.
@@ -406,12 +406,12 @@ def run_ref_database_analysis(arg_defs, config):
     in_samples = [
         "'" + x.replace("'", "\'") + "'"
         for x in split_quoted_string(ini_require_option(
-            config, NAME, "in-samples")) for x in glob.iglob(x)]
+            config, NAME, "in-samples")) for x in glob_path(x)]
     if "'-'" in in_samples:
         raise ValueError("The sample input files cannot be named '-'")
     in_samples = " ".join(x for x in in_samples if x != "''")
     if not in_samples:
-        raise ValueError("No sample input files found")
+        raise ValueError("No sample input files given")
     tag_expr = ini_try_get_option(config, NAME, "tag-expr", DEF_TAG_EXPR)
     tag_format = ini_try_get_option(config, NAME, "tag-format", DEF_TAG_FORMAT)
     prefix = ini_try_get_option(config, NAME, "prefix", "")

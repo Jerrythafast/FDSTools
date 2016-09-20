@@ -24,7 +24,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta charset="UTF-8">
     <title>Allele Visualisation - FDSTools</title>
-    <!-- VERSION 2.0.0 -->
+    <!-- VERSION 2.0.1 -->
     <!-- BEGIN_LIBRARIES -->
     <script src="https://vega.github.io/vega-editor/vendor/d3.min.js"></script>
     <script src="https://vega.github.io/vega/vega.min.js"></script>
@@ -161,6 +161,15 @@
         }
         #vis div:last-child {
             padding-bottom: .8rem;
+        }
+        #vis-tooltip {
+            display: none;
+            position: fixed;
+            z-index: 999999;
+            background-color: hsla(220, 20%, 77%, 0.75);
+            border: 1px solid hsl(220, 20%, 3%);
+            border-radius: .5em;
+            padding: 0em .25em;
         }
         td.num {
             text-align: right;
@@ -331,6 +340,9 @@
         #vis > div > * {
             direction: ltr;
         }
+        #vis-tooltip {
+            display: none;
+        }
         .vega, canvas {
             max-width: 100%;
             height: auto;
@@ -422,6 +434,7 @@
     </div>
 </div>
 </div>
+<div id="vis-tooltip"></div>
 <script type="text/javascript">
 var graph = false;
 var fileName = "alleles";
@@ -444,6 +457,58 @@ function parse(){
         visdiv.appendChild(newvis);
 
         graph = chart({el: newvis, renderer: rendererName});
+        graph.onSignal("hovered", function(s, datum){
+            var tt = document.getElementById("vis-tooltip");
+            if(!datum){
+                tt.style.display = "none";
+                return;
+            }
+            tt.style.display = "block";
+            removeChildren(tt);
+            if(datum.source || datum.target){
+                //Edge.
+                var re = /^CE\d+\.?\d*_/;
+                var a = [datum._source.allele, datum._target.allele];
+                if(re.test(a[0]) && re.test(a[1])){
+                    if(parseFloat(a[0].substring(2, a[0].indexOf('_'))) > parseFloat(a[1].substring(2, a[1].indexOf('_'))))
+                        a = [a[1], a[0]];
+                }
+                else if(a[0] > a[1])
+                    a = [a[1], a[0]];
+                var b = document.createElement("b");
+                b.appendChild(document.createTextNode(datum._source.marker));
+                tt.appendChild(b);
+                var table = document.createElement("table");
+                var row = table.insertRow();
+                row.insertCell().appendChild(document.createTextNode("Allele 1"));
+                row.insertCell().appendChild(document.createTextNode(a[0]));
+                var row = table.insertRow();
+                row.insertCell().appendChild(document.createTextNode("Allele 2"));
+                row.insertCell().appendChild(document.createTextNode(a[1]));
+                row = table.insertRow();
+                row.insertCell().appendChild(document.createTextNode("Samples"));
+                row.insertCell().appendChild(document.createTextNode(datum.count));
+                tt.appendChild(table);
+                return;
+            }
+
+            //Node.
+            var b = document.createElement("b");
+            b.appendChild(document.createTextNode(datum.marker + " " + datum.allele));
+            tt.appendChild(b);
+            var table = document.createElement("table");
+            var row = table.insertRow();
+            row.insertCell().appendChild(document.createTextNode("Samples"));
+            var cell = row.insertCell();
+            cell.setAttribute("class", "num");
+            cell.appendChild(document.createTextNode(datum.count));
+            row = table.insertRow();
+            row.insertCell().appendChild(document.createTextNode("Homozygotes"));
+            cell = row.insertCell();
+            cell.setAttribute("class", "num");
+            cell.appendChild(document.createTextNode(datum.homcount.count));
+            tt.appendChild(table);
+        });
         graph.update();
         if(rendererName == "svg")
             updateViewBox(graph._el.childNodes[0]);
@@ -622,6 +687,19 @@ function onLoadSpec(has_data){
         if(isNaN(value))
             return;
         setSignalValue("height", value);
+    }, false);
+
+    //Automatically move the tooltip with the mouse pointer.
+    var tt = document.getElementById("vis-tooltip");
+    document.addEventListener('mousemove', function(e){
+      if(e.clientX < document.documentElement.clientWidth / 2)
+        tt.style.left = Math.max(0, Math.min(document.documentElement.clientWidth - tt.offsetWidth, e.clientX + 10)) + "px";
+      else
+        tt.style.left = Math.max(0, e.clientX - tt.offsetWidth - 10) + "px";
+      if(e.clientY + 10 + tt.offsetHeight > document.documentElement.clientHeight)
+        tt.style.top = (document.documentElement.clientHeight - tt.offsetHeight) + "px";
+      else
+        tt.style.top = (e.clientY + 10) + "px";
     }, false);
 
     //Sync graph_spec and display.

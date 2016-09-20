@@ -1,7 +1,19 @@
 {
-  "fdstools_visversion": "2.0.0",
+  "fdstools_visversion": "2.0.1",
   "width": 600,
   "height": 400,
+  "signals": [
+    {
+      "name": "hovered",
+      "init": false,
+      "streams": [
+        {"type": "symbol:mouseover", "expr": "datum"},
+        {"type": "symbol:mouseout", "expr": "false"},
+        {"type": "path:mouseover", "expr": "datum"},
+        {"type": "path:mouseout", "expr": "false"}
+      ]
+    }
+  ],
   "data": [
     {
       "name": "raw",
@@ -204,7 +216,10 @@
           "path": {"field": "layout_path"},
           "stroke": {"scale": "c", "field": "_source.marker"},
           "strokeWidth": {"field": "count", "mult": 0.5},
-          "strokeOpacity": {"value": 0.3}
+          "strokeOpacity": [
+            {"test": "hovered && (hovered == datum || hovered == datum._source || hovered == datum._target)", "value": 1},
+            {"value": 0.3}
+          ]
         }
       }
     },
@@ -234,7 +249,8 @@
           "x": {"field": "layout_x"},
           "y": {"field": "layout_y"},
           "fill": {"value": "black"},
-          "stroke": {"value": "black"}
+          "fillOpacity": {"value": 0.7},
+          "stroke": {"value": "transparent"}
         }
       }
     }

@@ -20,7 +20,7 @@
 # along with FDSTools.  If not, see <http://www.gnu.org/licenses/>.
 #
 
-import re, sys, argparse, random, itertools, textwrap
+import re, sys, argparse, random, itertools, textwrap, glob
 #import numpy as np  # Imported only when calling nnls()
 
 from ConfigParser import RawConfigParser, MissingSectionHeaderError
@@ -298,7 +298,8 @@ def call_variants(template, sequence, location="suffix", cache=True,
                 in_matrix = M_GAP2
             elif not (matrix_direction[i] & A_MATCH):
                 raise ValueError(
-                    "Alignment error: Dead route! (This is a bug.) [%s,%s]" % (template,sequence))
+                    "Alignment error: Dead route! (This is a bug.) [%s,%s]" %
+                    (template,sequence))
 
         if in_matrix == M_GAP1:
             # Go horizontally.  Deletion.
@@ -1654,6 +1655,17 @@ def get_tag(filename, tag_expr, tag_format):
 #get_tag
 
 
+def glob_path(pathname):
+    """Yield filenames matching pathname, or pathname if none match."""
+    success = False
+    for file in glob.iglob(pathname):
+        success = True
+        yield file
+    if not success:
+        yield pathname
+#glob_path
+
+
 def get_input_output_files(args, single=False, batch_support=False):
     if single and not batch_support:
         # One infile, one outfile.  Return 2-tuple (infile, outfile).
@@ -1667,8 +1679,9 @@ def get_input_output_files(args, single=False, batch_support=False):
         if args.infiles == ["-"] and sys.stdin.isatty():
             return False  # No input specified.
 
+        # Glob args.infiles in case the shell didn't (e.g, on Windows).
         tags_to_files = {}
-        for infile in args.infiles:
+        for infile in (x for x in args.infiles for x in glob_path(x)):
             tag = get_tag(infile, args.tag_expr, args.tag_format)
             try:
                 tags_to_files[tag].append(infile)
@@ -1680,8 +1693,10 @@ def get_input_output_files(args, single=False, batch_support=False):
     if single and batch_support:
         # N infiles, N outfiles.  Return generator of (tag, [ins], out).
         # Each yielded tuple should cause a separate run of the tool.
-        infiles = args.infiles if "infiles" in args \
-                  and args.infiles is not None else [args.infile]
+
+        # Glob args.infiles in case the shell didn't (e.g, on Windows).
+        infiles = [x for x in infiles for x in glob_path(x)] if "infiles" in \
+                  args and args.infiles is not None else [args.infile]
         if infiles == ["-"] and sys.stdin.isatty():
             return False  # No input specified.
 

@@ -2,9 +2,6 @@ To-do:
 * Additions needed for publication:
   * Group tools by function in the command line help and put the new pipeline
     tool on top.
-  * [If not too difficult to implement] Give BGEstimate a background profiles
-    file to start with (such as computed from homozygous samples only).
-* Add built-in glob pattern matching for Windows.
 * Samplevis:
   * Detect whether correction was performed; hide related columns if not.
   * Option to choose complete table download (all columns, not all rows).
@@ -22,21 +19,20 @@ To-do:
     be repainted between each chunk. One major issue with this is that user
     input events may get scheduled between the chunks.
   * Allow table filtering options to be specified for each marker separately.
+* Add options for exporting data in CODIS format (and possibly others?).
 * Add grouping, show/hide options, and target coverage for BGAnalyseVis to the
   Vis tool.
 * Add per-marker allele calling settings to Samplestats.
 * Exceptions to general mtDNA nomenclature: http://empop.online/methods
 * Reduce noise profile memory usage:
-  * Use sparse matrices in BGEstimate, and BGCorrect.  May save over 90% of
+  * Use sparse matrices in BGEstimate and BGCorrect.  May save over 90% of
     memory for the profile matrix after BGMerge of BGEstimate and BGPredict.
 * Add 'BGDiff' tool to compare noise profiles.
 * Add section to the library file where genomic positions of known pathogenic
   variants are specified. The TSSV tool should always output the reference base
   at these positions to comply with ethical regulations.
-* Add options to Libconvert to generate a template for STR or non-STR markers.
 * Add options to Samplevis, Samplestats (and possibly other relevant tools) to
   filter alleles by sequence length. The TSSV tool already supports this.
-* Add a print stylesheet for the other visualisations (only Samplevis has one).
 * Add visualisation with all markers in one graph ("samplesummaryvis"?).
 * Add tool to analyse within-marker and between-marker coverage variation.
 * Allow loading multiple files into HTML visualisations and provide prev/next
@@ -49,9 +45,6 @@ To-do:
   * When printing, IE11 respects the pagebreak hints. Chrome and FF are bugged!
 * [Known bug]: pattern_longest_match does not give the longest match if a
   shorter match is possible and found earlier at the same position.
-* Add "allow_N" flag to [no_repeat] markers.  If the flag is specified, the
-  reference sequence may contain Ns.  People might need this for the rCRS mtDNA
-  reference sequence.
 * Adjust BGEstimate so that it computes forward and reverse in one go.  To do
   this, double the number of columns in P and C and put the forward profile in
   the left half and the reverse profile in the right half.  The benefit of this

@@ -40,10 +40,10 @@ Example: fdstools bgpredict ... | fdstools bgmerge old.txt > out.txt
 import argparse
 import sys
 
-from ..lib import load_profiles_new, ensure_sequence_format,\
+from ..lib import load_profiles_new, ensure_sequence_format, glob_path,\
                   add_sequence_format_args
 
-__version__ = "1.0.1"
+__version__ = "1.0.2"
 
 
 def merge_profiles(infiles, outfile, seqformat, library):
@@ -91,11 +91,11 @@ def add_arguments(parser):
 
 
 def run(args):
-    if len(args.infiles) < 2:
-        if sys.stdin.isatty() or "-" in args.infiles:
+    infiles = [x for x in args.infiles for x in glob_path(x)]
+    if len(infiles) < 2:
+        if sys.stdin.isatty() or "-" in infiles:
             raise ValueError("please specify at least two input files")
-        args.infiles.append("-")
+        infiles.append("-")
 
-    merge_profiles(args.infiles, args.outfile, args.sequence_format,
-                   args.library)
+    merge_profiles(infiles, args.outfile, args.sequence_format, args.library)
 #run

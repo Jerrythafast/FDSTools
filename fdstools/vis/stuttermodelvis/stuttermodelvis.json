@@ -1,5 +1,5 @@
 {
-  "fdstools_visversion": "1.0.0beta2",
+  "fdstools_visversion": "2.0.1",
   "width": 600,
   "height": 10,
   "signals": [
@@ -334,7 +334,7 @@
           "type": "x",
           "scale": "x",
           "tickSizeEnd": 0,
-          "title": "Length of repeat (bp)"
+          "title": "Length of repeat (nt)"
         },
         {
           "type": "y",

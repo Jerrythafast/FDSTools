@@ -31,14 +31,15 @@ by bgcorrect to filter background noise from samples.
 import sys
 import time
 import math
+import argparse
 #import numpy as np  # Only imported when actually running this tool.
 
 from ..lib import pos_int_arg, add_input_output_args, get_input_output_files,\
                   add_allele_detection_args, nnls, add_sequence_format_args,\
-                  parse_allelelist, get_sample_data, \
+                  parse_allelelist, get_sample_data, load_profiles_new,\
                   add_random_subsampling_args
 
-__version__ = "1.1.0"
+__version__ = "1.1.1"
 
 
 # Default values for parameters are specified below.
@@ -67,24 +68,26 @@ _DEF_MIN_SAMPLE_PCT = 80.
 _DEF_MIN_GENOTYPES = 3
 
 
-def solve_profile_mixture(forward, reverse, genotypes, n, variance=False,
-                          reportfile=None):
+def solve_profile_mixture(forward, reverse, genotypes, n, starting_values={},
+                          variance=False, reportfile=None):
     if reportfile:
         reportfile.write("Solving forward read profiles\n")
     f = solve_profile_mixture_single(forward, genotypes, n,
-            variance=variance, reportfile=reportfile)
+        starting_values={x: starting_values[x][0] for x in starting_values},
+        variance=variance, reportfile=reportfile)
     if reportfile:
         reportfile.write("Solving reverse read profiles\n")
     r = solve_profile_mixture_single(reverse, genotypes, n,
-            variance=variance, reportfile=reportfile)
+        starting_values={x: starting_values[x][1] for x in starting_values},
+        variance=variance, reportfile=reportfile)
     if variance:
         return f[0], r[0], f[1], r[1]
     return f, r
 #solve_profile_mixture
 
 
-def solve_profile_mixture_single(samples, genotypes, n, variance=False,
-                                 reportfile=None):
+def solve_profile_mixture_single(samples, genotypes, n, starting_values={},
+                                 variance=False, reportfile=None):
     """
     Solve the single-allele profiles of n true alleles:
       Profile of A:  [100,   5,  50, 25, ...]
@@ -114,6 +117,10 @@ def solve_profile_mixture_single(samples, genotypes, n, variance=False,
 
     # Assume the true alleles do not have cross contributions at first.
     np.fill_diagonal(P, 100.)
+
+    # Enter starting values into P.
+    for x, y in starting_values:
+        P[x, y] = starting_values[x, y]
 
     # Enter the samples into C.
     for i in range(num_samples):
@@ -442,7 +449,8 @@ def preprocess_data(data, min_sample_pct):
 def generate_profiles(samples_in, outfile, reportfile, allelefile,
                       annotation_column, min_pct, min_abs, min_samples,
                       min_sample_pct, min_genotypes, seqformat, library,
-                      marker, homozygotes, limit_reads, drop_samples):
+                      profiles_in, marker, homozygotes, limit_reads,
+                      drop_samples):
     if reportfile:
         t0 = time.time()
 
@@ -471,6 +479,10 @@ def generate_profiles(samples_in, outfile, reportfile, allelefile,
     # Filter insignificant background products.
     preprocess_data(data, min_sample_pct)
 
+    # Load starting profiles.
+    start_profiles = {} if profiles_in is None \
+                  else load_profiles_new(profiles_in, library)
+
     if reportfile:
         t1 = time.time()
         reportfile.write("Data loading and filtering took %f seconds\n" %
@@ -481,6 +493,15 @@ def generate_profiles(samples_in, outfile, reportfile, allelefile,
     for marker in data.keys():
         p = data[marker]["profiles"]
         profile_size = len(p["alleles"])
+
+        # Read relevent starting values from the starting profiles.
+        init = {
+            (p["alleles"].index(allele), p["alleles"].index(seq)): (
+                start_profiles[marker][allele][seq]["forward"],
+                start_profiles[marker][allele][seq]["reverse"])
+            for allele in start_profiles[marker] if allele in p["alleles"]
+            for seq in start_profiles[marker][allele] if seq in p["alleles"]
+        } if marker in start_profiles else {}
 
         # Solve for the profiles of the true alleles.
         if reportfile:
@@ -493,6 +514,7 @@ def generate_profiles(samples_in, outfile, reportfile, allelefile,
                 p["profiles_reverse"],
                 data[marker]["genotypes"],
                 p["true alleles"],
+                starting_values=init,
                 reportfile=reportfile)
         if reportfile:
             t1 = time.time()
@@ -549,6 +571,9 @@ def add_arguments(parser):
         help="require this minimum number of unique heterozygous genotypes "
              "for each allele for which no homozygous samples are available "
              "(default: %(default)s)")
+    filtergroup.add_argument('-p', '--profiles', metavar="FILE",
+        type=argparse.FileType('r'),
+        help="use the given noise profiles file as a starting point")
     filtergroup.add_argument('-M', '--marker', metavar="MARKER",
         help="work only on MARKER")
     filtergroup.add_argument('-H', '--homozygotes', action="store_true",
@@ -571,6 +596,6 @@ def run(args):
                       args.annotation_column, args.min_pct, args.min_abs,
                       args.min_samples, args.min_sample_pct,
                       args.min_genotypes, args.sequence_format, args.library,
-                      args.marker, args.homozygotes, args.limit_reads,
-                      args.drop_samples)
+                      args.profiles, args.marker, args.homozygotes,
+                      args.limit_reads, args.drop_samples)
 #run
