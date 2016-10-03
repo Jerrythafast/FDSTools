@@ -132,26 +132,26 @@ def get_genome_pos(location, x, invert=False):
 #get_genome_pos
 
 
-def call_variants(template, sequence, location="suffix", cache=True,
+def call_variants(template, sequence, location=("?", 1), cache=True,
                   debug=False):
     """
     Perform a global alignment of sequence to template and return a
     list of variants detected.  The format (nomenclature) of the
     returned variants depends on the location argument.
 
-    If location is "suffix" (the default), all variants are given as
-    substitutions in the form posX>Y, where the first base in the
-    template is pos=1.  With location set to "prefix", bases are counted
-    from right to left instead.  Insertions and deletions are written as
-    pos.1->Y and posX>-, respectively.
+    If location is a tuple ("chromosome name", position), with any
+    integer for the position, all variants are given as substitutions in
+    the form posX>Y.  Insertions and deletions are written as pos.1->Y
+    and posX>-, respectively.  The given position is that of the first
+    base in the template.   With the location set to "suffix", a plus
+    sign is prepended to position numbers and the first base in the
+    template is pos=1.  With location set to "prefix", a minus sign is
+    prepended and bases are counted from right to left instead.
 
     If location is a tuple ("M", position) with any integer for the
     position, variants are written following the mtDNA nomenclature
     guidelines.  The given position is that of the first base in the
     template.
-
-    If location is a tuple ("chromosome name", position), a
-    NotImplementedError is raised.
 
     By default, the results of this function are cached.  Set cache to
     False to suppress caching the result and reduce memory usage.
@@ -1131,7 +1131,7 @@ def convert_sequence_raw_allelename(seq, library, marker):
             return "REF"
         return " ".join(
             call_variants(library["nostr_reference"][marker], blocks[0][0],
-                library["genome_position"].get(marker, "suffix")))
+                library["genome_position"].get(marker, ("?", 1))))
 
     # Find prefix and suffix.
     prefix = suffix = this_prefix = this_suffix = ""

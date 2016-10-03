@@ -70,7 +70,6 @@ def make_empty_library_ini(type, aliases=False):
     ini = RawConfigParser(allow_no_value=True)
     ini.optionxform = str
     ini.add_comment = MethodType(ini_add_comment, ini)
-    # TODO: Add good examples for aliases and non-STR markers
 
     # Create sections and add comments to explain how to use them.
     if aliases:
@@ -86,17 +85,26 @@ def make_empty_library_ini(type, aliases=False):
                 " You cannot specify a repeat structure for an alias."
                     if type != "non-str" else ""))
         ini.set("aliases",
-            ";MyAlias = MyMarker, AGCTAGC, MySpecialAlleleName")#TODO
+            ";AmelX = Amel, TCAGCTATGAGGTAATTTTTCTCTTTACTAATTTTGACCATTGTTTGCGT"
+            "TAACAATGCCCTGGGCTCTGTAAAGAATAGTGTGTTGATTCTTTATCCCAGATGTTTCTCAAGTG"
+            "GTCCTGATTTTACAGTTCCTACCACCAGCTTCCCA, X")
+        ini.set("aliases",
+            ";AmelY = Amel, TCAGCTATGAGGTAATTTTTCTCTTTACTAATTTTGATCACTGTTTGCAT"
+            "TAGCAGTCCCCTGGGCTCTGTAAAGAATAGTGGGTGGATTCTTCATCCCAAATAAAGTGGTTTCT"
+            "CAAGTGGTCCCAATTTTACAGTTCCTACCATCAGCTTCCCA, Y")
     ini.add_section("flanks")
     ini.add_comment("flanks",
         "The flanking sequences (e.g., primer sequences) of each marker. "
         "Specify two comma-separated values: left flank and right flank, "
         "in the same sequence orientation (strand).")
-    ini.set("flanks",
-        ";MyMarker = CTGTTTCTGAGTTTCAAGTATGTCTG, TTACATGCTCGTGCACCTTATGGAGG"
-        if type == "non-str" else
-        ";CSF1P0 = CCTGTGTCAGACCCTGTT, GTTGGAACACTGCCCTGG")
-    if type == "str" or type == "full":
+    if type != "non-str":
+        ini.set("flanks", ";CSF1P0 = CCTGTGTCAGACCCTGTT, GTTGGAACACTGCCCTGG")
+    if type != "str":
+        ini.set("flanks",
+            ";MitoFrag = ATTATTTATCGCACCTACGT, TGGCGGTATGCACTTTTAACAG")
+    if aliases:
+        ini.set("flanks", ";Amel = ACCCTGGTTATATCAACT, GTTTAAGCTCTGATGGTT")
+    if type != "non-str":
         ini.add_section("prefix")
         ini.add_comment("prefix",
             "Specify all known prefix sequences of each STR marker, "
@@ -127,13 +135,20 @@ def make_empty_library_ini(type, aliases=False):
             "and maximum number of repeats.")
         ini.set("repeat",
             ";CSF1P0 = CTAT 0 19 CTAC 0 1 TTAT 0 1 CAT 0 1 CTAT 0 19")
-    if type == "non-str" or type == "full":
+    if aliases or type != "str":
         ini.add_section("no_repeat")
         ini.add_comment("no_repeat",
             "Specify the reference sequence for each non-STR marker.")
-        ini.set("no_repeat",
-            ";MySNPMarker = TTTTAACACAAAAAATTTAAAATAAGAAGAATAAATAGTGCTTGCTT")#TODO
-        ini.set("no_repeat", ";MyMtMarker  = AACCCCCCCT")#TODO
+        if type != "str":
+            ini.set("no_repeat", ";MitoFrag = TCAATATTACAGGCGAACATACTTACTAAAGT"
+            "GTGTTAATTAATTAATGCTTGTAGGACATAATAATAACAATTGAATGTCTGCACAGCCACTTTCC"
+            "ACACAGACATCATAACAAAAAATTTCCACCAAACCCCCCCTCCCCCGCTTCTGGCCACAGCACTT"
+            "AAACACATCTCTGCCAAACCCCAAAAACAAAGAACCCTAACACCAGCCTAACCAGATTTCAAATT"
+            "TTATCTTT")
+        if aliases:
+            ini.set("no_repeat", ";Amel = TCAGCTATGAGGTAATTTTTCTCTTTACTAATTTTG"
+            "ACCATTGTTTGCGTTAACAATGCCCTGGGCTCTGTAAAGAATAGTGTGTTGATTCTTTATCCCAG"
+            "ATGTTTCTCAAGTGGTCCTGATTTTACAGTTCCTACCACCAGCTTCCCA")
     ini.add_section("genome_position")
     ini.add_comment("genome_position",
         "Specify the chromosome number and position of the first base after "
@@ -148,16 +163,19 @@ def make_empty_library_ini(type, aliases=False):
             "(starting position), 16569, 1, (ending position)\". This tells "
             "FDSTools that the marker is a concatenation of two fragments, "
             "where the first fragment ends at position 16569 and the second "
-            "fragment starts at position 1." if type != "str" else ""))
+            "fragment starts at position 1. Similarly, for a fragment that "
+            "spans position 3107 in the rCRS (which is nonexistent), you may "
+            "specify \"M, (starting position), 3106, 3108, (ending "
+            "position)\"." if type != "str" else ""))
     ini.add_comment("genome_position",
         "Using human genome build GRCh38%s." % (
             " and rCRS for human mtDNA" if type != "str" else ""))
     if type != "non-str":
         ini.set("genome_position", ";CSF1P0 = 5, 150076311, 150076487")
     if type != "str":
-        ini.set("genome_position", ";MyMarker    = 9, 36834400")#TODO
-        ini.set("genome_position", ";MySNPMarker = X, 21214600")#TODO
-        ini.set("genome_position", ";MyMtMarker  = M, 301")#TODO
+        ini.set("genome_position", ";MitoFrag = M, 173, 407")
+    if aliases:
+        ini.set("genome_position", ";Amel = X, 11296816, 11296965")
     if type == "str" or type == "full":
         ini.add_section("length_adjust")
         ini.add_comment("length_adjust",
@@ -181,9 +199,9 @@ def make_empty_library_ini(type, aliases=False):
     if type != "non-str":
         ini.set("max_expected_copies", ";CSF1P0 = 2")
     if type != "str":
-        ini.set("max_expected_copies", ";MyMarker    = 2")#TODO
-        ini.set("max_expected_copies", ";MySNPMarker = 2")#TODO
-        ini.set("max_expected_copies", ";MyMtMarker  = 1")#TODO
+        ini.set("max_expected_copies", ";MitoFrag = 1")
+    if aliases:
+        ini.set("max_expected_copies", ";Amel = 2")
     ini.add_section("expected_allele_length")
     ini.add_comment("expected_allele_length",
         "Specify one or two values for each marker. The first value gives the "
@@ -194,6 +212,10 @@ def make_empty_library_ini(type, aliases=False):
         ("including prefix and suffix, " if type != "non-str" else ""))
     if type != "non-str":
         ini.set("expected_allele_length", ";CSF1P0 = 100")
+    if type != "str":
+        ini.set("expected_allele_length", ";MitoFrag = 150")
+    if aliases:
+        ini.set("expected_allele_length", ";Amel = 100")
     return ini
 #make_empty_library_ini
 

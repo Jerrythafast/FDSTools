@@ -1,5 +1,5 @@
 {
-  "fdstools_visversion": "2.0.1",
+  "fdstools_visversion": "2.1.1",
   "width": 600,
   "height": 10,
   "signals": [
@@ -64,6 +64,14 @@
           "type": "@alleleSelector:click[datum.thedatum]",
           "expr": "datum.thedatum"
         }
+      ]
+    },
+    {
+      "name": "hovered",
+      "init": false,
+      "streams": [
+        {"type": "@alleleSelector:mouseover[datum.thedatum]", "expr": "datum.thedatum"},
+        {"type": "@alleleSelector:mouseout[datum.thedatum]", "expr": "false"}
       ]
     }
   ],
@@ -194,11 +202,6 @@
         },
         {
           "type": "formula",
-          "field": "corr_decreased",
-          "expr": "max(datum.total, datum.corr_shared)"
-        },
-        {
-          "type": "formula",
           "field": "forwardpct",
           "expr": "datum.total_added? (100.0 / datum.total_added * datum.forward_added) : 50"
         },
@@ -278,11 +281,6 @@
           "type": "formula",
           "field": "corr_shared",
           "expr": "min(datum.total, datum.total_added)"
-        },
-        {
-          "type": "formula",
-          "field": "corr_decreased",
-          "expr": "max(datum.total, datum.corr_shared)"
         },
         {
           "type": "formula",
@@ -559,8 +557,8 @@
                 {"scale": "x", "field": "corr_shared", "offset": 0.5}
               ],
               "x2": [
-                {"test": "datum.thedatum", "scale": "x", "field": "corr_decreased"},
-                {"scale": "x", "field": "corr_decreased", "offset": -0.5}
+                {"test": "datum.thedatum", "scale": "x", "field": "total"},
+                {"scale": "x", "field": "total", "offset": -0.5}
               ],
               "y": [
                 {"test": "datum.thedatum", "scale": "y", "field": "sequence", "offset": 1},
@@ -577,7 +575,7 @@
                 {"test": "!datum.thedatum", "scale": "c", "value": "Noise reads"}
               ],
               "strokeWidth": [
-                {"test": "datum.thedatum || datum.corr_shared == datum.corr_decreased", "value": 0},
+                {"test": "datum.thedatum || datum.corr_shared == datum.total", "value": 0},
                 {"value": 1}
               ],
               "fillOpacity": {"value": 0.8},

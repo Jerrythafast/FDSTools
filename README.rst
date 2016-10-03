@@ -29,6 +29,22 @@ Alternatively, FDSTools can be installed by running:
 
 FDSTools Changelog
 ------------------
+v1.0.0rc1
+    - Fixed bug that caused variant descriptions in allele names of non-STR
+      markers to be prepended with plus signs similar to suffix variants
+      in STR markers; when attempting to convert these allele names back to raw
+      sequences, FDSTools would crash with an 'Invalid allele name' error
+    - Tools that take a list of files as their argument (through the -i option
+      or as positionals) now explicitly support '*' and '?' wildcards
+    - Includes BGEstimate v1.1.1
+    - Includes BGMerge v1.0.2
+    - Includes Library v1.0.1
+    - Includes Pipeline v1.0.1
+    - Includes Stuttermodel v1.1.1
+    - Includes Allelevis v2.0.1
+    - Includes Samplevis v2.1.1
+    - Includes Stuttermodelvis v2.0.1
+
 v0.0.5
     - The Blame tool was removed in favour of BGAnalyse
     - Includes BGAnalyse v1.0.0
@@ -42,7 +58,7 @@ v0.0.5
     - Includes BGAnalysevis v1.0.0
     - Includes BGRawvis v2.0.0
     - Includes Profilevis v2.0.0
-    - Includes Samplevis v1.1.0
+    - Includes Samplevis v2.1.0
     - Includes Stuttermodelvis v2.0.0
 
 v0.0.4
@@ -129,6 +145,11 @@ v1.0.0
 
 BGEstimate
 ~~~~~~~~~~
+v1.1.1
+    - Added option -p/--profiles which can be used to provide a previously
+      created background noise profiles file, from which starting values will
+      be read instead of assuming zero noise
+
 v1.1.0
     - Added a new option -g/--min-genotypes (default: 3). Only alleles that
       occur in at least this number of unique heterozygous genotypes will be
@@ -159,6 +180,9 @@ v1.0.0
 
 BGMerge
 ~~~~~~~
+v1.0.2
+    - Minor changes to facilitate explicit filename wildcard support
+
 v1.0.1
     - Reduced memory usage
 
@@ -211,12 +235,22 @@ v1.0.0
 
 Library
 ~~~~~~~
+v1.0.1
+    - Updated some of the comments describing the sections
+    - Added proper examples for non-STR markers and aliases
+
 v1.0.0
     - Initial version
 
 
 Pipeline
 ~~~~~~~~
+v1.0.1
+    - Removed checking of the existence of the files specified for the
+      -S/--in-samples option; instead, this is left to the downstream tools to
+      find out, consistent with how this works with other input file options
+    - Only output the running commands if the -d/--debug option was specified
+
 v1.0.0
     - Initial version
 
@@ -294,6 +328,9 @@ v1.0.0
 
 Stuttermodel
 ~~~~~~~~~~~~
+v1.1.1
+    - Minor change to internal variant representation
+
 v1.1.0
     - Stuttermodel will now only output a fit for one strand if it could also
       obtain a fit for the other strand (for the same marker, unit, and stutter
@@ -343,6 +380,9 @@ v1.0.0
 
 Allelevis
 ~~~~~~~~~
+v2.0.1
+    - Added tooltip support to HTML visualisations
+
 v2.0.0
     - Replaced the simple Options overlay with responsive design options panels
       in HTML visualisations
@@ -414,6 +454,20 @@ v1.0.0
 
 Samplevis
 ~~~~~~~~~
+v2.1.1
+    - Added tooltip support to HTML visualisations
+    - The tooltip may include a 'new allele' note if the input sample was
+      analysed with FindNewAlleles
+    - The allele tables in HTML visualisations will now grow much wider than
+      before if the screen (or window) is very narrow
+    - Improved line breaking behaviour in the tables in HTML visualisations
+    - Improved determination of column widths of the allele tables when
+      printing an HTML visualisation
+    - When printing an HTML visualisation, the graph and the corresponding
+      table of a marker will be kept on the same page in all browsers now
+    - Fixed glitch that caused 'Infinity%' or 'NaN%' to be written in some
+      cells in the allele tables in HTML visualisations
+
 v2.1.0
     - Changed default minimum number of reads for graph filtering from 15 to 5
     - Changed default table filtering options:
@@ -444,6 +498,9 @@ v2.0.0
 
 Stuttermodelvis
 ~~~~~~~~~~~~~~~
+v2.0.1
+    - Changed the unit in the horizontal axis title from 'bp' to 'nt'
+
 v2.0.0
     - Replaced the simple Options overlay with responsive design options panels
       in HTML visualisations

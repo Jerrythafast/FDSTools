@@ -53,7 +53,7 @@ import pkgutil, sys, os, tempfile, re, argparse
 import fdstools.tools
 
 from ..lib import split_quoted_string, DEF_TAG_EXPR, DEF_TAG_FORMAT, get_tag, \
-                  regex_arg, INI_COMMENT, glob_path
+                  regex_arg, INI_COMMENT, glob_path, print_db
 from ConfigParser import RawConfigParser, NoSectionError, NoOptionError
 
 
@@ -268,7 +268,7 @@ def get_argv(toolname, arg_defs, config):
                 arglist[0].extend(value)
         else:
             arglist[1].extend(value)
-    print(("%r" % (arglist[0]+arglist[1]))[:200])
+    print_db(("%r" % (arglist[0]+arglist[1]))[:200], debug)
     return arglist[0] + arglist[1]
 #get_argv
 
@@ -885,6 +885,10 @@ def run(args):
             import subprocess
     else:
         import subprocess
+
+    # Export debug flag to the global scope.
+    global debug
+    debug = args.debug
 
     if args.config == "-":
         raise ValueError("The pipeline configuration file cannot be named '-'")

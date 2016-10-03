@@ -171,6 +171,9 @@
             border-radius: .5em;
             padding: 0em .25em;
         }
+        #vis-tooltip td {
+            vertical-align: top;
+        }
         td.num {
             text-align: right;
         }
@@ -436,6 +439,8 @@
 </div>
 <div id="vis-tooltip"></div>
 <script type="text/javascript">
+var PAT_SEQ_RAW = /^[ACGT]*$/;
+var PAT_ALLELENAME_SPLIT = /[\]\)_]/g;
 var graph = false;
 var fileName = "alleles";
 var stamp = 0;
@@ -481,10 +486,10 @@ function parse(){
                 var table = document.createElement("table");
                 var row = table.insertRow();
                 row.insertCell().appendChild(document.createTextNode("Allele 1"));
-                row.insertCell().appendChild(document.createTextNode(a[0]));
+                appendChunkedAllelename(row.insertCell(), a[0]);
                 var row = table.insertRow();
                 row.insertCell().appendChild(document.createTextNode("Allele 2"));
-                row.insertCell().appendChild(document.createTextNode(a[1]));
+                appendChunkedAllelename(row.insertCell(), a[1]);
                 row = table.insertRow();
                 row.insertCell().appendChild(document.createTextNode("Samples"));
                 row.insertCell().appendChild(document.createTextNode(datum.count));
@@ -494,7 +499,8 @@ function parse(){
 
             //Node.
             var b = document.createElement("b");
-            b.appendChild(document.createTextNode(datum.marker + " " + datum.allele));
+            b.appendChild(document.createTextNode(datum.marker + " "));
+            appendChunkedAllelename(b, datum.allele);
             tt.appendChild(b);
             var table = document.createElement("table");
             var row = table.insertRow();
@@ -517,6 +523,35 @@ function parse(){
         //Scroll to the right; the graph is more interesting than the long labels.
         scrolldiv.scrollLeft = scrolldiv.scrollWidth;
     });
+}
+
+function appendChunkedAllelename(parent, allele){
+    var span;
+    if(PAT_SEQ_RAW.test(allele)){
+        span = document.createElement("span");
+        span.style.display = "inline-block";
+        span.style.wordBreak = "break-all";
+        span.appendChild(document.createTextNode(allele));
+        parent.appendChild(span);
+        return;
+    }
+    var match;
+    var pos = 0;
+    while((match = PAT_ALLELENAME_SPLIT.exec(allele)) !== null){
+        span = document.createElement("span");
+        span.style.display = "inline-block";
+        span.style.whiteSpace = "nowrap";
+        span.appendChild(document.createTextNode(allele.substring(pos, match.index+1)));
+        parent.appendChild(span);
+        pos = match.index+1;
+    }
+    if(pos < allele.length){
+        span = document.createElement("span");
+        span.style.display = "inline-block";
+        span.style.whiteSpace = "nowrap";
+        span.appendChild(document.createTextNode(allele.substring(pos)));
+        parent.appendChild(span);
+    }
 }
 
 function updateViewBox(svg){

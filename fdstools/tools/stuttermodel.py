@@ -37,7 +37,7 @@ from ..lib import pos_int_arg, add_input_output_args, get_input_output_files,\
                   add_random_subsampling_args, reverse_complement,\
                   get_repeat_pattern
 
-__version__ = "1.1.0"
+__version__ = "1.1.1"
 
 
 # Default values for parameters are specified below.
@@ -305,16 +305,16 @@ def fit_stutter_model(outfile, raw_outfile, data, library, seq, patterns,
 
                 # Go via variants to allow variant combinations.
                 # NOTE: Beware variant clashes.  When looking for
-                # e.g., "+13AGAT>-" with allele "AGATAGACAGATAGAT",
+                # e.g., "13AGAT>-" with allele "AGATAGACAGATAGAT",
                 # to go from this allele to AGATAGATAGAT could be
-                # "+8C>T_+13AGAT>-" but optimal is "+8CAGA>-".  It
+                # "8C>T_+13AGAT>-" but optimal is "8CAGA>-".  It
                 # should be included in the analysis but it is not.
                 if stutter_fold > 0:
-                    variant = "%+i.1->%s" % (
+                    variant = "%i.1->%s" % (
                         end - len(flanks[0]),
                         full_allele[position:end])
                 else:
-                    variant = "%+i%s>-" % (
+                    variant = "%i%s>-" % (
                         position + 1 - len(flanks[0]),
                         full_allele[position:end])
                 for sample in data["alleles"][marker][allele]:

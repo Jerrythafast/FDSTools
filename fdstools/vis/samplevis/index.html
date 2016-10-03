@@ -24,7 +24,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta charset="UTF-8">
     <title>Sample Visualisation - FDSTools</title>
-    <!-- VERSION 2.1.0 -->
+    <!-- VERSION 2.1.1 -->
     <!-- BEGIN_LIBRARIES -->
     <script src="https://vega.github.io/vega-editor/vendor/d3.min.js"></script>
     <script src="https://vega.github.io/vega/vega.min.js"></script>
@@ -166,13 +166,22 @@
         #vis div {
             direction: ltr;
         }
-        #vis div:nth-child(2n+3) {
+        #vis > div:not(:first-child) {
             border-top: 1px solid hsl(220, 20%, 3%);
             padding-top: .8rem;
             margin-top: .8rem;
         }
-        #vis div:last-child {
+        #vis > div:last-child {
             padding-bottom: .8rem;
+        }
+        #vis-tooltip {
+            display: none;
+            position: fixed;
+            z-index: 999999;
+            background-color: hsla(220, 20%, 77%, 0.75);
+            border: 1px solid hsl(220, 20%, 3%);
+            border-radius: .5em;
+            padding: 0em .25em .25em;
         }
         .markertable {
             display: inline-table;
@@ -181,30 +190,38 @@
             max-width: 55vw;
             margin-right: 12rem;
         }
-        .markertable td {
+        .tooltiptable {
+            border-collapse: collapse;
+            margin-top: .25em;
+            width: 100%;
+            max-width: 30em;
+        }
+        .markertable td, .tooltiptable td {
             border: 1px solid hsl(220, 20%, 57%);
             padding: .4rem;
             font-size: 0.8em;
             white-space: nowrap;
             width: .1rem;
         }
-        .markertable tr:first-child td {
+        .markertable tr:first-child td, .tooltiptable tr:first-child td, .tooltiptable td:first-child {
+            background-color: hsl(220, 20%, 77%);
             font-weight: bold;
         }
-        .markertable td:nth-child(2) {
+        .markertable td:nth-child(2), .tooltiptable td:first-child {
             width: auto;
         }
-        .markertable tr:first-child {
-            background-color: hsl(220, 20%, 77%);
-        }
-        .markertable tr:nth-child(1n+2) {
+        .markertable tr:nth-child(1n+2), .tooltiptable tr:nth-child(1n+2) {
             background-color: hsl(220, 20%, 97%);
         }
-        .markertable tr:nth-child(2n) {
+        .markertable tr:nth-child(2n), .tooltiptable tr:nth-child(2n) {
             background-color: hsl(220, 20%, 90%);
         }
-        .markertable tr.removed td:not(:last-child) {
+        .markertable tr.removed td:not(:last-child), .markertable tr.removed td:not(:last-child) * {
             text-decoration: line-through;
+        }
+        .tooltiptable tr:first-child td:first-child {
+            background-color: transparent;
+            border: none;
         }
         td.num {
             text-align: right;
@@ -219,7 +236,6 @@
             border-left: none;
             padding-left: 0px;
             margin-left: 0px;
-            width: 1em !important;
         }
         td.wrap {
             white-space: normal !important;
@@ -273,6 +289,9 @@
         .optiongroup {
             flex: 1 0 auto;
             padding: .2rem 1rem .2rem .2rem;
+        }
+        .markertable {
+            max-width: 90vw;
         }
     }
     @media only screen and (max-aspect-ratio: 40000/30000) and (max-height: 55em), only screen and (max-width: 60em) {
@@ -375,15 +394,11 @@
         #vis > div > * {
             direction: ltr;
         }
-        #vis > :nth-child(2n+0){
-            break-before: avoid;
-            page-break-before: avoid;
+        #vis > div {
             page-break-inside: avoid;
         }
-        #vis > :nth-child(2n+1){
-            break-after: avoid;
-            page-break-after: avoid;
-            page-break-inside: avoid;
+        #vis-tooltip {
+            display: none;
         }
         .vega, canvas {
             max-width: 100%;
@@ -404,14 +419,14 @@
             box-sizing: border-box;
             text-align: left;
             border-collapse: collapse;
-            width: 100%;
+            min-width: 100% !important;
         }
         .markertable td {
             border: 1pt solid #888888;
             padding: 2pt;
             font-size: 7pt;
             white-space: nowrap;
-            width: 50pt;
+            width: 40pt;
         }
         .markertable tr:first-child td {
             font-weight: bold;
@@ -425,7 +440,7 @@
         .markertable tr:nth-child(2n) {
             background-color: #eeeeee;
         }
-        .markertable tr.removed td:not(:last-child) {
+        .markertable tr.removed td:not(:last-child), .markertable tr.removed td:not(:last-child) * {
             text-decoration: line-through;
         }
         .num {
@@ -441,7 +456,7 @@
             border-left: none;
             padding-left: 0px;
             margin-left: 0px;
-            width: 1em  !important;
+            width: 1em !important;
         }
         td.wrap {
             white-space: normal !important;
@@ -628,7 +643,10 @@
     Ready
 </div>
 </div>
+<div id="vis-tooltip"></div>
 <script type="text/javascript">
+var PAT_SEQ_RAW = /^[ACGT]*$/;
+var PAT_ALLELENAME_SPLIT = /[\]\)_]/g;
 var graphs = false;
 var linebreak = "\n";
 var data_format = {};
@@ -701,12 +719,14 @@ function parse(maintainSelection){
             var i = graphs.length;
 
             //Add new visualisation and table divs.
+            var visouter = document.createElement("div");
             var newvis = document.createElement("div");
             newvis.setAttribute("id", "vis" + i);
-            visdiv.appendChild(newvis);
+            visouter.appendChild(newvis);
             var newtab = document.createElement("div");
             newtab.setAttribute("id", "tab" + i);
-            visdiv.appendChild(newtab);
+            visouter.appendChild(newtab);
+            visdiv.appendChild(visouter);
 
             var graph = chart({el: newvis, renderer: rendererName});
             graph.onSignal("clickedAllele", function(name, value){
@@ -732,6 +752,174 @@ function parse(maintainSelection){
                 updateTable(i);
             });
             graph.onSignal("bias_threshold", function(){updateTable(i)});
+            graph.onSignal("hovered", function(s, datum){
+                var tt = document.getElementById("vis-tooltip");
+                if(!datum){
+                    tt.style.display = "none";
+                    return;
+                }
+                tt.style.display = "block";
+                removeChildren(tt);
+                var b = document.createElement("b");
+                b.appendChild(document.createTextNode(datum.marker + " "));
+                appendChunkedAllelename(b, datum.sequence);
+                tt.appendChild(b);
+                var table = document.createElement("table");
+                table.setAttribute("class", "tooltiptable");
+                var row = table.insertRow();
+                row.insertCell();
+                var cell = row.insertCell();
+                cell.appendChild(document.createTextNode("Reads"));
+                cell.setAttribute("class", "num");
+                cell.setAttribute("colspan", "2");
+                cell = row.insertCell();
+                cell.appendChild(document.createTextNode("Correction"));
+                cell.setAttribute("class", "num");
+                cell.setAttribute("colspan", "2");
+                cell = row.insertCell();
+                cell.appendChild(document.createTextNode("Recovery"));
+                cell.setAttribute("class", "num");
+                cell.setAttribute("colspan", "2");
+                cell = row.insertCell();
+                cell.appendChild(document.createTextNode("Noise"));
+                cell.setAttribute("class", "num");
+                cell.setAttribute("colspan", "2");
+                row = table.insertRow();
+                row.insertCell().appendChild(document.createTextNode("Total"));
+                row.insertCell().appendChild(document.createTextNode(
+                        datum.total == datum.total_added? " " : (datum.total.toFixed() + " \u2192\u00a0")
+                    )).parentNode.setAttribute("class", "lefthalf");
+                row.insertCell().appendChild(document.createTextNode(
+                        datum.total_added.toFixed()
+                    )).parentNode.setAttribute("class", "num");
+                row.insertCell().appendChild(document.createTextNode(
+                        (datum.total_added < datum.total? "" : "+") + (datum.total_added-datum.total).toFixed()
+                    )).parentNode.setAttribute("class", "lefthalf");
+                var corrAmount = datum.total_added/datum.total*100-100;
+                row.insertCell().appendChild(document.createTextNode(
+                        datum.total? (
+                            "\u00a0(" + (corrAmount < 0? "" : "+") + corrAmount.toFixed(2) + "%)"
+                        ) : ""
+                    )).parentNode.setAttribute("class", "num");
+                row.insertCell().appendChild(document.createTextNode(
+                        datum.total_add? datum.total_add.toFixed() : "0"
+                    )).parentNode.setAttribute("class", "lefthalf");
+                row.insertCell().appendChild(document.createTextNode(
+                        datum.total_added? (
+                            "\u00a0(" + (datum.total_add/datum.total_added*100).toFixed(2) + "%)"
+                        ) : ""
+                    )).parentNode.setAttribute("class", "num");
+                row.insertCell().appendChild(document.createTextNode(
+                        datum.total_noise? datum.total_noise.toFixed() : "0"
+                    )).parentNode.setAttribute("class", "lefthalf");
+                row.insertCell().appendChild(document.createTextNode(
+                        datum.total? (
+                            "\u00a0(" + (datum.total_noise/datum.total*100).toFixed(2) + "%)"
+                        ) : ""
+                    )).parentNode.setAttribute("class", "num");
+                row = table.insertRow();
+                row.insertCell().appendChild(document.createTextNode("Forward"));
+                cell = row.insertCell();
+                cell.appendChild(document.createTextNode(
+                        datum.forward == datum.forward_added? " " : (datum.forward.toFixed() + " \u2192\u00a0")
+                    ));
+                cell.setAttribute("class", "lefthalf");
+                if(datum.biasmark !== "" && datum.forward_added < datum.reverse_added)
+                    cell.style.backgroundColor = "#ffaaaa";
+                cell = row.insertCell();
+                cell.appendChild(document.createTextNode(
+                        datum.forward_added.toFixed()
+                    ));
+                cell.setAttribute("class", "num");
+                if(datum.biasmark !== "" && datum.forward_added < datum.reverse_added)
+                    cell.style.backgroundColor = "#ffaaaa";
+                row.insertCell().appendChild(document.createTextNode(
+                        (datum.forward_added < datum.forward? "" : "+") + (datum.forward_added-datum.forward).toFixed()
+                    )).parentNode.setAttribute("class", "lefthalf");
+                corrAmount = datum.forward_added/datum.forward*100-100;
+                row.insertCell().appendChild(document.createTextNode(
+                        datum.forward? (
+                            "\u00a0(" + (corrAmount < 0? "" : "+") + corrAmount.toFixed(2) + "%)"
+                        ) : ""
+                    )).parentNode.setAttribute("class", "num");
+                row.insertCell().appendChild(document.createTextNode(
+                        datum.forward_add? datum.forward_add.toFixed() : "0"
+                    )).parentNode.setAttribute("class", "lefthalf");
+                row.insertCell().appendChild(document.createTextNode(
+                        datum.forward_added? (
+                            "\u00a0(" + (datum.forward_add/datum.forward_added*100).toFixed(2) + "%)"
+                        ) : ""
+                    )).parentNode.setAttribute("class", "num");
+                row.insertCell().appendChild(document.createTextNode(
+                        datum.forward_noise? datum.forward_noise.toFixed() : "0"
+                    )).parentNode.setAttribute("class", "lefthalf");
+                row.insertCell().appendChild(document.createTextNode(
+                        datum.forward? (
+                            "\u00a0(" + (datum.forward_noise/datum.forward*100).toFixed(2) + "%)"
+                        ) : ""
+                    )).parentNode.setAttribute("class", "num");
+                row = table.insertRow();
+                row.insertCell().appendChild(document.createTextNode("Reverse"));
+                cell = row.insertCell();
+                cell.appendChild(document.createTextNode(
+                        datum.reverse == datum.reverse_added? " " : (datum.reverse.toFixed() + " \u2192\u00a0")
+                    ));
+                cell.setAttribute("class", "lefthalf");
+                if(datum.biasmark !== "" && datum.forward_added > datum.reverse_added)
+                    cell.style.backgroundColor = "#ffaaaa";
+                cell = row.insertCell();
+                cell.appendChild(document.createTextNode(
+                        datum.reverse_added.toFixed()
+                    ));
+                cell.setAttribute("class", "num");
+                if(datum.biasmark !== "" && datum.forward_added > datum.reverse_added)
+                    cell.style.backgroundColor = "#ffaaaa";
+                row.insertCell().appendChild(document.createTextNode(
+                       (datum.reverse_added < datum.reverse? "" : "+") + (datum.reverse_added-datum.reverse).toFixed()
+                    )).parentNode.setAttribute("class", "lefthalf");
+                corrAmount = datum.reverse_added/datum.reverse*100-100;
+                row.insertCell().appendChild(document.createTextNode(
+                        datum.reverse? (
+                            "\u00a0(" + (corrAmount < 0? "" : "+") + corrAmount.toFixed(2) + "%)"
+                        ) : ""
+                    )).parentNode.setAttribute("class", "num");
+                row.insertCell().appendChild(document.createTextNode(
+                        datum.reverse_add? datum.reverse_add.toFixed() : "0"
+                    )).parentNode.setAttribute("class", "lefthalf");
+                row.insertCell().appendChild(document.createTextNode(
+                        datum.reverse_added? (
+                            "\u00a0(" + (datum.reverse_add/datum.reverse_added*100).toFixed(2) + "%)"
+                        ) : ""
+                    )).parentNode.setAttribute("class", "num");
+                row.insertCell().appendChild(document.createTextNode(
+                        datum.reverse_noise? datum.reverse_noise.toFixed() : "0"
+                    )).parentNode.setAttribute("class", "lefthalf");
+                row.insertCell().appendChild(document.createTextNode(
+                        datum.reverse? (
+                            "\u00a0(" + (datum.reverse_noise/datum.reverse*100).toFixed(2) + "%)"
+                        ) : ""
+                    )).parentNode.setAttribute("class", "num");
+                row = table.insertRow();
+                row.insertCell().appendChild(document.createTextNode("PctOfHighest"));
+                cell = row.insertCell();
+                cell.appendChild(document.createTextNode(datum.pct_of_max.toFixed(2) + "%"));
+                cell.setAttribute("colspan", "8");
+                row = table.insertRow();
+                row.insertCell().appendChild(document.createTextNode("PctOfMarker"));
+                cell = row.insertCell();
+                cell.appendChild(document.createTextNode(datum.pct_of_sum.toFixed(2) + "%"));
+                cell.setAttribute("colspan", "8");
+                if(datum.new_allele == "*"){
+                    row = table.insertRow();
+                    cell = row.insertCell();
+                    cell.appendChild(document.createTextNode("New allele"));
+                    cell = row.insertCell();
+                    cell.appendChild(document.createTextNode("Yes"));
+                    cell.setAttribute("colspan", "8");
+                    cell.style.backgroundColor = "#ffe8c8";
+                }
+                tt.appendChild(table);
+            });
             graph.update();
             if(rendererName == "svg")
                 updateViewBox(graph._el.childNodes[0]);
@@ -771,6 +959,35 @@ function parse(maintainSelection){
     });
     if(missing_markers.length)
         setMessage("Warning: Some markers were not detected in this sample:\n" + missing_markers.join(", "), true, "warning");
+}
+
+function appendChunkedAllelename(parent, allele){
+    var span;
+    if(PAT_SEQ_RAW.test(allele)){
+        span = document.createElement("span");
+        span.style.display = "inline-block";
+        span.style.wordBreak = "break-all";
+        span.appendChild(document.createTextNode(allele));
+        parent.appendChild(span);
+        return;
+    }
+    var match;
+    var pos = 0;
+    while((match = PAT_ALLELENAME_SPLIT.exec(allele)) !== null){
+        span = document.createElement("span");
+        span.style.display = "inline-block";
+        span.style.whiteSpace = "nowrap";
+        span.appendChild(document.createTextNode(allele.substring(pos, match.index+1)));
+        parent.appendChild(span);
+        pos = match.index+1;
+    }
+    if(pos < allele.length){
+        span = document.createElement("span");
+        span.style.display = "inline-block";
+        span.style.whiteSpace = "nowrap";
+        span.appendChild(document.createTextNode(allele.substring(pos)));
+        parent.appendChild(span);
+    }
 }
 
 function compileFilter(filter){
@@ -1096,7 +1313,9 @@ function updateTable(i){
     }).forEach(function(datum){
         row = table.insertRow();
         row.insertCell().appendChild(document.createTextNode(datum.marker));
-        row.insertCell().appendChild(document.createTextNode(datum.sequence)).parentNode.setAttribute("class", "wrap");
+        cell = row.insertCell();
+        cell.setAttribute("class", "wrap");
+        appendChunkedAllelename(cell, datum.sequence);
         row.insertCell().appendChild(document.createTextNode(
                 datum.total == datum.total_added? " " : (datum.total.toFixed() + " \u2192\u00a0")
             )).parentNode.setAttribute("class", "lefthalf");
@@ -1105,24 +1324,30 @@ function updateTable(i){
             )).parentNode.setAttribute("class", "num");
         row.insertCell().appendChild(document.createTextNode(datum.pct_of_max.toFixed(2) + "%")).parentNode.setAttribute("class", "num");
         row.insertCell().appendChild(document.createTextNode(datum.pct_of_sum.toFixed(2) + "%")).parentNode.setAttribute("class", "num");
+        row.insertCell().appendChild(document.createTextNode(
+                (datum.total_added < datum.total? "" : "+") + (datum.total_added-datum.total).toFixed()
+            )).parentNode.setAttribute("class", "lefthalf");
         var corrAmount = datum.total_added/datum.total*100-100;
         row.insertCell().appendChild(document.createTextNode(
-                (corrAmount < 0? "" : "+") + (datum.total_added-datum.total).toFixed()
-            )).parentNode.setAttribute("class", "lefthalf");
-        row.insertCell().appendChild(document.createTextNode(
-                "\u00a0(" + (corrAmount < 0? "" : "+") + corrAmount.toFixed(2) + "%)"
+                datum.total? (
+                    "\u00a0(" + (corrAmount < 0? "" : "+") + corrAmount.toFixed(2) + "%)"
+                ) : ""
             )).parentNode.setAttribute("class", "num");
         row.insertCell().appendChild(document.createTextNode(
                 datum.total_add? datum.total_add.toFixed() : "0"
             )).parentNode.setAttribute("class", "lefthalf");
         row.insertCell().appendChild(document.createTextNode(
-                "\u00a0(" + (datum.total_add/datum.total_added*100).toFixed(2) + "%)"
+                datum.total_added? (
+                    "\u00a0(" + (datum.total_add/datum.total_added*100).toFixed(2) + "%)"
+                ) : ""
             )).parentNode.setAttribute("class", "num");
         row.insertCell().appendChild(document.createTextNode(
                 datum.total_noise? datum.total_noise.toFixed() : "0"
             )).parentNode.setAttribute("class", "lefthalf");
         row.insertCell().appendChild(document.createTextNode(
-                "\u00a0(" + (datum.total_noise/datum.total*100).toFixed(2) + "%)"
+                datum.total? (
+                    "\u00a0(" + (datum.total_noise/datum.total*100).toFixed(2) + "%)"
+                ) : ""
             )).parentNode.setAttribute("class", "num");
         cell = row.insertCell();
         cell.appendChild(document.createTextNode(datum.forwardpct.toFixed(2) + "%"));
@@ -1361,6 +1586,19 @@ function onLoadSpec(has_data){
     document.getElementById("shownegative").checked = getSignalValue("show_negative");
     document.getElementById("showother").checked = getSignalValue("show_other");
     document.getElementById("sortstrbylength").checked = getSignalValue("sort_str_by_length");
+
+    //Automatically move the tooltip with the mouse pointer.
+    var tt = document.getElementById("vis-tooltip");
+    document.addEventListener('mousemove', function(e){
+      if(e.clientX < document.documentElement.clientWidth / 2)
+        tt.style.left = Math.max(0, Math.min(document.documentElement.clientWidth - tt.offsetWidth, e.clientX + 10)) + "px";
+      else
+        tt.style.left = Math.max(0, e.clientX - tt.offsetWidth - 10) + "px";
+      if(e.clientY + 10 + tt.offsetHeight > document.documentElement.clientHeight)
+        tt.style.top = (document.documentElement.clientHeight - tt.offsetHeight) + "px";
+      else
+        tt.style.top = (e.clientY + 10) + "px";
+    }, false);
 
     setMessage("Ready", false);
     if(has_data)
