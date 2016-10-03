@@ -56,7 +56,7 @@ x = setup(
     license="GPLv3+",
     platforms=["any"],
     classifiers=[
-        "Development Status :: 3 - Alpha",
+        "Development Status :: 4 - Beta",
         "Intended Audience :: Science/Research",
         "Intended Audience :: Legal Industry",
         "License :: OSI Approved :: GNU General Public License v3 or "
