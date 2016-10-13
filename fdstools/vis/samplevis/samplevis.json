@@ -1,5 +1,5 @@
 {
-  "fdstools_visversion": "2.1.1",
+  "fdstools_visversion": "2.1.2",
   "width": 600,
   "height": 10,
   "signals": [
@@ -18,6 +18,30 @@
     {
       "name": "orientation_threshold",
       "init": 0
+    },
+    {
+      "name": "allele_amplitude_threshold",
+      "init": 30
+    },
+    {
+      "name": "allele_amplitude_pct_threshold",
+      "init": 2
+    },
+    {
+      "name": "allele_amplitude_markerpct_threshold",
+      "init": 1.5
+    },
+    {
+      "name": "allele_correction_threshold",
+      "init": 0
+    },
+    {
+      "name": "allele_recovery_threshold",
+      "init": 0
+    },
+    {
+      "name": "allele_orientation_threshold",
+      "init": 1
     },
     {
       "name": "show_negative",
@@ -373,6 +397,13 @@
     },
     {
       "name": "selectedAlleles",
+      "source": "annotated",
+      "transform": [
+        {
+          "type": "filter",
+          "test": "datum.total_added >= allele_amplitude_threshold && datum.pct_of_max >= allele_amplitude_pct_threshold && datum.pct_of_sum >= allele_amplitude_markerpct_threshold && ((datum.total_added/datum.total*100-100) >= allele_correction_threshold || (datum.total_add/datum.total_added*100) >= allele_recovery_threshold) && min(datum.forward_added, datum.reverse_added) >= allele_orientation_threshold"
+        }
+      ],
       "modify": [
         {
           "type": "toggle",

@@ -57,7 +57,7 @@ from ..lib import split_quoted_string, DEF_TAG_EXPR, DEF_TAG_FORMAT, get_tag, \
 from ConfigParser import RawConfigParser, NoSectionError, NoOptionError
 
 
-__version__ = "1.0.1"
+__version__ = "1.0.2"
 
 
 # Pattern that matches a long argparse argument name.
@@ -97,8 +97,8 @@ ANALYSIS_ARGS = {
     "reference-sample":
         ("analysis", "in-library", "in-sample-raw", "tag-expr", "tag-format"),
     "reference-database":
-        ("analysis", "in-library", "in-samples", "prefix", "tag-expr",
-        "tag-format"),
+        ("analysis", "in-library", "in-samples", "in-allelelist", "prefix",
+        "tag-expr", "tag-format"),
     "case-sample":
         ("analysis", "in-library", "in-sample-raw", "in-stuttermodel",
         "in-bgprofiles", "store-predictions", "tag-expr", "tag-format")
@@ -417,21 +417,27 @@ def run_ref_database_analysis(arg_defs, config):
     prefix = ini_try_get_option(config, NAME, "prefix", "")
     if prefix and prefix[-1] not in "-_./\\":
         prefix += "-"
+    allelefile = ini_try_get_option(config, NAME, "in-allelelist")
+    run_allelefinder = False
+    if allelefile is None:
+        allelefile =  prefix + "allelelist.txt"
+        run_allelefinder = True
 
     # Overwrite any explicit I/O configuration.
-    if not config.has_section("allelefinder"):
-        config.add_section("allelefinder")
-    config.set("allelefinder", "infiles", in_samples)
-    config.set("allelefinder", "outfile", prefix + "allelelist.txt")
-    config.set("allelefinder", "report", prefix + "allelereport.txt")
-    config.set("allelefinder", "library", in_library)
-    config.set("allelefinder", "tag-expr", tag_expr)
-    config.set("allelefinder", "tag-format", tag_format)
-    if not config.has_option("allelefinder", "stuttermark-column"):
-        config.set("allelefinder", "stuttermark-column", "annotation")
+    if run_allelefinder:
+        if not config.has_section("allelefinder"):
+            config.add_section("allelefinder")
+        config.set("allelefinder", "infiles", in_samples)
+        config.set("allelefinder", "outfile", allelefile)
+        config.set("allelefinder", "report", prefix + "allelereport.txt")
+        config.set("allelefinder", "library", in_library)
+        config.set("allelefinder", "tag-expr", tag_expr)
+        config.set("allelefinder", "tag-format", tag_format)
+        if not config.has_option("allelefinder", "stuttermark-column"):
+            config.set("allelefinder", "stuttermark-column", "annotation")
     if not config.has_section("bgestimate"):
         config.add_section("bgestimate")
-    config.set("bgestimate", "allelelist", prefix + "allelelist.txt")
+    config.set("bgestimate", "allelelist", allelefile)
     config.set("bgestimate", "infiles", in_samples)
     config.set("bgestimate", "outfile", prefix + "bgprofiles.txt")
     config.set("bgestimate", "library", in_library)
@@ -439,7 +445,7 @@ def run_ref_database_analysis(arg_defs, config):
     config.set("bgestimate", "tag-format", tag_format)
     if not config.has_section("stuttermodel"):
         config.add_section("stuttermodel")
-    config.set("stuttermodel", "allelelist", prefix + "allelelist.txt")
+    config.set("stuttermodel", "allelelist", allelefile)
     config.set("stuttermodel", "infiles", in_samples)
     config.set("stuttermodel", "outfile", prefix + "stuttermodel.txt")
     config.set("stuttermodel", "library", in_library)
@@ -448,7 +454,7 @@ def run_ref_database_analysis(arg_defs, config):
     config.set("stuttermodel", "raw-outfile", prefix + "stuttermodel-raw.txt")
     if not config.has_section("bghomraw"):
         config.add_section("bghomraw")
-    config.set("bghomraw", "allelelist", prefix + "allelelist.txt")
+    config.set("bghomraw", "allelelist", allelefile)
     config.set("bghomraw", "infiles", in_samples)
     config.set("bghomraw", "outfile", prefix + "bgprofiles-raw.txt")
     config.set("bghomraw", "library", in_library)
@@ -469,10 +475,11 @@ def run_ref_database_analysis(arg_defs, config):
     config.set("seqconvert", "marker-column", "marker")
     config.set("seqconvert", "allele-column", "sequence")
 
-    # Start with Allelefinder.
-    p_allelefinder = subprocess.Popen(
-        get_argv("allelefinder", arg_defs, config))
-    p_allelefinder.wait()
+    if run_allelefinder:
+        # Start with Allelefinder.
+        p_allelefinder = subprocess.Popen(
+            get_argv("allelefinder", arg_defs, config))
+        p_allelefinder.wait()
 
     p_bgestimate = subprocess.Popen(get_argv("bgestimate", arg_defs, config))
 
@@ -482,7 +489,7 @@ def run_ref_database_analysis(arg_defs, config):
     p_bghomraw = subprocess.Popen(get_argv("bghomraw", arg_defs, config))
 
     config.set("vis", "type", "allele")
-    config.set("vis", "infile", prefix + "allelelist.txt")
+    config.set("vis", "infile", allelefile)
     config.remove_option("vis", "infile2")
     config.set("vis", "outfile", prefix + "allelegraph.html")
     p_allelevis = subprocess.Popen(get_argv("vis", arg_defs, config))
@@ -868,6 +875,11 @@ def add_arguments(parser):
     group.add_argument("-S", "--in-samples", metavar="SAMPLE", nargs="+",
         help="[ref-database] file names of reference sample data files "
              "('.csv' output files of the 'reference-sample' analysis)")
+    group.add_argument('-A', '--in-allelelist', metavar="ALLELEFILE",
+        help="[ref-database] file containing a list of the true alleles of "
+             "each sample; if not given, Allelefinder will be run as part of "
+             "the pipeline to create this file; it is ESSENTIAL that you "
+             "check the correctness and completeness of the allele list")
     group.add_argument("-P", "--prefix",
         help="[ref-database] if specified, all output file names are prefixed "
              "with this value")

@@ -55,7 +55,7 @@ from pkg_resources import resource_stream, resource_string
 
 from ..lib import pos_int_arg
 
-__version__ = "1.0.2"
+__version__ = "1.0.3"
 
 
 # Default values for parameters are specified below.
@@ -77,6 +77,33 @@ _DEF_THRESHOLD_PCT_OF_SUM = 0.0
 # Default minimum number of reads per orientation to require.
 # This value can be overridden by the -s command line option.
 _DEF_THRESHOLD_ORIENTATION = 0
+
+# Default minimum number of reads to mark as allele in Samplevis.
+# This value can be overridden by the -n command line option.
+_DEF_THRESHOLD_ABS_ALLELE = 30
+
+# Default minimum percentage of reads w.r.t. the highest allele of the
+# marker to mark as allele in Samplevis.
+# This value can be overridden by the -m command line option.
+_DEF_THRESHOLD_PCT_OF_MAX_ALLELE = 2.
+
+# Default minimum percentage of reads w.r.t. the marker's total number
+# of reads to mark as allele in Samplevis.
+# This value can be overridden by the -p command line option.
+_DEF_THRESHOLD_PCT_OF_SUM_ALLELE = 1.5
+
+# Default minimum percentage of correction to mark as allele in Samplevis.
+# This value can be overridden by the -c command line option.
+_DEF_THRESHOLD_CORRECTION_ALLELE = 0
+
+# Default minimum number of recovered reads as a percentage of the
+# number of reads after correction to mark as allele in Samplevis.
+# This value can be overridden by the -r command line option.
+_DEF_THRESHOLD_RECOVERY_ALLELE = 0
+
+# Default minimum number of reads per strand to mark as allele in Samplevis.
+# This value can be overridden by the -b command line option.
+_DEF_THRESHOLD_ORIENTATION_ALLELE = 1
 
 # Default percentage of reads on one strand to mark as bias.
 # This value can be overridden by the -B command line option.
@@ -163,7 +190,10 @@ def create_visualisation(vistype, infile, infile2, outfile, vega, online, tidy,
                          min_per_strand, bias_threshold, bar_width, padding,
                          marker, width, height, log_scale, repeat_unit,
                          no_alldata, no_aggregate, no_ce_length_sort,
-                         max_seq_len, jitter, title):
+                         max_seq_len, jitter, title, allele_min_abs,
+                         allele_min_pct_of_max, allele_min_pct_of_sum,
+                         allele_min_correction, allele_min_recovery,
+                         allele_min_per_strand):
     # Get graph spec.
     spec = json.load(resource_stream(
         "fdstools", "vis/%svis/%svis.json" % (vistype, vistype)))
@@ -208,6 +238,17 @@ def create_visualisation(vistype, infile, infile2, outfile, vega, online, tidy,
         set_signal_value(spec, "show_other", not no_aggregate)
         set_signal_value(spec, "sort_str_by_length", not no_ce_length_sort)
         set_signal_value(spec, "max_seq_len", max_seq_len)
+        set_signal_value(spec, "allele_amplitude_threshold", allele_min_abs)
+        set_signal_value(spec, "allele_amplitude_pct_threshold",
+            allele_min_pct_of_max)
+        set_signal_value(spec, "allele_amplitude_markerpct_threshold",
+            allele_min_pct_of_sum)
+        set_signal_value(spec, "allele_correction_threshold",
+            allele_min_correction)
+        set_signal_value(spec, "allele_recovery_threshold",
+            allele_min_recovery)
+        set_signal_value(spec, "allele_orientation_threshold",
+            allele_min_per_strand)
 
     # Apply axis scale settings.
     if vistype != "stuttermodel" and vistype != "allele":
@@ -312,7 +353,7 @@ def add_arguments(parser):
     visgroup = parser.add_argument_group("visualisation options",
         description="words in [brackets] indicate applicable visualisation "
                     "types")
-    visgroup.add_argument('-n', '--min-abs', metavar="N", type=int,
+    visgroup.add_argument('-n', '--min-abs', metavar="N", type=float,
         default=_DEF_THRESHOLD_ABS,
         help="[sample, profile, bgraw] only show sequences with this minimum "
              "number of reads (default: %(default)s)")
@@ -326,8 +367,8 @@ def add_arguments(parser):
         default=_DEF_THRESHOLD_PCT_OF_SUM,
         help="[sample] only show sequences with at least this percentage of "
              "the total number of reads of a marker (default: %(default)s)")
-    visgroup.add_argument('-s', '--min-per-strand', metavar="N",
-        type=int, default=_DEF_THRESHOLD_ORIENTATION,
+    visgroup.add_argument('-s', '--min-per-strand', metavar="N", type=float,
+        default=_DEF_THRESHOLD_ORIENTATION,
         help="[sample] only show sequences with this minimum number of reads "
              "for both orientations (forward/reverse) (default: %(default)s)")
     visgroup.add_argument('-B', '--bias-threshold', metavar="N", type=float,
@@ -351,43 +392,74 @@ def add_arguments(parser):
     visgroup.add_argument('-A', '--no-alldata', action="store_true",
         help="[stuttermodel] if specified, show only marker-specific fits")
     visgroup.add_argument('-a', '--no-aggregate', action="store_true",
-        help="[sample] if specified, do not replace filtered sequences with a"
+        help="[sample] if specified, do not replace filtered sequences with a "
              "per-marker aggregate 'Other sequences' entry")
-    visgroup.add_argument('-L', '--log-scale', action="store_true",
-        help="[sample, profile, bgraw, bganalyse] use logarithmic scale (for "
-             "sample and bganalyse: square root scale) instead of linear "
-             "scale")
-    visgroup.add_argument('-b', '--bar-width', metavar="N", type=pos_int_arg,
-        default=_DEF_BAR_WIDTH,
-        help="[sample, profile, bgraw, bganalyse] width of the bars in pixels "
-             "(default: %(default)s)")
-    visgroup.add_argument('-p', '--padding', metavar="N", type=pos_int_arg,
-        default=_DEF_SUBGRAPH_PADDING,
-        help="[sample, profile, bgraw, stuttermodel] amount of padding (in "
-             "pixels) between graphs of different markers/alleles (default: "
-             "%(default)s)")
-    visgroup.add_argument('-w', '--width', metavar="N", type=pos_int_arg,
-        default=_DEF_WIDTH,
-        help="[sample, profile, bgraw, stuttermodel, bganalyse, allele] width "
-             "of the graph area in pixels (default: %(default)s)")
-    visgroup.add_argument('-H', '--height', metavar="N", type=pos_int_arg,
-        default=_DEF_HEIGHT,
-        help="[stuttermodel, allele] height of the graph area in pixels "
-             "(default: %(default)s)")
-    visgroup.add_argument('-x', '--max-seq-len', metavar="N", type=pos_int_arg,
-        default=_DEF_MAX_SEQ_LEN,
-        help="[sample] truncate long sequences to this number of characters "
-             "(default: %(default)s)")
-    visgroup.add_argument('-j', '--jitter', metavar="N", type=float,
-        default=_DEF_JITTER,
-        help="[stuttermodel] apply this amount of jitter to raw data points "
-             "(between 0 and 1, default: %(default)s)")
     visgroup.add_argument('-I', '--input2', dest="infile2", metavar="FILE",
         type=argparse.FileType("r"),
         help="[profile, stuttermodel] raw data points file to overlay on the "
              "background noise profiles or stutter model graphs; if not "
              "specified, HTML visualisation files will contain a file "
              "selection control")
+
+    dispgroup = parser.add_argument_group("display options")
+    dispgroup.add_argument('-L', '--log-scale', action="store_true",
+        help="[sample, profile, bgraw, bganalyse] use logarithmic scale (for "
+             "sample and bganalyse: square root scale) instead of linear "
+             "scale")
+    dispgroup.add_argument('-b', '--bar-width', metavar="N", type=pos_int_arg,
+        default=_DEF_BAR_WIDTH,
+        help="[sample, profile, bgraw, bganalyse] width of the bars in pixels "
+             "(default: %(default)s)")
+    dispgroup.add_argument('-p', '--padding', metavar="N", type=pos_int_arg,
+        default=_DEF_SUBGRAPH_PADDING,
+        help="[sample, profile, bgraw, stuttermodel] amount of padding (in "
+             "pixels) between graphs of different markers/alleles (default: "
+             "%(default)s)")
+    dispgroup.add_argument('-w', '--width', metavar="N", type=pos_int_arg,
+        default=_DEF_WIDTH,
+        help="[sample, profile, bgraw, stuttermodel, bganalyse, allele] width "
+             "of the graph area in pixels (default: %(default)s)")
+    dispgroup.add_argument('-H', '--height', metavar="N", type=pos_int_arg,
+        default=_DEF_HEIGHT,
+        help="[stuttermodel, allele] height of the graph area in pixels "
+             "(default: %(default)s)")
+    dispgroup.add_argument('-x', '--max-seq-len', metavar="N", type=pos_int_arg,
+        default=_DEF_MAX_SEQ_LEN,
+        help="[sample] truncate long sequences to this number of characters "
+             "(default: %(default)s)")
+    dispgroup.add_argument('-j', '--jitter', metavar="N", type=float,
+        default=_DEF_JITTER,
+        help="[stuttermodel] apply this amount of jitter to raw data points "
+             "(between 0 and 1, default: %(default)s)")
+
+    allelegroup = parser.add_argument_group("allele calling options",
+        "for sample visualisations only; sequences that match the -C or -Y "
+        "option (or both) and all of the other settings are marked as "
+        "'allele'")
+    allelegroup.add_argument('-N', '--allele-min-abs', metavar="N", type=float,
+        default=_DEF_THRESHOLD_ABS_ALLELE,
+        help="the minimum number of reads (default: %(default)s)")
+    allelegroup.add_argument('-X', '--allele-min-pct-of-max', metavar="PCT",
+        type=float, default=_DEF_THRESHOLD_PCT_OF_MAX_ALLELE,
+        help="the minimum percentage of reads w.r.t. the highest allele of "
+             "the marker (default: %(default)s)")
+    allelegroup.add_argument('-Q', '--allele-min-pct-of-sum', metavar="PCT",
+        type=float, default=_DEF_THRESHOLD_PCT_OF_SUM_ALLELE,
+        help="the minimum percentage of reads w.r.t. the marker's total "
+             "number of reads (default: %(default)s)")
+    allelegroup.add_argument('-C', '--allele-min-correction', metavar="N",
+        type=float, default=_DEF_THRESHOLD_CORRECTION_ALLELE,
+        help="the minimum change in read count due to correction by e.g., "
+             "bgcorrect (default: %(default)s)")
+    allelegroup.add_argument('-Y', '--allele-min-recovery', metavar="N",
+        type=float, default=_DEF_THRESHOLD_RECOVERY_ALLELE,
+        help="the minimum number of reads that was recovered thanks to "
+             "noise correction (by e.g., bgcorrect), as a percentage of the "
+             "total number of reads after correction (default: %(default)s)")
+    allelegroup.add_argument('-Z', '--allele-min-per-strand', metavar="N",
+        type=float, default=_DEF_THRESHOLD_ORIENTATION_ALLELE,
+        help="the minimum number of reads in both orientations (default: "
+             "%(default)s)")
 #add_arguments
 
 
@@ -417,5 +489,9 @@ def run(args):
                          args.height, args.log_scale, args.repeat_unit,
                          args.no_alldata, args.no_aggregate,
                          args.no_ce_length_sort, args.max_seq_len, args.jitter,
-                         args.title)
+                         args.title, args.allele_min_abs,
+                         args.allele_min_pct_of_max,
+                         args.allele_min_pct_of_sum,
+                         args.allele_min_correction, args.allele_min_recovery,
+                         args.allele_min_per_strand)
 #run

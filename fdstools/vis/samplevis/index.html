@@ -21,10 +21,10 @@
     # along with FDSTools.  If not, see <http://www.gnu.org/licenses/>.
     -->
     <meta http-equiv="X-UA-Compatible" content="IE=edge">
-    <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>Sample Visualisation - FDSTools</title>
-    <!-- VERSION 2.1.1 -->
+    <!-- VERSION 2.1.2 -->
     <!-- BEGIN_LIBRARIES -->
     <script src="https://vega.github.io/vega-editor/vendor/d3.min.js"></script>
     <script src="https://vega.github.io/vega/vega.min.js"></script>
@@ -487,6 +487,7 @@
                     <td>
                         <a id="saveImageLink" href="javascript:void(saveImage())" class="disabled">Save image</a>
                         <a id="saveTableLink" href="javascript:void(saveTable())" class="disabled">Save table</a>
+                        <a id="savePageLink" href="javascript:void(savePage())" class="disabled">Save page</a>
                     </td>
                 </tr>
             </table>
@@ -645,6 +646,7 @@
 </div>
 <div id="vis-tooltip"></div>
 <script type="text/javascript">
+var PAT_LOAD_SCRIPT = /(<!--\s*BEGIN_LOAD_SCRIPT\s*-->\s*)([^]*?\s*<\/script>)/;
 var PAT_SEQ_RAW = /^[ACGT]*$/;
 var PAT_ALLELENAME_SPLIT = /[\]\)_]/g;
 var graphs = false;
@@ -676,6 +678,7 @@ function parse(maintainSelection){
     document.getElementById("saveImageLink").setAttribute("class", "disabled");
     document.getElementById("saveTableLink").setAttribute("class", "disabled");
     document.getElementById("clearSelectionLink").setAttribute("class", selectedAlleles.length? "" : "disabled");
+    document.getElementById("savePageLink").setAttribute("class", "");
 
     //Get a list of marker names and render a graph for each of them.
     var splitMarkers = document.getElementById("splitmarkers").checked;
@@ -1395,8 +1398,89 @@ function updateTable(i){
     document.getElementById("saveTableLink").setAttribute("class", (autoSelected.length + userSelected.length? "" : "disabled"));
 }
 
-function onLoadSpec(has_data){
-    if(!has_data){
+var pagehtml = "";
+function savePage(){
+    var link = document.getElementById("savePageLink");
+    if(link.getAttribute("class") == "disabled")
+        return false;
+    var rendererName = document.querySelector("input[name=renderer]:checked").value;
+    var splitMarkers = document.getElementById("splitmarkers").checked;
+    var x = PAT_LOAD_SCRIPT.exec(pagehtml);
+    var graph_specx = JSON.parse(JSON.stringify(graph_spec));
+    for(i in graph_specx.signals)
+        if(graph_specx.signals[i].name == "filter_marker"){
+            graph_specx.signals[i].init = document.getElementById("markerFilter").value;
+            break;
+        }
+    graph_specx.data[0].fdstools_filename = fileName;
+    graph_specx.data[0].format = data_format;
+    graph_specx.data[0].values = "";
+    var sel = userSelected.map(function(sa){
+        sa._prev = null;
+        sa._id = null;
+        sa.aggr._id = null;
+        sa.rank = null;
+        sa.thedatum = null;
+        return sa;
+    });
+    var desel = userDeselected.map(function(sa){
+        sa._prev = null;
+        sa._id = null;
+        sa.aggr._id = null;
+        sa.rank = null;
+        sa.thedatum = null;
+        return sa;
+    });
+    selectedAlleles.forEach(function(sa){
+        sa._prev = null;
+        sa._id = null;
+        sa.aggr._id = null;
+        sa.rank = null;
+        sa.thedatum = null;
+        var i = sel.indexOf(sa);
+        if(i < 0)
+            sel.push(sa);
+        else{
+            sel.splice(i, 1);
+            desel.push(sa);
+        }
+    });
+    var b = new Blob(
+        [[pagehtml.substr(0, x.index + x[1].length),
+        "<","script type=\"text/javascript\">",
+        "var graph_spec=",JSON.stringify(graph_specx),
+        ";onLoadSpec(false,true)",
+        ";linebreak=",JSON.stringify(linebreak),
+        ";data_values=",JSON.stringify(data_values),
+        ";missing_markers=",JSON.stringify(missing_markers),
+        ";userSelected=",JSON.stringify(sel),
+        ";userDeselected=",JSON.stringify(desel),
+        ";document.getElementById(\"splitmarkers\").checked=",(splitMarkers? "true": "false"),
+        ";document.getElementById(\"commonrange\").disabled=",(splitMarkers? "true": "false"),
+        ";document.getElementById(\"renderSVG\").checked=",(rendererName == "svg"? "true": "false"),
+        ";document.getElementById(\"renderCanvas\").checked=",(rendererName == "canvas"? "true": "false"),
+        ";parse(true);",
+        "<","/script>",
+        pagehtml.substr(x.index + x[1].length + x[2].length)].join("")],
+        {type: "text/html"});
+    if(window.navigator.msSaveOrOpenBlob)
+        window.navigator.msSaveOrOpenBlob(b, fileName + ".html");
+    else{
+        var url = URL.createObjectURL(b);
+        link.setAttribute("href", url);
+        link.setAttribute("download", fileName + ".html");
+        link.click();
+        link.setAttribute("href", "javascript:void(savePage())");
+        link.removeAttribute("download");
+    }
+    if(b.msClose)
+        b.msClose();
+    return false;
+}
+
+function onLoadSpec(has_data, no_file_chooser){
+    pagehtml = "<!DOCTYPE html>\n" + document.documentElement.outerHTML;
+    if(!has_data && !no_file_chooser){
         //Handle files from the file input.
         document.getElementById("fileselect").addEventListener('change', function(){
             loadDataset(document.getElementById("fileselect").files);
@@ -1423,10 +1507,14 @@ function onLoadSpec(has_data){
         }, false);
     }
 
+    //Doing allele calling outside of Vega.
+    graph_spec.data[6].source = null;
+    graph_spec.data[6].transform = null;
+
     //Parse data outside of Vega.
     data_format = graph_spec.data[0].format;
     graph_spec.data[0].format = null;
-    if(has_data){
+    if(has_data)
         data_values = vg.util.read(graph_spec.data[0].values, data_format).filter(function(datum){
             if(datum.sequence == "No data"){
                 missing_markers.push(datum.marker);
@@ -1434,17 +1522,15 @@ function onLoadSpec(has_data){
             }
             return true;
         });
-        if(graph_spec.data[0].fdstools_filename){
-            var rows = document.querySelectorAll(".filenamedisplayrow");
-            for (var i = 0; i < rows.length; i++)
-                rows[i].style.display = "table-row";
-            var cell = document.getElementById("filenamedisplay");
-            removeChildren(cell);
-            cell.appendChild(document.createTextNode(graph_spec.data[0].fdstools_filename));
-            setFileName(graph_spec.data[0].fdstools_filename);
-        }
+    if(graph_spec.data[0].fdstools_filename && (has_data || no_file_chooser)){
+        var rows = document.querySelectorAll(".filenamedisplayrow");
+        for (var i = 0; i < rows.length; i++)
+            rows[i].style.display = "table-row";
+        var cell = document.getElementById("filenamedisplay");
+        removeChildren(cell);
+        cell.appendChild(document.createTextNode(graph_spec.data[0].fdstools_filename));
+        setFileName(graph_spec.data[0].fdstools_filename);
     }
-
 
     //Update graph when rendering mode or axis scale is changed.
     document.getElementById("renderCanvas").addEventListener('change', function(){
@@ -1519,6 +1605,48 @@ function onLoadSpec(has_data){
             return;
         setSignalValue("orientation_threshold", value);
     }, false);
+    document.getElementById("minNa").addEventListener('change', function(){
+        var value = parseFloat(this.value);
+        if(isNaN(value))
+            return;
+        setSignalValue("allele_amplitude_threshold", value);
+        autoSelectAlleles();
+    }, false);
+    document.getElementById("minPa").addEventListener('change', function(){
+        var value = parseFloat(this.value);
+        if(isNaN(value))
+            return;
+        setSignalValue("allele_amplitude_pct_threshold", value);
+        autoSelectAlleles();
+    }, false);
+    document.getElementById("minTa").addEventListener('change', function(){
+        var value = parseFloat(this.value);
+        if(isNaN(value))
+            return;
+        setSignalValue("allele_amplitude_markerpct_threshold", value);
+        autoSelectAlleles();
+    }, false);
+    document.getElementById("minCa").addEventListener('change', function(){
+        var value = parseFloat(this.value);
+        if(isNaN(value))
+            return;
+        setSignalValue("allele_correction_threshold", value);
+        autoSelectAlleles();
+    }, false);
+    document.getElementById("minAa").addEventListener('change', function(){
+        var value = parseFloat(this.value);
+        if(isNaN(value))
+            return;
+        setSignalValue("allele_recovery_threshold", value);
+        autoSelectAlleles();
+    }, false);
+    document.getElementById("minOa").addEventListener('change', function(){
+        var value = parseFloat(this.value);
+        if(isNaN(value))
+            return;
+        setSignalValue("allele_orientation_threshold", value);
+        autoSelectAlleles();
+    }, false);
     document.getElementById("markerFilter").addEventListener('change', function(){
         if(graphs !== false)
             parse(true);
@@ -1539,30 +1667,6 @@ function onLoadSpec(has_data){
         setSignalValue("sort_str_by_length", this.checked);
         updateAllTables();
     }, false);
-    document.getElementById("minNa").addEventListener('change', function(){
-        if(!isNaN(parseFloat(this.value)))
-            autoSelectAlleles();
-    }, false);
-    document.getElementById("minPa").addEventListener('change', function(){
-        if(!isNaN(parseFloat(this.value)))
-            autoSelectAlleles();
-    }, false);
-    document.getElementById("minTa").addEventListener('change', function(){
-        if(!isNaN(parseFloat(this.value)))
-            autoSelectAlleles();
-    }, false);
-    document.getElementById("minCa").addEventListener('change', function(){
-        if(!isNaN(parseFloat(this.value)))
-            autoSelectAlleles();
-    }, false);
-    document.getElementById("minAa").addEventListener('change', function(){
-        if(!isNaN(parseFloat(this.value)))
-            autoSelectAlleles();
-    }, false);
-    document.getElementById("minOa").addEventListener('change', function(){
-        if(!isNaN(parseFloat(this.value)))
-            autoSelectAlleles();
-    }, false);
 
     //Sync graph_spec and display.
     if(getScale() == "linear"){
@@ -1582,10 +1686,17 @@ function onLoadSpec(has_data){
     document.getElementById("minP").value = getSignalValue("amplitude_pct_threshold");
     document.getElementById("minT").value = getSignalValue("amplitude_markerpct_threshold");
     document.getElementById("minO").value = getSignalValue("orientation_threshold");
+    document.getElementById("minNa").value = getSignalValue("allele_amplitude_threshold");
+    document.getElementById("minPa").value = getSignalValue("allele_amplitude_pct_threshold");
+    document.getElementById("minTa").value = getSignalValue("allele_amplitude_markerpct_threshold");
+    document.getElementById("minCa").value = getSignalValue("allele_correction_threshold");
+    document.getElementById("minAa").value = getSignalValue("allele_recovery_threshold");
+    document.getElementById("minOa").value = getSignalValue("allele_orientation_threshold");
     document.getElementById("minBias").value = getSignalValue("bias_threshold");
     document.getElementById("shownegative").checked = getSignalValue("show_negative");
     document.getElementById("showother").checked = getSignalValue("show_other");
     document.getElementById("sortstrbylength").checked = getSignalValue("sort_str_by_length");
+    document.getElementById("commonrange").checked = (graph_spec.marks[1].scales[0].domain.data == "table");
 
     //Automatically move the tooltip with the mouse pointer.
     var tt = document.getElementById("vis-tooltip");

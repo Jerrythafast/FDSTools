@@ -1,16 +1,11 @@
 To-do:
-* Additions needed for publication:
-  * Group tools by function in the command line help and put the new pipeline
-    tool on top.
+* Group tools by function in the command line help and put Pipeline on top.
 * Samplevis:
   * Detect whether correction was performed; hide related columns if not.
   * Option to choose complete table download (all columns, not all rows).
   * Option to freely adjust the sorting (currently CE length toggle only).
   * Visualise table filtering thresholds in the graphs.
   * Some of the media query breakpoints overlap, fix this.
-  * Perhaps it is desirable to be able to request a list of 'Other sequences'.
-  * Add 'Save page' button that also saves the alleles clicked by the user.
-  * Add options to set the Table filtering options in the Vis tool.
   * Make Samplevis more responsive when rendering/updating graphs. To do this,
     the work should be broken up into chunks and each chunk should set off the
     next chunk through "window.setTimeout(nextChunkFunction);". The page will
