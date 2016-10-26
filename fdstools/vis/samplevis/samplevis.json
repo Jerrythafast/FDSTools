@@ -429,8 +429,12 @@
     {
       "name": "d",
       "type": "ordinal",
-      "range": ["transparent"],
-      "domain": ["\u2014 Strand balance"]
+      "range": ["black", "red"]
+    },
+    {
+      "name": "e",
+      "type": "ordinal",
+      "range": ["M-0.5,0L0.5,0", "M-0.5,0L-0.115385,0M0.115385,0L0.5,0"]
     }
   ],
   "marks": [
@@ -532,13 +536,12 @@
           }
         },
         {
-          "fill": "d",
+          "stroke": "d",
+          "shape": "e",
+          "values": ["Strand balance", "Allele threshold"],
           "properties": {
             "symbols": {
-              "stroke": {"value": "transparent"}
-            },
-            "labels": {
-              "x": {"value": 2}
+              "size": {"value": 100}
             }
           }
         }
@@ -758,6 +761,46 @@
               }
             }
           ]
+        },
+        {
+          "type": "rule",
+          "from": {
+            "transform": [
+              {
+                "type": "aggregate",
+                "groupby": ["marker"],
+                "summarize": {"xhigh": "max"}
+              },
+              {
+                "type": "lookup",
+                "on": "aggr",
+                "onKey": "marker",
+                "keys": ["marker"],
+                "as": ["aggr"],
+                "default": {"max_total_added": 0, "sum_total_added": 0}
+              },
+              {
+                "type": "formula",
+                "field": "threshold",
+                "expr": "max(allele_amplitude_threshold, allele_orientation_threshold*2, allele_amplitude_pct_threshold*datum.aggr.max_total_added/100, allele_amplitude_markerpct_threshold*datum.aggr.sum_total_added/100)"
+              },
+              {
+                "type": "filter",
+                "test": "datum.threshold <= datum.max_xhigh"
+              }
+            ]
+          },
+          "properties": {
+            "update": {
+              "x": {"scale": "x", "field": "threshold"},
+              "y": {"value": 0},
+              "y2": {"field": {"group": "height"}},
+              "stroke": {"value": "red"},
+              "strokeOpacity": {"value": 0.5},
+              "strokeWidth": {"value": 1},
+              "strokeDash": {"value": [5, 3]}
+            }
+          }
         },
         {
           "name": "alleleSelector",

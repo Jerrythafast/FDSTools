@@ -35,7 +35,7 @@
         font-size: 1em;
     }
     .icon {
-        padding: 1em;
+        padding: 0em 1em;
         margin-right: .25em;
         background-size: contain;
         background-position: center;
@@ -1403,9 +1403,10 @@ function savePage(){
     var link = document.getElementById("savePageLink");
     if(link.getAttribute("class") == "disabled")
         return false;
+
+    //Get current settings and copy graph spec.
     var rendererName = document.querySelector("input[name=renderer]:checked").value;
     var splitMarkers = document.getElementById("splitmarkers").checked;
-    var x = PAT_LOAD_SCRIPT.exec(pagehtml);
     var graph_specx = JSON.parse(JSON.stringify(graph_spec));
     for(i in graph_specx.signals)
         if(graph_specx.signals[i].name == "filter_marker"){
@@ -1415,28 +1416,11 @@ function savePage(){
     graph_specx.data[0].fdstools_filename = fileName;
     graph_specx.data[0].format = data_format;
     graph_specx.data[0].values = "";
-    var sel = userSelected.map(function(sa){
-        sa._prev = null;
-        sa._id = null;
-        sa.aggr._id = null;
-        sa.rank = null;
-        sa.thedatum = null;
-        return sa;
-    });
-    var desel = userDeselected.map(function(sa){
-        sa._prev = null;
-        sa._id = null;
-        sa.aggr._id = null;
-        sa.rank = null;
-        sa.thedatum = null;
-        return sa;
-    });
+
+    //Gather user-selected and user-deselected alleles.
+    var sel = userSelected.slice();
+    var desel = userDeselected.slice();
     selectedAlleles.forEach(function(sa){
-        sa._prev = null;
-        sa._id = null;
-        sa.aggr._id = null;
-        sa.rank = null;
-        sa.thedatum = null;
         var i = sel.indexOf(sa);
         if(i < 0)
             sel.push(sa);
@@ -1445,8 +1429,31 @@ function savePage(){
             desel.push(sa);
         }
     });
+    sel = sel.map(function(sa){
+        var c = {};
+        for(var prop in sa)
+            c[prop] = sa[prop];
+        c._prev = null;
+        c._id = null;
+        c.rank = null;
+        c.thedatum = null;
+        return c;
+    });
+    desel = desel.map(function(sa){
+        var c = {};
+        for(var prop in sa)
+            c[prop] = sa[prop];
+        c._prev = null;
+        c._id = null;
+        c.rank = null;
+        c.thedatum = null;
+        return c;
+    });
+
+    //Write page to Blob and offer it for download.
+    var loadscript_pos = PAT_LOAD_SCRIPT.exec(pagehtml);
     var b = new Blob(
-        [[pagehtml.substr(0, x.index + x[1].length),
+        [[pagehtml.substr(0, loadscript_pos.index + loadscript_pos[1].length),
         "<","script type=\"text/javascript\">",
         "var graph_spec=",JSON.stringify(graph_specx),
         ";onLoadSpec(false,true)",
@@ -1461,7 +1468,7 @@ function savePage(){
         ";document.getElementById(\"renderCanvas\").checked=",(rendererName == "canvas"? "true": "false"),
         ";parse(true);",
         "<","/script>",
-        pagehtml.substr(x.index + x[1].length + x[2].length)].join("")],
+        pagehtml.substr(loadscript_pos.index + loadscript_pos[1].length + loadscript_pos[2].length)].join("")],
         {type: "text/html"});
     if(window.navigator.msSaveOrOpenBlob)
         window.navigator.msSaveOrOpenBlob(b, fileName + ".html");
