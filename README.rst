@@ -29,7 +29,30 @@ Alternatively, FDSTools can be installed by running:
 
 FDSTools Changelog
 ------------------
-v1.0.0rc1
+v1.0.1
+    - Fixed crash that occurred when using the -i option to run the same
+      command on multiple input files.
+    - The 'usage' line now always starts with 'fdstools', even if FDSTools was
+      invoked through some other command (e.g. on Windows, FDSTools gets
+      invoked through a file called 'fdstools-script.py').
+    - Fixed bug with the -d/--debug option being ignored if placed before the
+      tool name on systems running Python 2.7.9 or later.
+    - FDSTools library files may now contain IUPAC ambiguous bases in the
+      prefix and suffix sequences of STR markers (except the first sequence,
+      as it is used as the reference). Additionally, optional bases may be
+      represented by lowercase letters.
+    - If no explicit prefix/suffix is given for an alias, the prefix/suffix of
+      the corresponding marker is assumed instead. This situation was not
+      handled correctly when converting from raw sequences to TSSV or
+      allelename format, which resulted in the alias remaining unused.
+    - Includes Libconvert v1.1.1
+    - Includes Library v1.0.2
+    - Includes Pipeline v1.0.2
+    - Includes Vis v1.0.3
+    - Includes Samplevis v2.1.2
+    - Includes Stuttermodelvis v2.0.2
+
+v1.0.0
     - Fixed bug that caused variant descriptions in allele names of non-STR
       markers to be prepended with plus signs similar to suffix variants
       in STR markers; when attempting to convert these allele names back to raw
@@ -212,6 +235,10 @@ v1.0.0
 
 Libconvert
 ~~~~~~~~~~
+v1.1.1:
+    - Adjustments for supporting IUPAC notation in prefix and suffix sequences
+      when converting from FDSTools to TSSV library format.
+
 v1.1.0
     - When converting to FDSTools format, Libconvert automatically creates an
       empty FDSTools library file with the same contents as what would be
@@ -235,6 +262,10 @@ v1.0.0
 
 Library
 ~~~~~~~
+v1.0.2
+    - Added documentation for IUPAC support to the descriptive comment of the
+      [prefix] section.
+
 v1.0.1
     - Updated some of the comments describing the sections
     - Added proper examples for non-STR markers and aliases
@@ -245,6 +276,11 @@ v1.0.0
 
 Pipeline
 ~~~~~~~~
+v1.0.2
+    - Added -A/--in-allelelist option, with which an existing allele list file
+      can be provided when running the reference-database analysis pipeline,
+      bypassing Allelefinder.
+
 v1.0.1
     - Removed checking of the existence of the files specified for the
       -S/--in-samples option; instead, this is left to the downstream tools to
@@ -363,6 +399,12 @@ v1.0.0
 
 Vis
 ~~~
+v1.0.3
+    - The -n/--min-abs and -s/--min-per-strand options now accept non-integer
+      values as well.
+    - Added six options to control the Table Filtering Options of Samplevis.
+    - Grouped some options as 'Display Options' in the command line help.
+
 v1.0.2
     - Changed default value of -n/--min-abs from 15 to 5
     - Added -I/--input2 option, which allows for specifying a file with raw
@@ -454,6 +496,13 @@ v1.0.0
 
 Samplevis
 ~~~~~~~~~
+v2.1.2
+    - Added 'Save page' link to HTML visualisations, which offers for download
+      a copy of the entire HTML visualisation including the user's changes.
+    - Added automatic allele calling to static visualisations.
+    - The net effect of the allele calling thresholds (table filtering options)
+      is now visualised in the graphs as a dashed vertical red line.
+
 v2.1.1
     - Added tooltip support to HTML visualisations
     - The tooltip may include a 'new allele' note if the input sample was
@@ -498,6 +547,11 @@ v2.0.0
 
 Stuttermodelvis
 ~~~~~~~~~~~~~~~
+v2.0.2
+    - Added filtering option for the stutter amount (-1, +1, -2, etc.).
+    - Added filtering option for the coefficient of determination (r squared
+      value) of the fit functions.
+
 v2.0.1
     - Changed the unit in the horizontal axis title from 'bp' to 'nt'
 
