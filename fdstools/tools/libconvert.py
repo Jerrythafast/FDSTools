@@ -44,15 +44,13 @@ import sys
 import re
 import os.path
 
-from ..lib import parse_library, INI_COMMENT
+from ..lib import parse_library, iupac_expand_ambiguous, INI_COMMENT
 from library import make_empty_library_ini
-from ConfigParser import RawConfigParser
 
-__version__ = "1.1.0"
+__version__ = "1.1.1"
 
 
 def convert_library(infile, outfile, aliases=False):
-    pattern_reverse = re.compile("\(([ACGT]+)\)\{(\d+),(\d+)\}")
     if infile is not None:
         library = parse_library(infile, stream=True)
     else:
@@ -94,19 +92,30 @@ def convert_library(infile, outfile, aliases=False):
                         library["aliases"][marker]["marker"]]
                 else:
                     continue  # Worthless, no flanks.
-                if marker in library["regex"]:
-                    pattern = pattern_reverse.findall(
-                        library["regex"][marker].pattern)
+                if marker in library["prefix"]:
+                    pattern.append((library["prefix"][marker][0], 0, 1))
+                elif library["aliases"][marker]["marker"] in library["prefix"]:
+                    pattern.append((library["prefix"][
+                        library["aliases"][marker]["marker"]][0], 0, 1))
+                pattern.append((library["aliases"][marker]["sequence"], 0, 1))
+                if marker in library["suffix"]:
+                    pattern.append((library["suffix"][marker][0], 0, 1))
+                elif library["aliases"][marker]["marker"] in library["suffix"]:
+                    pattern.append((library["suffix"][
+                        library["aliases"][marker]["marker"]][0], 0, 1))
             elif aliases or marker not in marker_aliases:
                 # Normal marker, or separately from its aliases.
                 if marker not in library["flanks"]:
                     continue  # Worthless, no flanks.
                 flanks = library["flanks"][marker]
-                if marker in library["regex"]:
-                    pattern = pattern_reverse.findall(
-                        library["regex"][marker].pattern)
-                elif marker in library["nostr_reference"]:
-                    pattern = [(library["nostr_reference"][marker], "1", "1")]
+                if marker in library["prefix"]:
+                    pattern += ((x, 0, 1) for x in library["prefix"][marker])
+                if marker in library["blocks_middle"]:
+                    pattern += (library["blocks_middle"][marker])
+                if marker in library["suffix"]:
+                    pattern += ((x, 0, 1) for x in library["suffix"][marker])
+                if marker in library["nostr_reference"]:
+                    pattern.append((library["nostr_reference"][marker], 1, 1))
             else:
                 # Merge marker with its aliases.
                 flanks = False
@@ -120,16 +129,11 @@ def convert_library(infile, outfile, aliases=False):
                 if not flanks:
                     continue  # Worthless, no flanks.
 
-                prefixes = []
-                suffixes = []
-                if marker in library["prefix"]:
-                    prefixes += library["prefix"][marker]
-                if marker in library["suffix"]:
-                    suffixes += library["suffix"][marker]
                 middle = []
-
                 if marker in library["regex"]:
-                    # This marker has a regex next to its aliases.
+                    if marker in library["blocks_middle"]:
+                        middle += library["blocks_middle"][marker]
+
                     # Check if the aliases fit the regex without change.
                     unmatched = []
                     for alias in marker_aliases[marker]:
@@ -143,20 +147,21 @@ def convert_library(infile, outfile, aliases=False):
                         if library["regex"][marker].match(allele) is None:
                             unmatched.append(
                                 library["aliases"][alias]["sequence"])
-
-                    middle = pattern_reverse.findall(
-                        library["regex"][marker].pattern)[len(prefixes):]
-                    if len(suffixes):
-                        middle = middle[:-len(suffixes)]
                     if unmatched:
-                        middle = [(x, "0", "1") for x in unmatched] + \
-                                 [(x[0], "0", x[2]) for x in middle]
+                        middle = [(x, 0, 1) for x in unmatched] + \
+                                 [(x[0], 0, x[2]) for x in middle]
 
                 elif marker in library["nostr_reference"]:
-                    middle = [(library["nostr_reference"][marker],
-                        "0" if marker in marker_aliases else "1", "1")]
+                    middle.append((library["nostr_reference"][marker],
+                        0 if marker in marker_aliases else 1, 1))
 
-                # Add prefixes and suffixes of aliases.
+                # Gather prefixes and suffixes including aliases.
+                prefixes = []
+                suffixes = []
+                if marker in library["prefix"]:
+                    prefixes += library["prefix"][marker]
+                if marker in library["suffix"]:
+                    suffixes += library["suffix"][marker]
                 if marker in marker_aliases:
                     for alias in marker_aliases[marker]:
                         if alias in library["prefix"]:
@@ -168,22 +173,25 @@ def convert_library(infile, outfile, aliases=False):
                                 library["nostr_reference"][marker] !=
                                     library["aliases"][alias]["sequence"]):
                             middle.append((
-                                library["aliases"][alias]["sequence"],
-                                "0", "1"))
+                                library["aliases"][alias]["sequence"], 0, 1))
 
                 # Final regex is prefixes + middle + suffixes.
-                pattern = []
                 for i in range(len(prefixes)):
                     if i == prefixes.index(prefixes[i]):
-                        pattern.append((prefixes[i], "0", "1"))
+                        pattern.append((prefixes[i], 0, 1))
                 pattern += middle
                 for i in range(len(suffixes)):
                     if i == suffixes.index(suffixes[i]):
-                        pattern.append((suffixes[i], "0", "1"))
+                        pattern.append((suffixes[i], 0, 1))
 
-            outfile.write("%s\t%s\t%s\t%s\n" % (
-                marker, flanks[0], flanks[1],
-                " ".join("%s %s %s" % x for x in pattern)))
+            # Write marker to outfile.
+            outfile.write("%s\t%s\t%s\t" % (marker, flanks[0], flanks[1]))
+            space = ""
+            for p in pattern:
+                for s in iupac_expand_ambiguous(p[0]):
+                    outfile.write(space + "%s %i %i" % (s, p[1], p[2]))
+                space = " "
+            outfile.write("\n")
 
     else:
         # TSSV -> FDSTools
@@ -192,6 +200,7 @@ def convert_library(infile, outfile, aliases=False):
         ini = make_empty_library_ini("full", aliases)
 
         # Enter flanking sequences and STR definitions.
+        pattern_reverse = re.compile("\(([ACGT]+)\)\{(\d+),(\d+)\}")
         fmt = "%%-%is" % reduce(max, map(len,
             set(library["flanks"].keys() + library["regex"].keys())), 0)
         for marker in sorted(library["flanks"]):

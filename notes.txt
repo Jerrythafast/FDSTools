@@ -1,7 +1,9 @@
 To-do:
 * Group tools by function in the command line help and put Pipeline on top.
+* Produce empty output on empty input (instead of 'column not found' error).
 * Samplevis:
   * Detect whether correction was performed; hide related columns if not.
+  * A PctOfAlleles column in the tables would be useful for mixtures.
   * Option to choose complete table download (all columns, not all rows).
   * Option to freely adjust the sorting (currently CE length toggle only).
   * Some of the media query breakpoints overlap, fix this.
@@ -14,6 +16,7 @@ To-do:
 * Add options for exporting data in CODIS format (and possibly others?).
 * Add grouping, show/hide options, and target coverage for BGAnalyseVis to the
   Vis tool.
+* Add r2 filter and stutter amount for Stuttermodelvis to the Vis tool.
 * Add per-marker allele calling settings to Samplestats.
 * Exceptions to general mtDNA nomenclature: http://empop.online/methods
 * Reduce noise profile memory usage:
@@ -49,27 +52,6 @@ To-do:
   genotype instead of each allele.  This allows for the detection of hybrids.
 * Add tool to summarise various statistics about the entire analysis pipeline:
   (TODO: Write this list)
-
-
-Open Vega issues:
-* Bug in aggregate transform w.r.t. signals.
-  https://github.com/vega/vega/issues/530
-* [Feat] Lookup transform onKey parameter only takes simple field names.
-  https://github.com/vega/vega/issues/526
-* [Docs] Multi-column sorting relies on the rank transform.
-  https://github.com/vega/vega/issues/509
-* [Feat] Concatenation of data sources.
-  https://github.com/vega/vega/issues/484
-* [Feat] Id-based refs for Force transform's source and target.
-  https://github.com/vega/vega/issues/471
-* Tick labels of log scale axes don't respect number formatting.
-  Proposed fix in https://github.com/vega/vega/pull/568
-  https://github.com/vega/vega/issues/470
-* Legend and axis corruption on signal changes.
-  https://github.com/vega/vega/issues/446
-* [Feat] Feature request for lines (or arbitrary shapes) for legend items.
-  https://github.com/vega/vega/issues/408
-
 
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 

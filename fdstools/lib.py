@@ -28,6 +28,7 @@ from StringIO import StringIO
 
 # Patterns that match entire sequences.
 PAT_SEQ_RAW = re.compile("^[ACGT]*$")
+PAT_SEQ_IUPAC = re.compile("^[ACGTUWSMKRYBDHVNacgtuwsmkrybdhvn]*$")
 PAT_SEQ_TSSV = re.compile("^(?:[ACGT]+\(\d+\))*$")
 PAT_SEQ_ALLELENAME_STR = re.compile(  # First line: n_ACT[m] or alias.
     "^(?:(?:(?:CE)?-?\d+(?:\.\d+)?_(?:[ACGT]+\[\d+\])*)|((?!_).+?))"
@@ -92,6 +93,17 @@ COMPL = {"A": "T", "T": "A", "U": "A", "G": "C", "C": "G", "R": "Y", "Y": "R",
          "a": "t", "t": "a", "u": "a", "g": "c", "c": "g", "r": "y", "y": "r",
          "k": "m", "m": "k", "b": "v", "v": "b", "d": "h", "h": "d"}
 
+# IUPAC Table of ambiguous bases.
+IUPAC = {"A": "A",   "C": "C",   "G": "G",   "T": "T",  "U": "T",  "W": "AT",
+         "S": "CG",  "M": "AC",  "K": "GT",  "R": "AG", "Y": "CT", "B": "CGT",
+         "D": "AGT", "H": "ACT", "V": "ACG", "N": "ACGT",
+         "a": ("A", ""), "c": ("C", ""), "g": ("G", ""), "t": ("T", ""),
+         "u": ("T", ""), "w": ("A", "T", ""), "s": ("C", "G", ""),
+         "m": ("A", "C", ""), "k": ("G", "T", ""), "r": ("A", "G", ""),
+         "y": ("C", "T", ""), "b": ("C", "G", "T", ""),
+         "d": ("A", "G", "T", ""), "h": ("A", "C", "T", ""),
+         "v": ("A", "C", "G", ""), "n": ("A", "C", "G", "T", "")}
+
 # Special values that may appear in the place of a sequence.
 SEQ_SPECIAL_VALUES = ("No data", "Other sequences")
 
@@ -143,7 +155,7 @@ def call_variants(template, sequence, location=("?", 1), cache=True,
     integer for the position, all variants are given as substitutions in
     the form posX>Y.  Insertions and deletions are written as pos.1->Y
     and posX>-, respectively.  The given position is that of the first
-    base in the template.   With the location set to "suffix", a plus
+    base in the template.  With the location set to "suffix", a plus
     sign is prepended to position numbers and the first base in the
     template is pos=1.  With location set to "prefix", a minus sign is
     prepended and bases are counted from right to left instead.
@@ -422,6 +434,21 @@ def mutate_sequence(seq, variants, location=None):
 #mutate_sequence
 
 
+def iupac_expand_ambiguous(seq):
+    """Return generator for all possible values of ambiguous seq."""
+    return ("".join(x) for x in itertools.product(
+        *((b for b in IUPAC[a]) for a in seq)))
+#iupac_expand_ambiguous
+
+
+def iupac_pattern_ambiguous(seq):
+    """Return regex pattern that matches the ambiguous seq."""
+    return "".join(
+        (("[%s]" if len(IUPAC[x.upper()]) > 1 else "%s") +
+        ("?" if x.islower() else "")) % IUPAC[x.upper()] for x in seq)
+#iupac_expand_ambiguous
+
+
 def parse_library(libfile, stream=False):
     try:
         if not stream:
@@ -483,6 +510,7 @@ def parse_library_tsv(handle):
         library["blocks_middle"][marker] = [
             (block[0], int(block[1]), int(block[2])) for block in
                 PAT_STR_DEF_BLOCK.findall(line[3])]
+        # NOTE: Libconvert tool expects "(seq){num,num}" blocks ONLY!
         library["regex"][marker] = re.compile(
             "".join(("^", "".join(
                 "(%s){%s,%s}" % x for x in PAT_STR_DEF_BLOCK.findall(line[3])),
@@ -533,11 +561,12 @@ def parse_library_ini(handle):
                     raise ValueError(
                         "A prefix was defined for non-STR marker %s" % marker)
                 values = PAT_SPLIT.split(value)
-                for value in values:
-                    if PAT_SEQ_RAW.match(value) is None:
+                for i in range(len(values)):
+                    if (not i and PAT_SEQ_RAW.match(values[i]) is None or
+                            i and PAT_SEQ_IUPAC.match(values[i]) is None):
                         raise ValueError(
                             "Prefix sequence '%s' of marker %s is invalid" %
-                            (value, marker))
+                            (values[i], marker))
                 library["prefix"][marker] = values
                 markers.add(marker)
             elif section_low == "suffix":
@@ -545,11 +574,12 @@ def parse_library_ini(handle):
                     raise ValueError(
                         "A suffix was defined for non-STR marker %s" % marker)
                 values = PAT_SPLIT.split(value)
-                for value in values:
-                    if PAT_SEQ_RAW.match(value) is None:
+                for i in range(len(values)):
+                    if (not i and PAT_SEQ_RAW.match(values[i]) is None or
+                            i and PAT_SEQ_IUPAC.match(values[i]) is None):
                         raise ValueError(
                             "Suffix sequence '%s' of marker %s is invalid" %
-                            (value, marker))
+                            (values[i], marker))
                 library["suffix"][marker] = values
                 markers.add(marker)
             elif section_low == "genome_position":
@@ -692,20 +722,31 @@ def parse_library_ini(handle):
                 (marker, reflength, length))
 
     # Compile regular expressions.
-    # NOTE: The libconvert tool expects "(seq){num,num}" blocks ONLY!
     for marker in markers:
         parts = []
         blocksm = []
         if marker in library["prefix"]:
-            parts += ("(%s){0,1}" % x for x in library["prefix"][marker])
+            parts += ("(%s){0,1}" % iupac_pattern_ambiguous(x)
+                for x in library["prefix"][marker])
+        elif (marker in library["aliases"] and
+                library["aliases"][marker]["marker"] in library["prefix"]):
+            parts += ("(%s){0,1}" % iupac_pattern_ambiguous(x)
+                for x in library["prefix"][
+                    library["aliases"][marker]["marker"]])
         if marker in library["aliases"]:
             blocksm.append((library["aliases"][marker]["sequence"], 0, 1))
         elif marker in library["regex"]:
             blocksm += [(block[0], int(block[1]), int(block[2])) for block in
                         PAT_STR_DEF_BLOCK.findall(library["regex"][marker])]
-        parts += ["(%s){%s,%s}" % x for x in blocksm]
+        parts += ("(%s){%s,%s}" % x for x in blocksm)
         if marker in library["suffix"]:
-            parts += ("(%s){0,1}" % x for x in library["suffix"][marker])
+            parts += ("(%s){0,1}" % iupac_pattern_ambiguous(x)
+                for x in library["suffix"][marker])
+        elif (marker in library["aliases"] and
+                library["aliases"][marker]["marker"] in library["suffix"]):
+            parts += ("(%s){0,1}" % iupac_pattern_ambiguous(x)
+                for x in library["suffix"][
+                    library["aliases"][marker]["marker"]])
         if parts:
             library["regex"][marker] = re.compile(
                 "".join(["^"] + parts + ["$"]))
@@ -912,8 +953,7 @@ def convert_sequence_raw_tssv(seq, library, marker, return_alias=False):
     match = None
     if "aliases" in library:
         for alias in library["aliases"]:
-            if (library["aliases"][alias]["marker"] == marker and
-                    alias in library["regex"]):
+            if library["aliases"][alias]["marker"] == marker:
                 match = library["regex"][alias].match(seq)
                 if match is not None:
                     marker = alias
@@ -930,13 +970,15 @@ def convert_sequence_raw_tssv(seq, library, marker, return_alias=False):
         # Find explictily provided prefix and/or suffix if present.
         pre_suf = ["", ""]
         if "prefix" in library and marker in library["prefix"]:
-            for prefix in library["prefix"][marker]:
+            for prefix in (x for x in library["prefix"][marker]
+                    for x in iupac_expand_ambiguous(x)):
                 if seq.startswith(prefix):
                     pre_suf[0] = prefix
                     seq = seq[len(prefix):]
                     break
         if "suffix" in library and marker in library["suffix"]:
-            for suffix in library["suffix"][marker]:
+            for suffix in (x for x in library["suffix"][marker]
+                    for x in iupac_expand_ambiguous(x)):
                 if seq.endswith(suffix):
                     pre_suf[1] = suffix
                     seq = seq[:-len(suffix)]
@@ -1695,8 +1737,8 @@ def get_input_output_files(args, single=False, batch_support=False):
         # Each yielded tuple should cause a separate run of the tool.
 
         # Glob args.infiles in case the shell didn't (e.g, on Windows).
-        infiles = [x for x in infiles for x in glob_path(x)] if "infiles" in \
-                  args and args.infiles is not None else [args.infile]
+        infiles = [x for x in args.infiles for x in glob_path(x)] if "infiles"\
+                  in args and args.infiles is not None else [args.infile]
         if infiles == ["-"] and sys.stdin.isatty():
             return False  # No input specified.
 

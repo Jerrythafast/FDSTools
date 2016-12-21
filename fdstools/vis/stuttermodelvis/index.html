@@ -24,7 +24,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta charset="UTF-8">
     <title>Stutter Model Visualisation - FDSTools</title>
-    <!-- VERSION 2.0.0 -->
+    <!-- VERSION 2.0.2 -->
     <!-- BEGIN_LIBRARIES -->
     <script src="https://vega.github.io/vega-editor/vendor/d3.min.js"></script>
     <script src="https://vega.github.io/vega/vega.min.js"></script>
@@ -451,17 +451,30 @@
                             <span class="help" title="Type AG to show all repeat units containing 'AG'. Type =AG to show the 'AG' repeat unit only. Separate multiple values with spaces.">?</span>
                        </label>
                     </td>
-                </tr><!--
+                </tr>
                 <tr>
-                    <td><label for="foldFilter">Stutter amount</label></td>
-                    <td><input type="text" value="" id="foldFilter" size="3"></td>
-                </tr>-->
+                    <td><label for="foldSelect">Stutter amount</label></td>
+                    <td>
+                        <select id="foldSelect">
+                            <option value="" class="special-option" selected>Show all</option>
+                        </select>
+                    </td>
+                </tr>
                 <tr>
                     <td><label for="markerFilter">Marker name</label></td>
                     <td>
                         <label>
                             <input type="text" id="markerFilter" size="20">
                             <span class="help" title="Type xyz to show all markers with 'xyz' in their names. Type =xyz to show only the marker 'xyz'. Separate multiple values with spaces.">?</span>
+                        </label>
+                    </td>
+                </tr>
+                <tr>
+                    <td><label for="r2Filter">Minimum <i>r</i><sup>2</sup></label></td>
+                    <td>
+                        <label>
+                            <input type="text" id="r2Filter" size="20">
+                            <span class="help" title="R squared, the coefficient of determination, is 1 if the fit explains the data as good as possible and lower otherwise.">?</span>
                         </label>
                     </td>
                 </tr>
@@ -642,6 +655,37 @@ function makeUnitSelectionOptions(data){
     }
 }
 
+function makeFoldSelectionOptions(data){
+    var sel = document.getElementById("foldSelect");
+    var val = sel.value;
+    removeChildren(sel);
+    var opt = document.createElement("option");
+    opt.setAttribute("value", "");
+    opt.setAttribute("class", "special-option");
+    opt.innerText = "Show all";
+    sel.appendChild(opt);
+
+    var folds = {}
+    var validValue = false;
+    data.forEach(function(datum){
+        folds[datum.stutter] = true;
+    });
+    Object.keys(folds).sort(function(a, b){
+        return parseFloat(a) - parseFloat(b);
+    }).forEach(function(fold){
+        opt = document.createElement("option");
+        opt.setAttribute("value", fold);
+        opt.innerText = (fold < 0? "\u2212" + (-fold) : "+" + fold) + " stutter";
+        sel.appendChild(opt);
+        if(val == fold)
+            validValue = true;
+    });
+    sel.value = validValue? val : "";
+    if(!validValue)
+        if(graph)  // Don't overwrite the filter_fold on initial data load.
+            setSignalValue("filter_fold", "");
+}
+
 var currentlyLoadedFitFunctionsFile = "no/file/loaded";
 function loadFitFunctions(filename, data){
     if(filename == currentlyLoadedFitFunctionsFile)
@@ -654,6 +698,7 @@ function loadFitFunctions(filename, data){
     data_values = vg.util.read(data, data_format);
     graph_spec.data[0].values = data_values;
     makeUnitSelectionOptions(data_values);
+    makeFoldSelectionOptions(data_values);
     return true;
 }
 var currentlyLoadedRawDataFile = "no/file/loaded";
@@ -820,6 +865,9 @@ function onLoadSpec(has_data, has_rawdata){
         }
         setSignalValue("filter_unit", value);
     }, false);
+    document.getElementById("foldSelect").addEventListener('change', function(){
+        setSignalValue("filter_fold", this.value);
+    }, false);
     document.getElementById("markerFilter").addEventListener('change', function(){
         var value = this.value;
         try{
@@ -829,6 +877,12 @@ function onLoadSpec(has_data, has_rawdata){
             value = "=";
         }
         setSignalValue("filter_marker", value);
+    }, false);
+    document.getElementById("r2Filter").addEventListener('change', function(){
+        var value = parseFloat(this.value);
+        if(isNaN(value))
+            return;
+        setSignalValue("filter_r2", value);
     }, false);
     document.getElementById("allDataFilter").addEventListener('change', function(){
         setSignalValue("show_all_data", this.checked);
@@ -847,15 +901,22 @@ function onLoadSpec(has_data, has_rawdata){
     }, false);
 
     //Sync graph_spec and display.
-    var uf = getSignalValue("filter_unit");
-    document.getElementById("unitFilter").value = uf;
-    var us = document.getElementById("unitSelect");
-    us.value = "CUSTOM";
-    for(i = 0; i < us.options.length; i++)
-        if(uf == us.options.item(i).value)
-            us.value = uf;
+    var val = getSignalValue("filter_unit");
+    document.getElementById("unitFilter").value = val;
+    var sel = document.getElementById("unitSelect");
+    sel.value = "CUSTOM";
+    for(i = 0; i < sel.options.length; i++)
+        if(val == sel.options.item(i).value)
+            sel.value = val;
+    val = getSignalValue("filter_fold");
+    sel = document.getElementById("foldSelect");
+    sel.value = "";
+    for(i = 0; i < sel.options.length; i++)
+        if(val == sel.options.item(i).value)
+            sel.value = val;
     document.getElementById("unitFilterRow").setAttribute("class", us.value == "CUSTOM"? "" : "hidden");
     document.getElementById("markerFilter").value = getSignalValue("filter_marker");
+    document.getElementById("r2Filter").value = getSignalValue("filter_r2");
     document.getElementById("allDataFilter").checked = getSignalValue("show_all_data");
     document.getElementById("graphwidth").value = getSignalValue("width");
     document.getElementById("graphheight").value = getSignalValue("graphheight");

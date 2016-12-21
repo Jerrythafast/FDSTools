@@ -57,7 +57,7 @@ from ..lib import INI_COMMENT
 from ConfigParser import RawConfigParser
 from types import MethodType
 
-__version__ = "1.0.1"
+__version__ = "1.0.2"
 
 
 def ini_add_comment(ini, section, comment):
@@ -112,7 +112,10 @@ def make_empty_library_ini(type, aliases=False):
             "flank and the repeat and is omitted from allele names. The first "
             "sequence listed is used as the reference sequence for that "
             "marker when generating allele names. Deviations from the "
-            "reference are expressed as variants.")
+            "reference are expressed as variants. IUPAC notation for "
+            "ambiguous bases (e.g., 'R' for 'A or G') is supported, except "
+            "for the first sequence given. Lowercase letters represent "
+            "optional bases.")
         ini.set("prefix", ";CSF1P0 = CTAAGTACTTC")
         ini.add_section("suffix")
         ini.add_comment("suffix",

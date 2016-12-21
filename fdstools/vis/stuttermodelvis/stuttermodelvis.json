@@ -1,5 +1,5 @@
 {
-  "fdstools_visversion": "2.0.1",
+  "fdstools_visversion": "2.0.2",
   "width": 600,
   "height": 10,
   "signals": [
@@ -20,6 +20,14 @@
       "name": "marker_regex",
       "init": {"expr": "regexp('(?:' + replace(replace(replace(filter_marker, /^ *(.*?) *$/, '$1'), /(^| )=(.*?)(?= |$)/g, '$1^$2$$'), / +/g, ')|(?:') + ')')"},
       "expr": "regexp('(?:' + replace(replace(replace(filter_marker, /^ *(.*?) *$/, '$1'), /(^| )=(.*?)(?= |$)/g, '$1^$2$$'), / +/g, ')|(?:') + ')')"
+    },
+    {
+      "name": "filter_r2",
+      "init": 0
+    },
+    {
+      "name": "filter_fold",
+      "init": ""
     },
     {
       "name": "show_all_data",
@@ -47,6 +55,7 @@
         "parse": {
           "lbound": "number",
           "stutter": "number",
+          "r2": "number",
           "min": "number",
           "max": "number",
           "a": "number",
@@ -64,7 +73,7 @@
       "transform": [
         {
           "type": "filter",
-          "test": "((datum.marker != 'All data' && test(marker_regex, datum.marker)) || (datum.marker == 'All data' && show_all_data)) && test(unit_regex, datum.unit)"
+          "test": "((datum.marker != 'All data' && test(marker_regex, datum.marker)) || (datum.marker == 'All data' && show_all_data)) && test(unit_regex, datum.unit) && datum.r2 >= filter_r2 && (filter_fold == '' || datum.stutter == filter_fold)"
         },
         {
           "type": "formula",

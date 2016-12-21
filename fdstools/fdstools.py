@@ -72,9 +72,10 @@ def main():
     """
     Main entry point.
     """
-    parser = argparse.ArgumentParser(formatter_class=_HelpFormatter,
+    prog = os.path.splitext(os.path.basename(__file__))[0]
+    parser = argparse.ArgumentParser(formatter_class=_HelpFormatter, prog=prog,
                                      add_help=False, description=usage[0])
-    parser.version = version(parser.prog)
+    parser.version = version(prog)
     parser.add_argument('-h', '--help', action=_HelpAction,
                         default=argparse.SUPPRESS, nargs=argparse.REMAINDER,
                         help="show this help message, or help for the "
@@ -100,9 +101,10 @@ def main():
             formatter_class=_HelpFormatter,
             help=module.__doc__.split("\n\n", 1)[0],
             description=module.__doc__,
-            version=version(parser.prog, name, module.__version__))
+            version=version(prog, name, module.__version__))
         __tools__[name] = subparser
         subparser.add_argument('-d', "--debug", action="store_true",
+            default=argparse.SUPPRESS,
             help="if specified, additional debug output is given")
         module.add_arguments(subparser)
         subparser.set_defaults(func=module.run)
