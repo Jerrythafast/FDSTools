@@ -1,5 +1,5 @@
 {
-  "fdstools_visversion": "2.1.2",
+  "fdstools_visversion": "2.2.0",
   "width": 600,
   "height": 10,
   "signals": [
@@ -155,13 +155,48 @@
       ]
     },
     {
-      "name": "aggr",
+      "name": "dummy1",
+      "source": "raw"
+    },
+    {
+      "name": "dummy2",
+      "source": "raw"
+    },
+    {
+      "name": "dummy3",
+      "source": "raw"
+    },
+    {
+      "name": "dummy4",
+      "source": "raw"
+    },
+    {
+      "name": "aggrm",
+      "source": "raw",
+      "transform": [
+        {
+          "type": "filter",
+          "test": "datum.sequence != 'Other sequences'"
+        },
+        {
+          "type": "aggregate",
+          "groupby": ["marker"],
+          "summarize": {"total_added": ["max"]}
+        }
+      ]
+    },
+    {
+      "name": "dummy5",
+      "source": "raw"
+    },
+    {
+      "name": "aggrs",
       "source": "raw",
       "transform": [
         {
           "type": "aggregate",
           "groupby": ["marker"],
-          "summarize": {"total_added": ["sum", "max"]}
+          "summarize": {"total_added": ["sum"]}
         }
       ]
     },
@@ -171,26 +206,39 @@
       "transform": [
         {
           "type": "lookup",
-          "on": "aggr",
+          "on": "aggrm",
           "onKey": "marker",
           "keys": ["marker"],
-          "as": ["aggr"],
-          "default": {"max_total_added": 0, "sum_total_added": 0}
+          "as": ["aggrm"],
+          "default": {"max_total_added": 0}
+        },
+        {
+          "type": "lookup",
+          "on": "aggrs",
+          "onKey": "marker",
+          "keys": ["marker"],
+          "as": ["aggrs"],
+          "default": {"sum_total_added": 0}
         },
         {
           "type": "formula",
           "field": "pct_of_max",
-          "expr": "datum.aggr.max_total_added? (datum.total_added / datum.aggr.max_total_added * 100) : 100"
+          "expr": "datum.aggrm.max_total_added? (datum.total_added / datum.aggrm.max_total_added * 100) : 100"
         },
         {
           "type": "formula",
           "field": "pct_of_sum",
-          "expr": "datum.aggr.sum_total_added? (datum.total_added / datum.aggr.sum_total_added * 100) : 100"
+          "expr": "datum.aggrs.sum_total_added? (datum.total_added / datum.aggrs.sum_total_added * 100) : 100"
+        },
+        {
+          "type": "formula",
+          "field": "strlength",
+          "expr": "test(/^CE\\d+\\.?\\d*_/, datum.sequence)? parseFloat(substring(datum.sequence, 2, indexof(datum.sequence, '_'))) : 1/0"
         },
         {
           "type": "formula",
           "field": "seq_order",
-          "expr": "(sort_str_by_length && test(/^CE\\d+\\.?\\d*_/, datum.sequence))? parseFloat(substring(datum.sequence, 2, indexof(datum.sequence, '_'))) : 1/0"
+          "expr": "sort_str_by_length? datum.strlength : 1/0"
         },
         {
           "type": "sort",
@@ -773,16 +821,24 @@
               },
               {
                 "type": "lookup",
-                "on": "aggr",
+                "on": "aggrm",
                 "onKey": "marker",
                 "keys": ["marker"],
-                "as": ["aggr"],
-                "default": {"max_total_added": 0, "sum_total_added": 0}
+                "as": ["aggrm"],
+                "default": {"max_total_added": 0}
+              },
+              {
+                "type": "lookup",
+                "on": "aggrs",
+                "onKey": "marker",
+                "keys": ["marker"],
+                "as": ["aggrs"],
+                "default": {"sum_total_added": 0}
               },
               {
                 "type": "formula",
                 "field": "threshold",
-                "expr": "max(allele_amplitude_threshold, allele_orientation_threshold*2, allele_amplitude_pct_threshold*datum.aggr.max_total_added/100, allele_amplitude_markerpct_threshold*datum.aggr.sum_total_added/100)"
+                "expr": "max(allele_amplitude_threshold, allele_orientation_threshold*2, allele_amplitude_pct_threshold*datum.aggrm.max_total_added/100, allele_amplitude_markerpct_threshold*datum.aggrs.sum_total_added/100)"
               },
               {
                 "type": "filter",

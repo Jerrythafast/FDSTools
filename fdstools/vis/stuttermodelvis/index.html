@@ -24,7 +24,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta charset="UTF-8">
     <title>Stutter Model Visualisation - FDSTools</title>
-    <!-- VERSION 2.0.2 -->
+    <!-- VERSION 2.0.3 -->
     <!-- BEGIN_LIBRARIES -->
     <script src="https://vega.github.io/vega-editor/vendor/d3.min.js"></script>
     <script src="https://vega.github.io/vega/vega.min.js"></script>
@@ -774,6 +774,9 @@ function saveImage(){
 }
 
 function onLoadSpec(has_data, has_rawdata){
+    data_format = graph_spec.data[0].format;
+    graph_spec.data[0].format = null;
+
     if(!has_data){
         //Handle files from the file input.
         document.getElementById("fileselect").addEventListener('change', function(){
@@ -783,14 +786,17 @@ function onLoadSpec(has_data, has_rawdata){
         for (var i = 0; i < rows.length; i++)
             rows[i].style.display = "table-row";
     }
-    else if(graph_spec.data[0].fdstools_filename){
-        var rows = document.querySelectorAll(".filenamedisplayrow");
-        for (var i = 0; i < rows.length; i++)
-            rows[i].style.display = "table-row";
-        var cell = document.getElementById("filenamedisplay");
-        removeChildren(cell);
-        cell.appendChild(document.createTextNode(graph_spec.data[0].fdstools_filename));
-        setFileName(graph_spec.data[0].fdstools_filename);
+    else{
+        loadFitFunctions(fileName, graph_spec.data[0].values);
+        if(graph_spec.data[0].fdstools_filename){
+            var rows = document.querySelectorAll(".filenamedisplayrow");
+            for (var i = 0; i < rows.length; i++)
+                rows[i].style.display = "table-row";
+            var cell = document.getElementById("filenamedisplay");
+            removeChildren(cell);
+            cell.appendChild(document.createTextNode(graph_spec.data[0].fdstools_filename));
+            setFileName(graph_spec.data[0].fdstools_filename);
+        }
     }
     if(!has_rawdata){
         //Handle files from the file input.
@@ -814,12 +820,6 @@ function onLoadSpec(has_data, has_rawdata){
         }, false);
     }
     embeddedFiles = (has_data? 1:0) + (has_rawdata? 2:0);
-
-    //Parse data outside of Vega.
-    data_format = graph_spec.data[0].format;
-    graph_spec.data[0].format = null;
-    if(has_data)
-        loadFitFunctions(fileName, graph_spec.data[0].values);
 
     //Update graph when rendering mode is changed.
     document.getElementById("renderCanvas").addEventListener('change', function(){
@@ -908,13 +908,13 @@ function onLoadSpec(has_data, has_rawdata){
     for(i = 0; i < sel.options.length; i++)
         if(val == sel.options.item(i).value)
             sel.value = val;
+    document.getElementById("unitFilterRow").setAttribute("class", sel.value == "CUSTOM"? "" : "hidden");
     val = getSignalValue("filter_fold");
     sel = document.getElementById("foldSelect");
     sel.value = "";
     for(i = 0; i < sel.options.length; i++)
         if(val == sel.options.item(i).value)
             sel.value = val;
-    document.getElementById("unitFilterRow").setAttribute("class", us.value == "CUSTOM"? "" : "hidden");
     document.getElementById("markerFilter").value = getSignalValue("filter_marker");
     document.getElementById("r2Filter").value = getSignalValue("filter_r2");
     document.getElementById("allDataFilter").checked = getSignalValue("show_all_data");

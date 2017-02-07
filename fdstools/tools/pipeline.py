@@ -57,7 +57,7 @@ from ..lib import split_quoted_string, DEF_TAG_EXPR, DEF_TAG_FORMAT, get_tag, \
 from ConfigParser import RawConfigParser, NoSectionError, NoOptionError
 
 
-__version__ = "1.0.2"
+__version__ = "1.0.3"
 
 
 # Pattern that matches a long argparse argument name.
@@ -501,6 +501,7 @@ def run_ref_database_analysis(arg_defs, config):
     p_stuttermodel.wait()
 
     # Make background profiles visualisation.
+    vis_custom_title = config.has_option("vis", "title")
     config.set("seqconvert", "infile", prefix + "bgprofiles.txt")
     p_seqconvert1 = subprocess.Popen(
         get_argv("seqconvert", arg_defs, config), stdout=subprocess.PIPE)
@@ -515,6 +516,8 @@ def run_ref_database_analysis(arg_defs, config):
     config.set("vis", "infile", "-")
     config.set("vis", "infile2", prefix + "bgprofiles-raw.txt")
     config.set("vis", "outfile", prefix + "bgprofiles.html")
+    if not vis_custom_title:
+        config.set("vis", "title", prefix + "bgprofiles")
     p_profilevis = subprocess.Popen(
         get_argv("vis", arg_defs, config), stdin=p_seqconvert2.stdout)
     p_seqconvert2.stdout.close()
@@ -524,6 +527,8 @@ def run_ref_database_analysis(arg_defs, config):
     config.set("vis", "infile", prefix + "stuttermodel.txt")
     config.set("vis", "infile2", prefix + "stuttermodel-raw.txt")
     config.set("vis", "outfile", prefix + "stuttermodel.html")
+    if not vis_custom_title:
+        config.remove_option("vis", "title")
     p_stuttermodelvis = subprocess.Popen(get_argv("vis", arg_defs, config))
 
     # Make raw background noise visualisation.

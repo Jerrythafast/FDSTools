@@ -24,7 +24,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta charset="UTF-8">
     <title>Background Noise Visualisation - FDSTools</title>
-    <!-- VERSION 2.0.0 -->
+    <!-- VERSION 2.0.1 -->
     <!-- BEGIN_LIBRARIES -->
     <script src="https://vega.github.io/vega-editor/vendor/d3.min.js"></script>
     <script src="https://vega.github.io/vega/vega.min.js"></script>
@@ -444,7 +444,7 @@
 var graph = false;
 var data_format = {};
 var data_values = [];
-var fileName = "bgprofile";
+var fileName = "bgprofiles-raw";
 var stamp = 0;
 function parse(){
     var this_stamp = ++stamp;
@@ -559,9 +559,9 @@ function setRenderer(value){
 
 function setFileName(value){
     if(!value)
-        value = "bgprofile";
+        value = "bgprofiles-raw";
     fileName = value;
-    if(value == "bgprofile")
+    if(value == "bgprofiles-raw")
         document.title = "Background Noise Visualisation - FDSTools";
     else
         document.title = value + " - Background Noise Visualisation - FDSTools";
@@ -657,6 +657,9 @@ function saveImage(){
 }
 
 function onLoadSpec(has_data){
+    data_format = graph_spec.data[0].format;
+    graph_spec.data[0].format = null;
+
     if(!has_data){
         //Handle files from the file input.
         document.getElementById("fileselect").addEventListener('change', function(){
@@ -683,21 +686,18 @@ function onLoadSpec(has_data){
             loadDataset(evt.dataTransfer.files);
         }, false);
     }
-    else if(graph_spec.data[0].fdstools_filename){
-        var rows = document.querySelectorAll(".filenamedisplayrow");
-        for (var i = 0; i < rows.length; i++)
-            rows[i].style.display = "table-row";
-        var cell = document.getElementById("filenamedisplay");
-        removeChildren(cell);
-        cell.appendChild(document.createTextNode(graph_spec.data[0].fdstools_filename));
-        setFileName(graph_spec.data[0].fdstools_filename);
-    }
-
-    //Parse data outside of Vega.
-    data_format = graph_spec.data[0].format;
-    graph_spec.data[0].format = null;
-    if(has_data)
+    else{
         loadProfiles(fileName, graph_spec.data[0].values);
+        if(graph_spec.data[0].fdstools_filename){
+            var rows = document.querySelectorAll(".filenamedisplayrow");
+            for (var i = 0; i < rows.length; i++)
+                rows[i].style.display = "table-row";
+            var cell = document.getElementById("filenamedisplay");
+            removeChildren(cell);
+            cell.appendChild(document.createTextNode(graph_spec.data[0].fdstools_filename));
+            setFileName(graph_spec.data[0].fdstools_filename);
+        }
+    }
 
     //Update graph when rendering mode or axis scale is changed.
     document.getElementById("renderCanvas").addEventListener('change', function(){
