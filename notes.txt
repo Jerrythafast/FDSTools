@@ -50,8 +50,6 @@ To-do:
   account as well.
 * Perhaps there should be a version of BGEstimate that makes a profile for each
   genotype instead of each allele.  This allows for the detection of hybrids.
-* Add tool to summarise various statistics about the entire analysis pipeline:
-  (TODO: Write this list)
 
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
