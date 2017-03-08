@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 
 #
-# Copyright (C) 2016 Jerry Hoogenboom
+# Copyright (C) 2017 Jerry Hoogenboom
 #
 # This file is part of FDSTools, data analysis tools for Next
 # Generation Sequencing of forensic DNA markers.
@@ -31,12 +31,13 @@ samples are heterozygous (as is usually the case with forensic STR
 markers), it is preferable to use bgestimate instead, since it can
 handle heterozygous samples as well.
 """
+from errno import EPIPE
 from ..lib import pos_int_arg, add_input_output_args, get_input_output_files,\
                   add_allele_detection_args, parse_allelelist,\
                   get_sample_data, add_sequence_format_args, adjust_stats,\
                   add_random_subsampling_args
 
-__version__ = "1.0.0"
+__version__ = "1.0.1"
 
 
 # Default values for parameters are specified below.
@@ -61,16 +62,18 @@ _DEF_MIN_SAMPLES = 2
 _DEF_MIN_SAMPLE_PCT = 80.
 
 
-def add_sample_data(data, sample_data, sample_alleles, min_pct, min_abs):
+def add_sample_data(data, sample_data, sample_alleles, min_pct, min_abs, tag):
     # Check presence of all alleles.
     for marker in sample_alleles:
         allele = sample_alleles[marker]
         if (marker, allele) not in sample_data:
             raise ValueError(
-                "Missing allele %s of marker %s!" % (allele, marker))
+                "Missing allele %s of marker %s in sample %s!" %
+                        (allele, marker, tag))
         elif 0 in sample_data[marker, allele]:
             raise ValueError(
-                "Allele %s of marker %s has 0 reads!" % (allele, marker))
+                "Allele %s of marker %s has 0 reads on one strand in "
+                    "sample %s!" % (allele, marker, tag))
 
     # Enter the read counts into data and check the thresholds.
     for marker, sequence in sample_data:
@@ -133,7 +136,7 @@ def compute_stats(samples_in, outfile, allelefile, annotation_column, min_pct,
         lambda tag, sample_data: add_sample_data(
             data, sample_data,
             {m: allelelist[tag][m].pop() for m in allelelist[tag]},
-            min_pct, min_abs),
+            min_pct, min_abs, tag),
         allelelist, annotation_column, seqformat, library, marker, True,
         limit_reads, drop_samples, True)
 
@@ -196,8 +199,14 @@ def run(args):
     if not files:
         raise ValueError("please specify an input file, or pipe in the output "
                          "of another program")
-    compute_stats(files[0], files[1], args.allelelist, args.annotation_column,
-                  args.min_pct, args.min_abs, args.min_samples,
-                  args.min_sample_pct, args.sequence_format, args.library,
-                  args.marker, args.limit_reads, args.drop_samples)
+    try:
+        compute_stats(files[0], files[1], args.allelelist,
+                      args.annotation_column, args.min_pct, args.min_abs,
+                      args.min_samples, args.min_sample_pct,
+                      args.sequence_format, args.library, args.marker,
+                      args.limit_reads, args.drop_samples)
+    except IOError as e:
+        if e.errno == EPIPE:
+            return
+        raise
 #run

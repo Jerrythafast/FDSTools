@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 
 #
-# Copyright (C) 2016 Jerry Hoogenboom
+# Copyright (C) 2017 Jerry Hoogenboom
 #
 # This file is part of FDSTools, data analysis tools for Next
 # Generation Sequencing of forensic DNA markers.
@@ -31,13 +31,14 @@ import argparse
 import re
 #import numpy as np  # Only imported when actually running this tool.
 
+from errno import EPIPE
 from ..lib import pos_int_arg, add_input_output_args, get_input_output_files,\
                   add_allele_detection_args, parse_allelelist, \
                   get_sample_data, add_sequence_format_args, call_variants,\
                   add_random_subsampling_args, reverse_complement,\
                   get_repeat_pattern
 
-__version__ = "1.1.1"
+__version__ = "1.1.2"
 
 
 # Default values for parameters are specified below.
@@ -280,12 +281,6 @@ def fit_stutter_model(outfile, raw_outfile, data, library, seq, patterns,
             full_allele = flanks[0] + allele + flanks[1]
 
             # Get all possible stutter positions in this allele.
-            positions = reduce(lambda positions, y:
-                positions + map(lambda m: (m.end() - stutlen,
-                    m.end() - m.start(), y[0]), y[1]),
-                [(False, patterns[0].finditer(full_allele)),
-                 (True, patterns[1].finditer(full_allele))],
-                [])
             positions=[(m, False) for m in patterns[0].finditer(full_allele)]+\
                       [(m, True) for m in patterns[1].finditer(full_allele)]
             for m, is_reverse_complement in positions:
@@ -535,10 +530,15 @@ def run(args):
     if not files:
         raise ValueError("please specify an input file, or pipe in the output "
                          "of another program")
-    fit_stutter(files[0], files[1], args.allelelist, args.annotation_column,
-                args.min_pct, args.min_abs, args.min_lengths, args.min_samples,
-                args.library, args.min_r2, args.orphans, args.degree,
-                args.same_shape, args.ignore_zeros, args.max_unit_length,
-                args.raw_outfile, args.marker, args.limit_reads,
-                args.drop_samples)
+    try:
+        fit_stutter(files[0], files[1], args.allelelist,
+                    args.annotation_column, args.min_pct, args.min_abs,
+                    args.min_lengths, args.min_samples, args.library,
+                    args.min_r2, args.orphans, args.degree, args.same_shape,
+                    args.ignore_zeros, args.max_unit_length, args.raw_outfile,
+                    args.marker, args.limit_reads, args.drop_samples)
+    except IOError as e:
+        if e.errno == EPIPE:
+            return
+        raise
 #run

@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 
 #
-# Copyright (C) 2016 Jerry Hoogenboom
+# Copyright (C) 2017 Jerry Hoogenboom
 #
 # This file is part of FDSTools, data analysis tools for Next
 # Generation Sequencing of forensic DNA markers.
@@ -28,11 +28,12 @@ With this tool, separate data points are produced for each sample, which
 can be visualised using "fdstools vis bgraw".  Use bghomstats or
 bgestimate to compute aggregate statistics on noise instead.
 """
+from errno import EPIPE
 from ..lib import pos_int_arg, add_input_output_args, get_input_output_files,\
                   add_allele_detection_args, parse_allelelist,\
                   get_sample_data, add_sequence_format_args
 
-__version__ = "1.0.0"
+__version__ = "1.0.1"
 
 
 # Default values for parameters are specified below.
@@ -67,7 +68,8 @@ def add_sample_data(data, sample_data, sample_alleles, min_pct, min_abs, tag):
                         (allele, marker, tag))
         elif 0 in sample_data[marker, allele]:
             raise ValueError(
-                "Allele %s of marker %s has 0 reads!" % (allele, marker))
+                "Allele %s of marker %s has 0 reads on one strand in "
+                    "sample %s!" % (allele, marker, tag))
 
     # Enter the read counts into data and check the thresholds.
     for marker, sequence in sample_data:
@@ -202,8 +204,13 @@ def run(args):
     if not files:
         raise ValueError("please specify an input file, or pipe in the output "
                          "of another program")
-    compute_ratios(files[0], files[1], args.allelelist, args.annotation_column,
-                   args.min_pct, args.min_abs, args.min_samples,
-                   args.min_sample_pct, args.sequence_format, args.library,
-                   args.marker)
+    try:
+        compute_ratios(files[0], files[1], args.allelelist,
+                       args.annotation_column, args.min_pct, args.min_abs,
+                       args.min_samples, args.min_sample_pct,
+                       args.sequence_format, args.library, args.marker)
+    except IOError as e:
+        if e.errno == EPIPE:
+            return
+        raise
 #run

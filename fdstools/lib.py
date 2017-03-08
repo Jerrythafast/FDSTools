@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 
 #
-# Copyright (C) 2016 Jerry Hoogenboom
+# Copyright (C) 2017 Jerry Hoogenboom
 #
 # This file is part of FDSTools, data analysis tools for Next
 # Generation Sequencing of forensic DNA markers.
@@ -25,6 +25,7 @@ import re, sys, argparse, random, itertools, textwrap, glob
 
 from ConfigParser import RawConfigParser, MissingSectionHeaderError
 from StringIO import StringIO
+from errno import EPIPE
 
 # Patterns that match entire sequences.
 PAT_SEQ_RAW = re.compile("^[ACGT]*$")
@@ -759,6 +760,8 @@ def parse_library_ini(handle):
 def load_profiles(profilefile, library=None):
     # TODO: To be replaced with load_profiles_new (less memory).
     column_names = profilefile.readline().rstrip("\r\n").split("\t")
+    if column_names == [""]:
+        return {}  # Empty file.
     (colid_marker, colid_allele, colid_sequence, colid_fmean, colid_rmean,
      colid_tool) = get_column_ids(column_names, "marker", "allele", "sequence",
         "fmean", "rmean", "tool")
@@ -824,6 +827,8 @@ def load_profiles(profilefile, library=None):
 def load_profiles_new(profilefile, library=None):
     # TODO, rename this to load_profiles to complete transition.
     column_names = profilefile.readline().rstrip("\r\n").split("\t")
+    if column_names == [""]:
+        return {}  # Empty file.
     (colid_marker, colid_allele, colid_sequence, colid_fmean, colid_rmean,
      colid_tool) = get_column_ids(column_names, "marker", "allele", "sequence",
         "fmean", "rmean", "tool")
@@ -1005,25 +1010,27 @@ def convert_sequence_raw_tssv(seq, library, marker, return_alias=False):
                 if (not pre_suf[0] and "prefix" in library
                         and marker in library["prefix"]):
                     ref = library["prefix"][marker][0]
-                    i = min(len(ref), len(matched))
-                    while i > 0:
-                        if ref.endswith(matched[:i]):
-                            start += i
-                            matched = matched[i:]
-                            modified = True
-                            break
-                        i -= 1
+                    if start != len(ref):
+                        i = min(len(ref), len(matched))
+                        while i > 0:
+                            if ref.endswith(matched[:i]):
+                                start += i
+                                matched = matched[i:]
+                                modified = True
+                                break
+                            i -= 1
                 if (not pre_suf[1] and "suffix" in library
                         and marker in library["suffix"]):
                     ref = library["suffix"][marker][0]
-                    i = min(len(ref), len(matched))
-                    while i > 0:
-                        if ref.startswith(matched[-i:]):
-                            end -= i
-                            matched = matched[:-i]
-                            modified = True
-                            break
-                        i -= 1
+                    if len(seq) - end != len(ref):
+                        i = min(len(ref), len(matched))
+                        while i > 0:
+                            if ref.startswith(matched[-i:]):
+                                end -= i
+                                matched = matched[:-i]
+                                modified = True
+                                break
+                            i -= 1
                 if modified:
                     from_start = start - match_start
                     from_end = match_end - end
@@ -1041,15 +1048,24 @@ def convert_sequence_raw_tssv(seq, library, marker, return_alias=False):
                         else:
                             from_end -= len(middle[-1])
                             middle = middle[:-1]
+                if start:
+                    if pre_suf[0]:
+                        middle.insert(0, seq[:start])
+                        matched = seq[:start] + matched
+                    else:
+                        pre_suf[0] = seq[:start]
+                if end < len(seq):
+                    if pre_suf[1]:
+                        middle.append(seq[end:])
+                        matched = matched + seq[end:]
+                    else:
+                        pre_suf[1] = seq[end:]
                 if middle:
                     middle = reduce(
                         lambda x, y: (x[:-1] if x[-1][0] == y else x) +
                             [(y, x[-1][1]+len(y))], middle[1:],
                             [(middle[0],
-                              start+len(middle[0])+len(pre_suf[0]))])
-
-                pre_suf[0] += seq[:start]
-                pre_suf[1] = seq[end:] + pre_suf[1]
+                              len(middle[0])+len(pre_suf[0]))])
                 seq = matched
 
         # Now construct parts.
@@ -1371,6 +1387,8 @@ def read_sample_data_file(infile, data, annotation_column=None, seqformat=None,
     """Add data from infile to data dict as [marker, sequence]=reads."""
     # Get column numbers.
     column_names = infile.readline().rstrip("\r\n").split("\t")
+    if column_names == [""]:
+        return []  # Empty file.
     colid_sequence = get_column_ids(column_names, "sequence")
     colid_forward = None
     colid_reverse = None
@@ -1508,6 +1526,8 @@ def get_column_ids(column_names, *names, **optional):
 def parse_allelelist(allelelist, convert=None, library=None):
     """Read allele list from open file handle."""
     column_names = allelelist.readline().rstrip("\r\n").split("\t")
+    if column_names == [""]:
+        return {}  # Empty file.
     colid_sample, colid_marker, colid_allele = get_column_ids(column_names,
         "sample", "marker", "allele")
     alleles = {}
@@ -1789,6 +1809,17 @@ def split_quoted_string(text):
             y[2]])],
         PAT_SPLIT_QUOTED.findall(text), [])
 #split_quoted_string
+
+
+def write_pipe(stream, *args):
+    """Call stream.write(*args), ignore EPIPE errors."""
+    try:
+        stream.write(*args)
+    except IOError as e:
+        if e.errno == EPIPE:
+            return
+        raise
+#write_pipe
 
 
 def print_db(text, debug):

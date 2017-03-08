@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 
 #
-# Copyright (C) 2016 Jerry Hoogenboom
+# Copyright (C) 2017 Jerry Hoogenboom
 #
 # This file is part of FDSTools, data analysis tools for Next
 # Generation Sequencing of forensic DNA markers.
@@ -44,10 +44,11 @@ import sys
 import re
 import os.path
 
+from errno import EPIPE
 from ..lib import parse_library, iupac_expand_ambiguous, INI_COMMENT
 from library import make_empty_library_ini
 
-__version__ = "1.1.1"
+__version__ = "1.1.2"
 
 
 def convert_library(infile, outfile, aliases=False):
@@ -266,5 +267,10 @@ def run(args):
         # No input given.  Produce a default FDSTools library.
         args.infile = None
 
-    convert_library(args.infile, args.outfile, args.aliases)
+    try:
+        convert_library(args.infile, args.outfile, args.aliases)
+    except IOError as e:
+        if e.errno == EPIPE:
+            return
+        raise
 #run

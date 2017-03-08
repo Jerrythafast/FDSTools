@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 
 #
-# Copyright (C) 2016 Jerry Hoogenboom
+# Copyright (C) 2017 Jerry Hoogenboom
 #
 # This file is part of FDSTools, data analysis tools for Next
 # Generation Sequencing of forensic DNA markers.
@@ -53,11 +53,12 @@ libconvert tool to convert their TSSV library file to FDSTools format.
 import argparse
 import sys
 
+from errno import EPIPE
 from ..lib import INI_COMMENT
 from ConfigParser import RawConfigParser
 from types import MethodType
 
-__version__ = "1.0.2"
+__version__ = "1.0.3"
 
 
 def ini_add_comment(ini, section, comment):
@@ -249,5 +250,10 @@ def add_arguments(parser):
 
 
 def run(args):
-    create_library(args.outfile, args.type, args.aliases)
+    try:
+        create_library(args.outfile, args.type, args.aliases)
+    except IOError as e:
+        if e.errno == EPIPE:
+            return
+        raise
 #run

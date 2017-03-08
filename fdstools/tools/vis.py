@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 
 #
-# Copyright (C) 2016 Jerry Hoogenboom
+# Copyright (C) 2017 Jerry Hoogenboom
 #
 # This file is part of FDSTools, data analysis tools for Next
 # Generation Sequencing of forensic DNA markers.
@@ -49,13 +49,13 @@ import sys
 import json
 import re
 import os
-import cgi
 
 from pkg_resources import resource_stream, resource_string
+from errno import EPIPE
 
 from ..lib import pos_int_arg
 
-__version__ = "1.0.3"
+__version__ = "1.0.4"
 
 
 # Default values for parameters are specified below.
@@ -481,17 +481,22 @@ def run(args):
         # Open the specified input file.
         args.infile = open(args.infile, 'r')
 
-    create_visualisation(args.type, args.infile, args.infile2, args.outfile,
-                         args.vega, args.online, args.tidy, args.min_abs,
-                         args.min_pct_of_max, args.min_pct_of_sum,
-                         args.min_per_strand, args.bias_threshold,
-                         args.bar_width, args.padding, args.marker, args.width,
-                         args.height, args.log_scale, args.repeat_unit,
-                         args.no_alldata, args.no_aggregate,
-                         args.no_ce_length_sort, args.max_seq_len, args.jitter,
-                         args.title, args.allele_min_abs,
-                         args.allele_min_pct_of_max,
-                         args.allele_min_pct_of_sum,
-                         args.allele_min_correction, args.allele_min_recovery,
-                         args.allele_min_per_strand)
+    try:
+        create_visualisation(args.type, args.infile, args.infile2, args.outfile,
+                             args.vega, args.online, args.tidy, args.min_abs,
+                             args.min_pct_of_max, args.min_pct_of_sum,
+                             args.min_per_strand, args.bias_threshold,
+                             args.bar_width, args.padding, args.marker,
+                             args.width, args.height, args.log_scale,
+                             args.repeat_unit, args.no_alldata,
+                             args.no_aggregate, args.no_ce_length_sort,
+                             args.max_seq_len, args.jitter, args.title,
+                             args.allele_min_abs, args.allele_min_pct_of_max,
+                             args.allele_min_pct_of_sum,
+                             args.allele_min_correction, args.allele_min_recovery,
+                             args.allele_min_per_strand)
+    except IOError as e:
+        if e.errno == EPIPE:
+            return
+        raise
 #run

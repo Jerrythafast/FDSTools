@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 
 #
-# Copyright (C) 2016 Jerry Hoogenboom
+# Copyright (C) 2017 Jerry Hoogenboom
 #
 # This file is part of FDSTools, data analysis tools for Next
 # Generation Sequencing of forensic DNA markers.
@@ -40,10 +40,11 @@ Example: fdstools bgpredict ... | fdstools bgmerge old.txt > out.txt
 import argparse
 import sys
 
+from errno import EPIPE
 from ..lib import load_profiles_new, ensure_sequence_format, glob_path,\
                   add_sequence_format_args
 
-__version__ = "1.0.2"
+__version__ = "1.0.3"
 
 
 def merge_profiles(infiles, outfile, seqformat, library):
@@ -97,5 +98,10 @@ def run(args):
             raise ValueError("please specify at least two input files")
         infiles.append("-")
 
-    merge_profiles(infiles, args.outfile, args.sequence_format, args.library)
+    try:
+        merge_profiles(infiles, args.outfile,args.sequence_format,args.library)
+    except IOError as e:
+        if e.errno == EPIPE:
+            return
+        raise
 #run

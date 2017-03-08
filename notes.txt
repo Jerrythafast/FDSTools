@@ -1,6 +1,5 @@
 To-do:
 * Group tools by function in the command line help and put Pipeline on top.
-* Produce empty output on empty input (instead of 'column not found' error).
 * Samplevis:
   * Detect whether correction was performed; hide related columns if not.
   * A PctOfAlleles column in the tables would be useful for mixtures.

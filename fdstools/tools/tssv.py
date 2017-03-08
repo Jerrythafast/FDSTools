@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 
 #
-# Copyright (C) 2016 Jerry Hoogenboom
+# Copyright (C) 2017 Jerry Hoogenboom
 #
 # This file is part of FDSTools, data analysis tools for Next
 # Generation Sequencing of forensic DNA markers.
@@ -36,6 +36,7 @@ import itertools as it
 from multiprocessing.queues import SimpleQueue
 from multiprocessing import Process
 from threading import Thread
+from errno import EPIPE
 
 # TSSV is only imported when actually running this tool.
 #from tssv.align_pair import align_pair
@@ -139,7 +140,7 @@ def worker(tssv_library, indel_score, task_queue, done_queue):
 #worker
 
 
-def feeder(input, tssv_library, indel_score, workers, done_queue):
+def feeder(input, tssv_library, indel_score, workers, chunksize, done_queue):
     """
     Start worker processes, feed them sequences from input and have them
     write their results to done_queue
@@ -153,8 +154,8 @@ def feeder(input, tssv_library, indel_score, workers, done_queue):
         process.start()
         processes.append(process)
     while 1:
-        # Sending chunks of 10000 reads to the workers.
-        task = tuple(r[1] for r in it.islice(input, 10000))
+        # Sending chunks of reads to the workers.
+        task = tuple(r[1] for r in it.islice(input, chunksize))
         if not task:
             break
         task_queue.put(task)
@@ -216,9 +217,11 @@ def process_file_parallel(infile, tssv_library, indel_score, workers):
     # Create queues.
     done_queue = SimpleQueue()
 
-    # Start worker processes.
+    # Start worker processes.  The work is divided into tasks that
+    # require about 1 million alignments each.
+    chunksize = int(1000000/(4*len(tssv_library))) or 1
     thread = Thread(target=feeder, args=(genreads(infile), tssv_library,
-        indel_score, workers, done_queue))
+        indel_score, workers, chunksize, done_queue))
     thread.daemon = True
     thread.start()
 
@@ -344,8 +347,12 @@ def run_tssv_lite(infile, outfile, reportfile, is_fastq, library, seqformat,
         [column_names] + [tables[marker] for marker in sorted(tables)])
     if outfiles:
         outfiles["sequences"].write(tables)
-    outfile.write(tables)
-    outfile.write("\n")
+    try:
+        outfile.write(tables)
+        outfile.write("\n")
+    except IOError as e:
+        if e.errno != EPIPE:
+            raise
 
     # Write statistics table.
     statistics = "\n".join((
@@ -355,8 +362,12 @@ def run_tssv_lite(infile, outfile, reportfile, is_fastq, library, seqformat,
         "unrecognised reads\t%i" % unrecognised))
     if outfiles:
         outfiles["statistics"].write(statistics)
-    reportfile.write(statistics)
-    reportfile.write("\n")
+    try:
+        reportfile.write(statistics)
+        reportfile.write("\n")
+    except IOError as e:
+        if e.errno != EPIPE:
+            raise
 #run_tssv_lite
 
 
@@ -372,7 +383,7 @@ def add_arguments(parser):
              "unrecognised reads (unknown.fa), recognised reads "
              "(Marker/paired.fa), and reads that lack one of the flanks of a "
              "marker (Marker/noend.fa and Marker/nostart.fa)")
-    parser.add_argument("-T", "--num-threads",
+    parser.add_argument("-T", "--num-threads", metavar="THREADS",
         type=pos_int_arg, default=1,
         help="number of worker threads to use (default: %(default)s)")
     filtergroup = parser.add_argument_group("filtering options")

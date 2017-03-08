@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 
 #
-# Copyright (C) 2016 Jerry Hoogenboom
+# Copyright (C) 2017 Jerry Hoogenboom
 #
 # This file is part of FDSTools, data analysis tools for Next
 # Generation Sequencing of forensic DNA markers.
@@ -34,12 +34,13 @@ import math
 import argparse
 #import numpy as np  # Only imported when actually running this tool.
 
+from errno import EPIPE
 from ..lib import pos_int_arg, add_input_output_args, get_input_output_files,\
                   add_allele_detection_args, nnls, add_sequence_format_args,\
                   parse_allelelist, get_sample_data, load_profiles_new,\
-                  add_random_subsampling_args
+                  add_random_subsampling_args, write_pipe
 
-__version__ = "1.1.1"
+__version__ = "1.1.2"
 
 
 # Default values for parameters are specified below.
@@ -71,12 +72,12 @@ _DEF_MIN_GENOTYPES = 3
 def solve_profile_mixture(forward, reverse, genotypes, n, starting_values={},
                           variance=False, reportfile=None):
     if reportfile:
-        reportfile.write("Solving forward read profiles\n")
+        write_pipe(reportfile, "Solving forward read profiles\n")
     f = solve_profile_mixture_single(forward, genotypes, n,
         starting_values={x: starting_values[x][0] for x in starting_values},
         variance=variance, reportfile=reportfile)
     if reportfile:
-        reportfile.write("Solving reverse read profiles\n")
+        write_pipe(reportfile, "Solving reverse read profiles\n")
     r = solve_profile_mixture_single(reverse, genotypes, n,
         starting_values={x: starting_values[x][1] for x in starting_values},
         variance=variance, reportfile=reportfile)
@@ -133,7 +134,7 @@ def solve_profile_mixture_single(samples, genotypes, n, starting_values={},
                 scale_factor = (100.0/samples[i][j])/len(genotypes[i])
             except ZeroDivisionError:
                 if reportfile:
-                    reportfile.write(
+                    write_pipe(reportfile,
                         "Sample %i does not have allele %i\n" % (i, j))
                 continue
             C[j, :] += [x * scale_factor for x in samples[i]]
@@ -173,7 +174,7 @@ def solve_profile_mixture_single(samples, genotypes, n, starting_values={},
                 if not E[p, p]:
                     # This would be an utter failure, but let's be safe.
                     if reportfile:
-                        reportfile.write(
+                        write_pipe(reportfile,
                             "%4i - No samples appear to have allele %i\n" %
                             (v, p))
                     P[p, nn] = 0
@@ -193,10 +194,10 @@ def solve_profile_mixture_single(samples, genotypes, n, starting_values={},
         cur_score = np.square(C - A * P).sum()
         score_change = (prev_score-cur_score)/prev_score
         if v and reportfile:
-            reportfile.write("%4i %15.6f %15.6f %6.2f\n" %
+            write_pipe(reportfile, "%4i %15.6f %15.6f %6.2f\n" %
                         (v, cur_score, prev_score-cur_score, 100*score_change))
         elif reportfile:
-            reportfile.write("%4i %15.6f\n" % (v, cur_score))
+            write_pipe(reportfile, "%4i %15.6f\n" % (v, cur_score))
         if not cur_score or score_change < 0.0001:
             break
 
@@ -210,13 +211,13 @@ def solve_profile_mixture_single(samples, genotypes, n, starting_values={},
         # more appropriate to compute the sample variance, but how?
         if reportfile:
             if sum(map(len, genotypes))-len(genotypes):
-                reportfile.write(
+                write_pipe(reportfile,
                     "Computing variances...\n"
                     "EXPERIMENAL feature! The values produced may give a "
                     "sense of the amount of variation,\nbut should not be "
                     "used in further computations that expect true variances!")
             else:
-                reportfile.write(
+                write_pipe(reportfile,
                     "Computing variances...\n"
                     "EXPERIMENAL feature! The values produced are population "
                     "variances.\nThis may (or may not) change to sample "
@@ -485,7 +486,7 @@ def generate_profiles(samples_in, outfile, reportfile, allelefile,
 
     if reportfile:
         t1 = time.time()
-        reportfile.write("Data loading and filtering took %f seconds\n" %
+        write_pipe(reportfile, "Data loading and filtering took %f seconds\n" %
                          (t1-t0))
 
     outfile.write("\t".join(
@@ -505,7 +506,7 @@ def generate_profiles(samples_in, outfile, reportfile, allelefile,
 
         # Solve for the profiles of the true alleles.
         if reportfile:
-            reportfile.write("Solving marker %s with n=%i, m=%i, k=%i\n" %
+            write_pipe(reportfile, "Solving marker %s with n=%i, m=%i, k=%i\n"%
                              (marker, p["true alleles"], profile_size,
                               len(p["profiles_forward"])))
             t0 = time.time()
@@ -518,7 +519,7 @@ def generate_profiles(samples_in, outfile, reportfile, allelefile,
                 reportfile=reportfile)
         if reportfile:
             t1 = time.time()
-            reportfile.write("Solved marker %s in %f seconds\n" %
+            write_pipe(reportfile, "Solved marker %s in %f seconds\n" %
                              (marker, t1-t0))
 
         # Round to 3 digits to get rid of funny rounding effects.
@@ -592,10 +593,21 @@ def run(args):
     if not files:
         raise ValueError("please specify an input file, or pipe in the output "
                          "of another program")
-    generate_profiles(files[0], files[1], args.report, args.allelelist,
-                      args.annotation_column, args.min_pct, args.min_abs,
-                      args.min_samples, args.min_sample_pct,
-                      args.min_genotypes, args.sequence_format, args.library,
-                      args.profiles, args.marker, args.homozygotes,
-                      args.limit_reads, args.drop_samples)
+    try:
+        generate_profiles(files[0], files[1], args.report, args.allelelist,
+                          args.annotation_column, args.min_pct, args.min_abs,
+                          args.min_samples, args.min_sample_pct,
+                          args.min_genotypes, args.sequence_format,
+                          args.library, args.profiles, args.marker,
+                          args.homozygotes, args.limit_reads,args.drop_samples)
+    except IOError as e:
+        if e.errno == EPIPE:
+            if args.report:
+                try:
+                    write_pipe(args.report,
+                        "Stopped early because the output was closed.\n")
+                except:
+                    pass
+            return
+        raise
 #run

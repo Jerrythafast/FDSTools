@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 
 #
-# Copyright (C) 2016 Jerry Hoogenboom
+# Copyright (C) 2017 Jerry Hoogenboom
 #
 # This file is part of FDSTools, data analysis tools for Next
 # Generation Sequencing of forensic DNA markers.
@@ -57,10 +57,11 @@ X_corrected.
 """
 import sys
 
+from errno import EPIPE
 from ..lib import add_sequence_format_args, add_input_output_args, \
                   get_input_output_files, get_column_ids
 
-__version__ = "1.1.0"
+__version__ = "1.1.1"
 
 
 # Default values for parameters are specified below.
@@ -186,6 +187,8 @@ def compute_stats(infile, outfile, min_reads,
                   min_pct_of_sum_filt, min_correction_filt, min_recovery_filt):
     # Check presence of required columns.
     column_names = infile.readline().rstrip("\r\n").split("\t")
+    if column_names == [""]:
+        return  # Empty file.
     get_column_ids(column_names, "marker", "sequence", "forward", "reverse",
         "total")
     if "flags" not in column_names:
@@ -779,15 +782,20 @@ def run(args):
         if len(infiles) > 1:
             raise ValueError(
                 "multiple input files for sample '%s' specified " % tag)
-        infile = sys.stdin if infiles[0] == "-" else open(infiles[0], "r")
-        compute_stats(infile, outfile,
-                      args.min_reads, args.min_per_strand, args.min_pct_of_max,
-                      args.min_pct_of_sum, args.min_correction,
-                      args.min_recovery, args.filter_action,
-                      args.filter_absolute, args.min_reads_filt,
-                      args.min_per_strand_filt, args.min_pct_of_max_filt,
-                      args.min_pct_of_sum_filt, args.min_correction_filt,
-                      args.min_recovery_filt)
-        if infile != sys.stdin:
-            infile.close()
+        try:
+            infile = sys.stdin if infiles[0] == "-" else open(infiles[0], "r")
+            compute_stats(infile, outfile,
+                          args.min_reads, args.min_per_strand,
+                          args.min_pct_of_max, args.min_pct_of_sum,
+                          args.min_correction, args.min_recovery,
+                          args.filter_action, args.filter_absolute,
+                          args.min_reads_filt, args.min_per_strand_filt,
+                          args.min_pct_of_max_filt, args.min_pct_of_sum_filt,
+                          args.min_correction_filt, args.min_recovery_filt)
+            if infile != sys.stdin:
+                infile.close()
+        except IOError as e:
+            if e.errno == EPIPE:
+                continue
+            raise
 #run

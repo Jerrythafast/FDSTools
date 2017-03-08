@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 
 #
-# Copyright (C) 2016 Jerry Hoogenboom
+# Copyright (C) 2017 Jerry Hoogenboom
 #
 # This file is part of FDSTools, data analysis tools for Next
 # Generation Sequencing of forensic DNA markers.
@@ -29,22 +29,24 @@ provided list of known sequences.
 """
 import argparse, sys
 
+from errno import EPIPE
 from ..lib import ensure_sequence_format, add_sequence_format_args, \
                   get_column_ids, add_input_output_args, SEQ_SPECIAL_VALUES, \
                   get_input_output_files
 
-__version__ = "1.0.0"
+__version__ = "1.0.1"
 
 
 def read_known(infile, library, default_marker=None):
     """Read sequence list from infile, return {marker: [sequences]}"""
-    data = {}
-
     # Get column numbers.  The marker name column is optional.
     column_names = infile.readline().rstrip("\r\n").split("\t")
+    if column_names == [""]:
+        return {}  # Empty file.
     colid_sequence = get_column_ids(column_names, "sequence")
     colid_marker = get_column_ids(column_names, "marker", optional=True)
 
+    data = {}
     for line in infile:
         line = line.rstrip("\r\n").split("\t")
         if line[colid_sequence] in SEQ_SPECIAL_VALUES:
@@ -66,6 +68,8 @@ def read_known(infile, library, default_marker=None):
 
 def find_new(infile, outfile, known, library):
     column_names = infile.readline().rstrip("\r\n").split("\t")
+    if column_names == [""]:
+        return  # Empty file.
     colid_marker, colid_sequence = get_column_ids(column_names, "marker",
         "sequence")
     column_names.insert(colid_sequence + 1, "new_allele")
@@ -107,8 +111,13 @@ def run(args):
         if len(infiles) > 1:
             raise ValueError(
                 "multiple input files for sample '%s' specified " % tag)
-        infile = sys.stdin if infiles[0] == "-" else open(infiles[0], "r")
-        find_new(infile, outfile, known, args.library)
-        if infile != sys.stdin:
-            infile.close()
+        try:
+            infile = sys.stdin if infiles[0] == "-" else open(infiles[0], "r")
+            find_new(infile, outfile, known, args.library)
+            if infile != sys.stdin:
+                infile.close()
+        except IOError as e:
+            if e.errno == EPIPE:
+                continue
+            raise
 #run

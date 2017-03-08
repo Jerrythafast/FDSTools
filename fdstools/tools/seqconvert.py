@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 
 #
-# Copyright (C) 2016 Jerry Hoogenboom
+# Copyright (C) 2017 Jerry Hoogenboom
 #
 # This file is part of FDSTools, data analysis tools for Next
 # Generation Sequencing of forensic DNA markers.
@@ -58,11 +58,12 @@ necessity; use this tool for your own convenience.
 """
 import argparse, sys
 
+from errno import EPIPE
 from ..lib import get_column_ids, ensure_sequence_format, parse_library,\
                   reverse_complement, add_input_output_args,\
                   get_input_output_files, SEQ_SPECIAL_VALUES
 
-__version__ = "1.0.1"
+__version__ = "1.0.2"
 
 
 # Default values for parameters are specified below.
@@ -148,9 +149,8 @@ def add_arguments(parser):
              "names can be conveniently updated to fit this new library file")
     parser.add_argument('-r', '--reverse-complement', metavar="MARKER",
         nargs="+", default=[],
-        help="to be used togethwer with -L/--library2; specify the markers "
-             "for which the sequences are reverse-complemented in the new "
-             "library")
+        help="to be used together with -L/--library2; specify the markers for "
+             "which the sequences are reverse-complemented in the new library")
 #add_arguments
 
 
@@ -165,12 +165,17 @@ def run(args):
 
     for tag, infiles, outfile in gen:
         for infile in infiles:  # Should be just one, but whatever.
-            infile = sys.stdin if infile == "-" else open(infile, "r")
-            convert_sequences(infile, outfile,
-                              getattr(args, "sequence-format"), library,
-                              args.marker, args.marker_column,
-                              args.allele_column, args.output_column, library2,
-                              args.reverse_complement)
-            if infile != sys.stdin:
-                infile.close()
+            try:
+                infile = sys.stdin if infile == "-" else open(infile, "r")
+                convert_sequences(infile, outfile,
+                                  getattr(args, "sequence-format"), library,
+                                  args.marker, args.marker_column,
+                                  args.allele_column, args.output_column,
+                                  library2, args.reverse_complement)
+                if infile != sys.stdin:
+                    infile.close()
+            except IOError as e:
+                if e.errno == EPIPE:
+                    continue
+                raise
 #run

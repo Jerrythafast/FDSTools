@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 
 #
-# Copyright (C) 2016 Jerry Hoogenboom
+# Copyright (C) 2017 Jerry Hoogenboom
 #
 # This file is part of FDSTools, data analysis tools for Next
 # Generation Sequencing of forensic DNA markers.
@@ -46,13 +46,14 @@ import argparse
 import sys
 #import numpy as np  # Only imported when actually running this tool.
 
+from errno import EPIPE
 from operator import mul
 
 from ..lib import get_column_ids, reverse_complement, get_repeat_pattern,\
                   mutate_sequence, SEQ_SPECIAL_VALUES,\
                   PAT_SEQ_RAW, ensure_sequence_format, add_sequence_format_args
 
-__version__ = "1.0.1"
+__version__ = "1.0.2"
 
 
 # Default values for parameters are specified below.
@@ -69,6 +70,8 @@ _DEF_MIN_R2 = 0.8
 
 def parse_stuttermodel(stuttermodel, min_r2=0, use_all_data=False):
     column_names = stuttermodel.readline().rstrip("\r\n").split("\t")
+    if column_names == [""]:
+        return {}  # Empty file.
     (colid_unit, colid_marker, colid_stutter, colid_lbound, colid_direction,
      colid_r2) = get_column_ids(column_names, "unit", "marker", "stutter",
         "lbound", "direction", "r2")
@@ -228,6 +231,8 @@ def predict_profiles(stuttermodel, seqsfile, outfile, default_marker,
 
     # Read list of sequences and compute stutter profiles for each.
     column_names = seqsfile.readline().rstrip("\r\n").split("\t")
+    if column_names == [""]:
+        return  # Empty file.
     colid_sequence = get_column_ids(column_names, "sequence")
     colid_marker = get_column_ids(column_names, "marker", optional=True)
     for line in seqsfile:
@@ -329,7 +334,12 @@ def run(args):
     global np
     import numpy as np
 
-    predict_profiles(args.stuttermodel, args.seqs, args.outfile, args.marker,
-                     args.use_all_data, args.min_pct, args.min_r2,
-                     args.sequence_format, args.library)
+    try:
+        predict_profiles(args.stuttermodel, args.seqs, args.outfile,
+                         args.marker, args.use_all_data, args.min_pct,
+                         args.min_r2, args.sequence_format, args.library)
+    except IOError as e:
+        if e.errno == EPIPE:
+            return
+        raise
 #run

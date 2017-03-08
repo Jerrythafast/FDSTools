@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 
 #
-# Copyright (C) 2016 Jerry Hoogenboom
+# Copyright (C) 2017 Jerry Hoogenboom
 #
 # This file is part of FDSTools, data analysis tools for Next
 # Generation Sequencing of forensic DNA markers.
@@ -45,11 +45,12 @@ profile was based on direct observations.
 import argparse, sys
 #import numpy as np  # Only imported when actually running this tool.
 
+from errno import EPIPE
 from ..lib import load_profiles, ensure_sequence_format, get_column_ids, \
                   nnls, add_sequence_format_args, SEQ_SPECIAL_VALUES, \
                   add_input_output_args, get_input_output_files
 
-__version__ = "1.0.1"
+__version__ = "1.0.2"
 
 
 def get_sample_data(infile, convert_to_raw=False, library=None):
@@ -58,6 +59,8 @@ def get_sample_data(infile, convert_to_raw=False, library=None):
     sample, and fill a dict with all sequences in the sample.
     """
     column_names = infile.readline().rstrip("\r\n").split("\t")
+    if column_names == [""]:
+        return None, None  # Empty file.
     column_names.append("forward_noise")
     column_names.append("reverse_noise")
     column_names.append("total_noise")
@@ -241,6 +244,8 @@ def match_profile(column_names, data, profile, convert_to_raw, library,
 def match_profiles(infile, outfile, profiles, library, seqformat):
     column_names, data = get_sample_data(
         infile, convert_to_raw=seqformat=="raw", library=library)
+    if column_names is None:
+        return  # Empty file.
     colid_sequence = get_column_ids(column_names, "sequence")
 
     outfile.write("\t".join(column_names) + "\n")
@@ -290,9 +295,14 @@ def run(args):
         if len(infiles) > 1:
             raise ValueError(
                 "multiple input files for sample '%s' specified " % tag)
-        infile = sys.stdin if infiles[0] == "-" else open(infiles[0], "r")
-        match_profiles(infile, outfile, profiles, args.library,
-                       args.sequence_format)
-        if infile != sys.stdin:
-            infile.close()
+        try:
+            infile = sys.stdin if infiles[0] == "-" else open(infiles[0], "r")
+            match_profiles(infile, outfile, profiles, args.library,
+                           args.sequence_format)
+            if infile != sys.stdin:
+                infile.close()
+        except IOError as e:
+            if e.errno == EPIPE:
+                continue
+            raise
 #run

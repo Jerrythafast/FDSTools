@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 
 #
-# Copyright (C) 2016 Jerry Hoogenboom
+# Copyright (C) 2017 Jerry Hoogenboom
 #
 # This file is part of FDSTools, data analysis tools for Next
 # Generation Sequencing of forensic DNA markers.
@@ -51,12 +51,13 @@ be annotated as 'ALLELE' instead.)
 """
 import argparse, sys
 
+from errno import EPIPE
 from ..lib import pos_int_arg, print_db, PAT_TSSV_BLOCK, get_column_ids, \
                   add_input_output_args, get_input_output_files, \
                   ensure_sequence_format, add_sequence_format_args, \
                   SEQ_SPECIAL_VALUES
 
-__version__ = "1.5.0"
+__version__ = "1.5.1"
 
 
 # Default values for parameters are specified below.
@@ -120,6 +121,8 @@ def load_data(infile, colname_annotation=_DEF_COLNAME, library=None):
     """
     # Get column numbers.  We are adding a column as well.
     column_names = infile.readline().rstrip("\r\n").split("\t")
+    if column_names == [""]:
+        return None, None  # Empty file.
     colid_total, colid_sequence, = get_column_ids(column_names,
         "total", "sequence")
     colid_marker = get_column_ids(column_names, "marker", optional=True)
@@ -236,6 +239,8 @@ def annotate_alleles(infile, outfile, stutter, min_reads=_DEF_MIN_READS,
     :type debug: bool
     """
     column_names, allelelist = load_data(infile, colname_annotation, library)
+    if column_names is None:
+        return  # Empty file.
     colid_total, colid_sequence, = get_column_ids(column_names,
         "total", "sequence")
     try:
@@ -471,10 +476,15 @@ def run(args):
         if len(infiles) > 1:
             raise ValueError(
                 "multiple input files for sample '%s' specified" % tag)
-        infile = sys.stdin if infiles[0] == "-" else open(infiles[0], "r")
-        annotate_alleles(infile, outfile, args.stutter, args.min_reads,
-                         args.min_repeats, args.min_report, args.column_name,
-                         args.library, args.debug)
-        if infile != sys.stdin:
-            infile.close()
+        try:
+            infile = sys.stdin if infiles[0] == "-" else open(infiles[0], "r")
+            annotate_alleles(infile, outfile, args.stutter, args.min_reads,
+                             args.min_repeats, args.min_report,
+                             args.column_name, args.library, args.debug)
+            if infile != sys.stdin:
+                infile.close()
+        except IOError as e:
+            if e.errno == EPIPE:
+                continue
+            raise
 #run

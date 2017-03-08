@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 
 #
-# Copyright (C) 2016 Jerry Hoogenboom
+# Copyright (C) 2017 Jerry Hoogenboom
 #
 # This file is part of FDSTools, data analysis tools for Next
 # Generation Sequencing of forensic DNA markers.
@@ -38,11 +38,12 @@ this file to do their job.  One may use the allelefinder report
 (-R/--report output argument) and the blame tool to get a quick overview
 of what might be wrong.
 """
+from errno import EPIPE
 from ..lib import pos_int_arg, add_input_output_args, get_input_output_files, \
                   ensure_sequence_format, get_sample_data, SEQ_SPECIAL_VALUES,\
-                  add_sequence_format_args
+                  add_sequence_format_args, write_pipe
 
-__version__ = "1.0.0"
+__version__ = "1.0.1"
 
 
 # Default values for parameters are specified below.
@@ -71,8 +72,6 @@ _DEF_MAX_NOISY = 2
 def find_alleles(samples_in, outfile, reportfile, min_reads, min_allele_pct,
                  max_noise_pct, max_alleles, max_noisy, stuttermark_column,
                  seqformat, library):
-    library = library if library is not None else {}
-
     outfile.write("\t".join(["sample", "marker", "total", "allele"]) + "\n")
     allelelist = {}
     get_sample_data(
@@ -127,7 +126,7 @@ def find_alleles_sample(data, outfile, reportfile, tag, min_reads,
     noisy_markers = 0
     for marker in alleles:
         if top_allele[marker] < min_reads:
-            reportfile.write(
+            write_pipe(reportfile,
                 "Sample %s is not suitable for marker %s:\n"
                 "highest allele has only %i reads\n\n" %
                     (tag, marker, top_allele[marker]))
@@ -142,7 +141,7 @@ def find_alleles_sample(data, outfile, reportfile, tag, min_reads,
             alleles[marker] = {x: alleles[marker][x]
                                for x in allele_order[:expect]}
         if top_noise[marker][1] > top_allele[marker]*(max_noise_pct/100.):
-            reportfile.write(
+            write_pipe(reportfile,
                 "Sample %s is not suitable for marker %s:\n"
                 "highest non-allele is %.1f%% of the highest allele\n" %
                 (tag, marker, 100.*top_noise[marker][1]/top_allele[marker]))
@@ -151,18 +150,20 @@ def find_alleles_sample(data, outfile, reportfile, tag, min_reads,
                 seq = allele if seqformat is None \
                     else ensure_sequence_format(allele, seqformat,
                         library=library, marker=marker)
-                reportfile.write("%i\tALLELE\t%s\n" %
+                write_pipe(reportfile, "%i\tALLELE\t%s\n" %
                     (alleles[marker][allele], seq))
             seq = top_noise[marker][0] if seqformat is None \
                 else ensure_sequence_format(top_noise[marker][0],
                     seqformat, library=library, marker=marker)
-            reportfile.write("%i\tNOISE\t%s\n\n" % (top_noise[marker][1], seq))
+            write_pipe(reportfile,
+                "%i\tNOISE\t%s\n\n" % (top_noise[marker][1], seq))
             noisy_markers += 1
             alleles[marker] = {}
 
     # Drop this sample completely if it has too many noisy markers.
     if noisy_markers > max_noisy:
-        reportfile.write("Sample %s appears to be contaminated!\n\n" % tag)
+        write_pipe(reportfile,
+            "Sample %s appears to be contaminated!\n\n" % tag)
         return
 
     # The sample is OK, write out its alleles.
@@ -179,7 +180,7 @@ def find_alleles_sample(data, outfile, reportfile, tag, min_reads,
 def get_max_expected_alleles(max_alleles, marker, library):
     if max_alleles is not None:
         return max_alleles
-    if "max_expected_copies" in library:
+    if library is not None and "max_expected_copies" in library:
         return library["max_expected_copies"].get(marker, 2)
     return 2
 #get_max_expected_alleles
@@ -225,8 +226,19 @@ def run(args):
         raise ValueError("please specify an input file, or pipe in the output "
                          "of another program")
 
-    find_alleles(files[0], files[1], args.report, args.min_reads,
-                 args.min_allele_pct, args.max_noise_pct, args.max_alleles,
-                 args.max_noisy, args.stuttermark_column, args.sequence_format,
-                 args.library)
+    try:
+        find_alleles(files[0], files[1], args.report, args.min_reads,
+                     args.min_allele_pct, args.max_noise_pct, args.max_alleles,
+                     args.max_noisy, args.stuttermark_column,
+                     args.sequence_format, args.library)
+    except IOError as e:
+        if e.errno == EPIPE:
+            if args.report:
+                try:
+                    write_pipe(args.report,
+                        "Stopped early because the output was closed.\n")
+                except:
+                    pass
+            return
+        raise
 #run
