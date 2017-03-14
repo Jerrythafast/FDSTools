@@ -29,6 +29,38 @@ Alternatively, FDSTools can be installed by running:
 
 FDSTools Changelog
 ------------------
+v1.1.0
+    - Allele name heuristics: don't produce insertions at the end of the prefix
+      or at the beginning of the suffix; just include extra STR blocks.
+    - FDSTools will no longer crash with a 'column not found' error when
+      an input file is empty. This situation is now treated as if the
+      expected columns existed, but no lines of actual data were present.
+      This greatly helps in tracking down issues in pipelines involving
+      multiple tools, as tools will now shutdown gracefully if an upstream
+      tool fails to write output.
+    - Includes Allelefinder v1.0.1
+    - Includes BGAnalyse v1.0.1
+    - Includes BGCorrect v1.0.2
+    - Includes BGEstimate v1.1.2
+    - Includes BGHomRaw v1.0.1
+    - Includes BGHomStats v1.0.1
+    - Includes BGMerge v1.0.3
+    - Includes BGPredict v1.0.2
+    - Includes FindNewAlleles v1.0.1
+    - Includes Libconvert v1.1.2
+    - Includes Library v1.0.3
+    - Includes Pipeline v1.0.3
+    - Includes Samplestats v1.1.1
+    - Includes Seqconvert v1.0.2
+    - Includes Stuttermark v1.5.1
+    - Includes Stuttermodel v1.1.2
+    - Includes TSSV v1.1.0
+    - Includes Vis v1.0.4
+    - Includes BGRawvis v2.0.1
+    - Includes Profilevis v2.0.1
+    - Includes Samplevis v2.2.0
+    - Includes Stuttermodelvis v2.0.3
+
 v1.0.1
     - Fixed crash that occurred when using the -i option to run the same
       command on multiple input files.
@@ -145,18 +177,30 @@ v0.0.1
 
 Allelefinder
 ~~~~~~~~~~~~
+v1.0.1
+    - Fixed crash that occurred when converting sequences to allele name format
+      when no library file was provided.
+    - Shut down cleanly when the output pipe is closed.
+
 v1.0.0
     - Initial version
 
 
 BGAnalyse
 ~~~~~~~~~
+v1.0.1
+    - Shut down cleanly when the output pipe is closed.
+
 v1.0.0
     - Initial version
 
 
 BGCorrect
 ~~~~~~~~~
+v1.0.2
+    - Don't crash on empty input files.
+    - Shut down cleanly when the output pipe is closed.
+
 v1.0.1
     - Added new column 'weight' to the output. The value in this column
       expresses the number of times that the noise profile of that allele
@@ -168,6 +212,9 @@ v1.0.0
 
 BGEstimate
 ~~~~~~~~~~
+v1.1.2
+    - Shut down cleanly when the output pipe is closed.
+
 v1.1.1
     - Added option -p/--profiles which can be used to provide a previously
       created background noise profiles file, from which starting values will
@@ -191,18 +238,31 @@ v1.0.0
 
 BGHomRaw
 ~~~~~~~~
+v1.0.1
+    - Clarified the 'Allele x of marker y has 0 reads' error message with the
+      name of the sample that triggered the error.
+    - Shut down cleanly when the output pipe is closed.
+
 v1.0.0
     - Initial version
 
 
 BGHomStats
 ~~~~~~~~~~
+v1.0.1
+    - Error messages about the input data now contain the name of the sample
+      that triggered the error.
+    - Shut down cleanly when the output pipe is closed.
+
 v1.0.0
     - Initial version
 
 
 BGMerge
 ~~~~~~~
+v1.0.3
+    - Shut down cleanly when the output pipe is closed.
+
 v1.0.2
     - Minor changes to facilitate explicit filename wildcard support
 
@@ -215,6 +275,10 @@ v1.0.0
 
 BGPredict
 ~~~~~~~~~
+v1.0.2
+    - Don't crash on empty input files.
+    - Shut down cleanly when the output pipe is closed.
+
 v1.0.1
     - Greatly reduced memory usage.
     - BGPredict will now output nonzero values below the threshold set by
@@ -229,13 +293,20 @@ v1.0.0
 
 FindNewAlleles
 ~~~~~~~~~~~~~~
+v1.0.1
+    - Don't crash on empty input files.
+    - Shut down cleanly when the output pipe is closed.
+
 v1.0.0
     - Initial version
 
 
 Libconvert
 ~~~~~~~~~~
-v1.1.1:
+v1.1.2
+    - Shut down cleanly when the output pipe is closed.
+
+v1.1.1
     - Adjustments for supporting IUPAC notation in prefix and suffix sequences
       when converting from FDSTools to TSSV library format.
 
@@ -262,6 +333,9 @@ v1.0.0
 
 Library
 ~~~~~~~
+v1.0.3
+    - Shut down cleanly when the output pipe is closed.
+
 v1.0.2
     - Added documentation for IUPAC support to the descriptive comment of the
       [prefix] section.
@@ -276,6 +350,10 @@ v1.0.0
 
 Pipeline
 ~~~~~~~~
+v1.0.3
+    - Fixed glitch that caused the 'bgprofiles.html' output file of the
+      reference-database analysis to lack a proper title.
+
 v1.0.2
     - Added -A/--in-allelelist option, with which an existing allele list file
       can be provided when running the reference-database analysis pipeline,
@@ -293,6 +371,10 @@ v1.0.0
 
 Samplestats
 ~~~~~~~~~~~
+v1.1.1
+    - Don't crash on empty input files.
+    - Shut down cleanly when the output pipe is closed.
+
 v1.1.0
     - Changed default allele calling option thresholds:
         - Changed default value of -m/--min-pct-of-max from 5.0 to 2.0
@@ -319,6 +401,9 @@ v1.0.0
 
 Seqconvert
 ~~~~~~~~~~
+v1.0.2
+    - Shut down cleanly when the output pipe is closed.
+
 v1.0.1
     - Internal naming of the first positional argument was changed from
       'format' to 'sequence-format'. This was done for consistency with the
@@ -331,6 +416,10 @@ v1.0.0
 
 Stuttermark
 ~~~~~~~~~~~
+v1.5.1
+    - Don't crash on empty input files.
+    - Shut down cleanly when the output pipe is closed.
+
 v1.5.0
     - Changed column names 'name' and 'allele' to 'marker' and 'sequence',
       respectively. WARNING: Stuttermark is now INCOMPATIBLE with output
@@ -364,6 +453,9 @@ v1.0.0
 
 Stuttermodel
 ~~~~~~~~~~~~
+v1.1.2
+    - Shut down cleanly when the output pipe is closed.
+
 v1.1.1
     - Minor change to internal variant representation
 
@@ -381,6 +473,11 @@ v1.0.0
 
 TSSV
 ~~~~
+v1.1.0
+    - Added option '-T/--num-threads' (default: 1), which controls the number
+      of worker threads TSSV may spawn to run the analysis in parallel.
+    - Shut down cleanly when the output pipe is closed.
+
 v1.0.2
     - Added new option -n/--indel-score which can be used to increase the
       penalty given to insertions and deletions in the flanking sequences
@@ -399,6 +496,9 @@ v1.0.0
 
 Vis
 ~~~
+v1.0.4
+    - Shut down cleanly when the output pipe is closed.
+
 v1.0.3
     - The -n/--min-abs and -s/--min-per-strand options now accept non-integer
       values as well.
@@ -452,6 +552,12 @@ v1.0.0
 
 BGRawvis
 ~~~~~~~~
+v2.0.1
+    - Changed default save filename in HTML visualisations to 'bgprofiles-raw'.
+    - Fixed glitch where, in HTML visualisations with embedded data and a
+      custom title, the custom title was truncated to the last '.' as if it
+      were a file name.
+
 v2.0.0
     - Replaced the simple Options overlay with responsive design options panels
       in HTML visualisations
@@ -474,6 +580,12 @@ v1.0.0
 
 Profilevis
 ~~~~~~~~~~
+v2.0.1
+    - Changed default save filename in HTML visualisations to 'bgprofiles'.
+    - Fixed glitch where, in HTML visualisations with embedded data and a
+      custom title, the custom title was truncated to the last '.' as if it
+      were a file name.
+
 v2.0.0
     - Replaced the simple Options overlay with responsive design options panels
       in HTML visualisations
@@ -496,6 +608,13 @@ v1.0.0
 
 Samplevis
 ~~~~~~~~~
+v2.2.0
+    - Fixed incorrect calculation of 'percentage of highest' if the 'sequence'
+      with the highest read count within a marker is the aggregated 'Other
+      sequences' data. In exceptional cases, this could have resulted in the
+      erroneous omission of an allele in the visualisation (graphs and/or
+      tables).
+
 v2.1.2
     - Added 'Save page' link to HTML visualisations, which offers for download
       a copy of the entire HTML visualisation including the user's changes.
@@ -547,6 +666,13 @@ v2.0.0
 
 Stuttermodelvis
 ~~~~~~~~~~~~~~~
+v2.0.3
+    - Fixed bug that caused HTML visualisations with embedded data to fail
+      while loading.
+    - Fixed glitch where, in HTML visualisations with embedded data and a
+      custom title, the custom title was truncated to the last '.' as if it
+      were a file name.
+
 v2.0.2
     - Added filtering option for the stutter amount (-1, +1, -2, etc.).
     - Added filtering option for the coefficient of determination (r squared
