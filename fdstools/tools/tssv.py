@@ -47,7 +47,7 @@ from ..lib import pos_int_arg, add_input_output_args, get_input_output_files,\
                   add_sequence_format_args, reverse_complement, PAT_SEQ_RAW,\
                   get_column_ids, ensure_sequence_format
 
-__version__ = "1.1.0"
+__version__ = "1.1.1"
 
 
 # Default values for parameters are specified below.
@@ -231,10 +231,10 @@ def process_file_parallel(infile, tssv_library, indel_score, workers):
 
         for marker, matches, seq1, seq2 in results:
             recognised |= matches
-            counters[marker]["fLeft"] += matches
-            counters[marker]["fRight"] += (matches >> 1)
-            counters[marker]["rLeft"] += (matches >> 2)
-            counters[marker]["rRight"] += (matches >> 3)
+            counters[marker]["fLeft"] += matches & 1
+            counters[marker]["fRight"] += matches >> 1 & 1
+            counters[marker]["rLeft"] += matches >> 2 & 1
+            counters[marker]["rRight"] += matches >> 3 & 1
 
             # Search in the forward strand.
             if seq1 is not None:

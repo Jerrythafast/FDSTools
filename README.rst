@@ -29,6 +29,9 @@ Alternatively, FDSTools can be installed by running:
 
 FDSTools Changelog
 ------------------
+v1.1.1
+    - Includes TSSV v1.1.1
+
 v1.1.0
     - Allele name heuristics: don't produce insertions at the end of the prefix
       or at the beginning of the suffix; just include extra STR blocks.
@@ -473,6 +476,11 @@ v1.0.0
 
 TSSV
 ~~~~
+v1.1.1
+    - Fixed incorrect calculation of tLeft, fLeft, rLeft, tRight and fRight
+      columns in the report output file when -T/--num-threads was set to 2 or
+      higher. The primary output of was unaffected.
+
 v1.1.0
     - Added option '-T/--num-threads' (default: 1), which controls the number
       of worker threads TSSV may spawn to run the analysis in parallel.
