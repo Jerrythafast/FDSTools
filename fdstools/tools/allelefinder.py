@@ -35,8 +35,8 @@ The allele list obtained from allelefinder should always be checked
 carefully before using it as the input of various other tools operating
 on reference samples.  These tools rely heavily on the correctness of
 this file to do their job.  One may use the allelefinder report
-(-R/--report output argument) and the blame tool to get a quick overview
-of what might be wrong.
+(-R/--report output argument) and the bganalyse tool to get a quick
+overview of what might be wrong.
 """
 from errno import EPIPE
 from ..lib import pos_int_arg, add_input_output_args, get_input_output_files, \

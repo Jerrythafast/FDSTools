@@ -24,8 +24,8 @@
 Match background noise profiles (obtained from e.g., bgestimate) to
 samples.
 
-Ten new columns are added to the output giving, for each sequence, the
-number of reads attributable to noise from other sequences (_noise
+Eleven new columns are added to the output giving, for each sequence,
+the number of reads attributable to noise from other sequences (_noise
 columns) and the number of noise reads caused by the prescense of this
 sequence (_add columns), as well as the resulting number of reads after
 correction (_corrected columns: original minus _noise plus _add).
@@ -41,6 +41,9 @@ predictions as opposed to direct observations;
 'corrected_bgestimate'/'corrected_bghomstats', the sequence was present
 in the noise profiles as a genuine allele and at least part of its noise
 profile was based on direct observations.
+
+Finally, the weight column gives the number of times that the noise
+profile of that allele fitted in the sample.
 """
 import argparse, sys
 #import numpy as np  # Only imported when actually running this tool.

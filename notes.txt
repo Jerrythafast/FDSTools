@@ -1,4 +1,5 @@
 To-do:
+* Remove duplicate reads before alignment in TSSV: HUGE potential speedup.
 * Group tools by function in the command line help and put Pipeline on top.
 * Samplevis:
   * Detect whether correction was performed; hide related columns if not.
@@ -12,6 +13,16 @@ To-do:
     be repainted between each chunk. One major issue with this is that user
     input events may get scheduled between the chunks.
   * Allow table filtering options to be specified for each marker separately.
+* Pipeline:
+  * Add raw sequence output to ref-sample and case-sample analyses.
+* Samplestats:
+  * Verify that Samplestats never treats "Other sequences" as the highest.
+  * Add capability to run Samplestats again on its own output.
+  * Add percentage-of-called-alleles columns.
+* BGAnalyse:
+  * Add columns containing the sequence of the highest/lowest noise and the
+    sequence with the highest percentage recovery in every sample and marker.
+* Add option for ignoring strands, operating on the total read counts instead.
 * Add options for exporting data in CODIS format (and possibly others?).
 * Add grouping, show/hide options, and target coverage for BGAnalyseVis to the
   Vis tool.
@@ -26,7 +37,7 @@ To-do:
   variants are specified. The TSSV tool should always output the reference base
   at these positions to comply with ethical regulations.
 * Add options to Samplevis, Samplestats (and possibly other relevant tools) to
-  filter alleles by sequence length. The TSSV tool already supports this.
+  filter alleles by sequence length.  The TSSV tool already supports this.
 * Add visualisation with all markers in one graph ("samplesummaryvis"?).
 * Add tool to analyse within-marker and between-marker coverage variation.
 * Allow loading multiple files into HTML visualisations and provide prev/next

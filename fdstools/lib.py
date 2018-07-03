@@ -937,12 +937,12 @@ def detect_sequence_format(seq):
         # Special case.
         return False
     if PAT_SEQ_RAW.match(seq):
-        return 'raw'
+        return "raw"
     if PAT_SEQ_TSSV.match(seq):
-        return 'tssv'
+        return "tssv"
     if PAT_SEQ_ALLELENAME_STR.match(seq) or PAT_SEQ_ALLELENAME_MT.match(seq) \
             or PAT_SEQ_ALLELENAME_SNP.match(seq):
-        return 'allelename'
+        return "allelename"
     raise ValueError("Unrecognised sequence format")
 #detect_sequence_format
 
@@ -1568,11 +1568,11 @@ def regex_arg(value):
 
 def add_allele_detection_args(parser):
     group = parser.add_argument_group("allele detection options")
-    group.add_argument('-a', '--allelelist', metavar="ALLELEFILE",
-        type=argparse.FileType('r'),
+    group.add_argument("-a", "--allelelist", metavar="ALLELEFILE",
+        type=argparse.FileType("r"),
         help="file containing a list of the true alleles of each sample "
              "(e.g., obtained from allelefinder)")
-    group.add_argument('-c', '--annotation-column', metavar="COLNAME",
+    group.add_argument("-c", "--annotation-column", metavar="COLNAME",
         help="name of a column in the sample files, which contains a value "
              "beginning with 'ALLELE' for the true alleles of the sample")
 #add_allele_detection_args
@@ -1580,11 +1580,11 @@ def add_allele_detection_args(parser):
 
 def add_random_subsampling_args(parser):
     group = parser.add_argument_group("random subsampling options (advanced)")
-    group.add_argument('-Q', '--limit-reads', metavar="N", type=pos_int_arg,
+    group.add_argument("-Q", "--limit-reads", metavar="N", type=pos_int_arg,
         default=sys.maxint,
         help="simulate lower sequencing depth by randomly dropping reads down "
              "to this maximum total number of reads for each sample")
-    group.add_argument('-x', '--drop-samples', metavar="N", type=float,
+    group.add_argument("-x", "--drop-samples", metavar="N", type=float,
         default=0, help="randomly drop this fraction of input samples")
 #add_random_subsampling_args
 
@@ -1595,7 +1595,7 @@ def add_sequence_format_args(parser, default_format=None, force=False,
     if force:
         group.set_defaults(sequence_format=default_format)
     else:
-        group.add_argument('-F', '--sequence-format', metavar="FORMAT",
+        group.add_argument("-F", "--sequence-format", metavar="FORMAT",
             choices=("raw", "tssv", "allelename"),
             default=default_format,
             help="convert sequences to the specified format: one of "
@@ -1603,10 +1603,10 @@ def add_sequence_format_args(parser, default_format=None, force=False,
                  "no conversion" if default_format is None else default_format)
                  + ")")
     if require_library:
-        parser.add_argument('library', metavar="LIBRARY", type=parse_library,
+        parser.add_argument("library", metavar="LIBRARY", type=parse_library,
             help="library file with marker definitions")
     else:
-        group.add_argument('-l', '--library', metavar="LIBRARY",
+        group.add_argument("-l", "--library", metavar="LIBRARY",
             type=parse_library,
             help="library file for sequence format conversion")
 #add_sequence_format_args
@@ -1618,13 +1618,13 @@ def add_input_output_args(parser, single_in=False, batch_support=False,
     # Input file options group.
     if not single_in:
         # Multiple input files: positionals.
-        parser.add_argument('infiles', nargs='*', metavar="FILE",
+        parser.add_argument("infiles", nargs="*", metavar="FILE",
             default=["-"],
             help="the sample data file(s) to process (default: read from "
                  "stdin)")
     elif not batch_support:
         # Single input file and no batches: single positional.
-        parser.add_argument('infile', nargs='?', metavar="IN",
+        parser.add_argument("infile", nargs="?", metavar="IN",
             default="-",
             help="the sample data file to process (default: read from stdin)")
     else:
@@ -1632,7 +1632,7 @@ def add_input_output_args(parser, single_in=False, batch_support=False,
         # option for batches, which are mutually exclusive.
         mutex = parser.add_argument_group(
                     "input file options").add_mutually_exclusive_group()
-        mutex.add_argument('infile', nargs='?', metavar="IN",
+        mutex.add_argument("infile", nargs="?", metavar="IN",
             default="-",
             help="single sample data file to process (default: read from "
                  "stdin)")
@@ -1647,10 +1647,10 @@ def add_input_output_args(parser, single_in=False, batch_support=False,
         # Single input file with batch support: single positional and -o
         # option for batches, which are mutually exclusive.
         mutex = group.add_mutually_exclusive_group()
-        mutex.add_argument('outfile', nargs='?', metavar="OUT",
+        mutex.add_argument("outfile", nargs="?", metavar="OUT",
             default=sys.stdout,
             help="the file to write the output to (default: write to stdout)")
-        mutex.add_argument('-o', '--output', dest="outfiles", nargs="+",
+        mutex.add_argument("-o", "--output", dest="outfiles", nargs="+",
             metavar="OUT",
             help="list of names of output files to match with input files "
                  "specified with -i/--input, or a format string to construct "
@@ -1659,14 +1659,14 @@ def add_input_output_args(parser, single_in=False, batch_support=False,
                     ((parser.prog.rsplit(" ", 1)[-1],)*2))
     elif single_in:
         # Single input file and no batch support: single positional.
-        parser.add_argument('outfile', nargs='?', metavar="OUT",
-            type=argparse.FileType('w'),
+        parser.add_argument("outfile", nargs="?", metavar="OUT",
+            type=argparse.FileType("w"),
             default=sys.stdout,
             help="the file to write the output to (default: write to stdout)")
     elif batch_support:
         # Multiple input files and batch support: use -o option.
         # (This is multi-in, multi-out).
-        group.add_argument('-o', '--output', dest="outfiles", nargs="+",
+        group.add_argument("-o", "--output", dest="outfiles", nargs="+",
             metavar="OUT",
             default=[sys.stdout],
             help="a single file name to write all output to (default: write "
@@ -1676,13 +1676,13 @@ def add_input_output_args(parser, single_in=False, batch_support=False,
                  "'sampletag-%s.out'" % ((parser.prog.rsplit(" ", 1)[-1],)*2))
     else:
         # Multiple input files and no batch support: use -o option.
-        group.add_argument('-o', '--output', dest="outfile", metavar="FILE",
-            type=argparse.FileType('w'),
+        group.add_argument("-o", "--output", dest="outfile", metavar="FILE",
+            type=argparse.FileType("w"),
             default=sys.stdout,
             help="file to write output to (default: write to stdout)")
     if report_out:
-        group.add_argument('-R', '--report', metavar="FILE",
-            type=argparse.FileType('w'),
+        group.add_argument("-R", "--report", metavar="FILE",
+            type=argparse.FileType("w"),
             default=sys.stderr,
             help="file to write a report to (default: write to stderr)")
 
@@ -1691,13 +1691,13 @@ def add_input_output_args(parser, single_in=False, batch_support=False,
         group = parser.add_argument_group("sample tag parsing options",
             "for details about REGEX syntax and capturing groups, check "
             "https://docs.python.org/howto/regex")
-        group.add_argument('-e', '--tag-expr', metavar="REGEX", type=regex_arg,
+        group.add_argument("-e", "--tag-expr", metavar="REGEX", type=regex_arg,
             default=DEF_TAG_EXPR,
             help="regular expression that captures (using one or more "
                  "capturing groups) the sample tags from the file names; by "
                  "default, the entire file name except for its extension (if "
                  "any) is captured")
-        group.add_argument('-f', '--tag-format', metavar="EXPR",
+        group.add_argument("-f", "--tag-format", metavar="EXPR",
             default=DEF_TAG_FORMAT,
             help="format of the sample tags produced; a capturing group "
                  "reference like '\\n' refers to the n-th capturing group in "
@@ -1789,7 +1789,7 @@ def get_input_output_files(args, single=False, batch_support=False):
 
         # Link each output file to each input file.
         # Treating files with the same sample tag as separate samples.
-        return ((tags[i], [infiles[i]], open(outfiles[i], 'w'))
+        return ((tags[i], [infiles[i]], open(outfiles[i], "w"))
                 for i in range(len(tags)))
 
     if not single and batch_support:

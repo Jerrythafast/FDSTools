@@ -479,7 +479,7 @@ TSSV
 v1.1.1
     - Fixed incorrect calculation of tLeft, fLeft, rLeft, tRight and fRight
       columns in the report output file when -T/--num-threads was set to 2 or
-      higher. The primary output of was unaffected.
+      higher. The primary output was unaffected.
 
 v1.1.0
     - Added option '-T/--num-threads' (default: 1), which controls the number
