@@ -29,6 +29,9 @@ Alternatively, FDSTools can be installed by running:
 
 FDSTools Changelog
 ------------------
+v1.1.2
+    - Includes Samplevis v2.2.1
+
 v1.1.1
     - Includes TSSV v1.1.1
 
@@ -616,6 +619,10 @@ v1.0.0
 
 Samplevis
 ~~~~~~~~~
+v2.2.1
+    - Added an option to apply graph filtering before noise correction (on by
+      default)
+
 v2.2.0
     - Fixed incorrect calculation of 'percentage of highest' if the 'sequence'
       with the highest read count within a marker is the aggregated 'Other

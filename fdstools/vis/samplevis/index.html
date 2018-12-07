@@ -24,7 +24,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>Sample Visualisation - FDSTools</title>
-    <!-- VERSION 2.1.2 -->
+    <!-- VERSION 2.2.1 -->
     <!-- BEGIN_LIBRARIES -->
     <script src="https://vega.github.io/vega-editor/vendor/d3.min.js"></script>
     <script src="https://vega.github.io/vega/vega.min.js"></script>
@@ -528,6 +528,14 @@
                         <label>
                             <input type="checkbox" id="shownegative" checked>
                             Show negative alleles
+                        </label>
+                    </td>
+                </tr>
+                <tr>
+                    <td colspan="2">
+                        <label>
+                            <input type="checkbox" id="filteruncorrected" checked>
+                            Filter before noise correction
                         </label>
                     </td>
                 </tr>
@@ -1667,6 +1675,9 @@ function onLoadSpec(has_data, no_file_chooser){
     document.getElementById("shownegative").addEventListener('change', function(){
         setSignalValue("show_negative", this.checked);
     }, false);
+    document.getElementById("filteruncorrected").addEventListener('change', function(){
+        setSignalValue("filter_uncorrected", this.checked);
+    }, false);
     document.getElementById("showother").addEventListener('change', function(){
         setSignalValue("show_other", this.checked);
     }, false);
@@ -1701,6 +1712,7 @@ function onLoadSpec(has_data, no_file_chooser){
     document.getElementById("minOa").value = getSignalValue("allele_orientation_threshold");
     document.getElementById("minBias").value = getSignalValue("bias_threshold");
     document.getElementById("shownegative").checked = getSignalValue("show_negative");
+    document.getElementById("filteruncorrected").checked = getSignalValue("filter_uncorrected");
     document.getElementById("showother").checked = getSignalValue("show_other");
     document.getElementById("sortstrbylength").checked = getSignalValue("sort_str_by_length");
     document.getElementById("commonrange").checked = (graph_spec.marks[1].scales[0].domain.data == "table");

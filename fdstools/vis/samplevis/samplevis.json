@@ -1,5 +1,5 @@
 {
-  "fdstools_visversion": "2.2.0",
+  "fdstools_visversion": "2.2.1",
   "width": 600,
   "height": 10,
   "signals": [
@@ -45,6 +45,10 @@
     },
     {
       "name": "show_negative",
+      "init": true
+    },
+    {
+      "name": "filter_uncorrected",
       "init": true
     },
     {
@@ -181,7 +185,7 @@
         {
           "type": "aggregate",
           "groupby": ["marker"],
-          "summarize": {"total_added": ["max"]}
+          "summarize": {"total_added": ["max"], "total": ["max"]}
         }
       ]
     },
@@ -196,7 +200,7 @@
         {
           "type": "aggregate",
           "groupby": ["marker"],
-          "summarize": {"total_added": ["sum"]}
+          "summarize": {"total_added": ["sum"], "total": ["sum"]}
         }
       ]
     },
@@ -229,6 +233,16 @@
           "type": "formula",
           "field": "pct_of_sum",
           "expr": "datum.aggrs.sum_total_added? (datum.total_added / datum.aggrs.sum_total_added * 100) : 100"
+        },
+        {
+          "type": "formula",
+          "field": "pct_of_max_uncorrected",
+          "expr": "datum.aggrm.max_total? (datum.total / datum.aggrm.max_total * 100) : 100"
+        },
+        {
+          "type": "formula",
+          "field": "pct_of_sum_uncorrected",
+          "expr": "datum.aggrs.sum_total? (datum.total / datum.aggrs.sum_total * 100) : 100"
         },
         {
           "type": "formula",
@@ -316,7 +330,7 @@
         {
           "type": "formula",
           "field": "sequence",
-          "expr": "((show_negative? abs(datum.total_added) : datum.total_added) >= amplitude_threshold && (show_negative? abs(datum.pct_of_max) : datum.pct_of_max) >= amplitude_pct_threshold && (show_negative? abs(datum.pct_of_sum) : datum.pct_of_sum) >= amplitude_markerpct_threshold && min(show_negative? abs(datum.forward_added) : datum.forward_added, show_negative? abs(datum.reverse_added) : datum.reverse_added) >= orientation_threshold)? datum.sequence : 'Other sequences'"
+          "expr": "((show_negative? abs(filter_uncorrected? datum.total : datum.total_added) : filter_uncorrected? datum.total : datum.total_added) >= amplitude_threshold && (show_negative? abs(filter_uncorrected? datum.pct_of_max_uncorrected : datum.pct_of_max) : filter_uncorrected? datum.pct_of_max_uncorrected : datum.pct_of_max) >= amplitude_pct_threshold && (show_negative? abs(filter_uncorrected? datum.pct_of_sum_uncorrected : datum.pct_of_sum) : filter_uncorrected? datum.pct_of_sum_uncorrected : datum.pct_of_sum) >= amplitude_markerpct_threshold && min(show_negative? abs(filter_uncorrected? datum.forward : datum.forward_added) : filter_uncorrected? datum.forward : datum.forward_added, show_negative? abs(filter_uncorrected? datum.reverse : datum.reverse_added) : filter_uncorrected? datum.reverse : datum.reverse_added) >= orientation_threshold)? datum.sequence : 'Other sequences'"
         },
         {
           "type": "filter",
