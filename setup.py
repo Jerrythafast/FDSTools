@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 
 #
-# Copyright (C) 2016 Jerry Hoogenboom
+# Copyright (C) 2019 Jerry Hoogenboom
 #
 # This file is part of FDSTools, data analysis tools for Next
 # Generation Sequencing of forensic DNA markers.
@@ -21,6 +21,7 @@
 #
 
 from setuptools import setup, find_packages
+from setuptools.extension import Extension
 
 requires = ["numpy"]
 
@@ -43,6 +44,10 @@ import fdstools as distmeta
 x = setup(
     name="fdstools",
     packages=find_packages(),
+    ext_modules=[
+        Extension('fdstools.sg_align',
+            sources=['fdstools/sg_align.c'],
+            extra_compile_args=['-O3'])],
     package_data={
         "fdstools": ["vis/*.*", "vis/*/*"]
     },

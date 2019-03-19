@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 
 #
-# Copyright (C) 2017 Jerry Hoogenboom
+# Copyright (C) 2019 Jerry Hoogenboom
 #
 # This file is part of FDSTools, data analysis tools for Next
 # Generation Sequencing of forensic DNA markers.
@@ -24,30 +24,58 @@
 Link raw reads in a FastA or FastQ file to markers and count the number
 of reads for each unique sequence.
 
-This tool is basically a wrapper around the 'tssvl' program, offering
-direct support for using FDSTools library files and allele name
-generation.
+Scans a FastA or FastQ file, finding the sequences from the 'flanks'
+section in the provided library file.  Each time a pair of flanks is
+found, that sequence read is linked to the corresponding marker and the
+portion of the sequence between the flanks is extracted.  The number of
+times each such extracted sequence was encountered is counted, along
+with the orientation (strand) in which it was found in the input file.
+The output is a list of unique sequences found for each marker including
+the corresponding counts.
+
+By default, a small number of mismatches is allowed when aligning the
+flanks to the reads.  This can be controlled with the -m/--mismatches
+option.  Furthermore, when the portion of the sequence to which a flank
+aligns is completely written in lowercase letters in the input file,
+that match is discarded.  This way, FDSTools works well together with
+the paired-end read merging tool FLASH, version 1.2.11/lo, which
+(optionally) writes the non-overlapping portion of the reads in
+lowercase [1].  Together, this ensures repetitive sequences (such as
+STRs) are not truncated when the paired-end reads are merged.
+
+The sequences thus obtained are subsequently filtered in three ways.
+First, the 'expected_allele_length' section in the library file may be
+used to specify hard limits on the acceptable sequence length for each
+marker.  Any unexpectedly short or long sequence is removed.  Second,
+any sequence with an ambiguous base (i.e., not A, C, G, or T) is
+removed.  Finally, the -a/--minimum option can be used to filter out
+sequences that have been seen only rarely.  When the
+-A/--aggregate-filtered option is given, all filtered sequences of each
+marker are aggregated and reported as 'Other sequences'.
+
+This tool is an evolution of the original TSSV program [2].
+
+References:
+[1] https://github.com/Jerrythafast/FLASH-lowercase-overhang
+[2] https://github.com/jfjlaros/tssv
 """
-from __future__ import absolute_import  # Needed to import tssv package.
 import sys
 import math
 import itertools as it
+import os
 
 from multiprocessing.queues import SimpleQueue
 from multiprocessing import Process
-from threading import Thread
+from threading import Thread, Lock
 from errno import EPIPE
 
-# TSSV is only imported when actually running this tool.
-#from tssv.align_pair import align_pair
-#from tssv.tssv_lite import process_file, make_sequence_tables, \
-#                           make_statistics_table, prepare_output_dir
 
 from ..lib import pos_int_arg, add_input_output_args, get_input_output_files,\
                   add_sequence_format_args, reverse_complement, PAT_SEQ_RAW,\
-                  get_column_ids, ensure_sequence_format
+                  ensure_sequence_format
+from ..sg_align import align
 
-__version__ = "1.1.1"
+__version__ = "2.0.0"
 
 
 # Default values for parameters are specified below.
@@ -55,44 +83,279 @@ __version__ = "1.1.1"
 # Default maximum number of mismatches per nucleotide in the flanking
 # sequences to allow.
 # This value can be overridden by the -m command line option.
-_DEF_MISMATCHES = 0.08
+_DEF_MISMATCHES = 0.1
 
 # Default penalty multiplier for insertions and deletions in the
 # flanking sequences.
 # This value can be overridden by the -n command line option.
-_DEF_INDEL_SCORE = 1
+_DEF_INDEL_SCORE = 2
 
 # Default minimum number of reads to consider.
 # This value can be overridden by the -a command line option.
 _DEF_MINIMUM = 1
 
 
-def convert_library(library, threshold):
-    return {data[0]: (
-        (data[1][0], reverse_complement(data[1][1])), (
-            int(math.ceil(len(data[1][0]) * threshold)),
-            int(math.ceil(len(data[1][1]) * threshold))))
-                for data in (
-                    (marker, library["flanks"][marker])
-                        for marker in library["flanks"])}
-#convert_library
+
+class TSSV:
+    def __init__(self, library, threshold, indel_score, dirname, workers, deduplicate, infile):
+        # User inputs.
+        self.library = library
+        self.indel_score = indel_score
+        self.workers = workers
+        self.deduplicate = deduplicate
+        self.lock = Lock()
+
+        # Convert library.
+        self.tssv_library = {marker: (
+            (flanks[0], reverse_complement(flanks[1])), (
+                int(math.ceil(len(flanks[0]) * threshold)),
+                int(math.ceil(len(flanks[1]) * threshold))))
+            for marker, flanks in library["flanks"].items()}
+
+        # Open input file.
+        file_format, self.input = init_sequence_file_read(infile)
+
+        # Open output directory if we have one.
+        if dirname:
+            self.outfiles = prepare_output_dir(dirname, self.tssv_library, file_format)
+        else:
+            self.outfiles = None
+
+        # Internal state.
+        self.sequences = {marker: {} for marker in self.tssv_library}
+        self.counters = {marker: {key: 0 for key in
+                ("fPaired", "rPaired", "fLeft", "rLeft", "fRight", "rRight")}
+            for marker in self.tssv_library}
+        self.total_reads = 0
+        self.unrecognised = 0
+        self.cache = {}
+    #__init__
 
 
-def seq_pass_filt(sequence, reads, threshold, explen=None):
-    """Return False if the sequence does not meet the criteria."""
-    return (reads >= threshold and PAT_SEQ_RAW.match(sequence) is not None and
-        (explen is None or explen[0] <= len(sequence) <= explen[1]))
-#seq_pass_filt
+    def dedup_reads(self):
+        for record in self.input:
+            self.lock.acquire()
+            if record[1] in self.cache:
+                completed, data = self.cache[record[1]]
+                if completed:
+                    self.process_results(record, data)
+                else:
+                    # Store header and (if applicable) quality scores.
+                    data.append(record[0::2])
+                self.lock.release()
+            else:
+                self.cache[record[1]] = (False, [record[0::2]])
+                self.lock.release()
+                yield record[1]
+    #dedup_reads
 
 
-def worker_work(tssv_library, indel_score, seq):
+    def cache_results(self, seq, results):
+        self.lock.acquire()
+        for record in self.cache[seq][1]:
+            self.process_results(tuple([record[0], seq]) + record[1:], results)
+        if self.deduplicate:
+            self.cache[seq] = (True, results)
+        else:
+            del self.cache[seq]
+        self.lock.release()
+    #cache_results
+
+
+    def process_results(self, record, results):
+        self.total_reads += 1
+        recognised = 0
+        for marker, matches, seq1, seq2 in results:
+            recognised |= matches
+            self.counters[marker]["fLeft"] += matches & 1
+            self.counters[marker]["fRight"] += matches >> 1 & 1
+            self.counters[marker]["rLeft"] += matches >> 2 & 1
+            self.counters[marker]["rRight"] += matches >> 3 & 1
+
+            # Search in the forward strand.
+            if seq1 is not None:
+                self.counters[marker]["fPaired"] += 1
+                if seq1 not in self.sequences[marker]:
+                    self.sequences[marker][seq1] = [1, 0]
+                else:
+                    self.sequences[marker][seq1][0] += 1
+                if self.outfiles:
+                    write_sequence_record(self.outfiles["markers"][marker]["paired"], record)
+            elif self.outfiles:
+                if matches & 1:
+                    write_sequence_record(self.outfiles["markers"][marker]["noend"], record)
+                if matches & 2:
+                    write_sequence_record(self.outfiles["markers"][marker]["nostart"], record)
+
+            # Search in the reverse strand.
+            if seq2 is not None:
+                self.counters[marker]["rPaired"] += 1
+                if seq2 not in self.sequences[marker]:
+                    self.sequences[marker][seq2] = [0, 1]
+                else:
+                    self.sequences[marker][seq2][1] += 1
+                if self.outfiles:
+                    write_sequence_record(self.outfiles["markers"][marker]["paired"], record)
+            elif self.outfiles:
+                if matches & 4:
+                    write_sequence_record(self.outfiles["markers"][marker]["noend"], record)
+                if matches & 8:
+                    write_sequence_record(self.outfiles["markers"][marker]["nostart"], record)
+
+        if not recognised:
+            self.unrecognised += 1
+            if self.outfiles:
+                write_sequence_record(self.outfiles["unknown"], record)
+    #process_results
+
+
+    def process_file(self):
+        if self.workers == 1:
+            for seq in self.dedup_reads():
+                self.cache_results(seq, process_sequence(self.tssv_library, self.indel_score, seq))
+        else:
+            # Start worker processes.  The work is divided into tasks that
+            # require about 1 million alignments each.
+            done_queue = SimpleQueue()
+            chunksize = int(1000000/(4*len(self.tssv_library))) or 1
+            thread = Thread(target=feeder, args=(self.dedup_reads(), self.tssv_library,
+                self.indel_score, self.workers, chunksize, done_queue))
+            thread.daemon = True
+            thread.start()
+            for seq, results in it.chain.from_iterable(iter(done_queue.get, None)):
+                self.cache_results(seq, results)
+            thread.join()
+
+        # Count number of unique sequences per marker.
+        for marker in self.tssv_library:
+            self.counters[marker]["unique_seqs"] = len(self.sequences[marker])
+    #process_file
+
+
+    def filter_sequences(self, aggregate_filtered, minimum, missing_marker_action):
+        # Aggregate the sequences that we are about to filter out.
+        if aggregate_filtered:
+            aggregates = {}
+            for marker in self.sequences:
+                expected_length = self.library.get("expected_length", {}).get(marker)
+                for sequence, (forward, reverse) in self.sequences[marker].items():
+                    if not seq_pass_filt(sequence, forward + reverse, minimum, expected_length):
+                        if marker not in aggregates:
+                            aggregates[marker] = [0, 0]
+                        aggregates[marker][0] += forward
+                        aggregates[marker][1] += reverse
+
+        # Filter out sequences with low read counts and invalid bases.
+        for marker, sequences in self.sequences.items():
+            expected_length = self.library.get("expected_length", {}).get(marker)
+            self.sequences[marker] = {sequence: counts
+                for sequence, counts in sequences.items()
+                if seq_pass_filt(sequence, sum(counts), minimum, expected_length)}
+
+        # Add aggregate rows if the user requested so.
+        if aggregate_filtered:
+            for marker in aggregates:
+                self.sequences[marker]["Other sequences"] = aggregates[marker]
+
+        # Check presence of all markers.
+        if missing_marker_action != "exclude":
+            for marker in self.tssv_library:
+                if not self.sequences[marker]:
+                    if missing_marker_action == "include":
+                        self.sequences[marker]["No data"] = [0, 0]
+                    else:
+                        raise ValueError("Marker %s was not detected!" % marker)
+    #filter_sequences
+
+
+    def write_sequence_tables(self, outfile, seqformat="raw"):
+        header = "\t".join(("marker", "sequence", "total", "forward", "reverse")) + "\n"
+        outfile.write(header)
+        if self.outfiles:
+            self.outfiles["sequences"].write(header)
+        for marker in sorted(self.sequences):
+            if self.outfiles:
+                self.outfiles["markers"][marker]["sequences"].write(header)
+            sequences = self.sequences[marker]
+            for total, seq in sorted(((sum(sequences[s]), s) for s in sequences), reverse=True):
+                line = "\t".join(map(str, [
+                    marker,
+                    ensure_sequence_format(seq, seqformat, "raw", self.library, marker),
+                    total] + sequences[seq])) + "\n"
+                outfile.write(line)
+                if self.outfiles:
+                    self.outfiles["sequences"].write(line)
+                    self.outfiles["markers"][marker]["sequences"].write(line)
+    #write_sequence_tables
+
+
+    def write_statistics_table(self, outfile):
+        header = "\t".join(("marker", "unique_seqs", "tPaired", "fPaired", "rPaired",
+                            "tLeft", "fLeft", "rLeft", "tRight", "fRight", "rRight")) + "\n"
+        if self.outfiles:
+            self.outfiles["statistics"].write(header)
+        outfile.write(header)
+        for marker in sorted(self.counters):
+            line = "\t".join(map(str, (
+                marker,
+                self.counters[marker]["unique_seqs"],
+                self.counters[marker]["fPaired"] + self.counters[marker]["rPaired"],
+                self.counters[marker]["fPaired"],
+                self.counters[marker]["rPaired"],
+                self.counters[marker]["fLeft"] + self.counters[marker]["rLeft"],
+                self.counters[marker]["fLeft"],
+                self.counters[marker]["rLeft"],
+                self.counters[marker]["fRight"] + self.counters[marker]["rRight"],
+                self.counters[marker]["fRight"],
+                self.counters[marker]["rRight"]))) + "\n"
+            if self.outfiles:
+                self.outfiles["statistics"].write(line)
+            outfile.write(line)
+
+        line = "\ntotal reads\t%i\nunrecognised reads\t%i\n" % (self.total_reads,self.unrecognised)
+        if self.outfiles:
+            self.outfiles["statistics"].write(line)
+        outfile.write(line)
+    #write_statistics_table
+#TSSV
+
+
+def prepare_output_dir(dir, markers, file_format):
+    # Create output directories.
+    os.makedirs(dir)
+    for marker in markers:
+        os.mkdir(os.path.join(dir, marker))
+
+    # Open output files.
+    return {
+        "sequences": open(os.path.join(dir, "sequences.csv"), "w"),
+        "statistics": open(os.path.join(dir, "statistics.csv"), "w"),
+        "unknown": open(os.path.join(dir, "unknown.f" + file_format[-1]), "w"),
+        "markers": {
+            marker: {
+                "sequences": open(os.path.join(dir, marker, "sequences.csv"), "w"),
+                "paired": open(os.path.join(dir, marker, "paired.f" + file_format[-1]), "w"),
+                "noend": open(os.path.join(dir, marker, "noend.f" + file_format[-1]), "w"),
+                "nostart": open(os.path.join(dir, marker, "nostart.f" + file_format[-1]), "w"),
+            } for marker in markers
+        }
+    }
+#prepare_output_dir
+
+
+def align_pair(reference, reference_rc, pair, indel_score=1):
+    left_dist, left_pos = align(reference, pair[0], indel_score)
+    right_dist, right_pos = align(reference_rc, pair[1], indel_score)
+    return (left_dist, left_pos), (right_dist, len(reference) - right_pos)
+#align_pair
+
+
+def process_sequence(tssv_library, indel_score, seq):
     """Find markers in sequence."""
     seqs = (seq, reverse_complement(seq))
     seqs_up = map(str.upper, seqs)
     results = []
-    for marker in tssv_library:
-        pair = tssv_library[marker][0]
-        thresholds = tssv_library[marker][1]
+    for marker, (pair, thresholds) in tssv_library.items():
         algn = (
             align_pair(seqs_up[0], seqs_up[1], pair, indel_score),
             align_pair(seqs_up[1], seqs_up[0], pair, indel_score))
@@ -127,7 +390,14 @@ def worker_work(tssv_library, indel_score, seq):
                 (matches & 12) == 12 and algn[1][0][1] < algn[1][1][1]
                 else None))
     return results
-#worker_work
+#process_sequence
+
+
+def seq_pass_filt(sequence, reads, threshold, explen=None):
+    """Return False if the sequence does not meet the criteria."""
+    return (reads >= threshold and PAT_SEQ_RAW.match(sequence) is not None and
+        (explen is None or explen[0] <= len(sequence) <= explen[1]))
+#seq_pass_filt
 
 
 def worker(tssv_library, indel_score, task_queue, done_queue):
@@ -135,15 +405,14 @@ def worker(tssv_library, indel_score, task_queue, done_queue):
     Read sequences from task_queue, write findings to done_queue.
     """
     for task in iter(task_queue.get, None):
-        done_queue.put(
-            tuple(worker_work(tssv_library, indel_score, seq) for seq in task))
+        done_queue.put(tuple((seq, process_sequence(tssv_library, indel_score, seq)) for seq in task))
 #worker
 
 
 def feeder(input, tssv_library, indel_score, workers, chunksize, done_queue):
     """
     Start worker processes, feed them sequences from input and have them
-    write their results to done_queue
+    write their results to done_queue.
     """
     task_queue = SimpleQueue()
     processes = []
@@ -155,7 +424,7 @@ def feeder(input, tssv_library, indel_score, workers, chunksize, done_queue):
         processes.append(process)
     while 1:
         # Sending chunks of reads to the workers.
-        task = tuple(r[1] for r in it.islice(input, chunksize))
+        task = tuple(it.islice(input, chunksize))
         if not task:
             break
         task_queue.put(task)
@@ -167,204 +436,68 @@ def feeder(input, tssv_library, indel_score, workers, chunksize, done_queue):
 #feeder
 
 
-def genreads(infile):
+def write_sequence_record(outfile, record):
     """
-    Generate tuples of (header, sequence) from FastA stream or
-    tuples of (header, sequence, quality) from FastQ stream.
+    Write a tuple of (header, sequence) to a FastA stream or
+    a tuple of (header, sequence, quality) to a FastQ stream.
+    """
+    outfile.write((">%s\n%s\n" if len(record) == 2 else "@%s\n%s\n+\n%s\n") % record)
+#write_sequence_record
+
+
+def init_sequence_file_read(infile):
+    """
+    Return a 2-tuple with "fasta" or "fastq" and a generator that
+    generates tuples of (header, sequence) from a FastA stream or
+    tuples of (header, sequence, quality) from a FastQ stream.
     """
     firstchar = infile.read(1)
     if not firstchar:
         return
     if firstchar not in ">@":
         raise ValueError("Input file is not a FastQ or FastA file")
-    state = 0
-    for line in infile:
-        if state == 1:  # Put most common state on top.
-            if firstchar == ">" and line.startswith(">"):
-                yield (header, seq)
-                header = line[1:].strip()
-                seq = ""
-            elif firstchar == "@" and line.startswith("+"):
-                qual = ""
-                state = 2
-            else:
-                seq += line.strip()
-        elif state == 2:
-            if line.startswith("@") and len(qual) >= len(seq):
-                yield (header, seq, qual)
-                header = line[1:].strip()
+
+    def genreads():
+        state = 0
+        for line in infile:
+            if state == 1:  # Put most common state on top.
+                if firstchar == ">" and line.startswith(">"):
+                    yield (header, seq)
+                    header = line[1:].strip()
+                    seq = ""
+                elif firstchar == "@" and line.startswith("+"):
+                    qual = ""
+                    state = 2
+                else:
+                    seq += line.strip()
+            elif state == 2:
+                if line.startswith("@") and len(qual) >= len(seq):
+                    yield (header, seq, qual)
+                    header = line[1:].strip()
+                    seq = ""
+                    state = 1
+                else:
+                    qual += line.strip()
+            elif state == 0:
+                header = line.strip()
                 seq = ""
                 state = 1
-            else:
-                qual += line.strip()
-        elif state == 0:
-            header = line.strip()
-            seq = ""
-            state = 1
-    yield (header, seq) if state == 1 else (header, seq, qual)
-#genreads
+        yield (header, seq) if state == 1 else (header, seq, qual)
+
+    return "fasta" if firstchar == ">" else "fastq", genreads()
+#init_sequence_file_read
 
 
-def process_file_parallel(infile, tssv_library, indel_score, workers):
-    # Prepare data storage.
-    sequences = {marker: {} for marker in tssv_library}
-    counters = {marker: {key: 0 for key in
-            ("fPaired", "rPaired", "fLeft", "rLeft", "fRight", "rRight")}
-        for marker in tssv_library}
-    total_reads = 0
-    unrecognised = 0
-
-    # Create queues.
-    done_queue = SimpleQueue()
-
-    # Start worker processes.  The work is divided into tasks that
-    # require about 1 million alignments each.
-    chunksize = int(1000000/(4*len(tssv_library))) or 1
-    thread = Thread(target=feeder, args=(genreads(infile), tssv_library,
-        indel_score, workers, chunksize, done_queue))
-    thread.daemon = True
-    thread.start()
-
-    for results in it.chain.from_iterable(iter(done_queue.get, None)):
-        total_reads += 1
-        recognised = 0
-
-        for marker, matches, seq1, seq2 in results:
-            recognised |= matches
-            counters[marker]["fLeft"] += matches & 1
-            counters[marker]["fRight"] += matches >> 1 & 1
-            counters[marker]["rLeft"] += matches >> 2 & 1
-            counters[marker]["rRight"] += matches >> 3 & 1
-
-            # Search in the forward strand.
-            if seq1 is not None:
-                counters[marker]["fPaired"] += 1
-                if seq1 not in sequences[marker]:
-                    sequences[marker][seq1] = [1, 0]
-                else:
-                    sequences[marker][seq1][0] += 1
-
-            # Search in the reverse strand.
-            if seq2 is not None:
-                counters[marker]["rPaired"] += 1
-                if seq2 not in sequences[marker]:
-                    sequences[marker][seq2] = [0, 1]
-                else:
-                    sequences[marker][seq2][1] += 1
-
-        if not recognised:
-            unrecognised += 1
-    thread.join()
-
-    # Count number of unique sequences per marker.
-    for marker in tssv_library:
-        counters[marker]["unique_seqs"] = len(sequences[marker])
-
-    # Return counters and sequences.
-    return total_reads, unrecognised, counters, sequences
-#process_file_parallel
-
-
-def run_tssv_lite(infile, outfile, reportfile, is_fastq, library, seqformat,
+def run_tssv_lite(infile, outfile, reportfile, library, seqformat,
                   threshold, minimum, aggregate_filtered,
-                  missing_marker_action, dirname, indel_score, workers):
-    file_format = "fastq" if is_fastq else "fasta"
-    tssv_library = convert_library(library, threshold)
+                  missing_marker_action, dirname, indel_score, workers, no_deduplicate):
+    tssv = TSSV(library, threshold, indel_score, dirname, workers, not no_deduplicate, infile)
+    tssv.process_file()
+    tssv.filter_sequences(aggregate_filtered, minimum, missing_marker_action)
 
-    # Open output directory if we have one.
-    if dirname:
-        outfiles = prepare_output_dir(dirname, library["flanks"], file_format)
-        if workers > 1:
-            # TODO: Implement FastA/FastQ writing in multiprocess mode.
-            workers = 1
-            sys.stderr.write(
-                "Falling back to single-threaded mode because the -D/--dir "
-                "option was used.\n")
-    else:
-        outfiles = None
-
-    if workers > 1:
-        total_reads, unrecognised, counters, sequences = \
-            process_file_parallel(infile, tssv_library, indel_score, workers)
-    else:
-        total_reads, unrecognised, counters, sequences = process_file(
-            infile, file_format, tssv_library, outfiles, indel_score)
-
-    # Filter out sequences with low read counts and invalid bases now.
-    if aggregate_filtered:
-        aggregates = {}
-        for marker in sequences:
-            for sequence in sequences[marker]:
-                if not seq_pass_filt(sequence,
-                        sum(sequences[marker][sequence]), minimum,
-                        library.get("expected_length", {}).get(marker)):
-                    if marker not in aggregates:
-                        aggregates[marker] = [0, 0]
-                    aggregates[marker][0] += sequences[marker][sequence][0]
-                    aggregates[marker][1] += sequences[marker][sequence][1]
-    sequences = {marker:
-        {sequence: sequences[marker][sequence]
-            for sequence in sequences[marker]
-            if seq_pass_filt(sequence,
-                sum(sequences[marker][sequence]), minimum,
-                library.get("expected_length", {}).get(marker))}
-        for marker in sequences}
-
-    # Add aggregate rows if the user requested so.
-    if aggregate_filtered:
-        for marker in aggregates:
-            sequences[marker]["Other sequences"] = aggregates[marker]
-
-    # Check presence of all markers.
-    if missing_marker_action != "exclude":
-        for marker in library["flanks"]:
-            if not sequences[marker]:
-                if missing_marker_action == "include":
-                    sequences[marker]["No data"] = [0, 0]
-                else:
-                    raise ValueError("Marker %s was not detected!" % marker)
-
-    column_names, tables = make_sequence_tables(sequences, 0)
-
-    # Convert sequences to the desired format.
-    colid_sequence = get_column_ids(column_names, "sequence")
-    if seqformat != "raw":
-        for marker in tables:
-            for line in tables[marker]:
-                line[colid_sequence] = ensure_sequence_format(
-                    line[colid_sequence], seqformat, library=library,
-                    marker=marker)
-
-    # Write sequence tables.
-    column_names = "\t".join(column_names)
-    for marker in sorted(tables):
-        tables[marker] = "\n".join(
-            "\t".join(map(str, line)) for line in tables[marker])
-        if outfiles:
-            outfiles["markers"][marker]["sequences"].write(
-                "\n".join((column_names, tables[marker])))
-    tables = "\n".join(
-        [column_names] + [tables[marker] for marker in sorted(tables)])
-    if outfiles:
-        outfiles["sequences"].write(tables)
     try:
-        outfile.write(tables)
-        outfile.write("\n")
-    except IOError as e:
-        if e.errno != EPIPE:
-            raise
-
-    # Write statistics table.
-    statistics = "\n".join((
-        make_statistics_table(counters),
-        "",  # Empty line.
-        "total reads\t%i" % total_reads,
-        "unrecognised reads\t%i" % unrecognised))
-    if outfiles:
-        outfiles["statistics"].write(statistics)
-    try:
-        reportfile.write(statistics)
-        reportfile.write("\n")
+        tssv.write_sequence_tables(outfile, seqformat)
+        tssv.write_statistics_table(reportfile)
     except IOError as e:
         if e.errno != EPIPE:
             raise
@@ -374,8 +507,6 @@ def run_tssv_lite(infile, outfile, reportfile, is_fastq, library, seqformat,
 def add_arguments(parser):
     add_sequence_format_args(parser, "raw", False, True)
     add_input_output_args(parser, True, False, True)
-    parser.add_argument("-q", "--is-fastq", action="store_true",
-        help="if specified, treat the input as a FASTQ file instead of FASTA")
     parser.add_argument("-D", "--dir",
         help="output directory for verbose output; when given, a subdirectory "
              "will be created for each marker, each with a separate "
@@ -386,6 +517,9 @@ def add_arguments(parser):
     parser.add_argument("-T", "--num-threads", metavar="THREADS",
         type=pos_int_arg, default=1,
         help="number of worker threads to use (default: %(default)s)")
+    parser.add_argument("-X", "--no-deduplicate", action="store_true",
+        help="disable deduplication of reads; by setting this option, memory usage will be "
+             "reduced in expense of longer running time")
     filtergroup = parser.add_argument_group("filtering options")
     filtergroup.add_argument("-m", "--mismatches", type=float,
         default=_DEF_MISMATCHES,
@@ -414,28 +548,15 @@ def add_arguments(parser):
 
 
 def run(args):
-    # Import TSSV now.
-    global align_pair, process_file, make_sequence_tables
-    global make_statistics_table, prepare_output_dir
-    try:
-        from tssv.align_pair import align_pair
-        from tssv.tssv_lite import process_file, make_sequence_tables, \
-            make_statistics_table, prepare_output_dir
-    except ImportError:
-        raise ValueError(
-            "This tool requires version 0.4.0 or later of the 'tssvl' program "
-            "(TSSV-Lite) to be installed. Please download and install the "
-            "latest version of TSSV from https://pypi.python.org/pypi/tssv.")
-
     files = get_input_output_files(args, True, False)
     if not files:
         raise ValueError("please specify an input file, or pipe in the output "
                          "of another program")
     infile = sys.stdin if files[0] == "-" else open(files[0], "r")
-    run_tssv_lite(infile, files[1], args.report, args.is_fastq, args.library,
+    run_tssv_lite(infile, files[1], args.report, args.library,
                   args.sequence_format, args.mismatches, args.minimum,
                   args.aggregate_filtered, args.missing_marker_action,
-                  args.dir, args.indel_score, args.num_threads)
+                  args.dir, args.indel_score, args.num_threads, args.no_deduplicate)
     if infile != sys.stdin:
         infile.close()
 #run

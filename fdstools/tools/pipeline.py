@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 
 #
-# Copyright (C) 2016 Jerry Hoogenboom
+# Copyright (C) 2019 Jerry Hoogenboom
 #
 # This file is part of FDSTools, data analysis tools for Next
 # Generation Sequencing of forensic DNA markers.
@@ -57,7 +57,7 @@ from ..lib import split_quoted_string, DEF_TAG_EXPR, DEF_TAG_FORMAT, get_tag, \
 from ConfigParser import RawConfigParser, NoSectionError, NoOptionError
 
 
-__version__ = "1.0.3"
+__version__ = "1.0.4"
 
 
 # Pattern that matches a long argparse argument name.
@@ -865,8 +865,7 @@ def add_arguments(parser):
         help="library file containing marker definitions")
     group.add_argument("-s", "--in-sample-raw", metavar="FASTA",
         help="[ref-sample, case-sample] FastA or FastQ file containing raw "
-             "sequence data of the sample; if it is a FastQ file, be sure to "
-             "include 'is-fastq=yes' in the [tssv] section of your INI file")
+             "sequence data of the sample")
     group.add_argument("-m", "--in-stuttermodel", metavar="STUT",
         help="[case-sample] file containing a trained stutter model")
     group.add_argument("-p", "--in-bgprofiles", metavar="PROFILES",

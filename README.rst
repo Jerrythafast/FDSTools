@@ -29,8 +29,10 @@ Alternatively, FDSTools can be installed by running:
 
 FDSTools Changelog
 ------------------
-v1.1.2
+v1.2.0
+    - Includes Pipeline v1.0.4
     - Includes Samplevis v2.2.1
+    - Includes TSSV v2.0.0
 
 v1.1.1
     - Includes TSSV v1.1.1
@@ -356,6 +358,9 @@ v1.0.0
 
 Pipeline
 ~~~~~~~~
+v1.0.4
+    - Removed reference to the 'is-fastq' option of TSSV.
+
 v1.0.3
     - Fixed glitch that caused the 'bgprofiles.html' output file of the
       reference-database analysis to lack a proper title.
@@ -479,6 +484,15 @@ v1.0.0
 
 TSSV
 ~~~~
+v2.0.0
+    - Removed dependency on external tssv package (it is no longer compatible).
+    - Greatly increased performance by deduplicating the input reads.
+    - Removed the -q/--is-fastq option in favour of automatic detection.
+    - Changed the default value for -m/--mismatches from 0.08 to 0.1.
+    - Changed the default value for -n/--indel-score from 1 to 2.
+    - Added the -X/--no-deduplicate option to disable deduplication.
+    - Fixed potential crash that could occur under very specific circumstances.
+
 v1.1.1
     - Fixed incorrect calculation of tLeft, fLeft, rLeft, tRight and fRight
       columns in the report output file when -T/--num-threads was set to 2 or

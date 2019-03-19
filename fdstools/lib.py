@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 
 #
-# Copyright (C) 2017 Jerry Hoogenboom
+# Copyright (C) 2019 Jerry Hoogenboom
 #
 # This file is part of FDSTools, data analysis tools for Next
 # Generation Sequencing of forensic DNA markers.

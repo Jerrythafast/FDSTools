@@ -1,5 +1,4 @@
 To-do:
-* Remove duplicate reads before alignment in TSSV: HUGE potential speedup.
 * Group tools by function in the command line help and put Pipeline on top.
 * Samplevis:
   * Detect whether correction was performed; hide related columns if not.
