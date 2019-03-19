@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 
 #
-# Copyright (C) 2017 Jerry Hoogenboom
+# Copyright (C) 2019 Jerry Hoogenboom
 #
 # This file is part of FDSTools, data analysis tools for Next
 # Generation Sequencing of forensic DNA markers.
@@ -59,9 +59,9 @@ import sys
 
 from errno import EPIPE
 from ..lib import add_sequence_format_args, add_input_output_args, \
-                  get_input_output_files, get_column_ids
+                  get_input_output_files, get_column_ids, SEQ_SPECIAL_VALUES
 
-__version__ = "1.1.1"
+__version__ = "1.2.0"
 
 
 # Default values for parameters are specified below.
@@ -180,6 +180,18 @@ COLUMN_ORDER = [
 ]
 
 
+def max_in_sequence(data, colid_max, colid_sequence, value_if_empty=0.):
+    """
+    Return the maximum data[][colid_max], where data[][colid_sequence]
+    is not a special sequence value, or value_if_empty if nothing found.
+    """
+    try:
+        return max(row[colid_max] for row in data if row[colid_sequence] not in SEQ_SPECIAL_VALUES)
+    except ValueError:
+        return value_if_empty
+#max_in_sequence
+
+
 def compute_stats(infile, outfile, min_reads,
                   min_per_strand, min_pct_of_max, min_pct_of_sum,
                   min_correction, min_recovery, filter_action, filter_absolute,
@@ -282,54 +294,53 @@ def compute_stats(infile, outfile, min_reads,
         if "total_corrected" in ci:
             marker_total_corrected_sum = sum(
                 row[ci["total_corrected"]] for row in data[marker])
-            marker_total_corrected_max = max(
-                row[ci["total_corrected"]] for row in data[marker])
+            marker_total_corrected_max = max_in_sequence(
+                data[marker], ci["total_corrected"], ci["sequence"])
         if "forward_corrected" in ci:
             marker_forward_corrected_sum = sum(
                 row[ci["forward_corrected"]] for row in data[marker])
-            marker_forward_corrected_max = max(
-                row[ci["forward_corrected"]] for row in data[marker])
+            marker_forward_corrected_max = max_in_sequence(
+                data[marker], ci["forward_corrected"], ci["sequence"])
         if "reverse_corrected" in ci:
             marker_reverse_corrected_sum = sum(
                 row[ci["reverse_corrected"]] for row in data[marker])
-            marker_reverse_corrected_max = max(
-                row[ci["reverse_corrected"]] for row in data[marker])
+            marker_reverse_corrected_max = max_in_sequence(
+                data[marker], ci["reverse_corrected"], ci["sequence"])
         marker_total_sum = sum(row[ci["total"]] for row in data[marker])
-        marker_total_max = max(row[ci["total"]] for row in data[marker])
+        marker_total_max = max_in_sequence(data[marker], ci["total"], ci["sequence"], 0)
         marker_forward_sum = sum(row[ci["forward"]] for row in data[marker])
-        marker_forward_max = max(row[ci["forward"]] for row in data[marker])
+        marker_forward_max = max_in_sequence(data[marker], ci["forward"], ci["sequence"], 0)
         marker_reverse_sum = sum(row[ci["reverse"]] for row in data[marker])
-        marker_reverse_max = max(row[ci["reverse"]] for row in data[marker])
+        marker_reverse_max = max_in_sequence(data[marker], ci["reverse"], ci["sequence"], 0)
         if "total_noise" in ci:
             marker_total_noise_sum = sum(
                 row[ci["total_noise"]] for row in data[marker])
-            marker_total_noise_max = max(
-                row[ci["total_noise"]] for row in data[marker])
+            marker_total_noise_max = max_in_sequence(
+                data[marker], ci["total_noise"], ci["sequence"])
         if "forward_noise" in ci:
             marker_forward_noise_sum = sum(
                 row[ci["forward_noise"]] for row in data[marker])
-            marker_forward_noise_max = max(
-                row[ci["forward_noise"]] for row in data[marker])
+            marker_forward_noise_max = max_in_sequence(
+                data[marker], ci["forward_noise"], ci["sequence"])
         if "reverse_noise" in ci:
             marker_reverse_noise_sum = sum(
                 row[ci["reverse_noise"]] for row in data[marker])
-            marker_reverse_noise_max = max(
-                row[ci["reverse_noise"]] for row in data[marker])
+            marker_reverse_noise_max = max_in_sequence(
+                data[marker], ci["reverse_noise"], ci["sequence"])
         if "total_add" in ci:
             marker_total_add_sum = sum(
                 row[ci["total_add"]] for row in data[marker])
-            marker_total_add_max = max(
-                row[ci["total_add"]] for row in data[marker])
+            marker_total_add_max = max_in_sequence(data[marker], ci["total_add"], ci["sequence"])
         if "forward_add" in ci:
             marker_forward_add_sum = sum(
                 row[ci["forward_add"]] for row in data[marker])
-            marker_forward_add_max = max(
-                row[ci["forward_add"]] for row in data[marker])
+            marker_forward_add_max = max_in_sequence(
+                data[marker], ci["forward_add"], ci["sequence"])
         if "reverse_add" in ci:
             marker_reverse_add_sum = sum(
                 row[ci["reverse_add"]] for row in data[marker])
-            marker_reverse_add_max = max(
-                row[ci["reverse_add"]] for row in data[marker])
+            marker_reverse_add_max = max_in_sequence(
+                data[marker], ci["reverse_add"], ci["sequence"])
         for row in data[marker]:
             if "total_corrected" in ci:
                 row.append(100.*row[ci["total_corrected"]] /
@@ -774,14 +785,12 @@ def add_arguments(parser):
 def run(args):
     gen = get_input_output_files(args, True, True)
     if not gen:
-        raise ValueError("please specify an input file, or pipe in the output "
-                         "of another program")
+        raise ValueError("please specify an input file, or pipe in the output of another program")
 
     for tag, infiles, outfile in gen:
         # TODO: Aggregate data from all infiles of each sample.
         if len(infiles) > 1:
-            raise ValueError(
-                "multiple input files for sample '%s' specified " % tag)
+            raise ValueError("multiple input files for sample '%s' specified " % tag)
         try:
             infile = sys.stdin if infiles[0] == "-" else open(infiles[0], "r")
             compute_stats(infile, outfile,

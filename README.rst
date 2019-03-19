@@ -31,8 +31,9 @@ FDSTools Changelog
 ------------------
 v1.2.0
     - Includes Pipeline v1.0.4
-    - Includes Samplevis v2.2.1
+    - Includes Samplestats v1.2.0
     - Includes TSSV v2.0.0
+    - Includes Samplevis v2.2.1
 
 v1.1.1
     - Includes TSSV v1.1.1
@@ -382,6 +383,10 @@ v1.0.0
 
 Samplestats
 ~~~~~~~~~~~
+v1.2.0
+    - Fixed bug where the 'Other sequences' could be treated as the maximum
+      against which the '*_mp_max' columns are calculated.
+
 v1.1.1
     - Don't crash on empty input files.
     - Shut down cleanly when the output pipe is closed.
