@@ -496,6 +496,7 @@ v2.0.0
     - Changed the default value for -m/--mismatches from 0.08 to 0.1.
     - Changed the default value for -n/--indel-score from 1 to 2.
     - Added the -X/--no-deduplicate option to disable deduplication.
+    - The -D/--dir option can now be used together with -T/--num-threads.
     - Fixed potential crash that could occur under very specific circumstances.
 
 v1.1.1

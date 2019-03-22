@@ -1,4 +1,6 @@
 *.pyc
+*.so
 dist/*
+build/*
 *.egg-info/*
 /.project
