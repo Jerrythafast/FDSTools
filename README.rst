@@ -29,6 +29,9 @@ Alternatively, FDSTools can be installed by running:
 
 Release Notes
 -------------
+v1.2.1 (in progress)
+    FDSTools will now display the help page if no command is given.
+
 v1.2.0 (2019-03-29)
     Major improvements and fixes to the TSSV tool. Most notably, it no longer
     relies on the external ``tssvl`` program because that is no longer

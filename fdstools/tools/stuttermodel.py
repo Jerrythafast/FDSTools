@@ -514,8 +514,9 @@ def add_arguments(parser):
              "nucleotides in length (default: %(default)s)")
     parser.add_argument('-r', '--raw-outfile', type=argparse.FileType('w'),
         metavar="RAWFILE",
-        help="write raw data points to this file (specify '-' to write to "
-             "stdout; normal output on stdout is then supressed)")
+        help="write raw data points to this file, for use in stuttermodel "
+             "visualisations (specify '-' to write to stdout; normal output on "
+             "stdout is then suppressed)")
     add_sequence_format_args(parser, "raw", True)  # Force raw seqs.
     add_random_subsampling_args(parser)
 #add_arguments

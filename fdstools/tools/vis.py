@@ -397,8 +397,9 @@ def add_arguments(parser):
     visgroup.add_argument('-I', '--input2', dest="infile2", metavar="FILE",
         type=argparse.FileType("r"),
         help="[profile, stuttermodel] raw data points file to overlay on the "
-             "background noise profiles or stutter model graphs; if not "
-             "specified, HTML visualisation files will contain a file "
+             "background noise profiles or stutter model graphs (as obtained "
+             "from bghomraw or the -r/--raw-outfile option of stuttermodel); "
+             "if not specified, HTML visualisation files will contain a file "
              "selection control")
 
     dispgroup = parser.add_argument_group("display options")

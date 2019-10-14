@@ -1,5 +1,8 @@
 FDSTools Changelog
 ------------------
+v1.2.1
+    - FDSTools will now display the help page if no command is given.
+
 v1.2.0
     - Includes Pipeline v1.0.4
     - Includes Samplestats v1.2.0

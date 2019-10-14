@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 
 #
-# Copyright (C) 2016 Jerry Hoogenboom
+# Copyright (C) 2019 Jerry Hoogenboom
 #
 # This file is part of FDSTools, data analysis tools for Next
 # Generation Sequencing of forensic DNA markers.
@@ -20,7 +20,7 @@
 # along with FDSTools.  If not, see <http://www.gnu.org/licenses/>.
 #
 
-import argparse, pkgutil, os, re, textwrap
+import argparse, os, pkgutil, re, sys, textwrap
 #import cProfile  # Imported only if the -d/--debug option is specified
 import tools
 
@@ -109,6 +109,9 @@ def main():
         module.add_arguments(subparser)
         subparser.set_defaults(func=module.run)
     try:
+        # Assume the user wants help if they just type 'fdstools'.
+        if len(sys.argv) == 1:
+            sys.argv.append("-h")
         args, unknowns = parser.parse_known_args()
     except Exception as error:
         parser.error(error)

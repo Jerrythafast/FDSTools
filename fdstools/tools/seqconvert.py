@@ -137,7 +137,7 @@ def add_arguments(parser):
              "(default: '%(default)s')")
     parser.add_argument('-c', '--output-column', metavar="COLNAME",
         help="name of the column to write the output to "
-             "(default: same as -a/--allele-column')")
+             "(default: same as -a/--allele-column)")
     parser.add_argument('-M', '--marker', metavar="MARKER",
         help="assume the specified marker for all sequences")
     parser.add_argument('-l', '--library', metavar="LIBRARY",
