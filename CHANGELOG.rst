@@ -2,6 +2,7 @@ FDSTools Changelog
 ------------------
 v1.2.1
     - FDSTools will now display the help page if no command is given.
+    - Includes Samplevis v2.2.2
 
 v1.2.0
     - Includes Pipeline v1.0.4
@@ -613,6 +614,10 @@ v1.0.0
 
 Samplevis
 ~~~~~~~~~
+v2.2.2
+    - Minor change to the calculation of percentage of forward reads to prevent
+      roundoff effects
+
 v2.2.1
     - Added an option to apply graph filtering before noise correction (on by
       default)
