@@ -2,6 +2,11 @@ FDSTools Changelog
 ------------------
 v1.2.1
     - FDSTools will now display the help page if no command is given.
+    - The command-line help pages and debug output will now display a message
+      that FDSTools v2 is available and how to get it.
+    - When running setup.py on python3, a message is displayed that this
+      version is only compatible with python2 but a newer is available.
+    - Updated dependency requirements (python>=2.7.9,<3 and numpy<1.17).
     - Includes Samplevis v2.2.2
 
 v1.2.0

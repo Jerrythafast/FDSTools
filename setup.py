@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 
 #
-# Copyright (C) 2019 Jerry Hoogenboom
+# Copyright (C) 2020 Jerry Hoogenboom
 #
 # This file is part of FDSTools, data analysis tools for Next
 # Generation Sequencing of forensic DNA markers.
@@ -22,25 +22,15 @@
 
 from setuptools import setup, find_packages
 from setuptools.extension import Extension
-
-requires = ["numpy"]
-
-# Python 2.6 does not include the argparse module.
-try:
-    import argparse
-except ImportError:
-    requires.append("argparse")
-
-
-# Disabling hard linking as a workaround for this bug:
-# http://bugs.python.org/issue8876
-from sys import hexversion as sys_hexversion
-if sys_hexversion < 0x020709C1:  # The bug is fixed in 2.7.9rc1.
-    import os
-    del os.link
-
-
 import fdstools as distmeta
+
+import sys
+if sys.hexversion >= 0x03000000:
+    sys.stderr.write("error: This is FDSTools v%s, which is only compatible with Python2. "
+                     "Please check FDSTools.nl to find out how to install FDSTools v2 on Python3, "
+                     "or just try running 'pip3 install -U fdstools' to get the latest version." % distmeta.__version__)
+    sys.exit(1)
+
 x = setup(
     name="fdstools",
     packages=find_packages(),
@@ -52,7 +42,8 @@ x = setup(
         "fdstools": ["vis/*.*", "vis/*/*"]
     },
     version=distmeta.__version__,
-    install_requires=requires,
+    install_requires=["numpy<1.17"],
+    python_requires=">=2.7.9, <3",
     description="Forensic DNA Sequencing Tools",
     long_description=distmeta.__doc__,
     author="Jerry Hoogenboom",

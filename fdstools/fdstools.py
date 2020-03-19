@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 
 #
-# Copyright (C) 2019 Jerry Hoogenboom
+# Copyright (C) 2020 Jerry Hoogenboom
 #
 # This file is part of FDSTools, data analysis tools for Next
 # Generation Sequencing of forensic DNA markers.
@@ -25,6 +25,10 @@ import argparse, os, pkgutil, re, sys, textwrap
 import tools
 
 from . import usage, version
+
+
+upgrade_message = ("Note! FDSTools v2 is out! Check FDSTools.nl to find out what has "
+                   "changed, or run 'pip3 install -U fdstools' to install it now.")
 
 
 # Map tool names to argument parsers.
@@ -74,7 +78,8 @@ def main():
     """
     prog = os.path.splitext(os.path.basename(__file__))[0]
     parser = argparse.ArgumentParser(formatter_class=_HelpFormatter, prog=prog,
-                                     add_help=False, description=usage[0])
+                                     add_help=False, description=usage[0],
+                                     epilog=upgrade_message)
     parser.version = version(prog)
     parser.add_argument('-h', '--help', action=_HelpAction,
                         default=argparse.SUPPRESS, nargs=argparse.REMAINDER,
@@ -101,7 +106,8 @@ def main():
             formatter_class=_HelpFormatter,
             help=module.__doc__.split("\n\n", 1)[0],
             description=module.__doc__,
-            version=version(prog, name, module.__version__))
+            version=version(prog, name, module.__version__),
+            epilog=upgrade_message)
         __tools__[name] = subparser
         subparser.add_argument('-d', "--debug", action="store_true",
             default=argparse.SUPPRESS,
@@ -123,12 +129,13 @@ def main():
                 "and argument order: '%s'." % "', '".join(unknowns))
         if args.debug:
             import cProfile
-            cProfile.runctx(
-                "args.func(args)", globals(), locals(), sort="tottime")
+            cProfile.runctx("args.func(args)", globals(), locals(), sort="tottime")
+            print(upgrade_message)
         else:
             args.func(args)
     except Exception as error:
         if args.debug:
+            print(upgrade_message)
             raise
         __tools__[args.tool].error(error)
 #main

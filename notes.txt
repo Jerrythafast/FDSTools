@@ -1,4 +1,15 @@
 To-do:
+* Write 'INS' and 'DEL' in uppercase in mtDNA nomenclature.
+* Stuttermodel:
+  * [BUG] Failure to recognise stutter products when the library is given
+    and the stutter product continues into the flank.
+* BGAnalyse:
+  * [BUG] Non-integer percentiles are rounded in the output.
+* General:
+  * Ability to bypass zero-reads-on-one-strand checks (ForenSeq requirement).
+  * Link with STRNaming for allele nomenclature.
+* Allelefinder:
+  * Allow to set a minimum allele height for the lower allele.
 * Group tools by function in the command line help and put Pipeline on top.
 * Samplevis:
   * Detect whether correction was performed; hide related columns if not.
@@ -15,18 +26,16 @@ To-do:
 * Pipeline:
   * Add raw sequence output to ref-sample and case-sample analyses.
 * Samplestats:
-  * Verify that Samplestats never treats "Other sequences" as the highest.
   * Add capability to run Samplestats again on its own output.
   * Add percentage-of-called-alleles columns.
+  * Add per-marker allele calling settings to Samplestats.
 * BGAnalyse:
   * Add columns containing the sequence of the highest/lowest noise and the
     sequence with the highest percentage recovery in every sample and marker.
-* Add option for ignoring strands, operating on the total read counts instead.
 * Add options for exporting data in CODIS format (and possibly others?).
 * Add grouping, show/hide options, and target coverage for BGAnalyseVis to the
   Vis tool.
 * Add r2 filter and stutter amount for Stuttermodelvis to the Vis tool.
-* Add per-marker allele calling settings to Samplestats.
 * Exceptions to general mtDNA nomenclature: http://empop.online/methods
 * Reduce noise profile memory usage:
   * Use sparse matrices in BGEstimate and BGCorrect.  May save over 90% of

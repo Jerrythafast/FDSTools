@@ -20,7 +20,7 @@ The recommended way to install FDSTools is by using the ``pip`` package
 installer. If you have ``pip`` installed, you can easily install FDSTools by
 typing:
 
-    ``pip install fdstools``
+    ``pip install -U fdstools``
 
 Alternatively, FDSTools can be installed by running:
 
@@ -30,7 +30,12 @@ Alternatively, FDSTools can be installed by running:
 Release Notes
 -------------
 v1.2.1 (in progress)
-    FDSTools will now display the help page if no command is given.
+    This release focuses on finishing support for Python2 before the transition
+    to Python3. FDSTools will now display the help page if no command is given.
+    A message about the transition to Python3 in the next version of FDSTools
+    is added to the command-line help pages. Furthermore, dependency version
+    numbers have been updated to ensure smooth installation on Python2 as well
+    as a smooth transition to Python3.
 
 v1.2.0 (2019-03-29)
     Major improvements and fixes to the TSSV tool. Most notably, it no longer
