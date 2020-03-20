@@ -20,47 +20,51 @@
 # along with FDSTools.  If not, see <http://www.gnu.org/licenses/>.
 #
 
-from setuptools import setup, find_packages
-from setuptools.extension import Extension
-import fdstools as distmeta
+import setuptools, sys
 
-import sys
+with open("README.rst", "r") as fh:
+    long_description = fh.read()
+
+version = {}
+with open("fdstools/__init__.py", "r") as fh:
+    exec(fh.read(), version)
+
 if sys.hexversion >= 0x03000000:
     sys.stderr.write("error: This is FDSTools v%s, which is only compatible with Python2. "
                      "Please check FDSTools.nl to find out how to install FDSTools v2 on Python3, "
-                     "or just try running 'pip3 install -U fdstools' to get the latest version." % distmeta.__version__)
+                     "or just try running 'pip3 install -U fdstools' to get the latest version."
+                     % version["__version__"])
     sys.exit(1)
 
-x = setup(
+setuptools.setup(
     name="fdstools",
-    packages=find_packages(),
+    version=version["__version__"],
+    description="Forensic DNA Sequencing Tools",
+    long_description=long_description,
+    long_description_content_type="text/x-rst",
+    url="https://fdstools.nl",
+    author="Jerry Hoogenboom",
+    author_email="jerryhoogenboom@outlook.com",
+    license="GPLv3+",
+    classifiers=[
+        "Programming Language :: Python :: 2",
+        "License :: OSI Approved :: GNU General Public License v3 or later (GPLv3+)",
+        "Operating System :: OS Independent",
+        "Development Status :: 4 - Beta",
+        "Intended Audience :: Science/Research",
+        "Intended Audience :: Legal Industry",
+        "Topic :: Scientific/Engineering :: Bio-Informatics"],
+    keywords='bioinformatics forensics stutter NGS MPS DNA sequencing STR',
+    packages=setuptools.find_packages(),
     ext_modules=[
-        Extension('fdstools.sg_align',
+        setuptools.extension.Extension('fdstools.sg_align',
             sources=['fdstools/sg_align.c'],
             extra_compile_args=['-O3'])],
     package_data={
         "fdstools": ["vis/*.*", "vis/*/*"]
     },
-    version=distmeta.__version__,
     install_requires=["numpy<1.17"],
     python_requires=">=2.7.9, <3",
-    description="Forensic DNA Sequencing Tools",
-    long_description=distmeta.__doc__,
-    author="Jerry Hoogenboom",
-    author_email="jerryhoogenboom@outlook.com",
-    url="https://git.lumc.nl/jerryhoogenboom/fdstools/blob/master/README.rst",
-    license="GPLv3+",
-    platforms=["any"],
-    classifiers=[
-        "Development Status :: 4 - Beta",
-        "Intended Audience :: Science/Research",
-        "Intended Audience :: Legal Industry",
-        "License :: OSI Approved :: GNU General Public License v3 or "
-            "later (GPLv3+)",
-        "Operating System :: OS Independent",
-        "Programming Language :: Python :: 2",
-        "Topic :: Scientific/Engineering :: Bio-Informatics"],
-    keywords='bioinformatics forensics stutter NGS MPS DNA sequencing STR',
     entry_points={
         'console_scripts': [
             "fdstools=fdstools.fdstools:main"
