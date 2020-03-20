@@ -24,8 +24,7 @@ including tools for characterisation and filtering of PCR stutter artefacts and
 other systemic noise, and for automatic detection of the alleles in a sample.
 """
 
-__version_info__ = ('1', '2', '1')
-__version__ = '.'.join(__version_info__)
+__version__ = "2.0.0dev1"
 usage = __doc__.split("\n\n\n")
 
 def version(name, toolname=None, toolversion=None):

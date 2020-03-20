@@ -29,8 +29,8 @@ version = {}
 with open("fdstools/__init__.py", "r") as fh:
     exec(fh.read(), version)
 
-if sys.hexversion >= 0x03000000:
-    sys.stderr.write("error: This is FDSTools v%s, which is only compatible with Python2. "
+if sys.hexversion < 0x03000000:
+    sys.stderr.write("error: This is FDSTools v%s, which is only compatible with Python3. "
                      "Please check FDSTools.nl to find out how to install FDSTools v2 on Python3, "
                      "or just try running 'pip3 install -U fdstools' to get the latest version."
                      % version["__version__"])
@@ -47,7 +47,7 @@ setuptools.setup(
     author_email="jerryhoogenboom@outlook.com",
     license="GPLv3+",
     classifiers=[
-        "Programming Language :: Python :: 2",
+        "Programming Language :: Python :: 3",
         "License :: OSI Approved :: GNU General Public License v3 or later (GPLv3+)",
         "Operating System :: OS Independent",
         "Development Status :: 4 - Beta",
@@ -63,8 +63,8 @@ setuptools.setup(
     package_data={
         "fdstools": ["vis/*.*", "vis/*/*"]
     },
-    install_requires=["numpy<1.17"],
-    python_requires=">=2.7.9, <3",
+    install_requires=["numpy>=1.17"],
+    python_requires=">=3.5",
     entry_points={
         'console_scripts': [
             "fdstools=fdstools.fdstools:main"
