@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2019 Jerry Hoogenboom
+ * Copyright (C) 2020 Jerry Hoogenboom
  *
  * This file is based on original code from the TSSV project: Targeted
  * characterisation of short structural variation, version 0.4.0, which was
@@ -111,7 +111,7 @@ static unsigned char *_sse2_make_matrix(const unsigned int seq1len, const unsign
     const unsigned int width = (seq2len+31) & ~0x0F,
                        height = seq1len + seq2len + 1;
     unsigned char *mem = malloc(width * height + 16),
-                  *matrix = (unsigned char*)(((unsigned long int)mem + 15) & ~(unsigned long int)0x0F),
+                  *matrix = (unsigned char*)(((Py_uintptr_t)mem + 15) & ~(Py_uintptr_t)0x0F),
                   *cell,
                   score;
     unsigned int i, j;
@@ -158,7 +158,7 @@ static void _sse2_align(unsigned char *mem, const unsigned int seq1len, const un
                  width = (seq2len+31) & ~0x0F,
                  end = seq1len + _min(16, seq2len),
                  limit;
-    unsigned char *matrix = (unsigned char*)(((unsigned long int)mem + 15) & ~(unsigned long int)0x0F),
+    unsigned char *matrix = (unsigned char*)(((Py_uintptr_t)mem + 15) & ~(Py_uintptr_t)0x0F),
                   *d = matrix,
                   *l = matrix + width,
                   *i = l + width + 1;
@@ -280,7 +280,7 @@ Oprates on an alignment matrix as created with _sse2_make_matrix().
 */
 static PyObject *_sse2_find_min(unsigned char *mem, const unsigned int seq1len, const unsigned int seq2len) {
     const unsigned int width = (seq2len+31) & ~0x0F;
-    unsigned char *matrix = (unsigned char*)(((unsigned long int)mem + 15) & ~(unsigned long int)0x0F);
+    unsigned char *matrix = (unsigned char*)(((Py_uintptr_t)mem + 15) & ~(Py_uintptr_t)0x0F);
     unsigned int distance = seq2len;
     unsigned int position = 0;
     unsigned int i;
