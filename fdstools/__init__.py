@@ -19,7 +19,7 @@
 #
 
 """
-Data analysis tools for Next Generation Sequencing of forensic DNA markers,
+Data analysis tools for Massively Parallel Sequencing of forensic DNA markers,
 including tools for characterisation and filtering of PCR stutter artefacts and
 other systemic noise, and for automatic detection of the alleles in a sample.
 """
