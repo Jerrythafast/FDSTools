@@ -43,6 +43,10 @@ setuptools.setup(
     long_description=long_description,
     long_description_content_type="text/x-rst",
     url="https://fdstools.nl",
+    project_urls={
+        "Bug Tracker": "https://github.com/Jerrythafast/FDSTools/issues",
+        "Source Code": "https://github.com/Jerrythafast/FDSTools",
+    },
     author="Jerry Hoogenboom",
     author_email="jerryhoogenboom@outlook.com",
     license="GPLv3+",

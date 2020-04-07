@@ -1,7 +1,7 @@
 Forensic DNA Sequencing Tools
 =============================
 
-Tools for filtering and interpretation of Next Generation Sequencing data of
+Tools for filtering and interpretation of Massively Parallel Sequencing data of
 forensic DNA samples. To obtain a list of included tools with a brief
 description of each tool, run:
 
