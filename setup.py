@@ -32,7 +32,7 @@ with open("fdstools/__init__.py", "r") as fh:
 if sys.hexversion < 0x03000000:
     sys.stderr.write("error: This is FDSTools v%s, which is only compatible with Python3. "
                      "Please check FDSTools.nl to find out how to install FDSTools v2 on Python3, "
-                     "or just try running 'pip3 install -U fdstools' to get the latest version."
+                     "or just try running 'pip3 install -U fdstools' to get the latest version.\n"
                      % version["__version__"])
     sys.exit(1)
 
