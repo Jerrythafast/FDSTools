@@ -1,10 +1,89 @@
+Changed in 2.0.0:
+* FDSTools will now display a 'Failed to load X' message if importing tool X
+  failed. The other tools will remain available.
+* FDSTools will now display a 'Failed to configure X' message if configuring
+  tool X failed. The other tools will remain available, and more information
+  about the error can be obtained by running the troubled tool in debug mode.
+* Includes Allelefinder 1.1.0
+* Includes BGAnalyse 1.1.0
+* Includes BGCorrect 1.1.0
+* Includes BGEstimate 1.2.0
+* Includes BGHomRaw 1.1.0
+* Includes BGHomStats 1.1.0
+* Includes BGMerge 1.1.0
+* Includes BGPredict 1.1.0
+* Includes FindNewAlleles 1.1.0
+* Includes Libconvert 1.2.0
+* Includes Library 1.1.0
+* Includes Pipeline 1.1.0
+* Includes Samplestats 1.3.0
+* Includes Seqconvert 1.1.0
+* Includes Stuttermark 1.6.0
+* Includes Stuttermodel 1.2.0
+* Includes TSSV 2.1.0
+* Includes Vis 1.1.0
+
+
+BGAnalyse 1.1.0:
+* Fixed bug that caused non-integer percentiles to appear rounded down in the output.
+
+BGEstimate 1.2.0:
+* Removed the random subsampling arguments.
+
+BGHomStats 1.1.0:
+* Removed the random subsampling arguments.
+
+BGPredict 1.1.0:
+* Flanks are now ignored even if the library file is given; repeats may
+  be interpreted as being slightly shorter if they continue into the flanks.
+
+Stuttermodel 1.2.0:
+* Removed the random subsampling arguments.
+* Flanks are now ignored even if the library file is given; repeats may
+  be interpreted as being slightly shorter if they continue into the flanks.
+
+TSSV 2.1.0:
+* Removed the error that occurred when the -D/--dir option is used and
+  the output directory already exists.
+* Don't abort if the report stream is closed; log a message to the
+  report stream if the main output stream is closed.
+
+Vis 1.1.0:
+* Removed the -O/--online option.
+
+
+CONVERSION
+* Check that all our library files are still read (may need to enable end-of-line comments)
+* Ensure all open() and FileType() calls specify either 't' or 'b'
+* Check all divisions
+* Check all for loops w.r.t generators and dictionary views
+* Check all 'del' in a loop
+* Check all range() use (and remove any xrange())
+* Check all except and raise
+* Check all map() and reduce()
+* Check round():
+  * halves are now rounded to even, instead of away from zero
+  * without 2nd parameter returns an int instead of a float
+* Check floor() and ceil() now returning ints
+* Check hashbang lines
+
+HOMOLOGATION
+* Update license text NGS -> MPS
+* Check that all tools check the number of columns at each line (like Stuttermark does).
+* Check that all tools allow for additional columns.
+* Standardise the 'flags' column and use it in more tools.
+* Make better use of print_debug() in all tools and postpone string formatting.
+* Check that all imports are actually used.
+* Could do a timeit run for {k: i for i, k in enumerate(l)} vs {l[i]: i for i in range(len(l))}
+
+
+
+
+
 To-do:
+* Suspected bug (marked with FIXME) in samplestats.
+* Clean up samplestats code.
 * Write 'INS' and 'DEL' in uppercase in mtDNA nomenclature.
-* Stuttermodel:
-  * [BUG] Failure to recognise stutter products when the library is given
-    and the stutter product continues into the flank.
-* BGAnalyse:
-  * [BUG] Non-integer percentiles are rounded in the output.
 * General:
   * Ability to bypass zero-reads-on-one-strand checks (ForenSeq requirement).
   * Link with STRNaming for allele nomenclature.
@@ -74,7 +153,6 @@ To-do:
 Inclusion of tools developed during the project into FDSTools:
 PRIO    OLD TOOL NAME       DESCRIPTION
 ------- ------------------- ---------------------------------------------------
-LOW     distance-plot       Check stability of profiles by subsampling
 LOW     qq-plot             Draw Q-Q plot vs normal/lognormal distributions
 LOW     stuttercheck        Sort-of stuttermodel using profiles as input
 LOW     substitutioncheck   Sort-of substitutionmodel using profiles as input
@@ -98,7 +176,6 @@ DROP    annotate-alleles    Annotate true alleles in sample based on allelelist
 
 Visualisations:
 LOW     qqplot              Q-Q plot of normal/lognormal distribution
-LOW     stability           Profile distance vs amount of subsampling
 DONE    samplevis           Sample data
 DONE    profiles            Background profiles
 DONE    bg                  Dotplots of noise ratios in homozygous samples
@@ -116,7 +193,6 @@ allele detection options    bganalyse,bgestimate,bghomraw,bghomstats,stuttermode
 interpretation options      samplestats
 filtering options           allelefinder,bgcorrect,bgestimate,bghomraw,bghomstats,bgpredict,findnewalleles,samplestats,stuttermark,stuttermodel,tssv
 sequence format options     allelefinder,bganalyse,bgcorrect,bgestimate,bghomraw,bghomstats,bgmerge,bgpredict,findnewalleles,stuttermark,stuttermodel,tssv
-random subsampling options  bgestimate,bghomstats,stuttermodel
 visualisation options       vis
 *tssv has sequence format options before output file options
 
@@ -197,17 +273,16 @@ name    tssv    OK
 allelefinder    analysis    default output  output option
 bganalyse       (as output) raw             yes
 bgcorrect       raw         (as input)      yes
-bgestimate      (as output) raw             no
+bgestimate      raw         raw             no
 bghomraw        (as output) raw             yes
 bghomstats      (as output) (as input)      yes
-bgmerge         raw         raw             no*
-bgpredict       raw         raw             no*
+bgmerge         raw         raw             no
+bgpredict       raw         raw             no
 findnewalleles  raw         (as input)      no
 samplestats     (as input)  (as input)      no
 stuttermark     tssv        tssv            no
 stuttermodel    raw         not applicable  not applicable
 tssv            raw         raw             yes
-*easily changed, but is it appropriate to do so?
 
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 

@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 
 #
-# Copyright (C) 2017 Jerry Hoogenboom
+# Copyright (C) 2020 Jerry Hoogenboom
 #
 # This file is part of FDSTools, data analysis tools for Next
 # Generation Sequencing of forensic DNA markers.
@@ -40,22 +40,22 @@ Please refer to the help of the 'library' tool for more information
 about FDSTools library files.
 """
 import argparse
-import sys
-import re
 import os.path
+import re
+import sys
 
 from errno import EPIPE
-from ..lib import parse_library, iupac_expand_ambiguous, INI_COMMENT
-from library import make_empty_library_ini
+from functools import reduce
 
-__version__ = "1.1.2"
+from ..lib.library import parse_library, INI_COMMENT
+from ..lib.seq import iupac_expand_ambiguous
+from .library import make_empty_library_ini
+
+__version__ = "1.2.0"
 
 
 def convert_library(infile, outfile, aliases=False):
-    if infile is not None:
-        library = parse_library(infile, stream=True)
-    else:
-        library = {"flanks": {}, "regex": {}}
+    library = parse_library(infile, stream=True)
     if "aliases" in library:
         # FDSTools -> TSSV
         markers = set()
@@ -146,11 +146,9 @@ def convert_library(infile, outfile, aliases=False):
                             allele.append(library["suffix"][marker][0])
                         allele = "".join(allele)
                         if library["regex"][marker].match(allele) is None:
-                            unmatched.append(
-                                library["aliases"][alias]["sequence"])
+                            unmatched.append(library["aliases"][alias]["sequence"])
                     if unmatched:
-                        middle = [(x, 0, 1) for x in unmatched] + \
-                                 [(x[0], 0, x[2]) for x in middle]
+                        middle = [(x, 0, 1) for x in unmatched] + [(x[0], 0, x[2]) for x in middle]
 
                 elif marker in library["nostr_reference"]:
                     middle.append((library["nostr_reference"][marker],
@@ -173,8 +171,7 @@ def convert_library(infile, outfile, aliases=False):
                                 marker not in library["nostr_reference"] or
                                 library["nostr_reference"][marker] !=
                                     library["aliases"][alias]["sequence"]):
-                            middle.append((
-                                library["aliases"][alias]["sequence"], 0, 1))
+                            middle.append((library["aliases"][alias]["sequence"], 0, 1))
 
                 # Final regex is prefixes + middle + suffixes.
                 for i in range(len(prefixes)):
@@ -196,31 +193,29 @@ def convert_library(infile, outfile, aliases=False):
 
     else:
         # TSSV -> FDSTools
-        outfile.write(INI_COMMENT.fill("Lines beginning with a semicolon (;) "
-            "are ignored by FDSTools.") + "\n\n")
+        outfile.write(INI_COMMENT.fill(
+            "Lines beginning with a semicolon (;) are ignored by FDSTools.") + "\n\n")
         ini = make_empty_library_ini("full", aliases)
 
         # Enter flanking sequences and STR definitions.
         pattern_reverse = re.compile("\(([ACGT]+)\)\{(\d+),(\d+)\}")
         fmt = "%%-%is" % reduce(max, map(len,
-            set(library["flanks"].keys() + library["regex"].keys())), 0)
+            set(library["flanks"].keys()) | set(library["regex"].keys())), 0)
         for marker in sorted(library["flanks"]):
-            ini.set("flanks", fmt%marker, ", ".join(library["flanks"][marker]))
+            ini.set("flanks", fmt % marker, ", ".join(library["flanks"][marker]))
         for marker in sorted(library["regex"]):
             blocks = pattern_reverse.findall(library["regex"][marker].pattern)
-            ini.set("repeat", fmt % marker,
-                    " ".join("%s %s %s" % x for x in blocks))
+            ini.set("repeat", fmt % marker, " ".join("%s %s %s" % x for x in blocks))
 
             # Try to infer block length from the regular expression.
             length_counts = {0: 0}
             for block in blocks:
-                amount = (int(block[1]) + int(block[2])) / 2.
+                amount = (int(block[1]) + int(block[2])) / 2
                 if len(block[0]) not in length_counts:
                     length_counts[len(block[0])] = amount
                 else:
                     length_counts[len(block[0])] += amount
-            block_length = sorted(
-                length_counts, key=lambda x: -length_counts[x])[0]
+            block_length = sorted(length_counts, key=lambda x: -length_counts[x])[0]
             if block_length != 0 and block_length < 10:
                 ini.set("block_length", fmt % marker, block_length)
 
@@ -235,34 +230,31 @@ def convert_library(infile, outfile, aliases=False):
 
 
 def add_arguments(parser):
-    parser.add_argument('infile', nargs='?', metavar="IN", default=sys.stdin,
-        help="input library file, the format is automatically detected "
-             "(default: read from stdin)")
-    parser.add_argument('outfile', nargs='?', metavar="OUT",
-        default=sys.stdout, type=argparse.FileType('w'),
+    parser.add_argument("infile", nargs="?", metavar="IN", default=sys.stdin,
+        help="input library file, the format is automatically detected (default: read from stdin)")
+    parser.add_argument("outfile", nargs="?", metavar="OUT",
+        default=sys.stdout, type=argparse.FileType("tw"),
         help="the file to write the output to (default: write to stdout)")
-    parser.add_argument('-a', '--aliases', action="store_true",
+    parser.add_argument("-a", "--aliases", action="store_true",
         help="when converting to TSSV format, aliases in FDSTools libraries "
              "are converted to separate markers in the output library when "
              "this option is specified; otherwise, they are merged into their "
              "respective markers; when converting to FDSTools format, the "
-             "[aliases] section is included in the output if this option is "
-             "specified")
+             "[aliases] section is included in the output if this option is specified")
 #add_arguments
 
 
 def run(args):
     if args.infile == "-":
         args.infile = sys.stdin
-    if (args.infile != sys.stdin and args.outfile == sys.stdout
-            and not os.path.exists(args.infile)):
+    if args.infile != sys.stdin and args.outfile == sys.stdout and not os.path.exists(args.infile):
         # One filename given, and it does not exist.  Assume outfile.
-        args.outfile = open(args.infile, 'w')
+        args.outfile = open(args.infile, "tw")
         args.infile = sys.stdin
 
     if args.infile != sys.stdin:
         # Open the specified input file.
-        args.infile = open(args.infile, 'r')
+        args.infile = open(args.infile, "tr")
     elif args.infile.isatty():
         # No input given.  Produce a default FDSTools library.
         args.infile = None

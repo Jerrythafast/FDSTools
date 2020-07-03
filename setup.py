@@ -20,7 +20,8 @@
 # along with FDSTools.  If not, see <http://www.gnu.org/licenses/>.
 #
 
-import setuptools, sys
+import setuptools
+import sys
 
 with open("README.rst", "r") as fh:
     long_description = fh.read()
@@ -61,8 +62,8 @@ setuptools.setup(
     keywords='bioinformatics forensics stutter NGS MPS DNA sequencing STR',
     packages=setuptools.find_packages(),
     ext_modules=[
-        setuptools.extension.Extension('fdstools.sg_align',
-            sources=['fdstools/sg_align.c'],
+        setuptools.extension.Extension('fdstools.lib.sg_align',
+            sources=['fdstools/lib/sg_align.c'],
             extra_compile_args=['-O3'])],
     package_data={
         "fdstools": ["vis/*.*", "vis/*/*"]

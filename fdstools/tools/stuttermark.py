@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 
 #
-# Copyright (C) 2017 Jerry Hoogenboom
+# Copyright (C) 2020 Jerry Hoogenboom
 #
 # This file is part of FDSTools, data analysis tools for Next
 # Generation Sequencing of forensic DNA markers.
@@ -49,15 +49,17 @@ of one repeat in the second block and one repeat in the ninth block
 ('2-1x9-1').  (If this sequence would have more than 157 reads, it would
 be annotated as 'ALLELE' instead.)
 """
-import argparse, sys
+import argparse
+import sys
 
 from errno import EPIPE
-from ..lib import pos_int_arg, print_db, PAT_TSSV_BLOCK, get_column_ids, \
-                  add_input_output_args, get_input_output_files, \
-                  ensure_sequence_format, add_sequence_format_args, \
-                  SEQ_SPECIAL_VALUES
 
-__version__ = "1.5.1"
+from ..lib.cli import add_sequence_format_args, add_input_output_args, pos_int_arg,\
+                      get_input_output_files
+from ..lib.io import get_column_ids, print_db
+from ..lib.seq import SEQ_SPECIAL_VALUES, PAT_TSSV_BLOCK, ensure_sequence_format
+
+__version__ = "1.6.0"
 
 
 # Default values for parameters are specified below.
@@ -123,8 +125,7 @@ def load_data(infile, colname_annotation=_DEF_COLNAME, library=None):
     column_names = infile.readline().rstrip("\r\n").split("\t")
     if column_names == [""]:
         return None, None  # Empty file.
-    colid_total, colid_sequence, = get_column_ids(column_names,
-        "total", "sequence")
+    colid_total, colid_sequence, = get_column_ids(column_names, "total", "sequence")
     colid_marker = get_column_ids(column_names, "marker", optional=True)
     column_names.append(colname_annotation)
 
@@ -147,7 +148,7 @@ def load_data(infile, colname_annotation=_DEF_COLNAME, library=None):
             # Convert to TSSV-style sequences.
             marker = None if colid_marker is None else columns[colid_marker]
             columns[colid_sequence] = ensure_sequence_format(
-                columns[colid_sequence], 'tssv', marker=marker,library=library)
+                columns[colid_sequence], "tssv", marker=marker, library=library)
 
             if columns[colid_sequence] not in SEQ_SPECIAL_VALUES:
                 # Split the sequence column into a list of tuples:
@@ -174,8 +175,7 @@ def load_data(infile, colname_annotation=_DEF_COLNAME, library=None):
 
 def annotate_alleles(infile, outfile, stutter, min_reads=_DEF_MIN_READS,
                      min_repeats=_DEF_MIN_REPEATS, min_report=_DEF_MIN_REPORT,
-                     colname_annotation=_DEF_COLNAME, library=None,
-                     debug=False):
+                     colname_annotation=_DEF_COLNAME, library=None, debug=False):
     """
     Read data from the file handle infile and write annotated data to
     file handle outfile.
@@ -217,8 +217,8 @@ def annotate_alleles(infile, outfile, stutter, min_reads=_DEF_MIN_READS,
                   expected percentage of stutter of this size.
     :type stutter: dict{int: float}
 
-    :arg min_reads: Any sequences with less than this number of reads are
-                    not evaluated (annotation=UNKNOWN).
+    :arg min_reads: Any sequences with less than this number of reads
+                    are not evaluated (annotation=UNKNOWN).
     :type min_reads: int
 
     :arg min_repeats: Stutters are not expected to appear for blocks
@@ -241,8 +241,7 @@ def annotate_alleles(infile, outfile, stutter, min_reads=_DEF_MIN_READS,
     column_names, allelelist = load_data(infile, colname_annotation, library)
     if column_names is None:
         return  # Empty file.
-    colid_total, colid_sequence, = get_column_ids(column_names,
-        "total", "sequence")
+    colid_total, colid_sequence, = get_column_ids(column_names, "total", "sequence")
     try:
         colid_marker = get_column_ids(column_names, "marker")
     except:
@@ -250,158 +249,146 @@ def annotate_alleles(infile, outfile, stutter, min_reads=_DEF_MIN_READS,
 
     # Sort (descending total reads).
     if colid_marker is not None:
-        allelelist.sort(key=lambda allele:
-            [allele[colid_marker], -allele[colid_total]])
+        allelelist.sort(key=lambda allele: [allele[colid_marker], -allele[colid_total]])
     else:
         allelelist.sort(key=lambda allele: -allele[colid_total])
 
-    for iCurrent in range(len(allelelist)):
+    for i_current in range(len(allelelist)):
 
         # See if this allele appeared a reasonable number of times.
-        if allelelist[iCurrent][colid_total] < min_reads:
+        if allelelist[i_current][colid_total] < min_reads:
             continue
 
         # Skip special sequence values.
-        if allelelist[iCurrent][colid_sequence] in SEQ_SPECIAL_VALUES:
+        if allelelist[i_current][colid_sequence] in SEQ_SPECIAL_VALUES:
             continue
 
-        isStutterPeakOf = {}
-        maximumOccurrenceExpected = 0
+        is_stutter_of = {}
+        max_occurrence_expected = 0
 
-        # Find all ways to reach sequence iCurrent by mutating the other
-        # sequences that appeared more often.
-        for iOther in range(iCurrent):
+        # Find all ways to reach sequence i_current by mutating the
+        # other sequences that appeared more often.
+        for i_other in range(i_current):
 
             # Must be same marker.
-            if colid_marker is not None and (allelelist[iCurrent][colid_marker]
-                    != allelelist[iOther][colid_marker]):
+            if colid_marker is not None and (allelelist[i_current][colid_marker]
+                    != allelelist[i_other][colid_marker]):
                 continue
 
             # Skip special sequence values.
-            if allelelist[iOther][colid_sequence] in SEQ_SPECIAL_VALUES:
+            if allelelist[i_other][colid_sequence] in SEQ_SPECIAL_VALUES:
                 continue
 
-            print_db('%i vs %i' % (iCurrent+1, iOther+1), debug)
+            print_db("%i vs %i" % (i_current + 1, i_other + 1), debug)
 
             # Must be same number of blocks.
-            if (len(allelelist[iCurrent][colid_sequence]) !=
-                    len(allelelist[iOther][colid_sequence])):
-                print_db('Different number of blocks', debug)
+            if (len(allelelist[i_current][colid_sequence]) !=
+                    len(allelelist[i_other][colid_sequence])):
+                print_db("Different number of blocks", debug)
                 continue
 
-            maximumOccurrenceExpectedForThisOther = 1.0
-            blocksThatDiffer = {}
+            max_occurrence_expected_for_this_other = 1.0
+            differing_blocks = {}
 
-            # What is needed to get from sequence iOther to iCurrent?
+            # What is needed to get from sequence i_other to i_current?
             # We will look at each block in turn.
-            for block in range(len(allelelist[iCurrent][colid_sequence])):
+            for block in range(len(allelelist[i_current][colid_sequence])):
 
-                # If mutations are needed to get from iOther to
-                # iCurrent, iCurrent can't be a stutter of iOther.
-                if (allelelist[iCurrent][colid_sequence][block][0] !=
-                        allelelist[iOther][colid_sequence][block][0]):
-                    print_db('Block %i has different sequence' % (block+1),
-                             debug)
+                # If mutations are needed to get from i_other to
+                # i_current, i_current can't be a stutter of i_other.
+                if (allelelist[i_current][colid_sequence][block][0] !=
+                        allelelist[i_other][colid_sequence][block][0]):
+                    print_db("Block %i has different sequence" % (block + 1), debug)
                     break
 
                 # See how many times the current block appears more or
-                # less often in iCurrent as compared to iOther.
-                deltaRepeats = (allelelist[iCurrent][colid_sequence][block][1] -
-                                allelelist[iOther][colid_sequence][block][1])
-                if deltaRepeats == 0:
+                # less often in i_current as compared to i_other.
+                delta_repeats = (allelelist[i_current][colid_sequence][block][1] -
+                                allelelist[i_other][colid_sequence][block][1])
+                if delta_repeats == 0:
                     continue
 
-                # iCurrent is not a stutter of iOther if any one of its
-                # blocks differs in count while either count is below
-                # min_repeats.  It is not a stutter of iOther because
-                # those are expected not to occur for such low repeat
-                # counts.  At the same time any further analysis
+                # i_current is not a stutter of i_other if any one of
+                # its blocks differs in count while either count is
+                # below min_repeats.  It is not a stutter of i_other
+                # because those are expected not to occur for such low
+                # repeat counts.  At the same time any further analysis
                 # between the two is invalid because this block was not
                 # the same.  Note that if this truly was a stutter of
-                # iOther, maximumOccurrenceExpected is going to be a
+                # i_other, max_occurrence_expected is going to be a
                 # bit too low now.
-                if min(allelelist[iCurrent][colid_sequence][block][1],
-                     allelelist[iOther][colid_sequence][block][1]) < min_repeats:
-                    print_db('Block %i has low-count difference: %i and %i' %
-                        (block+1, allelelist[iCurrent][colid_sequence][block][1],
-                         allelelist[iOther][colid_sequence][block][1]), debug)
+                if min(allelelist[i_current][colid_sequence][block][1],
+                     allelelist[i_other][colid_sequence][block][1]) < min_repeats:
+                    print_db("Block %i has low-count difference: %i and %i" %
+                        (block + 1, allelelist[i_current][colid_sequence][block][1],
+                         allelelist[i_other][colid_sequence][block][1]), debug)
                     break
 
-                # Depending on the repeat count difference, iCurrent
+                # Depending on the repeat count difference, i_current
                 # may appear at most a certain amount of times.
                 # This is expressed as a percentage of the occurrence
-                # of iOther.
+                # of i_other.
 
                 # If the repeat count difference is highly improbable,
                 # this can't be a stutter.
-                elif deltaRepeats not in stutter:
-                    print_db('Improbable difference in number of repeats of '
-                             'block %i: %i' % (block+1, deltaRepeats), debug)
+                elif delta_repeats not in stutter:
+                    print_db("Improbable difference in number of repeats of "
+                             "block %i: %i" % (block + 1, delta_repeats), debug)
                     break
 
-                # Based on this block only, sequence iCurrent could be
-                # a stutter of sequence iOther.  It may appear only a
+                # Based on this block only, sequence i_current could be
+                # a stutter of sequence i_other.  It may appear only a
                 # limited number of times, however.
                 else:
-                    blocksThatDiffer[block] = deltaRepeats
-                    maximumOccurrenceExpectedForThisOther *= \
-                        stutter[deltaRepeats] / 100.0
-                    print_db('Occurence percentage now %d' %
-                             maximumOccurrenceExpectedForThisOther, debug)
+                    differing_blocks[block] = delta_repeats
+                    max_occurrence_expected_for_this_other *= stutter[delta_repeats] / 100
+                    print_db("Occurence percentage now %d" %
+                             max_occurrence_expected_for_this_other, debug)
 
             else:
-                # If we end up here, iCurrent could very well be a
-                # stutter peak of iOther, but it might be below the
+                # If we end up here, i_current could very well be a
+                # stutter peak of i_other, but it might be below the
                 # reporting threshold.
-                thisStutterOccurrenceExpected = \
-                    (maximumOccurrenceExpectedForThisOther *
-                     allelelist[iOther][colid_total])
-                if thisStutterOccurrenceExpected < min_report:
-                    print_db('Expected occurrence of stutter from '
-                             '%i to %i is only %d' %
-                             (iOther+1, iCurrent+1,
-                              thisStutterOccurrenceExpected), debug)
+                this_expected_stutter_amount = \
+                    (max_occurrence_expected_for_this_other * allelelist[i_other][colid_total])
+                if this_expected_stutter_amount < min_report:
+                    print_db("Expected occurrence of stutter from %i to %i is only %d" %
+                             (i_other + 1, i_current + 1, this_expected_stutter_amount), debug)
                 else:
-                    isStutterPeakOf[iOther] = (blocksThatDiffer,
-                        thisStutterOccurrenceExpected)
-                    maximumOccurrenceExpected += thisStutterOccurrenceExpected
-                    print_db('Expected occurence now %d' %
-                             maximumOccurrenceExpected, debug)
+                    is_stutter_of[i_other] = (differing_blocks, this_expected_stutter_amount)
+                    max_occurrence_expected += this_expected_stutter_amount
+                    print_db("Expected occurence now %d" % max_occurrence_expected, debug)
 
         # Now we'll just need to check whether it does not appear
         # unrealistically often.
-        if allelelist[iCurrent][colid_total] > maximumOccurrenceExpected:
-            print_db('Occurs too often (%i > %d)' %
-                     (allelelist[iCurrent][colid_total],
-                      maximumOccurrenceExpected), debug)
-            allelelist[iCurrent][-1] = "ALLELE"
+        if allelelist[i_current][colid_total] > max_occurrence_expected:
+            print_db("Occurs too often (%i > %d)" %
+                     (allelelist[i_current][colid_total], max_occurrence_expected), debug)
+            allelelist[i_current][-1] = "ALLELE"
         else:
             # Stutter peak detected.
-            allelelist[iCurrent][-1] = "STUTTER:%s" % ":".join(
+            allelelist[i_current][-1] = "STUTTER:%s" % ":".join(
                 "%.1fx%i(%s)" % (
-                    isStutterPeakOf[iOther][1],
-                    iOther+1,
+                    is_stutter_of[i_other][1],
+                    i_other + 1,
                     "x".join(
                         "%i%+i" % (
-                            block+1,
-                            isStutterPeakOf[iOther][0][block])
-                        for block in isStutterPeakOf[iOther][0]))
-                for iOther in isStutterPeakOf)
+                            block + 1,
+                            is_stutter_of[i_other][0][block])
+                        for block in is_stutter_of[i_other][0]))
+                for i_other in is_stutter_of)
             print_db("%2i is a stutter peak of %s; occur=%i, maxOccur=%s" %
-                     (iCurrent+1, isStutterPeakOf,
-                      allelelist[iCurrent][colid_total],
-                      maximumOccurrenceExpected), debug)
+                (i_current + 1, is_stutter_of, allelelist[i_current][colid_total],
+                max_occurrence_expected), debug)
 
     # Reconstruct the sequence and write out the findings.
     for i in range(len(allelelist)):
         if allelelist[i][colid_sequence] not in SEQ_SPECIAL_VALUES:
             allelelist[i][colid_sequence] = "".join(
-                "%s(%i)" % tuple(block)
-                    for block in allelelist[i][colid_sequence])
+                "%s(%i)" % tuple(block) for block in allelelist[i][colid_sequence])
     outfile.write("\t".join(column_names))
     outfile.write("\n")
-    outfile.write("\n".join(
-        "\t".join(map(str, allele)) for allele in allelelist))
+    outfile.write("\n".join("\t".join(map(str, allele)) for allele in allelelist))
     outfile.write("\n")
 #annotate_alleles
 
@@ -429,13 +416,13 @@ def stutter_def_arg(value):
                 for y in (x.split(":") for x in value.split(","))}
     except ValueError as e:
         raise argparse.ArgumentTypeError(
-            "invalid stutter definition value: '%s' (%s)" % (value, str(e)))
+            "invalid stutter definition value: '%s' (%s)" % (value, e))
 #stutter_def_arg
 
 
 def add_arguments(parser):
-    add_input_output_args(parser, True, True, False)
-    parser.add_argument('-s', '--stutter', metavar="DEF", type=stutter_def_arg,
+    add_input_output_args(parser, single_in=True, batch_support=True, report_out=False)
+    parser.add_argument("-s", "--stutter", metavar="DEF", type=stutter_def_arg,
         default=_DEF_STUTTERDEF,
         help="Define maximum expected stutter percentages.  The default value "
              "of '%(default)s' sets -1 stutter (loss of one repeat) to 15%%, "
@@ -444,43 +431,39 @@ def add_arguments(parser):
              "stutter may still be recognised as two -1 stutters stacked "
              "together.  NOTE: It may be necessary to specify this option as "
              "'-s=%(default)s' (note the equals sign instead of a space).")
-    parser.add_argument('-c', '--column-name', metavar="COLNAME",
-        default=_DEF_COLNAME,
+    parser.add_argument("-c", "--column-name", metavar="COLNAME", default=_DEF_COLNAME,
         help="name of the newly added column (default: '%(default)s')")
     filtergroup = parser.add_argument_group("filtering options")
-    filtergroup.add_argument('-m', '--min-reads', metavar="N",
+    filtergroup.add_argument("-m", "--min-reads", metavar="N",
         type=pos_int_arg, default=_DEF_MIN_READS,
         help="set minimum number of reads to evaluate (default: %(default)s)")
-    filtergroup.add_argument('-n', '--min-repeats', metavar="N",
+    filtergroup.add_argument("-n", "--min-repeats", metavar="N",
         type=pos_int_arg, default=_DEF_MIN_REPEATS,
         help="set minimum number of repeats of a block that can possibly "
              "stutter (default: %(default)s)")
-    filtergroup.add_argument('-r', '--min-report', metavar="N", type=float,
+    filtergroup.add_argument("-r", "--min-report", metavar="N", type=float,
         default=_DEF_MIN_REPORT,
         help="a sequence is only annotated as a stutter of some other "
              "sequence if the expected number of stutter occurances of this "
              "other sequence is above this value (default: %(default)s)")
-    add_sequence_format_args(parser, "tssv", True)  # Force tssv seqs.
+    add_sequence_format_args(parser, default_format="tssv", force=True)
 #add_arguments
 
 
 def run(args):
-    gen = get_input_output_files(args, True, True)
+    gen = get_input_output_files(args, single_in=True, batch_support=True)
     if not gen:
-        raise ValueError("please specify an input file, or pipe in the output "
-                         "of another program")
+        raise ValueError("please specify an input file, or pipe in the output of another program")
 
     for tag, infiles, outfile in gen:
         # TODO: Aggregate data from all infiles of each sample.
         # This tool now only works properly with one infile per sample!
         if len(infiles) > 1:
-            raise ValueError(
-                "multiple input files for sample '%s' specified" % tag)
+            raise ValueError("multiple input files for sample '%s' specified" % tag)
         try:
-            infile = sys.stdin if infiles[0] == "-" else open(infiles[0], "r")
-            annotate_alleles(infile, outfile, args.stutter, args.min_reads,
-                             args.min_repeats, args.min_report,
-                             args.column_name, args.library, args.debug)
+            infile = sys.stdin if infiles[0] == "-" else open(infiles[0], "tr")
+            annotate_alleles(infile, outfile, args.stutter, args.min_reads, args.min_repeats,
+                             args.min_report, args.column_name, args.library, args.debug)
             if infile != sys.stdin:
                 infile.close()
         except IOError as e:

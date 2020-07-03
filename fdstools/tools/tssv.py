@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 
 #
-# Copyright (C) 2019 Jerry Hoogenboom
+# Copyright (C) 2020 Jerry Hoogenboom
 #
 # This file is part of FDSTools, data analysis tools for Next
 # Generation Sequencing of forensic DNA markers.
@@ -59,23 +59,22 @@ References:
 [1] https://github.com/Jerrythafast/FLASH-lowercase-overhang
 [2] https://github.com/jfjlaros/tssv
 """
-import sys
-import math
 import itertools as it
+import math
 import os
+import sys
 
-from multiprocessing.queues import SimpleQueue
-from multiprocessing import Process
-from threading import Thread, Lock
 from errno import EPIPE
+from multiprocessing import Process, SimpleQueue
+from threading import Thread, Lock
 
+from ..lib.cli import add_sequence_format_args, add_input_output_args, pos_int_arg,\
+                      get_input_output_files
+from ..lib.io import try_write_pipe
+from ..lib.seq import PAT_SEQ_RAW, reverse_complement, ensure_sequence_format
+from ..lib.sg_align import align
 
-from ..lib import pos_int_arg, add_input_output_args, get_input_output_files,\
-                  add_sequence_format_args, reverse_complement, PAT_SEQ_RAW,\
-                  ensure_sequence_format
-from ..sg_align import align
-
-__version__ = "2.0.0"
+__version__ = "2.1.0"
 
 
 # Default values for parameters are specified below.
@@ -108,8 +107,8 @@ class TSSV:
         # Convert library.
         self.tssv_library = {marker: (
             (flanks[0], reverse_complement(flanks[1])), (
-                int(math.ceil(len(flanks[0]) * threshold)),
-                int(math.ceil(len(flanks[1]) * threshold))))
+                math.ceil(len(flanks[0]) * threshold),
+                math.ceil(len(flanks[1]) * threshold)))
             for marker, flanks in library["flanks"].items()}
 
         # Open input file.
@@ -182,9 +181,9 @@ class TSSV:
                 if self.outfiles:
                     write_sequence_record(self.outfiles["markers"][marker]["paired"], record)
             elif self.outfiles:
-                if matches & 1:
+                if matches & 0b0001:
                     write_sequence_record(self.outfiles["markers"][marker]["noend"], record)
-                if matches & 2:
+                if matches & 0b0010:
                     write_sequence_record(self.outfiles["markers"][marker]["nostart"], record)
 
             # Search in the reverse strand.
@@ -197,9 +196,9 @@ class TSSV:
                 if self.outfiles:
                     write_sequence_record(self.outfiles["markers"][marker]["paired"], record)
             elif self.outfiles:
-                if matches & 4:
+                if matches & 0b0100:
                     write_sequence_record(self.outfiles["markers"][marker]["noend"], record)
-                if matches & 8:
+                if matches & 0b1000:
                     write_sequence_record(self.outfiles["markers"][marker]["nostart"], record)
 
         if not recognised:
@@ -217,7 +216,7 @@ class TSSV:
             # Start worker processes.  The work is divided into tasks that
             # require about 1 million alignments each.
             done_queue = SimpleQueue()
-            chunksize = int(1000000/(4*len(self.tssv_library))) or 1
+            chunksize = 1000000 // (4 * len(self.tssv_library)) or 1
             thread = Thread(target=feeder, args=(self.dedup_reads(), self.tssv_library,
                 self.indel_score, self.workers, chunksize, done_queue))
             thread.daemon = True
@@ -236,9 +235,9 @@ class TSSV:
         # Aggregate the sequences that we are about to filter out.
         if aggregate_filtered:
             aggregates = {}
-            for marker in self.sequences:
+            for marker, sequences in self.sequences.items():
                 expected_length = self.library.get("expected_length", {}).get(marker)
-                for sequence, (forward, reverse) in self.sequences[marker].items():
+                for sequence, (forward, reverse) in sequences.items():
                     if not seq_pass_filt(sequence, forward + reverse, minimum, expected_length):
                         if marker not in aggregates:
                             aggregates[marker] = [0, 0]
@@ -246,10 +245,10 @@ class TSSV:
                         aggregates[marker][1] += reverse
 
         # Filter out sequences with low read counts and invalid bases.
-        for marker, sequences in self.sequences.items():
+        for marker in tuple(self.sequences):
             expected_length = self.library.get("expected_length", {}).get(marker)
             self.sequences[marker] = {sequence: counts
-                for sequence, counts in sequences.items()
+                for sequence, counts in self.sequences[marker].items()
                 if seq_pass_filt(sequence, sum(counts), minimum, expected_length)}
 
         # Add aggregate rows if the user requested so.
@@ -280,7 +279,8 @@ class TSSV:
             for total, seq in sorted(((sum(sequences[s]), s) for s in sequences), reverse=True):
                 line = "\t".join(map(str, [
                     marker,
-                    ensure_sequence_format(seq, seqformat, "raw", self.library, marker),
+                    ensure_sequence_format(seq, seqformat, from_format="raw", library=self.library,
+                        marker=marker),
                     total] + sequences[seq])) + "\n"
                 outfile.write(line)
                 if self.outfiles:
@@ -294,7 +294,7 @@ class TSSV:
                             "tLeft", "fLeft", "rLeft", "tRight", "fRight", "rRight")) + "\n"
         if self.outfiles:
             self.outfiles["statistics"].write(header)
-        outfile.write(header)
+        try_write_pipe(outfile, header)
         for marker in sorted(self.counters):
             line = "\t".join(map(str, (
                 marker,
@@ -310,33 +310,32 @@ class TSSV:
                 self.counters[marker]["rRight"]))) + "\n"
             if self.outfiles:
                 self.outfiles["statistics"].write(line)
-            outfile.write(line)
+            try_write_pipe(outfile, line)
 
         line = "\ntotal reads\t%i\nunrecognised reads\t%i\n" % (self.total_reads,self.unrecognised)
         if self.outfiles:
             self.outfiles["statistics"].write(line)
-        outfile.write(line)
+        try_write_pipe(outfile, line)
     #write_statistics_table
 #TSSV
 
 
 def prepare_output_dir(dir, markers, file_format):
     # Create output directories.
-    os.makedirs(dir)
     for marker in markers:
-        os.mkdir(os.path.join(dir, marker))
+        os.makedirs(os.path.join(dir, marker), exist_ok=True)
 
     # Open output files.
     return {
-        "sequences": open(os.path.join(dir, "sequences.csv"), "w"),
-        "statistics": open(os.path.join(dir, "statistics.csv"), "w"),
-        "unknown": open(os.path.join(dir, "unknown.f" + file_format[-1]), "w"),
+        "sequences": open(os.path.join(dir, "sequences.csv"), "tw"),
+        "statistics": open(os.path.join(dir, "statistics.csv"), "tw"),
+        "unknown": open(os.path.join(dir, "unknown.f" + file_format[-1]), "tw"),
         "markers": {
             marker: {
-                "sequences": open(os.path.join(dir, marker, "sequences.csv"), "w"),
-                "paired": open(os.path.join(dir, marker, "paired.f" + file_format[-1]), "w"),
-                "noend": open(os.path.join(dir, marker, "noend.f" + file_format[-1]), "w"),
-                "nostart": open(os.path.join(dir, marker, "nostart.f" + file_format[-1]), "w"),
+                "sequences": open(os.path.join(dir, marker, "sequences.csv"), "tw"),
+                "paired": open(os.path.join(dir, marker, "paired.f" + file_format[-1]), "tw"),
+                "noend": open(os.path.join(dir, marker, "noend.f" + file_format[-1]), "tw"),
+                "nostart": open(os.path.join(dir, marker, "nostart.f" + file_format[-1]), "tw"),
             } for marker in markers
         }
     }
@@ -353,7 +352,7 @@ def align_pair(reference, reference_rc, pair, indel_score=1):
 def process_sequence(tssv_library, indel_score, seq):
     """Find markers in sequence."""
     seqs = (seq, reverse_complement(seq))
-    seqs_up = map(str.upper, seqs)
+    seqs_up = (seqs[0].upper(), seqs[1].upper())
     results = []
     for marker, (pair, thresholds) in tssv_library.items():
         algn = (
@@ -362,33 +361,31 @@ def process_sequence(tssv_library, indel_score, seq):
         matches = 0
         if algn[0][0][0] <= thresholds[0]:
             # Left marker was found in forward sequence
-            cutout = seqs[0][max(0, algn[0][0][1]-len(pair[0])):algn[0][0][1]]
+            cutout = seqs[0][max(0, algn[0][0][1] - len(pair[0])) : algn[0][0][1]]
             if cutout.lower() != cutout:
-                matches += 1
+                matches += 0b0001
         if algn[0][1][0] <= thresholds[1]:
             # Right marker was found in forward sequence.
-            cutout = seqs[0][algn[0][1][1] : algn[0][1][1]+len(pair[1])]
+            cutout = seqs[0][algn[0][1][1] : algn[0][1][1] + len(pair[1])]
             if cutout.lower() != cutout:
-                matches += 2
+                matches += 0b0010
         if algn[1][0][0] <= thresholds[0]:
             # Left marker was found in reverse sequence
-            cutout = seqs[1][max(0, algn[1][0][1]-len(pair[0])):algn[1][0][1]]
+            cutout = seqs[1][max(0, algn[1][0][1] - len(pair[0])) : algn[1][0][1]]
             if cutout.lower() != cutout:
-                matches += 4
+                matches += 0b0100
         if algn[1][1][0] <= thresholds[1]:
             # Right marker was found in reverse sequence.
-            cutout = seqs[1][algn[1][1][1] : algn[1][1][1]+len(pair[1])]
+            cutout = seqs[1][algn[1][1][1] : algn[1][1][1] + len(pair[1])]
             if cutout.lower() != cutout:
-                matches += 8
+                matches += 0b1000
         results.append((marker, matches,
             # Matched pair in forward sequence.
-            seqs[0][algn[0][0][1] : algn[0][1][1]] if
-                (matches & 3) == 3 and algn[0][0][1] < algn[0][1][1]
-                else None,
+            seqs[0][algn[0][0][1] : algn[0][1][1]]
+                if (matches & 0b0011) == 0b0011 and algn[0][0][1] < algn[0][1][1] else None,
             # Matched pair in reverse sequence.
-            seqs[1][algn[1][0][1] : algn[1][1][1]] if
-                (matches & 12) == 12 and algn[1][0][1] < algn[1][1][1]
-                else None))
+            seqs[1][algn[1][0][1] : algn[1][1][1]]
+                if (matches & 0b1100) == 0b1100 and algn[1][0][1] < algn[1][1][1] else None))
     return results
 #process_sequence
 
@@ -405,7 +402,8 @@ def worker(tssv_library, indel_score, task_queue, done_queue):
     Read sequences from task_queue, write findings to done_queue.
     """
     for task in iter(task_queue.get, None):
-        done_queue.put(tuple((seq, process_sequence(tssv_library, indel_score, seq)) for seq in task))
+        done_queue.put(
+            tuple((seq, process_sequence(tssv_library, indel_score, seq)) for seq in task))
 #worker
 
 
@@ -417,12 +415,11 @@ def feeder(input, tssv_library, indel_score, workers, chunksize, done_queue):
     task_queue = SimpleQueue()
     processes = []
     for i in range(workers):
-        process = Process(target=worker,
-            args=(tssv_library, indel_score, task_queue, done_queue))
+        process = Process(target=worker, args=(tssv_library, indel_score, task_queue, done_queue))
         process.daemon = True
         process.start()
         processes.append(process)
-    while 1:
+    while True:
         # Sending chunks of reads to the workers.
         task = tuple(it.islice(input, chunksize))
         if not task:
@@ -488,9 +485,9 @@ def init_sequence_file_read(infile):
 #init_sequence_file_read
 
 
-def run_tssv_lite(infile, outfile, reportfile, library, seqformat,
-                  threshold, minimum, aggregate_filtered,
-                  missing_marker_action, dirname, indel_score, workers, no_deduplicate):
+def run_tssv_lite(infile, outfile, reportfile, library, seqformat, threshold, minimum,
+                  aggregate_filtered, missing_marker_action, dirname, indel_score, workers,
+                  no_deduplicate):
     tssv = TSSV(library, threshold, indel_score, dirname, workers, not no_deduplicate, infile)
     tssv.process_file()
     tssv.filter_sequences(aggregate_filtered, minimum, missing_marker_action)
@@ -499,14 +496,19 @@ def run_tssv_lite(infile, outfile, reportfile, library, seqformat,
         tssv.write_sequence_tables(outfile, seqformat)
         tssv.write_statistics_table(reportfile)
     except IOError as e:
-        if e.errno != EPIPE:
-            raise
+        if e.errno == EPIPE:
+            try:
+                try_write_pipe(reportfile, "Stopped early because the output was closed.\n")
+            except:
+                pass
+            return
+        raise
 #run_tssv_lite
 
 
 def add_arguments(parser):
-    add_sequence_format_args(parser, "raw", False, True)
-    add_input_output_args(parser, True, False, True)
+    add_sequence_format_args(parser, default_format="raw", force=False, require_library=True)
+    add_input_output_args(parser, single_in=True, batch_support=False, report_out=True)
     parser.add_argument("-D", "--dir",
         help="output directory for verbose output; when given, a subdirectory "
              "will be created for each marker, each with a separate "
@@ -514,45 +516,39 @@ def add_arguments(parser):
              "unrecognised reads (unknown.fa), recognised reads "
              "(Marker/paired.fa), and reads that lack one of the flanks of a "
              "marker (Marker/noend.fa and Marker/nostart.fa)")
-    parser.add_argument("-T", "--num-threads", metavar="THREADS",
-        type=pos_int_arg, default=1,
+    parser.add_argument("-T", "--num-threads", metavar="THREADS", type=pos_int_arg, default=1,
         help="number of worker threads to use (default: %(default)s)")
     parser.add_argument("-X", "--no-deduplicate", action="store_true",
         help="disable deduplication of reads; by setting this option, memory usage will be "
              "reduced in expense of longer running time")
     filtergroup = parser.add_argument_group("filtering options")
-    filtergroup.add_argument("-m", "--mismatches", type=float,
-        default=_DEF_MISMATCHES,
+    filtergroup.add_argument("-m", "--mismatches", type=float, default=_DEF_MISMATCHES,
         help="number of mismatches per nucleotide to allow in flanking "
              "sequences (default: %(default)s)")
     filtergroup.add_argument("-n", "--indel-score", metavar="N",
         type=pos_int_arg, default=_DEF_INDEL_SCORE,
-        help="insertions and deletions in the flanking sequences are "
-             "penalised this number of times more heavily than mismatches "
-             "(default: %(default)s)")
+        help="insertions and deletions in the flanking sequences are penalised this number of "
+             "times more heavily than mismatches (default: %(default)s)")
     filtergroup.add_argument("-a", "--minimum", metavar="N", type=pos_int_arg,
         default=_DEF_MINIMUM,
-        help="report only sequences with this minimum number of reads "
-             "(default: %(default)s)")
+        help="report only sequences with this minimum number of reads (default: %(default)s)")
     filtergroup.add_argument("-A", "--aggregate-filtered", action="store_true",
         help="if specified, sequences that have been filtered (as per the "
              "-a/--minimum option, the expected_allele_length section in the "
              "library file, as well as all sequences with ambiguous bases) "
              "will be aggregated per marker and reported as 'Other sequences'")
     filtergroup.add_argument("-M", "--missing-marker-action", metavar="ACTION",
-        choices=("include", "exclude", "halt"),
-        default="include",
+        choices=("include", "exclude", "halt"), default="include",
         help="action to take when no sequences are linked to a marker: one of "
              "%(choices)s (default: %(default)s)")
 #add_arguments
 
 
 def run(args):
-    files = get_input_output_files(args, True, False)
+    files = get_input_output_files(args, single_in=True, batch_support=False)
     if not files:
-        raise ValueError("please specify an input file, or pipe in the output "
-                         "of another program")
-    infile = sys.stdin if files[0] == "-" else open(files[0], "r")
+        raise ValueError("please specify an input file, or pipe in the output of another program")
+    infile = sys.stdin if files[0] == "-" else open(files[0], "tr")
     run_tssv_lite(infile, files[1], args.report, args.library,
                   args.sequence_format, args.mismatches, args.minimum,
                   args.aggregate_filtered, args.missing_marker_action,

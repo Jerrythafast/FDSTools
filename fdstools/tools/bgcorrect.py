@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 
 #
-# Copyright (C) 2017 Jerry Hoogenboom
+# Copyright (C) 2020 Jerry Hoogenboom
 #
 # This file is part of FDSTools, data analysis tools for Next
 # Generation Sequencing of forensic DNA markers.
@@ -45,15 +45,19 @@ profile was based on direct observations.
 Finally, the weight column gives the number of times that the noise
 profile of that allele fitted in the sample.
 """
-import argparse, sys
+import argparse
+import sys
 #import numpy as np  # Only imported when actually running this tool.
 
 from errno import EPIPE
-from ..lib import load_profiles, ensure_sequence_format, get_column_ids, \
-                  nnls, add_sequence_format_args, SEQ_SPECIAL_VALUES, \
-                  add_input_output_args, get_input_output_files
 
-__version__ = "1.0.2"
+from ..lib.cli import add_sequence_format_args, add_input_output_args, get_input_output_files
+from ..lib.io import get_column_ids
+from ..lib.noise import load_profiles
+from ..lib.seq import SEQ_SPECIAL_VALUES, ensure_sequence_format
+from ..lib.util import nnls
+
+__version__ = "1.1.0"
 
 
 def get_sample_data(infile, convert_to_raw=False, library=None):
@@ -75,7 +79,7 @@ def get_sample_data(infile, convert_to_raw=False, library=None):
     column_names.append("total_corrected")
     column_names.append("correction_flags")
     column_names.append("weight")
-    colid_marker, colid_sequence, colid_forward, colid_reverse =get_column_ids(
+    colid_marker, colid_sequence, colid_forward, colid_reverse = get_column_ids(
         column_names, "marker", "sequence", "forward", "reverse")
     data = {}
     for line in infile:
@@ -96,7 +100,7 @@ def get_sample_data(infile, convert_to_raw=False, library=None):
         cols.append(cols[colid_reverse])
         cols.append(cols[colid_forward] + cols[colid_reverse])
         cols.append("not_corrected")
-        cols.append((cols[colid_forward] + cols[colid_reverse]) / 100.)
+        cols.append((cols[colid_forward] + cols[colid_reverse]) / 100)
         if marker not in data:
             data[marker] = []
         data[marker].append(cols)
@@ -104,16 +108,13 @@ def get_sample_data(infile, convert_to_raw=False, library=None):
 #get_sample_data
 
 
-def match_profile(column_names, data, profile, convert_to_raw, library,
-                  marker):
-    (colid_marker, colid_sequence, colid_forward, colid_reverse, colid_total,
-     colid_forward_noise, colid_reverse_noise, colid_total_noise,
-     colid_forward_add, colid_reverse_add, colid_total_add,
-     colid_forward_corrected, colid_reverse_corrected,
-     colid_total_corrected, colid_correction_flags, colid_weight) = \
-        get_column_ids(column_names, "marker", "sequence", "forward",
-        "reverse", "total", "forward_noise", "reverse_noise", "total_noise",
-        "forward_add", "reverse_add", "total_add", "forward_corrected",
+def match_profile(column_names, data, profile, convert_to_raw, library, marker):
+    (colid_marker, colid_sequence, colid_forward, colid_reverse, colid_total, colid_forward_noise,
+     colid_reverse_noise, colid_total_noise, colid_forward_add, colid_reverse_add, colid_total_add,
+     colid_forward_corrected, colid_reverse_corrected, colid_total_corrected,
+     colid_correction_flags, colid_weight) =  get_column_ids(column_names,
+        "marker", "sequence", "forward", "reverse", "total", "forward_noise", "reverse_noise",
+        "total_noise", "forward_add", "reverse_add", "total_add", "forward_corrected",
         "reverse_corrected", "total_corrected", "correction_flags", "weight")
 
     # Enter profiles into P.
@@ -129,7 +130,7 @@ def match_profile(column_names, data, profile, convert_to_raw, library,
             continue
         if convert_to_raw:
             sequence = ensure_sequence_format(line[colid_sequence], "raw",
-                                            library=library, marker=marker)
+                                              library=library, marker=marker)
         else:
             sequence = line[colid_sequence]
         seqs.append(sequence)
@@ -168,7 +169,7 @@ def match_profile(column_names, data, profile, convert_to_raw, library,
             continue
         j += 1
         try:
-            i = profile["seqs"].index(seqs[j-1])
+            i = profile["seqs"].index(seqs[j - 1])
         except ValueError:
             line[colid_correction_flags] = "not_in_ref_db"
             continue
@@ -196,7 +197,7 @@ def match_profile(column_names, data, profile, convert_to_raw, library,
             line[colid_weight] = A[0, i]
         else:
             line[colid_correction_flags] = "corrected_as_background_only"
-            line[colid_weight] = line[colid_total_corrected] / 100.
+            line[colid_weight] = line[colid_total_corrected] / 100
 
     # Add sequences that are in the profile but not in the sample.
     for i in range(profile["m"]):
@@ -239,14 +240,13 @@ def match_profile(column_names, data, profile, convert_to_raw, library,
                 line[colid_reverse_add] = 0
                 line[colid_total_add] = 0
                 line[colid_correction_flags] = "corrected_as_background_only"
-                line[colid_weight] = line[colid_total_corrected] / 100.
+                line[colid_weight] = line[colid_total_corrected] / 100
             data.append(line)
 #match_profile
 
 
 def match_profiles(infile, outfile, profiles, library, seqformat):
-    column_names, data = get_sample_data(
-        infile, convert_to_raw=seqformat=="raw", library=library)
+    column_names, data = get_sample_data(infile, convert_to_raw=seqformat=="raw", library=library)
     if column_names is None:
         return  # Empty file.
     colid_sequence = get_column_ids(column_names, "sequence")
@@ -255,24 +255,21 @@ def match_profiles(infile, outfile, profiles, library, seqformat):
     for marker in data:
         if marker in profiles:
             match_profile(column_names, data[marker], profiles[marker],
-                          seqformat!="raw", library, marker)
+                          seqformat != "raw", library, marker)
         for line in data[marker]:
             if seqformat is not None and seqformat != "raw":
                 line[colid_sequence] = ensure_sequence_format(
-                    line[colid_sequence], seqformat, library=library,
-                    marker=marker)
+                    line[colid_sequence], seqformat, library=library, marker=marker)
             outfile.write("\t".join(map(str, line)) + "\n")
 #match_profiles
 
 
 def add_arguments(parser):
-    parser.add_argument('profiles', metavar="PROFILES",
-        type=argparse.FileType('r'),
+    parser.add_argument("profiles", metavar="PROFILES", type=argparse.FileType("tr"),
         help="file containing background noise profiles to match")
-    add_input_output_args(parser, True, True, False)
+    add_input_output_args(parser, single_in=True, batch_support=True, report_out=False)
     filtergroup = parser.add_argument_group("filtering options")
-    filtergroup.add_argument('-M', '--marker', metavar="MARKER",
-        help="work only on MARKER")
+    filtergroup.add_argument("-M", "--marker", metavar="MARKER", help="work only on MARKER")
     add_sequence_format_args(parser)
 #add_arguments
 
@@ -282,26 +279,22 @@ def run(args):
     global np
     import numpy as np
 
-    gen = get_input_output_files(args, True, True)
+    gen = get_input_output_files(args, single_in=True, batch_support=True)
     if not gen:
-        raise ValueError("please specify an input file, or pipe in the output "
-                         "of another program")
+        raise ValueError("please specify an input file, or pipe in the output of another program")
 
     # Read profiles once.
     profiles = load_profiles(args.profiles, args.library)
     if args.marker:
-        profiles = {args.marker: profiles[args.marker]} \
-                   if args.marker in profiles else {}
+        profiles = {args.marker: profiles[args.marker]} if args.marker in profiles else {}
 
     for tag, infiles, outfile in gen:
         # TODO: Aggregate data from all infiles of each sample.
         if len(infiles) > 1:
-            raise ValueError(
-                "multiple input files for sample '%s' specified " % tag)
+            raise ValueError("multiple input files for sample '%s' specified " % tag)
         try:
-            infile = sys.stdin if infiles[0] == "-" else open(infiles[0], "r")
-            match_profiles(infile, outfile, profiles, args.library,
-                           args.sequence_format)
+            infile = sys.stdin if infiles[0] == "-" else open(infiles[0], "tr")
+            match_profiles(infile, outfile, profiles, args.library, args.sequence_format)
             if infile != sys.stdin:
                 infile.close()
         except IOError as e:

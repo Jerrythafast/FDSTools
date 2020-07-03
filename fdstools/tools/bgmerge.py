@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 
 #
-# Copyright (C) 2017 Jerry Hoogenboom
+# Copyright (C) 2020 Jerry Hoogenboom
 #
 # This file is part of FDSTools, data analysis tools for Next
 # Generation Sequencing of forensic DNA markers.
@@ -41,21 +41,22 @@ import argparse
 import sys
 
 from errno import EPIPE
-from ..lib import load_profiles_new, ensure_sequence_format, glob_path,\
-                  add_sequence_format_args
 
-__version__ = "1.0.3"
+from ..lib.cli import add_sequence_format_args, glob_path
+from ..lib.noise import load_profiles_new
+from ..lib.seq import ensure_sequence_format
+
+__version__ = "1.1.0"
 
 
-def merge_profiles(infiles, outfile, seqformat, library):
-    outfile.write("\t".join(
-        ["marker", "allele", "sequence", "fmean", "rmean", "tool"]) + "\n")
+def merge_profiles(infiles, outfile, library):
+    outfile.write("\t".join(("marker", "allele", "sequence", "fmean", "rmean", "tool")) + "\n")
     seen = {}
     for infile in infiles:
         if infile == "-":
             profiles = load_profiles_new(sys.stdin, library)
         else:
-            with open(infile, "r") as handle:
+            with open(infile, "tr") as handle:
                 profiles = load_profiles_new(handle, library)
         for marker in profiles:
             for allele in profiles[marker]:
@@ -67,27 +68,26 @@ def merge_profiles(infiles, outfile, seqformat, library):
                     elif sequence in seen[marker][allele]:
                         continue
                     outfile.write("\t".join([marker] + [
-                        ensure_sequence_format(seq, seqformat, library=library,
-                            marker=marker) for seq in (allele, sequence)] +
-                        map(str, (
+                            ensure_sequence_format(seq, "raw", library=library, marker=marker)
+                            for seq in (allele, sequence)] +
+                        list(map(str, (
                             profiles[marker][allele][sequence]["forward"],
-                            profiles[marker][allele][sequence]["reverse"])) +
+                            profiles[marker][allele][sequence]["reverse"]))) +
                         [profiles[marker][allele][sequence]["tool"]]) + "\n")
                     seen[marker][allele].add(sequence)
 #merge_profiles
 
 
 def add_arguments(parser):
-    parser.add_argument('infiles', nargs='+', metavar="FILE",
+    parser.add_argument("infiles", nargs="+", metavar="FILE",
         help="files containing the background noise profiles to combine; "
              "if a single file is given, it is merged with input from stdin; "
              "use '-' to use stdin as an explicit input source")
     outgroup = parser.add_argument_group("output file options")
-    outgroup.add_argument('-o', '--output', dest="outfile", metavar="FILE",
-        type=argparse.FileType('w'),
-        default=sys.stdout,
+    outgroup.add_argument("-o", "--output", dest="outfile", metavar="FILE",
+        type=argparse.FileType("tw"), default=sys.stdout,
         help="file to write output to (default: write to stdout)")
-    add_sequence_format_args(parser, "raw", True)  # Force raw seqs.
+    add_sequence_format_args(parser, default_format="raw", force=True)
 #add_arguments
 
 
@@ -99,7 +99,7 @@ def run(args):
         infiles.append("-")
 
     try:
-        merge_profiles(infiles, args.outfile,args.sequence_format,args.library)
+        merge_profiles(infiles, args.outfile, args.library)
     except IOError as e:
         if e.errno == EPIPE:
             return

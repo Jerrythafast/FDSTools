@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 
 #
-# Copyright (C) 2019 Jerry Hoogenboom
+# Copyright (C) 2020 Jerry Hoogenboom
 #
 # This file is part of FDSTools, data analysis tools for Next
 # Generation Sequencing of forensic DNA markers.
@@ -57,7 +57,7 @@ from ..lib import split_quoted_string, DEF_TAG_EXPR, DEF_TAG_FORMAT, get_tag, \
 from ConfigParser import RawConfigParser, NoSectionError, NoOptionError
 
 
-__version__ = "1.0.4"
+__version__ = "1.1.0"
 
 
 # Pattern that matches a long argparse argument name.
@@ -164,7 +164,7 @@ class ArgumentCollector:
 
         # Replace special default values.
         if "default" in kwargs:
-            if kwargs["default"] is None or kwargs["default"] is "":
+            if kwargs["default"] is None or kwargs["default"] == "":
                 del kwargs["default"]
             elif kwargs["default"] in (sys.stdin, sys.stdout):
                 kwargs["default"] = "-"
@@ -253,7 +253,7 @@ def get_argv(toolname, arg_defs, config):
         if "default" in arg[1] and arg[1]["default"] == value:
             if "optname" in arg[1]:
                 continue
-            if "default" in arg[1] and arg[1]["default"] is "<MAX>":
+            if "default" in arg[1] and arg[1]["default"] == "<MAX>":
                 value = str(sys.maxint)
         if "nargs" in arg[1] and arg[1]["nargs"] not in (1, "?"):
             value = split_quoted_string(value)
@@ -640,7 +640,7 @@ def run_case_sample_analysis(arg_defs, config):
             if config.get("bgcorrect", "profiles") == "-":
                 # Set up FIFO if BGCorrect gets two pipes in!
                 tmpfile[0] = tempfile.mkdtemp()
-                tmpfile[1] = os.path.join(tmpfile[0], 'fifo.tmp')
+                tmpfile[1] = os.path.join(tmpfile[0], "fifo.tmp")
                 try:
                     os.mkfifo(tmpfile[1])
                     tmpfile[2] = True  # Is a FIFO.
@@ -845,12 +845,12 @@ def add_arguments(parser):
         "these options are used to extract sample tags (names) from their "
         "file names; for details about REGEX syntax and capturing groups, "
         "check https://docs.python.org/howto/regex")
-    group.add_argument('-e', '--tag-expr', metavar="REGEX",
+    group.add_argument("-e", "--tag-expr", metavar="REGEX",
         help="regular expression that captures (using one or more "
              "capturing groups) the sample tags from the file names; by "
              "default, the entire file name except for its extension (if "
              "any) is captured")
-    group.add_argument('-f', '--tag-format', metavar="EXPR",
+    group.add_argument("-f", "--tag-format", metavar="EXPR",
         help="format of the sample tags produced; a capturing group "
              "reference like '\\n' refers to the n-th capturing group in "
              "the regular expression specified with -e/--tag-expr (the "
@@ -879,7 +879,7 @@ def add_arguments(parser):
     group.add_argument("-S", "--in-samples", metavar="SAMPLE", nargs="+",
         help="[ref-database] file names of reference sample data files "
              "('.csv' output files of the 'reference-sample' analysis)")
-    group.add_argument('-A', '--in-allelelist', metavar="ALLELEFILE",
+    group.add_argument("-A", "--in-allelelist", metavar="ALLELEFILE",
         help="[ref-database] file containing a list of the true alleles of "
              "each sample; if not given, Allelefinder will be run as part of "
              "the pipeline to create this file; it is ESSENTIAL that you "
@@ -894,7 +894,7 @@ def run(args):
     # Import threading and subprocess modules.
     global threading, subprocess
     import threading
-    if os.name == 'posix' and sys.version_info[0] < 3:
+    if os.name == "posix" and sys.version_info[0] < 3:
         try:
             import subprocess32 as subprocess
         except ImportError:

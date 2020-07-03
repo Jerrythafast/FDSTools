@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 
 #
-# Copyright (C) 2017 Jerry Hoogenboom
+# Copyright (C) 2020 Jerry Hoogenboom
 #
 # This file is part of FDSTools, data analysis tools for Next
 # Generation Sequencing of forensic DNA markers.
@@ -44,11 +44,12 @@ cleanest x% of samples, for different values of x.
 import math
 
 from errno import EPIPE
-from ..lib import pos_int_arg, add_input_output_args, get_input_output_files,\
-                  add_allele_detection_args, parse_allelelist,\
-                  get_sample_data, add_sequence_format_args
 
-__version__ = "1.0.1"
+from ..lib.cli import add_sequence_format_args, add_input_output_args, get_input_output_files, \
+                      add_allele_detection_args, pos_int_arg, comma_separated_arg
+from ..lib.io import get_sample_data, parse_allelelist
+
+__version__ = "1.1.0"
 
 
 # Default values for parameters are specified below.
@@ -63,7 +64,7 @@ def get_total_recovery(values):
         return float(values["total_recovery"])
     elif ("total_add" in values and "total_corrected" in values and
             float(values["total_corrected"])):
-        return 100.*float(values["total_add"])/float(values["total_corrected"])
+        return 100 * float(values["total_add"]) / float(values["total_corrected"])
     return 0
 #get_total_recovery
 
@@ -76,12 +77,10 @@ def process_sample(sample_data, sample_alleles, tag, library):
         for allele in sample_alleles[marker]:
             if (marker, allele) not in sample_data:
                 raise ValueError(
-                    "Missing allele %s of marker %s in sample %s!" %
-                            (allele, marker, tag))
+                    "Missing allele %s of marker %s in sample %s!" % (allele, marker, tag))
             elif 0 in sample_data[marker, allele]:
-                raise ValueError(
-                    "Allele %s of marker %s has 0 reads!" % (allele, marker))
-            allele_reads[marker] += sum(sample_data[marker, allele][0:2])
+                raise ValueError("Allele %s of marker %s has 0 reads!" % (allele, marker))
+            allele_reads[marker] += sum(sample_data[marker, allele][0 : 2])
 
     # Find the highest, the lowest, and the total noise for each marker,
     # and the highest total recovery.
@@ -89,7 +88,7 @@ def process_sample(sample_data, sample_alleles, tag, library):
     marker_reads = {}
     total_reads = 0
     for marker, sequence in sample_data:
-        reads = sum(sample_data[marker, sequence][0:2])
+        reads = sum(sample_data[marker, sequence][0 : 2])
         total_reads += reads
         if marker not in sample_alleles or not sample_alleles[marker]:
             # Sample does not participate in this marker.
@@ -125,12 +124,12 @@ def process_sample(sample_data, sample_alleles, tag, library):
 
 
 def write_full_table(outfile, data):
-    outfile.write("\t".join([
+    outfile.write("\t".join((
         "sample", "marker", "genotype", "allelic_reads",
         "highest_remaining_bg_reads", "lowest_remaining_bg_reads",
         "total_remaining_bg_reads", "highest_as_pct_of_allelic",
         "lowest_as_pct_of_allelic", "total_as_pct_of_allelic",
-        "highest_recovery", "total_reads_marker", "total_reads_sample"]) + "\n")
+        "highest_recovery", "total_reads_marker", "total_reads_sample")) + "\n")
     for tag in data:
         for marker in data[tag]:
             d = data[tag][marker]
@@ -143,9 +142,9 @@ def write_full_table(outfile, data):
                     d["noise"][0],
                     d["noise"][1],
                     d["noise"][2],
-                    100.*d["noise"][0]/d["allele_reads"],
-                    100.*d["noise"][1]/d["allele_reads"],
-                    100.*d["noise"][2]/d["allele_reads"],
+                    100 * d["noise"][0] / d["allele_reads"],
+                    100 * d["noise"][1] / d["allele_reads"],
+                    100 * d["noise"][2] / d["allele_reads"],
                     d["noise"][3],
                     d["marker_reads"],
                     d["total_reads"])]) + "\n")
@@ -159,38 +158,37 @@ def write_percentiles_table(outfile, data, percentiles):
             d = data[tag][marker]
             if marker not in per_marker:
                 per_marker[marker] = ([], [], [], [])
-            per_marker[marker][0].append(100.*d["noise"][0]/d["allele_reads"])
-            per_marker[marker][1].append(100.*d["noise"][1]/d["allele_reads"])
-            per_marker[marker][2].append(100.*d["noise"][2]/d["allele_reads"])
+            per_marker[marker][0].append(100 * d["noise"][0] / d["allele_reads"])
+            per_marker[marker][1].append(100 * d["noise"][1] / d["allele_reads"])
+            per_marker[marker][2].append(100 * d["noise"][2] / d["allele_reads"])
             per_marker[marker][3].append(d["noise"][3])
 
-    outfile.write("\t".join([
+    outfile.write("\t".join((
         "marker", "percentile", "highest_as_pct_of_allelic",
         "lowest_as_pct_of_allelic", "total_as_pct_of_allelic",
-        "highest_recovery"]) + "\n")
+        "highest_recovery")) + "\n")
     for marker in per_marker:
-        per_marker[marker] = map(sorted, per_marker[marker])
+        per_marker[marker] = tuple(map(sorted, per_marker[marker]))
         n = len(per_marker[marker][0])
         for percentile in percentiles:
-            i = int(math.ceil(percentile * 0.01 * n)) - 1
+            i = math.ceil(percentile * 0.01 * n) - 1
             outfile.write("\t".join([
-                marker, "%i" % percentile] + [
+                marker, "%g" % percentile] + [
                 "%.5g" % x if abs(x) >= 10000 else
                 "%.4g" % x if abs(x) >= 1000 else
                 "%.3g" % x if abs(x) > 0.0000000001 else "0" for x in (
                     per_marker[marker][0][i],
-                    per_marker[marker][1][n-i-1],
+                    per_marker[marker][1][n - i - 1],
                     per_marker[marker][2][i],
                     per_marker[marker][3][i])]) + "\n")
 #write_percentiles_table
 
 
-def analyse_background(samples_in, outfile, allelefile, annotation_column,
-                       seqformat, library, mode, percentiles):
+def analyse_background(samples_in, outfile, allelefile, annotation_column, seqformat, library,
+                       mode, percentiles):
 
     # Parse allele list.
-    allelelist = {} if allelefile is None \
-                    else parse_allelelist(allelefile, seqformat, library)
+    allelelist = {} if allelefile is None else parse_allelelist(allelefile, seqformat, library)
 
     # TODO: Should we consider forward and reverse reads separately?
     data = {}
@@ -214,7 +212,7 @@ def analyse_background(samples_in, outfile, allelefile, annotation_column,
 
 
 def add_arguments(parser):
-    parser.add_argument('-m', '--mode', metavar="MODE", default="full",
+    parser.add_argument("-m", "--mode", metavar="MODE", default="full",
         choices=("full", "percentiles"),
         help="controls what kind of information is printed; 'full' (the "
              "default) prints the lowest, highest, and total number of "
@@ -223,26 +221,23 @@ def add_arguments(parser):
              "sample; 'percentiles' prints the highest and the total number "
              "of background reads as a percentage of the number of allelic "
              "reads for each marker at given percentiles")
-    parser.add_argument('-p', '--percentiles', metavar="PCT",
-        default=_DEF_PERCENTILES,
+    parser.add_argument("-p", "--percentiles", metavar="PCT", default=_DEF_PERCENTILES,
+        type=comma_separated_arg(tuple, float),
         help="comma-separated list of percentiles to report when -m/--mode is "
              "set to 'percentiles' (default: %(default)s)")
     add_input_output_args(parser)
     add_allele_detection_args(parser)
-    add_sequence_format_args(parser, "raw")
+    add_sequence_format_args(parser, default_format="raw")
 #add_arguments
 
 
 def run(args):
     files = get_input_output_files(args)
     if not files:
-        raise ValueError("please specify an input file, or pipe in the output "
-                         "of another program")
+        raise ValueError("please specify an input file, or pipe in the output of another program")
     try:
-        analyse_background(files[0], files[1], args.allelelist,
-                           args.annotation_column, args.sequence_format,
-                           args.library, args.mode,
-                           map(float, args.percentiles.split(",")))
+        analyse_background(files[0], files[1], args.allelelist, args.annotation_column,
+                           args.sequence_format, args.library, args.mode, args.percentiles)
     except IOError as e:
         if e.errno == EPIPE:
             return

@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 
 #
-# Copyright (C) 2019 Jerry Hoogenboom
+# Copyright (C) 2020 Jerry Hoogenboom
 #
 # This file is part of FDSTools, data analysis tools for Next
 # Generation Sequencing of forensic DNA markers.
@@ -58,10 +58,12 @@ X_corrected.
 import sys
 
 from errno import EPIPE
-from ..lib import add_sequence_format_args, add_input_output_args, \
-                  get_input_output_files, get_column_ids, SEQ_SPECIAL_VALUES
 
-__version__ = "1.2.0"
+from ..lib.cli import add_sequence_format_args, add_input_output_args, get_input_output_files
+from ..lib.io import get_column_ids
+from ..lib.seq import SEQ_SPECIAL_VALUES
+
+__version__ = "1.3.0"
 
 
 # Default values for parameters are specified below.
@@ -120,7 +122,7 @@ _DEF_MIN_CORRECTION_FILT = 0
 # This value can be overridden by the -R command line option.
 _DEF_MIN_RECOVERY_FILT = 0
 
-COLUMN_ORDER = [
+COLUMN_ORDER = (
     "total_corrected",
     "total_corrected_mp_sum",
     "total_corrected_mp_max",
@@ -177,7 +179,7 @@ COLUMN_ORDER = [
     "reverse_add_mp_sum",
     "reverse_add_mp_max",
     "reverse_added_pct"
-]
+)
 
 
 def max_in_sequence(data, colid_max, colid_sequence, value_if_empty=0.):
@@ -192,17 +194,15 @@ def max_in_sequence(data, colid_max, colid_sequence, value_if_empty=0.):
 #max_in_sequence
 
 
-def compute_stats(infile, outfile, min_reads,
-                  min_per_strand, min_pct_of_max, min_pct_of_sum,
-                  min_correction, min_recovery, filter_action, filter_absolute,
-                  min_reads_filt, min_per_strand_filt, min_pct_of_max_filt,
-                  min_pct_of_sum_filt, min_correction_filt, min_recovery_filt):
+def compute_stats(infile, outfile, min_reads, min_per_strand, min_pct_of_max, min_pct_of_sum,
+                  min_correction, min_recovery, filter_action, filter_absolute, min_reads_filt,
+                  min_per_strand_filt, min_pct_of_max_filt, min_pct_of_sum_filt,
+                  min_correction_filt, min_recovery_filt):
     # Check presence of required columns.
     column_names = infile.readline().rstrip("\r\n").split("\t")
     if column_names == [""]:
         return  # Empty file.
-    get_column_ids(column_names, "marker", "sequence", "forward", "reverse",
-        "total")
+    get_column_ids(column_names, "marker", "sequence", "forward", "reverse", "total")
     if "flags" not in column_names:
         column_names.append("flags")
 
@@ -264,7 +264,7 @@ def compute_stats(infile, outfile, min_reads,
         column_names.append("reverse_added_pct")
 
     # Build a column number lookup dictionary.
-    ci = {column_names[i]: i for i in range(len(column_names))}
+    ci = {name: i for i, name in enumerate(column_names)}
 
     # Read data.
     data = {}
@@ -282,7 +282,7 @@ def compute_stats(infile, outfile, min_reads,
         if len(row) == ci["flags"]:
             row.append([])
         else:
-            row[ci["flags"]] = map(str.strip, row[ci["flags"]].split(","))
+            row[ci["flags"]] = list(map(str.strip, row[ci["flags"]].split(",")))
         if marker not in data:
             data[marker] = []
         data[marker].append(row)
@@ -292,8 +292,7 @@ def compute_stats(infile, outfile, min_reads,
         filtered = {marker: [] for marker in data}
     for marker in data:
         if "total_corrected" in ci:
-            marker_total_corrected_sum = sum(
-                row[ci["total_corrected"]] for row in data[marker])
+            marker_total_corrected_sum = sum(row[ci["total_corrected"]] for row in data[marker])
             marker_total_corrected_max = max_in_sequence(
                 data[marker], ci["total_corrected"], ci["sequence"])
         if "forward_corrected" in ci:
@@ -313,93 +312,73 @@ def compute_stats(infile, outfile, min_reads,
         marker_reverse_sum = sum(row[ci["reverse"]] for row in data[marker])
         marker_reverse_max = max_in_sequence(data[marker], ci["reverse"], ci["sequence"], 0)
         if "total_noise" in ci:
-            marker_total_noise_sum = sum(
-                row[ci["total_noise"]] for row in data[marker])
+            marker_total_noise_sum = sum(row[ci["total_noise"]] for row in data[marker])
             marker_total_noise_max = max_in_sequence(
                 data[marker], ci["total_noise"], ci["sequence"])
         if "forward_noise" in ci:
-            marker_forward_noise_sum = sum(
-                row[ci["forward_noise"]] for row in data[marker])
+            marker_forward_noise_sum = sum(row[ci["forward_noise"]] for row in data[marker])
             marker_forward_noise_max = max_in_sequence(
                 data[marker], ci["forward_noise"], ci["sequence"])
         if "reverse_noise" in ci:
-            marker_reverse_noise_sum = sum(
-                row[ci["reverse_noise"]] for row in data[marker])
+            marker_reverse_noise_sum = sum(row[ci["reverse_noise"]] for row in data[marker])
             marker_reverse_noise_max = max_in_sequence(
                 data[marker], ci["reverse_noise"], ci["sequence"])
         if "total_add" in ci:
-            marker_total_add_sum = sum(
-                row[ci["total_add"]] for row in data[marker])
+            marker_total_add_sum = sum(row[ci["total_add"]] for row in data[marker])
             marker_total_add_max = max_in_sequence(data[marker], ci["total_add"], ci["sequence"])
         if "forward_add" in ci:
-            marker_forward_add_sum = sum(
-                row[ci["forward_add"]] for row in data[marker])
+            marker_forward_add_sum = sum(row[ci["forward_add"]] for row in data[marker])
             marker_forward_add_max = max_in_sequence(
                 data[marker], ci["forward_add"], ci["sequence"])
         if "reverse_add" in ci:
-            marker_reverse_add_sum = sum(
-                row[ci["reverse_add"]] for row in data[marker])
+            marker_reverse_add_sum = sum(row[ci["reverse_add"]] for row in data[marker])
             marker_reverse_add_max = max_in_sequence(
                 data[marker], ci["reverse_add"], ci["sequence"])
         for row in data[marker]:
             if "total_corrected" in ci:
-                row.append(100.*row[ci["total_corrected"]] /
-                    marker_total_corrected_sum
+                row.append(100 * row[ci["total_corrected"]] / marker_total_corrected_sum
                     if marker_total_corrected_sum else 0)
-                row.append(100.*row[ci["total_corrected"]] /
-                    marker_total_corrected_max
+                row.append(100 * row[ci["total_corrected"]] / marker_total_corrected_max
                     if marker_total_corrected_max else 0)
-                row.append(
-                    100.*row[ci["total_corrected"]]/row[ci["total"]]-100
+                row.append(100 * row[ci["total_corrected"]] / row[ci["total"]] - 100
                     if row[ci["total"]]
-                    else ((row[ci["total_corrected"]]>0)*200-100
+                    else ((row[ci["total_corrected"]] > 0) * 200 - 100  #FIXME, smelly
                         if row[ci["total_corrected"]] else 0))
                 if "forward_corrected" in ci:
-                    row.append(100.*(
-                        row[ci["forward_corrected"]]/row[ci["total_corrected"]]
+                    row.append(100 * (
+                        row[ci["forward_corrected"]] / row[ci["total_corrected"]]
                         if row[ci["total_corrected"]]
                         else row[ci["forward_corrected"]] > 0))
                 if "total_add" in ci:
-                    row.append(100.*row[ci["total_add"]] /
-                        row[ci["total_corrected"]]
+                    row.append(100 * row[ci["total_add"]] / row[ci["total_corrected"]]
                         if row[ci["total_corrected"]] else 0)
             if "forward_corrected" in ci:
-                row.append(100.*row[ci["forward_corrected"]] /
-                    marker_forward_corrected_sum
+                row.append(100 * row[ci["forward_corrected"]] / marker_forward_corrected_sum
                     if marker_forward_corrected_sum else 0)
-                row.append(100.*row[ci["forward_corrected"]] /
-                    marker_forward_corrected_max
+                row.append(100 * row[ci["forward_corrected"]] / marker_forward_corrected_max
                     if marker_forward_corrected_max else 0)
-                row.append(
-                    100.*row[ci["forward_corrected"]]/row[ci["forward"]]-100
+                row.append(100 * row[ci["forward_corrected"]] / row[ci["forward"]] - 100
                     if row[ci["forward"]]
-                    else ((row[ci["forward_corrected"]]>0)*200-100
+                    else ((row[ci["forward_corrected"]] > 0) * 200 - 100  #FIXME, smelly
                         if row[ci["forward_corrected"]] else 0))
                 if "forward_add" in ci:
-                    row.append(100.*row[ci["forward_add"]] /
-                        row[ci["forward_corrected"]]
+                    row.append(100 * row[ci["forward_add"]] / row[ci["forward_corrected"]]
                         if row[ci["forward_corrected"]] else 0)
             if "reverse_corrected" in ci:
-                row.append(100.*row[ci["reverse_corrected"]] /
-                    marker_reverse_corrected_sum
+                row.append(100 * row[ci["reverse_corrected"]] / marker_reverse_corrected_sum
                     if marker_reverse_corrected_sum else 0)
-                row.append(100.*row[ci["reverse_corrected"]] /
-                    marker_reverse_corrected_max
+                row.append(100 * row[ci["reverse_corrected"]] / marker_reverse_corrected_max
                     if marker_reverse_corrected_max else 0)
-                row.append(
-                    100.*row[ci["reverse_corrected"]]/row[ci["reverse"]]-100
+                row.append(100 * row[ci["reverse_corrected"]] / row[ci["reverse"]] - 100
                     if row[ci["reverse"]]
-                    else ((row[ci["reverse_corrected"]]>0)*200-100
+                    else ((row[ci["reverse_corrected"]] > 0) * 200 - 100  #FIXME, smelly
                         if row[ci["reverse_corrected"]] else 0))
                 if "reverse_add" in ci:
-                    row.append(100.*row[ci["reverse_add"]] /
-                        row[ci["reverse_corrected"]]
+                    row.append(100 * row[ci["reverse_add"]] / row[ci["reverse_corrected"]]
                         if row[ci["reverse_corrected"]] else 0)
-            row.append(100.*row[ci["total"]]/marker_total_sum
-                if marker_total_sum else 0)
-            row.append(100.*row[ci["total"]]/marker_total_max
-                if marker_total_max else 0)
-            row.append(100.*(1.*row[ci["forward"]]/row[ci["total"]]
+            row.append(100 * row[ci["total"]] / marker_total_sum if marker_total_sum else 0)
+            row.append(100 * row[ci["total"]] / marker_total_max if marker_total_max else 0)
+            row.append(100 * (1. * row[ci["forward"]] / row[ci["total"]]
                 if row[ci["total"]] else row[ci["forward"]] > 0))
             row.append(100.*row[ci["forward"]]/marker_forward_sum
                 if marker_forward_sum else 0)
@@ -538,26 +517,17 @@ def compute_stats(infile, outfile, min_reads,
             if filter_action == "combine" and row in filtered[marker]:
                 have_combined = True
                 if "total_corrected" in ci:
-                    combined[ci["total_corrected"]] += \
-                        row[ci["total_corrected"]]
-                    combined[ci["total_corrected_mp_sum"]] += \
-                        row[ci["total_corrected_mp_sum"]]
-                    combined[ci["total_corrected_mp_max"]] += \
-                        row[ci["total_corrected_mp_max"]]
+                    combined[ci["total_corrected"]] += row[ci["total_corrected"]]
+                    combined[ci["total_corrected_mp_sum"]] += row[ci["total_corrected_mp_sum"]]
+                    combined[ci["total_corrected_mp_max"]] += row[ci["total_corrected_mp_max"]]
                 if "forward_corrected" in ci:
-                    combined[ci["forward_corrected"]] += \
-                        row[ci["forward_corrected"]]
-                    combined[ci["forward_corrected_mp_sum"]] += \
-                        row[ci["forward_corrected_mp_sum"]]
-                    combined[ci["forward_corrected_mp_max"]] += \
-                        row[ci["forward_corrected_mp_max"]]
+                    combined[ci["forward_corrected"]] += row[ci["forward_corrected"]]
+                    combined[ci["forward_corrected_mp_sum"]] += row[ci["forward_corrected_mp_sum"]]
+                    combined[ci["forward_corrected_mp_max"]] += row[ci["forward_corrected_mp_max"]]
                 if "reverse_corrected" in ci:
-                    combined[ci["reverse_corrected"]] += \
-                        row[ci["reverse_corrected"]]
-                    combined[ci["reverse_corrected_mp_sum"]] += \
-                        row[ci["reverse_corrected_mp_sum"]]
-                    combined[ci["reverse_corrected_mp_max"]] += \
-                        row[ci["reverse_corrected_mp_max"]]
+                    combined[ci["reverse_corrected"]] += row[ci["reverse_corrected"]]
+                    combined[ci["reverse_corrected_mp_sum"]] += row[ci["reverse_corrected_mp_sum"]]
+                    combined[ci["reverse_corrected_mp_max"]] += row[ci["reverse_corrected_mp_max"]]
                 combined[ci["total"]] += row[ci["total"]]
                 combined[ci["total_mp_sum"]] += row[ci["total_mp_sum"]]
                 combined[ci["total_mp_max"]] += row[ci["total_mp_max"]]
@@ -569,40 +539,28 @@ def compute_stats(infile, outfile, min_reads,
                 combined[ci["reverse_mp_max"]] += row[ci["reverse_mp_max"]]
                 if "total_noise" in ci:
                     combined[ci["total_noise"]] += row[ci["total_noise"]]
-                    combined[ci["total_noise_mp_sum"]] += \
-                        row[ci["total_noise_mp_sum"]]
-                    combined[ci["total_noise_mp_max"]] += \
-                        row[ci["total_noise_mp_max"]]
+                    combined[ci["total_noise_mp_sum"]] += row[ci["total_noise_mp_sum"]]
+                    combined[ci["total_noise_mp_max"]] += row[ci["total_noise_mp_max"]]
                 if "forward_noise" in ci:
                     combined[ci["forward_noise"]] += row[ci["forward_noise"]]
-                    combined[ci["forward_noise_mp_sum"]] += \
-                        row[ci["forward_noise_mp_sum"]]
-                    combined[ci["forward_noise_mp_max"]] += \
-                        row[ci["forward_noise_mp_max"]]
+                    combined[ci["forward_noise_mp_sum"]] += row[ci["forward_noise_mp_sum"]]
+                    combined[ci["forward_noise_mp_max"]] += row[ci["forward_noise_mp_max"]]
                 if "reverse_noise" in ci:
                     combined[ci["reverse_noise"]] += row[ci["reverse_noise"]]
-                    combined[ci["reverse_noise_mp_sum"]] += \
-                        row[ci["reverse_noise_mp_sum"]]
-                    combined[ci["reverse_noise_mp_max"]] += \
-                        row[ci["reverse_noise_mp_max"]]
+                    combined[ci["reverse_noise_mp_sum"]] += row[ci["reverse_noise_mp_sum"]]
+                    combined[ci["reverse_noise_mp_max"]] += row[ci["reverse_noise_mp_max"]]
                 if "total_add" in ci:
                     combined[ci["total_add"]] += row[ci["total_add"]]
-                    combined[ci["total_add_mp_sum"]] += \
-                        row[ci["total_add_mp_sum"]]
-                    combined[ci["total_add_mp_max"]] += \
-                        row[ci["total_add_mp_max"]]
+                    combined[ci["total_add_mp_sum"]] += row[ci["total_add_mp_sum"]]
+                    combined[ci["total_add_mp_max"]] += row[ci["total_add_mp_max"]]
                 if "forward_add" in ci:
                     combined[ci["forward_add"]] += row[ci["forward_add"]]
-                    combined[ci["forward_add_mp_sum"]] += \
-                        row[ci["forward_add_mp_sum"]]
-                    combined[ci["forward_add_mp_max"]] += \
-                        row[ci["forward_add_mp_max"]]
+                    combined[ci["forward_add_mp_sum"]] += row[ci["forward_add_mp_sum"]]
+                    combined[ci["forward_add_mp_max"]] += row[ci["forward_add_mp_max"]]
                 if "reverse_add" in ci:
                     combined[ci["reverse_add"]] += row[ci["reverse_add"]]
-                    combined[ci["reverse_add_mp_sum"]] += \
-                        row[ci["reverse_add_mp_sum"]]
-                    combined[ci["reverse_add_mp_max"]] += \
-                        row[ci["reverse_add_mp_max"]]
+                    combined[ci["reverse_add_mp_sum"]] += row[ci["reverse_add_mp_sum"]]
+                    combined[ci["reverse_add_mp_max"]] += row[ci["reverse_add_mp_max"]]
                 if "weight" in ci:
                     combined[ci["weight"]] += row[ci["weight"]]
             elif filter_action == "off" or row not in filtered[marker]:
@@ -714,30 +672,28 @@ def compute_stats(infile, outfile, min_reads,
 
 
 def add_arguments(parser):
-    add_input_output_args(parser, True, True, False)
+    add_input_output_args(parser, single_in=True, batch_support=True, report_out=False)
     intergroup = parser.add_argument_group("interpretation options",
         "sequences that match the -c or -y option (or both) and all of the "
         "other settings are marked as 'allele'")
-    intergroup.add_argument('-n', '--min-reads', metavar="N", type=float,
-        default=_DEF_MIN_READS,
+    intergroup.add_argument("-n", "--min-reads", metavar="N", type=float, default=_DEF_MIN_READS,
         help="the minimum number of reads (default: %(default)s)")
-    intergroup.add_argument('-b', '--min-per-strand', metavar="N", type=float,
+    intergroup.add_argument("-b", "--min-per-strand", metavar="N", type=float,
         default=_DEF_MIN_PER_STRAND,
-        help="the minimum number of reads in both orientations (default: "
-             "%(default)s)")
-    intergroup.add_argument('-m', '--min-pct-of-max', metavar="PCT",
+        help="the minimum number of reads in both orientations (default: %(default)s)")
+    intergroup.add_argument("-m", "--min-pct-of-max", metavar="PCT",
         type=float, default=_DEF_MIN_PCT_OF_MAX,
         help="the minimum percentage of reads w.r.t. the highest allele of "
              "the marker (default: %(default)s)")
-    intergroup.add_argument('-p', '--min-pct-of-sum', metavar="PCT",
+    intergroup.add_argument("-p", "--min-pct-of-sum", metavar="PCT",
         type=float, default=_DEF_MIN_PCT_OF_SUM,
         help="the minimum percentage of reads w.r.t. the marker's total "
              "number of reads (default: %(default)s)")
-    intergroup.add_argument('-c', '--min-correction', metavar="PCT",
+    intergroup.add_argument("-c", "--min-correction", metavar="PCT",
         type=float, default=_DEF_MIN_CORRECTION,
         help="the minimum change in read count due to correction by e.g., "
              "bgcorrect (default: %(default)s)")
-    intergroup.add_argument('-y', '--min-recovery', metavar="PCT",
+    intergroup.add_argument("-y", "--min-recovery", metavar="PCT",
         type=float, default=_DEF_MIN_RECOVERY,
         help="the minimum number of reads that was recovered thanks to "
              "noise correction (by e.g., bgcorrect), as a percentage of the "
@@ -745,36 +701,35 @@ def add_arguments(parser):
     filtergroup = parser.add_argument_group("filtering options",
         "sequences that match the -C or -Y option (or both) and all of the "
         "other settings are retained, all others are filtered")
-    filtergroup.add_argument('-a', '--filter-action', metavar="ACTION",
+    filtergroup.add_argument("-a", "--filter-action", metavar="ACTION",
         choices=("off", "combine", "delete"), default="off",
         help="filtering mode: 'off', disable filtering; 'combine', replace "
              "filtered sequences by a single line with aggregate values per "
              "marker; 'delete', remove filtered sequences without leaving a "
              "trace (default: %(default)s)")
-    filtergroup.add_argument('-A', '--filter-absolute', action="store_true",
+    filtergroup.add_argument("-A", "--filter-absolute", action="store_true",
         help="if specified, apply filters to absolute read counts (i.e., with "
              "the sign removed), which may keep over-corrected sequences that "
              "would otherwise be filtered out")
-    filtergroup.add_argument('-N', '--min-reads-filt', metavar="N", type=float,
+    filtergroup.add_argument("-N", "--min-reads-filt", metavar="N", type=float,
         default=_DEF_MIN_READS_FILT,
         help="the minimum number of reads (default: %(default)s)")
-    filtergroup.add_argument('-B', '--min-per-strand-filt', metavar="N",
+    filtergroup.add_argument("-B", "--min-per-strand-filt", metavar="N",
         type=float, default=_DEF_MIN_PER_STRAND_FILT,
-        help="the minimum number of reads in both orientations (default: "
-             "%(default)s)")
-    filtergroup.add_argument('-M', '--min-pct-of-max-filt', metavar="PCT",
+        help="the minimum number of reads in both orientations (default: %(default)s)")
+    filtergroup.add_argument("-M", "--min-pct-of-max-filt", metavar="PCT",
         type=float, default=_DEF_MIN_PCT_OF_MAX_FILT,
         help="the minimum percentage of reads w.r.t. the highest allele of "
              "the marker (default: %(default)s)")
-    filtergroup.add_argument('-P', '--min-pct-of-sum-filt', metavar="PCT",
+    filtergroup.add_argument("-P", "--min-pct-of-sum-filt", metavar="PCT",
         type=float, default=_DEF_MIN_PCT_OF_SUM_FILT,
         help="the minimum percentage of reads w.r.t. the marker's total "
              "number of reads (default: %(default)s)")
-    filtergroup.add_argument('-C', '--min-correction-filt', metavar="PCT",
+    filtergroup.add_argument("-C", "--min-correction-filt", metavar="PCT",
         type=float, default=_DEF_MIN_CORRECTION_FILT,
         help="the minimum change in read count due to correction by e.g., "
              "bgcorrect (default: %(default)s)")
-    filtergroup.add_argument('-Y', '--min-recovery-filt', metavar="PCT",
+    filtergroup.add_argument("-Y", "--min-recovery-filt", metavar="PCT",
         type=float, default=_DEF_MIN_RECOVERY_FILT,
         help="the minimum number of reads that was recovered thanks to "
              "noise correction (by e.g., bgcorrect), as a percentage of the "
@@ -783,7 +738,7 @@ def add_arguments(parser):
 
 
 def run(args):
-    gen = get_input_output_files(args, True, True)
+    gen = get_input_output_files(args, single_in=True, batch_support=True)
     if not gen:
         raise ValueError("please specify an input file, or pipe in the output of another program")
 
@@ -792,12 +747,10 @@ def run(args):
         if len(infiles) > 1:
             raise ValueError("multiple input files for sample '%s' specified " % tag)
         try:
-            infile = sys.stdin if infiles[0] == "-" else open(infiles[0], "r")
-            compute_stats(infile, outfile,
-                          args.min_reads, args.min_per_strand,
-                          args.min_pct_of_max, args.min_pct_of_sum,
-                          args.min_correction, args.min_recovery,
-                          args.filter_action, args.filter_absolute,
+            infile = sys.stdin if infiles[0] == "-" else open(infiles[0], "tr")
+            compute_stats(infile, outfile, args.min_reads, args.min_per_strand,
+                          args.min_pct_of_max, args.min_pct_of_sum, args.min_correction,
+                          args.min_recovery, args.filter_action, args.filter_absolute,
                           args.min_reads_filt, args.min_per_strand_filt,
                           args.min_pct_of_max_filt, args.min_pct_of_sum_filt,
                           args.min_correction_filt, args.min_recovery_filt)

@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 
 #
-# Copyright (C) 2017 Jerry Hoogenboom
+# Copyright (C) 2020 Jerry Hoogenboom
 #
 # This file is part of FDSTools, data analysis tools for Next
 # Generation Sequencing of forensic DNA markers.
@@ -53,12 +53,13 @@ libconvert tool to convert their TSSV library file to FDSTools format.
 import argparse
 import sys
 
+from configparser import RawConfigParser
 from errno import EPIPE
-from ..lib import INI_COMMENT
-from ConfigParser import RawConfigParser
 from types import MethodType
 
-__version__ = "1.0.3"
+from ..lib.library import INI_COMMENT
+
+__version__ = "1.1.0"
 
 
 def ini_add_comment(ini, section, comment):
@@ -81,8 +82,7 @@ def make_empty_library_ini(type, aliases=False):
             "marker name, sequence, and allele name. You may use the "
             "alias name in the %s to specify them for this allele "
             "specifically.%s" % (
-                "flanks section" if type == "non-str" else
-                    "flanks, prefix, and suffix sections",
+                "flanks section" if type == "non-str" else "flanks, prefix, and suffix sections",
                 " You cannot specify a repeat structure for an alias."
                     if type != "non-str" else ""))
         ini.set("aliases",
@@ -101,8 +101,7 @@ def make_empty_library_ini(type, aliases=False):
     if type != "non-str":
         ini.set("flanks", ";CSF1P0 = CCTGTGTCAGACCCTGTT, GTTGGAACACTGCCCTGG")
     if type != "str":
-        ini.set("flanks",
-            ";MitoFrag = ATTATTTATCGCACCTACGT, TGGCGGTATGCACTTTTAACAG")
+        ini.set("flanks", ";MitoFrag = ATTATTTATCGCACCTACGT, TGGCGGTATGCACTTTTAACAG")
     if aliases:
         ini.set("flanks", ";Amel = ACCCTGGTTATATCAACT, GTTTAAGCTCTGATGGTT")
     if type != "non-str":
@@ -137,12 +136,10 @@ def make_empty_library_ini(type, aliases=False):
             "Specify the repeat structure of each STR marker in space-"
             "separated triples of sequence, minimum number of repeats, "
             "and maximum number of repeats.")
-        ini.set("repeat",
-            ";CSF1P0 = CTAT 0 19 CTAC 0 1 TTAT 0 1 CAT 0 1 CTAT 0 19")
+        ini.set("repeat", ";CSF1P0 = CTAT 0 19 CTAC 0 1 TTAT 0 1 CAT 0 1 CTAT 0 19")
     if aliases or type != "str":
         ini.add_section("no_repeat")
-        ini.add_comment("no_repeat",
-            "Specify the reference sequence for each non-STR marker.")
+        ini.add_comment("no_repeat", "Specify the reference sequence for each non-STR marker.")
         if type != "str":
             ini.set("no_repeat", ";MitoFrag = TCAATATTACAGGCGAACATACTTACTAAAGT"
             "GTGTTAATTAATTAATGCTTGTAGGACATAATAATAACAATTGAATGTCTGCACAGCCACTTTCC"
@@ -190,8 +187,7 @@ def make_empty_library_ini(type, aliases=False):
         ini.set("length_adjust", ";CSF1P0 = 0")
         ini.add_section("block_length")
         ini.add_comment("block_length",
-            "Specify the repeat unit length of each STR marker. The default "
-            "length is 4.")
+            "Specify the repeat unit length of each STR marker. The default length is 4.")
         ini.set("block_length", ";CSF1P0 = 4")
     ini.add_section("max_expected_copies")
     ini.add_comment("max_expected_copies",
@@ -225,24 +221,24 @@ def make_empty_library_ini(type, aliases=False):
 
 
 def create_library(outfile, type, aliases=False):
-    outfile.write(INI_COMMENT.fill("Lines beginning with a semicolon (;) are "
-        "ignored by FDSTools.") + "\n\n")
+    outfile.write(INI_COMMENT.fill(
+        "Lines beginning with a semicolon (;) are ignored by FDSTools.") + "\n\n")
     make_empty_library_ini(type, aliases).write(outfile)
 #create_library
 
 
 def add_arguments(parser):
-    parser.add_argument('outfile', nargs='?', metavar="OUT",
-        default=sys.stdout, type=argparse.FileType('w'),
+    parser.add_argument("outfile", nargs="?", metavar="OUT",
+        default=sys.stdout, type=argparse.FileType("tw"),
         help="the file to write the output to (default: write to stdout)")
-    parser.add_argument('-t', '--type', metavar="TYPE", default="full",
+    parser.add_argument("-t", "--type", metavar="TYPE", default="full",
         choices=("full", "str", "non-str"),
         help="the type of markers that this library file will be used for; "
              "'full' (the default) will create a library file with all "
              "possible sections, whereas 'str' or 'non-str' will only output "
              "the sections applicable to STR and non-STR markers, "
              "respectively")
-    parser.add_argument('-a', '--aliases', action="store_true",
+    parser.add_argument("-a", "--aliases", action="store_true",
         help="if specified, the [aliases] section is included, which can be "
              "used to explicitly assign allele names to specific sequences of "
              "specific markers")
