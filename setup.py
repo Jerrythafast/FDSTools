@@ -23,11 +23,11 @@
 import setuptools
 import sys
 
-with open("README.rst", "r") as fh:
+with open("README.rst", "tr") as fh:
     long_description = fh.read()
 
 version = {}
-with open("fdstools/__init__.py", "r") as fh:
+with open("fdstools/__init__.py", "tr") as fh:
     exec(fh.read(), version)
 
 if sys.hexversion < 0x03000000:
@@ -59,19 +59,19 @@ setuptools.setup(
         "Intended Audience :: Science/Research",
         "Intended Audience :: Legal Industry",
         "Topic :: Scientific/Engineering :: Bio-Informatics"],
-    keywords='bioinformatics forensics stutter NGS MPS DNA sequencing STR',
+    keywords="bioinformatics forensics stutter NGS MPS DNA sequencing STR",
     packages=setuptools.find_packages(),
     ext_modules=[
-        setuptools.extension.Extension('fdstools.lib.sg_align',
-            sources=['fdstools/lib/sg_align.c'],
-            extra_compile_args=['-O3'])],
+        setuptools.extension.Extension("fdstools.lib.sg_align",
+            sources=["fdstools/lib/sg_align.c"],
+            extra_compile_args=["-O3"])],
     package_data={
         "fdstools": ["vis/*.*", "vis/*/*"]
     },
     install_requires=["numpy>=1.17"],
     python_requires=">=3.5",
     entry_points={
-        'console_scripts': [
+        "console_scripts": [
             "fdstools=fdstools.fdstools:main"
         ]
     }

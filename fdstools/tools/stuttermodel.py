@@ -188,8 +188,8 @@ def filter_data(data, min_samples):
     Remove all alleles from data that have less than min_samples
     samples.
     """
-    for marker in tuple(data["alleles"].keys()):
-        for allele in tuple(data["alleles"][marker].keys()):
+    for marker in tuple(data["alleles"]):
+        for allele in tuple(data["alleles"][marker]):
             if len(data["alleles"][marker][allele]) < min_samples:
                 del data["alleles"][marker][allele]
                 continue

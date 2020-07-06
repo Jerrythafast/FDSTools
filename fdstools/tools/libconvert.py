@@ -45,7 +45,6 @@ import re
 import sys
 
 from errno import EPIPE
-from functools import reduce
 
 from ..lib.library import parse_library, INI_COMMENT
 from ..lib.seq import iupac_expand_ambiguous
@@ -199,8 +198,7 @@ def convert_library(infile, outfile, aliases=False):
 
         # Enter flanking sequences and STR definitions.
         pattern_reverse = re.compile("\(([ACGT]+)\)\{(\d+),(\d+)\}")
-        fmt = "%%-%is" % reduce(max, map(len,
-            set(library["flanks"].keys()) | set(library["regex"].keys())), 0)
+        fmt = "%%-%is" % max(map(len, set(library["flanks"]) | set(library["regex"]) or [""]))
         for marker in sorted(library["flanks"]):
             ini.set("flanks", fmt % marker, ", ".join(library["flanks"][marker]))
         for marker in sorted(library["regex"]):

@@ -287,7 +287,7 @@ def filter_data(allelelist, min_samples, min_genotypes):
 
     marker_names = set()
     for tag in allelelist:
-        marker_names.update(allelelist[tag].keys())
+        marker_names.update(allelelist[tag])
 
     for marker in marker_names:
         # Get a sample count of each true allele of this marker
@@ -463,7 +463,7 @@ def generate_profiles(samples_in, outfile, reportfile, allelefile, annotation_co
 
     # Combine data from all samples.  This takes most time.
     data = {}
-    for tag in tuple(sample_data.keys()):
+    for tag in tuple(sample_data):
         add_sample_data(data, sample_data[tag], allelelist[tag], min_pct, min_abs, tag)
         del sample_data[tag]
 
@@ -478,7 +478,7 @@ def generate_profiles(samples_in, outfile, reportfile, allelefile, annotation_co
         try_write_pipe(reportfile, "Data loading and filtering took %f seconds\n" % (t1 - t0))
 
     outfile.write("\t".join(("marker", "allele", "sequence", "fmean", "rmean", "tool")) + "\n")
-    for marker in tuple(data.keys()):
+    for marker in tuple(data):
         p = data[marker]["profiles"]
         profile_size = len(p["alleles"])
 

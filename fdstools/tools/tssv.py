@@ -59,7 +59,7 @@ References:
 [1] https://github.com/Jerrythafast/FLASH-lowercase-overhang
 [2] https://github.com/jfjlaros/tssv
 """
-import itertools as it
+import itertools
 import math
 import os
 import sys
@@ -221,7 +221,7 @@ class TSSV:
                 self.indel_score, self.workers, chunksize, done_queue))
             thread.daemon = True
             thread.start()
-            for seq, results in it.chain.from_iterable(iter(done_queue.get, None)):
+            for seq, results in itertools.chain.from_iterable(iter(done_queue.get, None)):
                 self.cache_results(seq, results)
             thread.join()
 
@@ -421,7 +421,7 @@ def feeder(input, tssv_library, indel_score, workers, chunksize, done_queue):
         processes.append(process)
     while True:
         # Sending chunks of reads to the workers.
-        task = tuple(it.islice(input, chunksize))
+        task = tuple(itertools.islice(input, chunksize))
         if not task:
             break
         task_queue.put(task)

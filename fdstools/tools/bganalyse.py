@@ -188,7 +188,8 @@ def analyse_background(samples_in, outfile, allelefile, annotation_column, seqfo
                        mode, percentiles):
 
     # Parse allele list.
-    allelelist = {} if allelefile is None else parse_allelelist(allelefile, seqformat, library)
+    allelelist = {} if allelefile is None else parse_allelelist(
+        allelefile, convert=seqformat, library=library)
 
     # TODO: Should we consider forward and reverse reads separately?
     data = {}

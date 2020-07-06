@@ -107,7 +107,7 @@ def find_alleles_sample(data, outfile, reportfile, tag, min_reads, min_allele_pc
         if reads > top_allele[marker]:
             # New highest allele!
             top_allele[marker] = reads
-            for allele in alleles[marker].keys():
+            for allele in tuple(alleles[marker]):
                 if alleles[marker][allele] < top_allele[marker] * (min_allele_pct / 100):
                     if alleles[marker][allele] > top_noise[marker][1]:
                         top_noise[marker] = [allele, alleles[marker][allele]]

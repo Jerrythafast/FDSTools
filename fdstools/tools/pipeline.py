@@ -755,7 +755,7 @@ def run_case_sample_analysis(arg_defs, config):
 def add_ini_arg(argument, value, config):
     if value is None:
         return
-    if type(value) is list:
+    if isinstance(value, list):
         value = " ".join(
             "'" + x.replace("'", "\'") + "'" for x in value)
     else:
@@ -787,7 +787,7 @@ def run_ini(config):
     analysis = ini_require_option(config, NAME, "analysis")
     if analysis not in analysis_functions:
         raise ValueError("Unknown analysis type '%s', specify one of: %s" %
-            (analysis, ", ".join(analysis_functions.keys())))
+            (analysis, ", ".join(analysis_functions)))
     analysis_functions[analysis](get_arguments(get_tools(True)), config)
 #run_ini
 
@@ -797,11 +797,10 @@ def write_ini(args):
     arglists = get_arguments(tools)
     for name in ANALYSIS_TOOLS[args.analysis]:
         if name == NAME:
-            fmt = "%%-%is" % reduce(max, map(len,
-                ANALYSIS_ARGS[args.analysis]), 0)
+            fmt = "%%-%is" % max(map(len, ANALYSIS_ARGS[args.analysis] or [""]))
         else:
-            fmt = "%%-%is" % reduce(max, map(len,
-                (x[0] for x in arglists[name] if x[0] not in HIDDEN_ARGS)), 0)
+            fmt = "%%-%is" % reduce(max,
+                (len(x[0]) for x in arglists[name] if x[0] not in HIDDEN_ARGS), 0)
         if fmt == "%-0s":
             continue  # No arguments.
         args.config.write("[%s]\n%s\n\n" % (name,
@@ -910,7 +909,7 @@ def run(args):
         raise ValueError("The pipeline configuration file cannot be named '-'")
     if os.path.exists(args.config):
         # Run analysis pipeline using configuration file.
-        args.config = open(args.config, "r")
+        args.config = open(args.config, "tr")
         run_ini(get_config(args))
         args.config.close()
     elif args.analysis is not None:
@@ -918,7 +917,7 @@ def run(args):
         print("Configuration file '%s' does not exist, creating default "
               "configuration file for %s analysis..." %
               (args.config, args.analysis))
-        args.config = open(args.config, "w")
+        args.config = open(args.config, "tw")
         write_ini(args)
         args.config.close()
     else:

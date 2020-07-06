@@ -112,12 +112,12 @@ def filter_data(data, min_samples, min_sample_pct):
     thresholds in at least min_sample_pct percent of the samples with a
     particular allele.
     """
-    for marker, allele in data.keys():
+    for marker, allele in tuple(data):
         if data[marker, allele][allele]["passed_filter"] < min_samples:
             del data[marker, allele]
             continue
         factor = 100 / data[marker, allele][allele]["passed_filter"]
-        for sequence in data[marker, allele].keys():
+        for sequence in tuple(data[marker, allele]):
             if data[marker, allele][sequence]["passed_filter"] * factor < min_sample_pct:
                 del data[marker, allele][sequence]
                 continue

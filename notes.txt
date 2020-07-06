@@ -53,19 +53,9 @@ Vis 1.1.0:
 
 
 CONVERSION
-* Check that all our library files are still read (may need to enable end-of-line comments)
-* Ensure all open() and FileType() calls specify either 't' or 'b'
 * Check all divisions
-* Check all for loops w.r.t generators and dictionary views
-* Check all 'del' in a loop
-* Check all range() use (and remove any xrange())
-* Check all except and raise
-* Check all map() and reduce()
-* Check round():
-  * halves are now rounded to even, instead of away from zero
-  * without 2nd parameter returns an int instead of a float
-* Check floor() and ceil() now returning ints
 * Check hashbang lines
+* Replace np.matrix with np.array (used in lib/util.py, bgestimate and bgcorrect)
 
 HOMOLOGATION
 * Update license text NGS -> MPS
@@ -83,6 +73,7 @@ HOMOLOGATION
 To-do:
 * Suspected bug (marked with FIXME) in samplestats.
 * Clean up samplestats code.
+* Avoid reduce() in lib/seq.py
 * Write 'INS' and 'DEL' in uppercase in mtDNA nomenclature.
 * General:
   * Ability to bypass zero-reads-on-one-strand checks (ForenSeq requirement).

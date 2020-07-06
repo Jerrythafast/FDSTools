@@ -268,7 +268,7 @@ def predict_profiles(stuttermodel, seqsfile, outfile, default_marker,
                 marker,
                 allele,
                 ensure_sequence_format(p["sequences"][i], "raw", library=library, marker=marker)) +
-                tuple(map(str, (p["forward"][i], p["reverse"][i])) + ("bgpredict",))) + "\n")
+                tuple(map(str, (p["forward"][i], p["reverse"][i]))) + ("bgpredict",)) + "\n")
 #predict_profiles
 
 

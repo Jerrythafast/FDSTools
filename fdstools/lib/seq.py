@@ -174,7 +174,7 @@ def call_variants(template, sequence, *, location=("?", 1), cache=True, debug=Fa
         # Include plus signs for position numbers.
         variant_format = "%+i%s>%s"
         location = ("suffix", 1)
-    elif type(location) != tuple or len(location) < 2:
+    elif not isinstance(location, tuple) or len(location) < 2:
         raise ValueError("Unknown location %r. It should be 'prefix', "
             "'suffix', or a tuple (chromosome, position [, endpos])" % location)
     elif location[0] == "M":
@@ -237,16 +237,16 @@ def call_variants(template, sequence, *, location=("?", 1), cache=True, debug=Fa
 
     if debug:
         print("GAP1")
-        for i in range(0, len(matrix_gap1), row_offset):
+        for i in range(len(matrix_gap1), row_offset):
             print(("%5i" * row_offset) % tuple(matrix_gap1[i : i + row_offset]))
         print("GAP2")
-        for i in range(0, len(matrix_gap2), row_offset):
+        for i in range(len(matrix_gap2), row_offset):
             print(("%5i" * row_offset) % tuple(matrix_gap2[i : i + row_offset]))
         print("Match")
-        for i in range(0, len(matrix_match), row_offset):
+        for i in range(len(matrix_match), row_offset):
             print(("%5i" * row_offset) % tuple(matrix_match[i : i + row_offset]))
         print("FLAGS")
-        for i in range(0, len(matrix_direction), row_offset):
+        for i in range(len(matrix_direction), row_offset):
             print(("%5s|" * row_offset) % tuple("".join((
                 "h" if x & A_HORZ_O else " ",
                 "H" if x & A_HORZ_E else " ",
@@ -343,7 +343,7 @@ call_variants.cache = {}
 
 def mutate_sequence(seq, variants, *, location=None):
     """Apply the given variants to the given sequence."""
-    if type(location) != tuple or len(location) < 2:
+    if not isinstance(location, tuple) or len(location) < 2:
         pattern = PAT_VARIANT_STR
         location = (None, 0)
     elif location[0] == "M":
@@ -368,7 +368,7 @@ def mutate_sequence(seq, variants, *, location=None):
             new = ""
         if pos < 0:
             pos += len(seq)
-        pos = get_genome_pos(location, pos, True)
+        pos = get_genome_pos(location, pos, invert=True)
         if pos < 0 or (pos == 0 and not ins) or pos >= len(seq):
             raise ValueError("Position of variant '%s' is outside sequence range" % variant)
         if not ins and old and old != "".join("".join(x[:1]) for x in seq[pos : pos + len(old)]):
@@ -661,7 +661,7 @@ def convert_sequence_allelename_tssv(seq, library, marker):
         if seq == "REF":
             return reference + "(1)"
         return mutate_sequence(reference, seq.split(),
-            library["genome_position"].get(marker,
+            location=library["genome_position"].get(marker,
                 ("M" if nameformat == "MtDNA" else "", 1))) + "(1)"
 
     # Note: aliases of mtDNA and SNP markers end up here as well.
@@ -732,7 +732,7 @@ def convert_sequence_raw_allelename(seq, library, marker):
             return "REF"
         return " ".join(
             call_variants(library["nostr_reference"][marker], blocks[0][0],
-                library["genome_position"].get(marker, ("?", 1))))
+                location=library["genome_position"].get(marker, ("?", 1))))
 
     # Find prefix and suffix.
     prefix = suffix = this_prefix = this_suffix = ""
@@ -762,10 +762,10 @@ def convert_sequence_raw_allelename(seq, library, marker):
     length = 0
     variants = []
     if prefix != this_prefix:
-        variants += call_variants(prefix, this_prefix, "prefix")
+        variants += call_variants(prefix, this_prefix, location="prefix")
         length += len(this_prefix) - len(prefix)
     if suffix != this_suffix:
-        variants += call_variants(suffix, this_suffix, "suffix")
+        variants += call_variants(suffix, this_suffix, location="suffix")
         length += len(this_suffix) - len(suffix)
 
     # We are ready to return the allele name of aliases.

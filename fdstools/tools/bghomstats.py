@@ -104,12 +104,12 @@ def filter_data(data, min_samples, min_sample_pct):
     particular allele.  Also add explicit zeros to the stats of the
     sequences that were not seen in all samples with a given allele.
     """
-    for marker, allele in data.keys():
+    for marker, allele in tuple(data):
         if data[marker, allele][allele][2] < min_samples:
             del data[marker, allele]
             continue
         factor = 100 / data[marker, allele][allele][2]
-        for sequence in data[marker, allele].keys():
+        for sequence in tuple(data[marker, allele]):
             if data[marker, allele][sequence][2] * factor < min_sample_pct:
                 del data[marker, allele][sequence]
                 continue

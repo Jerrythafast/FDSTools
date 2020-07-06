@@ -155,7 +155,7 @@ def get_sample_data(tags_to_files, callback, allelelist=None, annotation_column=
                 else:
                     allelelist[tag] = {}
             if homozygotes:
-                for markerx in allelelist[tag].keys():
+                for markerx in tuple(allelelist[tag]):
                     if len(allelelist[tag][markerx]) > 1:
                         del allelelist[tag][markerx]
         callback(tag, data)

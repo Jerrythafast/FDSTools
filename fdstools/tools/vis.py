@@ -51,7 +51,7 @@ import re
 import sys
 
 from errno import EPIPE
-from pkg_resources import resource_stream, resource_string
+from pkg_resources import resource_string
 
 from ..lib.cli import pos_int_arg
 
@@ -190,7 +190,8 @@ def create_visualisation(vistype, infile, infile2, outfile, vega, tidy, min_abs,
                          allele_min_pct_of_max, allele_min_pct_of_sum, allele_min_correction,
                          allele_min_recovery, allele_min_per_strand):
     # Get graph spec.
-    spec = json.load(resource_stream("fdstools", "vis/%svis/%svis.json" % (vistype, vistype)))
+    spec = json.loads(
+        resource_string("fdstools", "vis/%svis/%svis.json" % (vistype, vistype)).decode())
     if infile is not None:
         # Embed the given data file.
         spec["data"][0]["values"] = infile.read()
@@ -269,7 +270,7 @@ def create_visualisation(vistype, infile, infile2, outfile, vega, tidy, min_abs,
         return
 
     # Creating a fully self-contained HTML visualisation instead.
-    html = resource_string("fdstools", "vis/%svis/index.html" % vistype)
+    html = resource_string("fdstools", "vis/%svis/index.html" % vistype).decode()
     match = _PAT_LOAD_SCRIPT.search(html)
     if match:
         html = "".join([
@@ -290,7 +291,7 @@ def create_visualisation(vistype, infile, infile2, outfile, vega, tidy, min_abs,
     if match:
         parts = [html[:match.start(1)]]
         for library in _EXTERNAL_LIBRARIES:
-            parts += [_SCRIPT_BEGIN, resource_string("fdstools", library), _SCRIPT_END]
+            parts += [_SCRIPT_BEGIN, resource_string("fdstools", library).decode(), _SCRIPT_END]
         parts.append(html[match.end(1):])
         html = "".join(parts)
 
