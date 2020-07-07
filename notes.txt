@@ -53,8 +53,6 @@ Vis 1.1.0:
 
 
 CONVERSION
-* Check all divisions
-* Check hashbang lines
 * Replace np.matrix with np.array (used in lib/util.py, bgestimate and bgcorrect)
 
 HOMOLOGATION
