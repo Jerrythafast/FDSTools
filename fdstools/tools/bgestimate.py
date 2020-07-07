@@ -114,9 +114,9 @@ def solve_profile_mixture_single(samples, genotypes, n, starting_values={},
     num_samples = len(samples)
     profile_size = len(samples[0])
 
-    A = np.matrix(np.empty([n, n]))  # Will zero it at loop start.
-    P = np.matrix(np.zeros([n, profile_size]))
-    C = np.matrix(np.zeros([n, profile_size]))
+    A = np.empty((n, n))  # Will zero it at loop start.
+    P = np.zeros((n, profile_size))
+    C = np.zeros((n, profile_size))
 
     # Assume the true alleles do not have cross contributions at first.
     np.fill_diagonal(P, 100.)
@@ -156,8 +156,8 @@ def solve_profile_mixture_single(samples, genotypes, n, starting_values={},
             # Estimate allele balance in this sample based on the
             # current profiles.
             Px = P[genotypes[i], :][:, genotypes[i]]
-            Cx = np.matrix([[samples[i][x] for x in genotypes[i]]])
-            Ax = (100 / Cx / len(genotypes[i])).T * nnls(Px.T, Cx.T).T
+            Cx = np.array(([samples[i][x] for x in genotypes[i]],))
+            Ax = (100 / Cx / len(genotypes[i])).T @ nnls(Px.T, Cx.T).T
 
             # Update A with the values in Ax.
             for j in range(len(genotypes[i])):
@@ -166,8 +166,8 @@ def solve_profile_mixture_single(samples, genotypes, n, starting_values={},
 
         # Compute best-fitting profiles.
         # Doing this with the same nonnegative least squares method.
-        E = A.T * A
-        F = A.T * C
+        E = A.T @ A
+        F = A.T @ C
         prev_scorex = cur_scorex = sys.float_info.max
         for w in range(200):
             for p in range(n):
@@ -179,19 +179,19 @@ def solve_profile_mixture_single(samples, genotypes, n, starting_values={},
                             "%4i - No samples appear to have allele %i\n" % (v, p))
                     P[p, nn] = 0
                 else:
-                    tmp = (F[p, :] - E[p, nn] * P[nn, :]) / E[p, p]
+                    tmp = (F[p, :] - E[None, p, nn] @ P[nn, :]) / E[p, p]
                     tmp[tmp < 0] = 0
                     tmp[0, p] = 100
                     P[p, :] = tmp
             prev_scorex = cur_scorex
-            cur_scorex = np.square(C - A * P).sum()
+            cur_scorex = np.square(C - A @ P).sum()
             score_changex = (prev_scorex - cur_scorex) / prev_scorex
             if not cur_scorex or score_changex < 0.0001:
                 break
 
         # Check whether profiles have converged.
         prev_score = cur_score
-        cur_score = np.square(C - A * P).sum()
+        cur_score = np.square(C - A @ P).sum()
         score_change = (prev_score - cur_score) / prev_score
         if v and reportfile:
             try_write_pipe(reportfile, "%4i %15.6f %15.6f %6.2f\n" %
@@ -229,35 +229,35 @@ def solve_profile_mixture_single(samples, genotypes, n, starting_values={},
         for i in range(num_samples):
             # Get relevant profiles for this sample.
             Px = P[genotypes[i], :]
-            Cx = np.matrix(samples[i])
+            Cx = np.array((samples[i],))
             scale_factors = (100 / Cx[:, genotypes[i]] / len(genotypes[i])).T
 
             # Estimate allele balance in this sample based on the
             # current profiles.
             if len(genotypes[i]) == 1:
                 # Shortcut for homozygotes.
-                Ax = np.matrix([[1.]])
+                Ax = np.array(1., ndmin=2)
             else:
-                Ax = scale_factors * nnls(Px[:, genotypes[i]].T, Cx[:, genotypes[i]].T).T
-            Cx = np.square(scale_factors * Cx - Ax * Px)
+                Ax = scale_factors @ nnls(Px[:, genotypes[i]].T, Cx[:, genotypes[i]].T).T
+            Cx = np.square(scale_factors @ Cx - Ax @ Px)
 
             # Update A and C with the values in Ax and the squared
             # deviations of this sample, respectively.
             for j in range(len(genotypes[i])):
-                C.append(Cx[j, :].tolist()[0])
+                C.append(Cx[j, :].tolist())
                 A.append([0.0] * n)
                 for k in range(len(genotypes[i])):
                     A[-1][genotypes[i][k]] = Ax[j, k] ** 2
                     #A[-1][genotypes[i][k]] = Ax[j, k]
-        A = np.matrix(A)
-        C = np.matrix(C)
+        A = np.array(A)
+        C = np.array(C)
 
         # Compute best-fitting profiles.
         # Doing this with the same nonnegative least squares method.
-        V = np.matrix(np.zeros(P.shape))
-        E = A.T * A
+        V = np.zeros(P.shape)
+        E = A.T @ A
         #E = np.diagflat(A.sum(0)-1)
-        F = A.T * C
+        F = A.T @ C
         prev_scorex = cur_scorex = sys.float_info.max
         for w in range(200):
             for p in range(n):
@@ -265,13 +265,13 @@ def solve_profile_mixture_single(samples, genotypes, n, starting_values={},
                 if not E[p, p]:
                     V[p, :] = 0
                 else:
-                    tmp = (F[p, :] - E[p, nn] * V[nn, :]) / E[p, p]
+                    tmp = (F[p, :] - E[None, p, nn] @ V[nn, :]) / E[p, p]
                     tmp[tmp < 0] = 0
                     tmp[0, p] = 0  # No variance for actual allele.
                     tmp[P[p, :] == 0] = 0  # No variance for zero means.
                     V[p, :] = tmp
             prev_scorex = cur_scorex
-            cur_scorex = np.square(C - A * V).sum()
+            cur_scorex = np.square(C - A @ V).sum()
             score_changex = (prev_scorex - cur_scorex) / prev_scorex
             if not cur_scorex or score_changex < 0.0001:
                 break

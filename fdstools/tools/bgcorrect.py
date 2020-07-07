@@ -118,13 +118,13 @@ def match_profile(column_names, data, profile, convert_to_raw, library, marker):
         "reverse_corrected", "total_corrected", "correction_flags", "weight")
 
     # Enter profiles into P.
-    P1 = np.matrix(profile["forward"])
-    P2 = np.matrix(profile["reverse"])
+    P1 = np.array((profile["forward"],))
+    P2 = np.array((profile["reverse"],))
 
     # Enter sample into C.
     seqs = []
-    C1 = np.matrix(np.zeros([1, profile["m"]]))
-    C2 = np.matrix(np.zeros([1, profile["m"]]))
+    C1 = np.zeros((1, profile["m"]))
+    C2 = np.zeros((1, profile["m"]))
     for line in data:
         if line[colid_sequence] in SEQ_SPECIAL_VALUES:
             continue
@@ -148,13 +148,13 @@ def match_profile(column_names, data, profile, convert_to_raw, library, marker):
         return
 
     # Compute corrected read counts.
-    A = nnls(np.hstack([P1, P2]).T, np.hstack([C1, C2]).T).T
+    A = nnls(np.hstack((P1, P2)).T, np.hstack((C1, C2)).T).T
     np.fill_diagonal(P1, 0)
     np.fill_diagonal(P2, 0)
-    forward_noise = A * P1
-    reverse_noise = A * P2
-    forward_add = np.multiply(A, P1.sum(1).T)
-    reverse_add = np.multiply(A, P2.sum(1).T)
+    forward_noise = A @ P1
+    reverse_noise = A @ P2
+    forward_add = A * P1.sum(1)
+    reverse_add = A * P2.sum(1)
 
     # Round values to 3 decimal positions.
     A.round(3, A)

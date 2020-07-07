@@ -61,19 +61,19 @@ def nnls(A, C, B=None, max_iter=200, min_change=0.0001, debug=False):
     """
     import numpy as np
     if B is None:
-        B = np.matrix(np.zeros([A.shape[1], C.shape[1]]))
-    E = A.T * A
-    F = A.T * C
+        B = np.zeros((A.shape[1], C.shape[1]))
+    E = A.T @ A
+    F = A.T @ C
     prev_score = cur_score = sys.float_info.max
     for i in range(max_iter):
         for n in range(B.shape[0]):
             nn = list(range(n)) + list(range(n + 1, B.shape[0]))
-            tmp = (F[n, :] - E[n, nn] * B[nn, :]) / E[n, n]
+            tmp = (F[n, :] - E[None, n, nn] @ B[nn, :]) / E[n, n]
             tmp[np.isnan(tmp)] = 0
             tmp[tmp < 0] = 0
             B[n, :] = tmp
         prev_score = cur_score
-        cur_score = np.square(C - A * B).sum()
+        cur_score = np.square(C - A @ B).sum()
         score_change = (prev_score - cur_score) / prev_score
 
         if debug:
