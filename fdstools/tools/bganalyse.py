@@ -3,8 +3,8 @@
 #
 # Copyright (C) 2020 Jerry Hoogenboom
 #
-# This file is part of FDSTools, data analysis tools for Next
-# Generation Sequencing of forensic DNA markers.
+# This file is part of FDSTools, data analysis tools for Massively
+# Parallel Sequencing of forensic DNA markers.
 #
 # FDSTools is free software: you can redistribute it and/or modify it
 # under the terms of the GNU General Public License as published by the
@@ -46,7 +46,7 @@ import math
 from errno import EPIPE
 
 from ..lib.cli import add_sequence_format_args, add_input_output_args, get_input_output_files, \
-                      add_allele_detection_args, pos_int_arg, comma_separated_arg
+                      add_allele_detection_args, comma_separated_arg
 from ..lib.io import get_sample_data, parse_allelelist
 
 __version__ = "1.1.0"

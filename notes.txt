@@ -54,12 +54,10 @@ Vis 1.1.0:
 
 
 HOMOLOGATION
-* Update license text NGS -> MPS
 * Check that all tools check the number of columns at each line (like Stuttermark does).
 * Check that all tools allow for additional columns.
 * Standardise the 'flags' column and use it in more tools.
 * Make better use of print_debug() in all tools and postpone string formatting.
-* Check that all imports are actually used.
 * Could do a timeit run for {k: i for i, k in enumerate(l)} vs {l[i]: i for i in range(len(l))}
 
 
@@ -67,6 +65,7 @@ HOMOLOGATION
 
 
 To-do:
+* Set default min r2 to 0 in bgpredict.
 * Suspected bug (marked with FIXME) in samplestats.
 * Clean up samplestats code.
 * Avoid reduce() in lib/seq.py

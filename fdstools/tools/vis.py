@@ -3,8 +3,8 @@
 #
 # Copyright (C) 2020 Jerry Hoogenboom
 #
-# This file is part of FDSTools, data analysis tools for Next
-# Generation Sequencing of forensic DNA markers.
+# This file is part of FDSTools, data analysis tools for Massively
+# Parallel Sequencing of forensic DNA markers.
 #
 # FDSTools is free software: you can redistribute it and/or modify it
 # under the terms of the GNU General Public License as published by the
@@ -46,7 +46,7 @@ entire file contents are embedded in the generated visualisation.
 """
 import argparse
 import json
-import os
+import os.path
 import re
 import sys
 

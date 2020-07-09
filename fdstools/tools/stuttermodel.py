@@ -3,8 +3,8 @@
 #
 # Copyright (C) 2020 Jerry Hoogenboom
 #
-# This file is part of FDSTools, data analysis tools for Next
-# Generation Sequencing of forensic DNA markers.
+# This file is part of FDSTools, data analysis tools for Massively
+# Parallel Sequencing of forensic DNA markers.
 #
 # FDSTools is free software: you can redistribute it and/or modify it
 # under the terms of the GNU General Public License as published by the
@@ -28,7 +28,6 @@ background noise profiles of alleles for which no reference samples are
 available.
 """
 import argparse
-import re
 #import numpy as np  # Only imported when actually running this tool.
 
 from errno import EPIPE
