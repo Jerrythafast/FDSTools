@@ -52,13 +52,16 @@ import pkgutil, sys, os, tempfile, re, argparse
 
 import fdstools.tools
 
-from ..lib import split_quoted_string, DEF_TAG_EXPR, DEF_TAG_FORMAT, get_tag, \
+from ..lib import DEF_TAG_EXPR, DEF_TAG_FORMAT, get_tag, \
                   regex_arg, INI_COMMENT, glob_path, print_db
 from ConfigParser import RawConfigParser, NoSectionError, NoOptionError
 
 
 __version__ = "1.1.0"
 
+
+# Pattern to split a comma-, semicolon-, or space-separated list.
+PAT_SPLIT_QUOTED = re.compile(r""""((?:\\"|[^"])*)"|'((?:\\'|[^'])*)'|(\S+)""")
 
 # Pattern that matches a long argparse argument name.
 PAT_ARGNAME = re.compile("^(?:--)?([a-z0-9]+(?:-[a-z0-9]+)*)$")
@@ -183,6 +186,16 @@ class ArgumentCollector:
         return self.arglists
     #get_argument_lists
 #ArgumentCollector
+
+
+def split_quoted_string(text):
+    return reduce(
+        lambda x, y: x + ["".join([
+            y[0].replace("\\\"", "\""),
+            y[1].replace("\\'", "'"),
+            y[2]])],
+        PAT_SPLIT_QUOTED.findall(text), [])
+#split_quoted_string
 
 
 def format_help(text, format_args={}):
