@@ -112,7 +112,7 @@ v0.0.5 (2016-09-06)
         - Changed default value of -m/--min-pct-of-max from 5.0 to 2.0
         - Changed default value of -p/--min-pct-of-sum from 3.0 to 1.5
 
-    The TSSV tool was updated with an option to increase the panelty given to
+    The TSSV tool was updated with an option to increase the penalty given to
     insertions and deletions in the flanking sequences. It now requires TSSV
     version 0.4.0 to be installed.
 

@@ -78,9 +78,10 @@ def process_sample(sample_data, sample_alleles, tag, library):
             if (marker, allele) not in sample_data:
                 raise ValueError(
                     "Missing allele %s of marker %s in sample %s!" % (allele, marker, tag))
-            elif 0 in sample_data[marker, allele]:
+            this_allele_reads = sum(sample_data[marker, allele][0 : 2])
+            if not this_allele_reads:
                 raise ValueError("Allele %s of marker %s has 0 reads!" % (allele, marker))
-            allele_reads[marker] += sum(sample_data[marker, allele][0 : 2])
+            allele_reads[marker] += this_allele_reads
 
     # Find the highest, the lowest, and the total noise for each marker,
     # and the highest total recovery.

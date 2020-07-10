@@ -26,6 +26,7 @@ Changed in 2.0.0:
 
 BGAnalyse 1.1.0:
 * Fixed bug that caused non-integer percentiles to appear rounded down in the output.
+* Samples with 0 reads on one strand for a genuine allele are now accepted.
 
 BGEstimate 1.2.0:
 * Removed the random subsampling arguments.
