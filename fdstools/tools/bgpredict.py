@@ -67,7 +67,7 @@ _DEF_THRESHOLD_PCT = 0.5
 
 # Default minimum R2 score.
 # This value can be overridden by the -t command line option.
-_DEF_MIN_R2 = 0.8
+_DEF_MIN_R2 = 0.
 
 
 def parse_stuttermodel(stuttermodel, min_r2=0, use_all_data=False):

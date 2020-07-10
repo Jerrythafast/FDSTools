@@ -34,6 +34,8 @@ BGHomStats 1.1.0:
 * Removed the random subsampling arguments.
 
 BGPredict 1.1.0:
+* The default value of the -t/--min-r2 option has been changed to 0, effectively
+  disabling the filter by default.
 * Flanks are now ignored even if the library file is given; repeats may
   be interpreted as being slightly shorter if they continue into the flanks.
 
@@ -65,7 +67,6 @@ HOMOLOGATION
 
 
 To-do:
-* Set default min r2 to 0 in bgpredict.
 * Suspected bug (marked with FIXME) in samplestats.
 * Clean up samplestats code.
 * Avoid reduce() in lib/seq.py
