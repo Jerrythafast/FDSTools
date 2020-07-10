@@ -1,9 +1,27 @@
 /*
  * Copyright (C) 2020 Jerry Hoogenboom
  *
+ * This file is part of FDSTools, data analysis tools for Massively
+ * Parallel Sequencing of forensic DNA markers.
+ *
+ * FDSTools is free software: you can redistribute it and/or modify it
+ * under the terms of the GNU General Public License as published by the
+ * Free Software Foundation, either version 3 of the License, or (at
+ * your option) any later version.
+ *
+ * FDSTools is distributed in the hope that it will be useful, but
+ * WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+ * General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with FDSTools.  If not, see <http://www.gnu.org/licenses/>.
+ */
+
+/*
  * This file is based on original code from the TSSV project: Targeted
- * characterisation of short structural variation, version 0.4.0, which was
- * originally made available under the below license.
+ * characterisation of short structural variation, version 0.4.0. The original,
+ * unmodified code was made available under the below license.
  *
  * Copyright (c) 2012-2016 Jeroen F.J. Laros <j.f.j.laros@lumc.nl>
  * Copyright (c) 2016 Jerry Hoogenboom <j.hoogenboom@nfi.minvenj.nl>
