@@ -63,17 +63,18 @@ _DEF_MIN_SAMPLES = 2
 _DEF_MIN_SAMPLE_PCT = 80.
 
 
-def add_sample_data(data, sample_data, sample_alleles, min_pct, min_abs, tag):
+def add_sample_data(data, sample_data, sample_alleles, min_pct, min_abs, tag, combine_strands):
     # Check presence of all alleles.
     for marker in sample_alleles:
         allele = sample_alleles[marker]
-        if (marker, allele) not in sample_data:
+        try:
+            reads = sample_data[marker, allele]
+        except KeyError:
             raise ValueError(
                 "Missing allele %s of marker %s in sample %s!" % (allele, marker, tag))
-        elif 0 in sample_data[marker, allele]:
+        if (combine_strands and not sum(reads)) or (not combine_strands and 0 in reads):
             raise ValueError(
-                "Allele %s of marker %s has 0 reads on one strand in "
-                    "sample %s!" % (allele, marker, tag))
+                "Allele %s of marker %s has 0 reads in sample %s!" % (allele, marker, tag))
 
     # Enter the read counts into data and check the thresholds.
     for marker, sequence in sample_data:
@@ -81,18 +82,25 @@ def add_sample_data(data, sample_data, sample_alleles, min_pct, min_abs, tag):
             # Sample does not participate in this marker.
             continue
         allele = sample_alleles[marker]
-        factors = [100 / x for x in sample_data[marker, allele]]
+
+        if combine_strands:
+            reads = [sum(sample_data[marker, sequence])]
+            factors = [100 / sum(sample_data[marker, allele])]
+        else:
+            reads = sample_data[marker, sequence]
+            factors = [100 / x for x in sample_data[marker, allele]]
+
         if (marker, allele) not in data:
             data[marker, allele] = {}
         if sequence not in data[marker, allele]:
-            data[marker, allele][sequence] = [None, None, 0]
-        for direction in (0, 1):
-            data[marker, allele][sequence][direction] = adjust_stats(
-                sample_data[marker, sequence][direction] * factors[direction],
-                data[marker, allele][sequence][direction])
-        if sum(count >= min_abs and count * factor >= min_pct
-               for count, factor in zip(sample_data[marker, sequence], factors)):
-            data[marker, allele][sequence][2] += 1
+            data[marker, allele][sequence] = [None] * len(reads) + [0]
+
+        for i in range(len(reads)):
+            data[marker, allele][sequence][i] = adjust_stats(reads[i] * factors[i],
+                data[marker, allele][sequence][i])
+        if any(count >= min_abs and count * factor >= min_pct
+               for count, factor in zip(reads, factors)):
+            data[marker, allele][sequence][-1] += 1
 #add_sample_data
 
 
@@ -105,23 +113,23 @@ def filter_data(data, min_samples, min_sample_pct):
     sequences that were not seen in all samples with a given allele.
     """
     for marker, allele in tuple(data):
-        if data[marker, allele][allele][2] < min_samples:
+        if data[marker, allele][allele][-1] < min_samples:
             del data[marker, allele]
             continue
-        factor = 100 / data[marker, allele][allele][2]
+        factor = 100 / data[marker, allele][allele][-1]
         for sequence in tuple(data[marker, allele]):
-            if data[marker, allele][sequence][2] * factor < min_sample_pct:
+            if data[marker, allele][sequence][-1] * factor < min_sample_pct:
                 del data[marker, allele][sequence]
                 continue
             for i in range(data[marker, allele][sequence][0]["n"],
-                           data[marker, allele][allele][2]):
-                for direction in (0, 1):
-                    adjust_stats(0, data[marker, allele][sequence][direction])
+                           data[marker, allele][allele][-1]):
+                for stats in data[marker, allele][sequence][:-1]:
+                    adjust_stats(0, stats)
 #filter_data
 
 
 def compute_stats(samples_in, outfile, allelefile, annotation_column, min_pct, min_abs,
-                  min_samples, min_sample_pct, seqformat, library, marker):
+                  min_samples, min_sample_pct, seqformat, library, marker, combine_strands):
 
     # Parse allele list.
     allelelist = {} if allelefile is None else parse_allelelist(allelefile,
@@ -134,7 +142,7 @@ def compute_stats(samples_in, outfile, allelefile, annotation_column, min_pct, m
         lambda tag, sample_data: add_sample_data(
             data, sample_data,
             {m: allelelist[tag][m].pop() for m in allelelist[tag]},
-            min_pct, min_abs, tag),
+            min_pct, min_abs, tag, combine_strands),
         allelelist, annotation_column, seqformat, library, marker, True,
         drop_special_seq=True)
 
@@ -142,21 +150,20 @@ def compute_stats(samples_in, outfile, allelefile, annotation_column, min_pct, m
     # insignificant background products.
     filter_data(data, min_samples, min_sample_pct)
 
-    outfile.write("\t".join(["marker", "allele", "sequence", "n", "fmin", "fmax", "fmean",
-        "fvariance", "rmin", "rmax", "rmean", "rvariance", "tool"]) + "\n")
+    if combine_strands:
+        outfile.write("\t".join(["marker", "allele", "sequence", "n", "tmin", "tmax", "tmean",
+            "tvariance", "tool"]) + "\n")
+    else:
+        outfile.write("\t".join(["marker", "allele", "sequence", "n", "fmin", "fmax", "fmean",
+            "fvariance", "rmin", "rmax", "rmean", "rvariance", "tool"]) + "\n")
     for marker, allele in data:
         for sequence in data[marker, allele]:
-            outfile.write("\t".join([marker, allele, sequence] + [
-                "%.3g" % x if abs(x) > 0.0000000001 else "0" for x in (
-                    data[marker, allele][sequence][0]["n"],
-                    data[marker, allele][sequence][0]["min"],
-                    data[marker, allele][sequence][0]["max"],
-                    data[marker, allele][sequence][0]["mean"],
-                    data[marker, allele][sequence][0]["variance"],
-                    data[marker, allele][sequence][1]["min"],
-                    data[marker, allele][sequence][1]["max"],
-                    data[marker, allele][sequence][1]["mean"],
-                    data[marker, allele][sequence][1]["variance"])] +
+            outfile.write("\t".join(
+                [marker, allele, sequence, str(data[marker, allele][sequence][0]["n"])] +
+                ["%.3g" % x if abs(x) > 0.0000000001 else "0" for y in (
+                    (stats["min"], stats["max"], stats["mean"], stats["variance"])
+                    for stats in data[marker, allele][sequence][:-1])
+                for x in y] +
                 ["bghomstats"]) + "\n")
 #compute_stats
 
@@ -164,6 +171,9 @@ def compute_stats(samples_in, outfile, allelefile, annotation_column, min_pct, m
 def add_arguments(parser):
     add_input_output_args(parser)
     add_allele_detection_args(parser)
+    parser.add_argument("-C", "--combine-strands", action="store_true",
+        help="if specified, noise statistics will be calculated for the total number of reads, "
+             "instead of separately for either strand")
     filtergroup = parser.add_argument_group("filtering options")
     filtergroup.add_argument("-m", "--min-pct", metavar="PCT", type=float,
         default=_DEF_THRESHOLD_PCT,
@@ -194,7 +204,7 @@ def run(args):
     try:
         compute_stats(files[0], files[1], args.allelelist, args.annotation_column, args.min_pct,
                       args.min_abs, args.min_samples, args.min_sample_pct,
-                      args.sequence_format, args.library, args.marker)
+                      args.sequence_format, args.library, args.marker, args.combine_strands)
     except IOError as e:
         if e.errno == EPIPE:
             return

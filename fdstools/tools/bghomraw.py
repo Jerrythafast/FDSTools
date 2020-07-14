@@ -59,17 +59,18 @@ _DEF_MIN_SAMPLES = 2
 _DEF_MIN_SAMPLE_PCT = 80.
 
 
-def add_sample_data(data, sample_data, sample_alleles, min_pct, min_abs, tag):
+def add_sample_data(data, sample_data, sample_alleles, min_pct, min_abs, tag, combine_strands):
     # Check presence of all alleles.
     for marker in sample_alleles:
         allele = sample_alleles[marker]
-        if (marker, allele) not in sample_data:
+        try:
+            reads = sample_data[marker, allele]
+        except KeyError:
             raise ValueError(
                 "Missing allele %s of marker %s in sample %s!" % (allele, marker, tag))
-        elif 0 in sample_data[marker, allele]:
+        if (combine_strands and not sum(reads)) or (not combine_strands and 0 in reads):
             raise ValueError(
-                "Allele %s of marker %s has 0 reads on one strand in "
-                    "sample %s!" % (allele, marker, tag))
+                "Allele %s of marker %s has 0 reads in sample %s!" % (allele, marker, tag))
 
     # Enter the read counts into data and check the thresholds.
     for marker, sequence in sample_data:
@@ -77,6 +78,8 @@ def add_sample_data(data, sample_data, sample_alleles, min_pct, min_abs, tag):
             # Sample does not participate in this marker.
             continue
         allele = sample_alleles[marker]
+
+        reads = sample_data[marker, sequence] + [sum(sample_data[marker, sequence])]
         factors = [100 / x for x in sample_data[marker, allele]]
         factors.append(100 / sum(sample_data[marker, allele]))
         if (marker, allele) not in data:
@@ -84,24 +87,32 @@ def add_sample_data(data, sample_data, sample_alleles, min_pct, min_abs, tag):
         if sequence not in data[marker, allele]:
             data[marker, allele][sequence] = {
                 "tag": [],
-                "forward": [],
-                "reverse": [],
-                "fnoise": [],
-                "rnoise": [],
+                "total": [],
                 "tnoise": [],
                 "passed_filter": 0}
-        data[marker, allele][sequence]["tag"].append(tag)
-        data[marker, allele][sequence]["forward"].append(sample_data[marker, sequence][0])
-        data[marker, allele][sequence]["reverse"].append(sample_data[marker, sequence][1])
-        data[marker, allele][sequence]["fnoise"].append(
-            sample_data[marker, sequence][0] * factors[0])
-        data[marker, allele][sequence]["rnoise"].append(
-            sample_data[marker, sequence][1] * factors[1])
-        data[marker, allele][sequence]["tnoise"].append(
-            sum(sample_data[marker, sequence]) * factors[2])
-        if sum(count >= min_abs and count * factor >= min_pct
-               for count, factor in zip(sample_data[marker, sequence], factors[:2])):
-            data[marker, allele][sequence]["passed_filter"] += 1
+            if not combine_strands:
+                data[marker, allele][sequence]["forward"] = []
+                data[marker, allele][sequence]["reverse"] = []
+                data[marker, allele][sequence]["fnoise"] = []
+                data[marker, allele][sequence]["rnoise"] = []
+
+        this_data = data[marker, allele][sequence]
+        this_data["tag"].append(tag)
+        this_data["total"].append(reads[2])
+        this_data["tnoise"].append(reads[2] * factors[2])
+
+        if not combine_strands:
+            this_data["forward"].append(reads[0])
+            this_data["reverse"].append(reads[1])
+            this_data["fnoise"].append(reads[0] * factors[0])
+            this_data["rnoise"].append(reads[1] * factors[1])
+
+        if combine_strands:
+            if reads[2] >= min_abs and reads[2] * factors[2] >= min_pct:
+                this_data["passed_filter"] += 1
+        elif any(count >= min_abs and count * factor >= min_pct
+               for count, factor in zip(reads[:2], factors[:2])):
+            this_data["passed_filter"] += 1
 #add_sample_data
 
 
@@ -125,7 +136,7 @@ def filter_data(data, min_samples, min_sample_pct):
 
 
 def compute_ratios(samples_in, outfile, allelefile, annotation_column, min_pct, min_abs,
-                   min_samples, min_sample_pct, seqformat, library, marker):
+                   min_samples, min_sample_pct, seqformat, library, marker, combine_strands):
 
     # Parse allele list.
     allelelist = {} if allelefile is None else parse_allelelist(allelefile,
@@ -138,7 +149,7 @@ def compute_ratios(samples_in, outfile, allelefile, annotation_column, min_pct, 
         lambda tag, sample_data: add_sample_data(
             data, sample_data,
             {m: allelelist[tag][m].pop() for m in allelelist[tag]},
-            min_pct, min_abs, tag),
+            min_pct, min_abs, tag, combine_strands),
         allelelist, annotation_column, seqformat, library, marker, True,
         drop_special_seq=True)
 
@@ -146,28 +157,38 @@ def compute_ratios(samples_in, outfile, allelefile, annotation_column, min_pct, 
     # insignificant background products.
     filter_data(data, min_samples, min_sample_pct)
 
-    outfile.write("\t".join(["sample", "marker", "allele", "sequence",
-        "forward", "reverse", "total", "fnoise", "rnoise", "tnoise"]) + "\n")
+    if combine_strands:
+        outfile.write(
+            "\t".join(("sample", "marker", "allele", "sequence", "total", "tnoise")) + "\n")
+    else:
+        outfile.write("\t".join(("sample", "marker", "allele", "sequence",
+            "forward", "reverse", "total", "fnoise", "rnoise", "tnoise")) + "\n")
     for marker, allele in data:
         for sequence in data[marker, allele]:
-            for i in range(len(data[marker, allele][sequence]["tag"])):
-                outfile.write("\t".join([
-                    data[marker, allele][sequence]["tag"][i], marker, allele,
-                    sequence] + list(map(str, (
-                        data[marker, allele][sequence]["forward"][i],
-                        data[marker, allele][sequence]["reverse"][i],
-                        data[marker, allele][sequence]["forward"][i] +
-                        data[marker, allele][sequence]["reverse"][i]))) + [
-                    "%.3g" % x if abs(x) > 0.0000000001 else "0" for x in (
-                        data[marker, allele][sequence]["fnoise"][i],
-                        data[marker, allele][sequence]["rnoise"][i],
-                        data[marker, allele][sequence]["tnoise"][i])]) + "\n")
+            for i, tag in enumerate(data[marker, allele][sequence]["tag"]):
+                if combine_strands:
+                    noise = data[marker, allele][sequence]["tnoise"][i]
+                    outfile.write("\t".join((tag, marker, allele, sequence,
+                        str(data[marker, allele][sequence]["total"][i]),
+                        "%.3g" % noise if abs(noise) > 0.0000000001 else "0")) + "\n")
+                else:
+                    outfile.write("\t".join([tag, marker, allele, sequence] + list(map(str, (
+                            data[marker, allele][sequence]["forward"][i],
+                            data[marker, allele][sequence]["reverse"][i],
+                            data[marker, allele][sequence]["total"][i]))) + [
+                        "%.3g" % x if abs(x) > 0.0000000001 else "0" for x in (
+                            data[marker, allele][sequence]["fnoise"][i],
+                            data[marker, allele][sequence]["rnoise"][i],
+                            data[marker, allele][sequence]["tnoise"][i])]) + "\n")
 #compute_ratios
 
 
 def add_arguments(parser):
     add_input_output_args(parser)
     add_allele_detection_args(parser)
+    parser.add_argument("-C", "--combine-strands", action="store_true",
+        help="if specified, noise ratios will be calculated for the total number of reads, "
+             "instead of separately for either strand")
     filtergroup = parser.add_argument_group("filtering options")
     filtergroup.add_argument("-m", "--min-pct", metavar="PCT", type=float,
         default=_DEF_THRESHOLD_PCT,
@@ -198,7 +219,7 @@ def run(args):
     try:
         compute_ratios(files[0], files[1], args.allelelist, args.annotation_column, args.min_pct,
                        args.min_abs, args.min_samples, args.min_sample_pct,
-                       args.sequence_format, args.library, args.marker)
+                       args.sequence_format, args.library, args.marker, args.combine_strands)
     except IOError as e:
         if e.errno == EPIPE:
             return

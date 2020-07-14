@@ -71,24 +71,6 @@ _DEF_MIN_SAMPLE_PCT = 80.
 _DEF_MIN_GENOTYPES = 3
 
 
-def solve_profile_mixture(forward, reverse, genotypes, n, starting_values={},
-                          variance=False, reportfile=None):
-    if reportfile:
-        try_write_pipe(reportfile, "Solving forward read profiles\n")
-    f = solve_profile_mixture_single(forward, genotypes, n,
-        starting_values={x: starting_values[x][0] for x in starting_values},
-        variance=variance, reportfile=reportfile)
-    if reportfile:
-        try_write_pipe(reportfile, "Solving reverse read profiles\n")
-    r = solve_profile_mixture_single(reverse, genotypes, n,
-        starting_values={x: starting_values[x][1] for x in starting_values},
-        variance=variance, reportfile=reportfile)
-    if variance:
-        return f[0], r[0], f[1], r[1]
-    return f, r
-#solve_profile_mixture
-
-
 def solve_profile_mixture_single(samples, genotypes, n, starting_values={},
                                  variance=False, reportfile=None):
     """
@@ -336,7 +318,7 @@ def filter_data(allelelist, min_samples, min_genotypes):
 #filter_data
 
 
-def add_sample_data(data, sample_data, sample_alleles, min_pct, min_abs, tag):
+def add_sample_data(data, sample_data, sample_alleles, min_pct, min_abs, tag, combine_strands):
     # Make sure the true alleles of this sample are added to data.
     # Also compute the allele-specific inclusion thresholds for noise.
     thresholds = {}
@@ -347,33 +329,46 @@ def add_sample_data(data, sample_data, sample_alleles, min_pct, min_abs, tag):
             data[marker] = {
                 "profiles": {
                     "true alleles": 0,
-                    "alleles": [],
-                    "profiles_forward": [],
-                    "profiles_reverse": []},
+                    "alleles": []},
                 "allele_counts": {},
                 "genotypes": []}
+            if combine_strands:
+                data[marker]["profiles"]["profiles_total"] = []
+            else:
+                data[marker]["profiles"]["profiles_forward"] = []
+                data[marker]["profiles"]["profiles_reverse"] = []
         p = data[marker]["profiles"]
-        p["profiles_forward"].append([0] * len(p["alleles"]))
-        p["profiles_reverse"].append([0] * len(p["alleles"]))
+        if combine_strands:
+            p["profiles_total"].append([0] * len(p["alleles"]))
+        else:
+            p["profiles_forward"].append([0] * len(p["alleles"]))
+            p["profiles_reverse"].append([0] * len(p["alleles"]))
         data[marker]["genotypes"].append([])
         thresholds[marker] = {}
         for allele in sample_alleles[marker]:
-            if (marker, allele) not in sample_data:
+            try:
+                reads = sample_data[marker, allele]
+            except KeyError:
                 raise ValueError(
                     "Missing allele %s of marker %s in sample %s!" % (allele, marker, tag))
-            elif 0 in sample_data[marker, allele]:
-                raise ValueError(
-                    "Allele %s of marker %s has 0 reads on one strand in "
-                    "sample %s!" % (allele, marker, tag))
+            if combine_strands:
+                reads = [sum(reads)]
+            if 0 in reads:
+                raise ValueError("Allele %s of marker %s has 0 reads in sample %s!" %
+                    (allele, marker, tag))
             try:
                 i = p["alleles"].index(allele)
             except ValueError:
                 i = len(p["alleles"])
                 p["alleles"].append(allele)
-                for profile in p["profiles_forward"]:
-                    profile.append(0)
-                for profile in p["profiles_reverse"]:
-                    profile.append(0)
+                if combine_strands:
+                    for profile in p["profiles_total"]:
+                        profile.append(0)
+                else:
+                    for profile in p["profiles_forward"]:
+                        profile.append(0)
+                    for profile in p["profiles_reverse"]:
+                        profile.append(0)
                 for gi in data[marker]["allele_counts"]:
                     data[marker]["allele_counts"][gi].append(0)
             if i not in data[marker]["allele_counts"]:
@@ -394,15 +389,22 @@ def add_sample_data(data, sample_data, sample_alleles, min_pct, min_abs, tag):
             i = p["alleles"].index(allele)
         except ValueError:
             p["alleles"].append(allele)
-            for profile in p["profiles_forward"]:
-                profile.append(0)
-            for profile in p["profiles_reverse"]:
-                profile.append(0)
+            if combine_strands:
+                for profile in p["profiles_total"]:
+                    profile.append(0)
+            else:
+                for profile in p["profiles_forward"]:
+                    profile.append(0)
+                for profile in p["profiles_reverse"]:
+                    profile.append(0)
             for gi in data[marker]["allele_counts"]:
                 data[marker]["allele_counts"][gi].append(0)
             i = -1
-        p["profiles_forward"][-1][i] = sample_data[marker, allele][0]
-        p["profiles_reverse"][-1][i] = sample_data[marker, allele][1]
+        if combine_strands:
+            p["profiles_total"][-1][i] = sample_data[marker, allele][0]
+        else:
+            p["profiles_forward"][-1][i] = sample_data[marker, allele][0]
+            p["profiles_reverse"][-1][i] = sample_data[marker, allele][1]
 
         for gi in thresholds[marker]:
             if sum(count >= max(min_abs, threshold)
@@ -412,7 +414,7 @@ def add_sample_data(data, sample_data, sample_alleles, min_pct, min_abs, tag):
 #add_sample_data
 
 
-def preprocess_data(data, min_sample_pct):
+def preprocess_data(data, min_sample_pct, combine_strands):
     """
     Drop any sequence that is less than threshold_pct percent of the
     highest allele in more than 100-min_sample_pct of the samples with
@@ -434,8 +436,11 @@ def preprocess_data(data, min_sample_pct):
                     order.append(i)
                     break
         p["alleles"] = [p["alleles"][i] for i in order]
-        p["profiles_forward"] = [[x[i] for i in order] for x in p["profiles_forward"]]
-        p["profiles_reverse"] = [[x[i] for i in order] for x in p["profiles_reverse"]]
+        if combine_strands:
+            p["profiles_total"] = [[x[i] for i in order] for x in p["profiles_total"]]
+        else:
+            p["profiles_forward"] = [[x[i] for i in order] for x in p["profiles_forward"]]
+            p["profiles_reverse"] = [[x[i] for i in order] for x in p["profiles_reverse"]]
         data[marker]["genotypes"] = [
             [order.index(y) for y in x] for x in data[marker]["genotypes"]]
         del data[marker]["allele_counts"]
@@ -444,7 +449,7 @@ def preprocess_data(data, min_sample_pct):
 
 def generate_profiles(samples_in, outfile, reportfile, allelefile, annotation_column, min_pct,
                       min_abs, min_samples, min_sample_pct, min_genotypes, library, profiles_in,
-                      marker, homozygotes):
+                      marker, homozygotes, combine_strands):
     if reportfile:
         t0 = time.time()
 
@@ -464,11 +469,12 @@ def generate_profiles(samples_in, outfile, reportfile, allelefile, annotation_co
     # Combine data from all samples.  This takes most time.
     data = {}
     for tag in tuple(sample_data):
-        add_sample_data(data, sample_data[tag], allelelist[tag], min_pct, min_abs, tag)
+        add_sample_data(data, sample_data[tag], allelelist[tag], min_pct, min_abs, tag,
+            combine_strands)
         del sample_data[tag]
 
     # Filter insignificant background products.
-    preprocess_data(data, min_sample_pct)
+    preprocess_data(data, min_sample_pct, combine_strands)
 
     # Load starting profiles.
     start_profiles = {} if profiles_in is None else load_profiles_new(profiles_in, library)
@@ -477,14 +483,18 @@ def generate_profiles(samples_in, outfile, reportfile, allelefile, annotation_co
         t1 = time.time()
         try_write_pipe(reportfile, "Data loading and filtering took %f seconds\n" % (t1 - t0))
 
-    outfile.write("\t".join(("marker", "allele", "sequence", "fmean", "rmean", "tool")) + "\n")
+    if combine_strands:
+        outfile.write("\t".join(("marker", "allele", "sequence", "tmean", "tool")) + "\n")
+    else:
+        outfile.write("\t".join(("marker", "allele", "sequence", "fmean", "rmean", "tool")) + "\n")
     for marker in tuple(data):
         p = data[marker]["profiles"]
         profile_size = len(p["alleles"])
 
         # Read relevent starting values from the starting profiles.
         init = {
-            (p["alleles"].index(allele), p["alleles"].index(seq)): (
+            (p["alleles"].index(allele), p["alleles"].index(seq)):
+                start_profiles[marker][allele][seq]["total"] if combine_strands else (
                 start_profiles[marker][allele][seq]["forward"],
                 start_profiles[marker][allele][seq]["reverse"])
             for allele in start_profiles[marker] if allele in p["alleles"]
@@ -493,34 +503,56 @@ def generate_profiles(samples_in, outfile, reportfile, allelefile, annotation_co
 
         # Solve for the profiles of the true alleles.
         if reportfile:
-            try_write_pipe(reportfile, "Solving marker %s with n=%i, m=%i, k=%i\n" %
-                (marker, p["true alleles"], profile_size, len(p["profiles_forward"])))
+            try_write_pipe(reportfile, "Solving marker %s with n=%i, m=%i, k=%i\n" % (
+                marker, p["true alleles"], profile_size,
+                len(p["profiles_total" if combine_strands else "profiles_forward"])))
             t0 = time.time()
-        p["profiles_forward"], p["profiles_reverse"] = solve_profile_mixture(
-            p["profiles_forward"], p["profiles_reverse"], data[marker]["genotypes"],
-            p["true alleles"], starting_values=init, reportfile=reportfile)
+
+        if combine_strands:
+            p["profiles_total"] = solve_profile_mixture_single(
+                p["profiles_total"], data[marker]["genotypes"], p["true alleles"],
+                starting_values=init, reportfile=reportfile)
+        else:
+            for i, direction in enumerate(("forward", "reverse")):
+                if reportfile:
+                    try_write_pipe(reportfile, "Solving %s read profiles\n" % direction)
+                p["profiles_" + direction] = solve_profile_mixture_single(
+                    p["profiles_" + direction], data[marker]["genotypes"], p["true alleles"],
+                    starting_values={x: init[x][i] for x in init}, reportfile=reportfile)
+
         if reportfile:
             t1 = time.time()
             try_write_pipe(reportfile, "Solved marker %s in %f seconds\n" % (marker, t1 - t0))
 
         # Round to 3 digits to get rid of funny rounding effects.
         # This method is not that precise anyway.
-        for profile in p["profiles_forward"]:
-            for i in range(profile_size):
-                profile[i] = round(profile[i], 3)
-        for profile in p["profiles_reverse"]:
-            for i in range(profile_size):
-                profile[i] = round(profile[i], 3)
+        if combine_strands:
+            for profile in p["profiles_total"]:
+                for i in range(profile_size):
+                    profile[i] = round(profile[i], 3)
+        else:
+            for profile in p["profiles_forward"]:
+                for i in range(profile_size):
+                    profile[i] = round(profile[i], 3)
+            for profile in p["profiles_reverse"]:
+                for i in range(profile_size):
+                    profile[i] = round(profile[i], 3)
 
         for i in range(p["true alleles"]):
             for j in range(len(p["alleles"])):
-                if not p["profiles_forward"][i][j] + p["profiles_reverse"][i][j]:
-                    continue
-                outfile.write("\t".join(
-                    [marker, p["alleles"][i], p["alleles"][j]] +
-                    list(map(str, [p["profiles_forward"][i][j],
-                              p["profiles_reverse"][i][j]])) +
-                    ["bgestimate"]) + "\n")
+                if combine_strands:
+                    if not p["profiles_total"][i][j]:
+                        continue
+                    outfile.write("\t".join((marker, p["alleles"][i], p["alleles"][j],
+                        str(p["profiles_total"][i][j]), "bgestimate")) + "\n")
+                else:
+                    if not p["profiles_forward"][i][j] + p["profiles_reverse"][i][j]:
+                        continue
+                    outfile.write("\t".join(
+                        [marker, p["alleles"][i], p["alleles"][j]] +
+                        list(map(str, [p["profiles_forward"][i][j],
+                                  p["profiles_reverse"][i][j]])) +
+                        ["bgestimate"]) + "\n")
         del data[marker]
 #generate_profiles
 
@@ -528,6 +560,9 @@ def generate_profiles(samples_in, outfile, reportfile, allelefile, annotation_co
 def add_arguments(parser):
     add_input_output_args(parser, single_in=False, batch_support=False, report_out=True)
     add_allele_detection_args(parser)
+    parser.add_argument("-C", "--combine-strands", action="store_true",
+        help="if specified, noise profiles will be calculated for the total number of reads, "
+             "instead of separately for either strand")
     filtergroup = parser.add_argument_group("filtering options")
     filtergroup.add_argument("-m", "--min-pct", metavar="PCT", type=float,
         default=_DEF_THRESHOLD_PCT,
@@ -571,7 +606,7 @@ def run(args):
         generate_profiles(files[0], files[1], args.report, args.allelelist, args.annotation_column,
                           args.min_pct, args.min_abs, args.min_samples, args.min_sample_pct,
                           args.min_genotypes, args.library, args.profiles, args.marker,
-                          args.homozygotes)
+                          args.homozygotes, args.combine_strands)
     except IOError as e:
         if e.errno == EPIPE:
             try:

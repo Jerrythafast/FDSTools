@@ -75,7 +75,7 @@ _DEF_MIN_R2 = 0.8
 def is_repeated_sequence(sequence):
     """Test whether a sequence consists of one repeated element."""
     for i in range(1, len(sequence)):
-        if not len(sequence) % i and sequence == sequence[:i] * (len(sequence) / i):
+        if not len(sequence) % i and sequence == sequence[:i] * (len(sequence) // i):
             return True
     return False
 #is_repeated_sequence
@@ -149,16 +149,19 @@ def print_fit(outfile, fit, lengths, seq, marker, stutter_fold, direction, lower
 #print_fit
 
 
-def add_sample_data(data, sample_data, sample_alleles, tag, min_pct, min_abs):
+def add_sample_data(data, sample_data, sample_alleles, tag, min_pct, min_abs, combine_strands):
     # Check presence of all alleles.
     for marker in sample_alleles:
         allele = sample_alleles[marker]
-        if (marker, allele) not in sample_data:
+        try:
+            reads = sample_data[marker, allele]
+        except KeyError:
             raise ValueError(
                 "Missing allele %s of marker %s in sample %s!" % (allele, marker, tag))
-        elif 0 in sample_data[marker, allele]:
+        if (combine_strands and not sum(reads)) or (not combine_strands and 0 in reads):
             raise ValueError(
                 "Allele %s of marker %s has 0 reads in sample %s!" % (allele, marker, tag))
+
         if marker not in data["alleles"]:
             data["alleles"][marker] = {}
         try:
@@ -171,13 +174,20 @@ def add_sample_data(data, sample_data, sample_alleles, tag, min_pct, min_abs):
         if marker not in sample_alleles:
             # Sample does not participate in this marker.
             continue
+        allele = sample_alleles[marker]
+
+        if combine_strands:
+            reads = [sum(sample_data[marker, sequence])]
+            factors = [100 / sum(sample_data[marker, allele])]
+        else:
+            reads = sample_data[marker, sequence]
+            factors = [100 / x for x in sample_data[marker, allele]]
+
         if (tag, marker) not in data["samples"]:
             data["samples"][tag, marker] = {}
-        amounts = [count * factor for count, factor in zip(
-            sample_data[marker, sequence],
-            (100 / x for x in sample_data[marker, sample_alleles[marker]]))]
-        if sum(abscount >= min_abs and relcount >= min_pct for abscount, relcount in
-               zip(sample_data[marker, sequence], amounts)):
+        amounts = [count * factor for count, factor in zip(reads, factors)]
+        if any(abscount >= min_abs and relcount >= min_pct for abscount, relcount in
+               zip(reads, amounts)):
             data["samples"][tag, marker][sequence] = amounts
 #add_sample_data
 
@@ -199,7 +209,7 @@ def filter_data(data, min_samples):
 
 def fit_stutter(samples_in, outfile, allelefile, annotation_column, min_pct, min_abs, min_lengths,
                 min_samples, library, min_r2, orphans, degree, same_shape, ignore_zeros,
-                max_unit_length, raw_outfile, marker, limit_reads, drop_samples):
+                max_unit_length, raw_outfile, marker, combine_strands):
 
     # Parse allele list.
     allelelist = {} if allelefile is None else parse_allelelist(allelefile,
@@ -212,7 +222,7 @@ def fit_stutter(samples_in, outfile, allelefile, annotation_column, min_pct, min
         lambda tag, sample_data: add_sample_data(
             data, sample_data,
             {m: allelelist[tag][m].pop() for m in allelelist[tag]},
-            tag, min_pct, min_abs),
+            tag, min_pct, min_abs, combine_strands),
         allelelist, annotation_column, "raw", library, marker, True, True)
 
     # Ensure minimum number of samples per allele.
@@ -228,13 +238,15 @@ def fit_stutter(samples_in, outfile, allelefile, annotation_column, min_pct, min
             list(map(chr, list(range(ord("a"), ord("a") + degree + 1))))) + "\n")
     if raw_outfile is not None:
         raw_outfile.write(
-            "\t".join(["unit", "marker", "stutter", "length", "forward", "reverse"]) + "\n")
+            "\t".join(["unit", "marker", "stutter", "length"] +
+                (["total"] if combine_strands else ["forward", "reverse"])) + "\n")
 
     for seq in sorted(patterns, key=lambda seq: (len(seq), seq)):
         stutter_fold = -1
         while True:
             if fit_stutter_model(outfile, raw_outfile, data, library, seq, patterns[seq], min_r2,
-                    min_lengths, degree, same_shape, ignore_zeros, stutter_fold, orphans):
+                    min_lengths, degree, same_shape, ignore_zeros, stutter_fold, orphans,
+                    combine_strands):
                 stutter_fold += 1 if stutter_fold > 0 else -1
             elif stutter_fold < 0:
                 stutter_fold = 1
@@ -244,10 +256,11 @@ def fit_stutter(samples_in, outfile, allelefile, annotation_column, min_pct, min
 
 
 def fit_stutter_model(outfile, raw_outfile, data, library, seq, patterns, min_r2, min_lengths,
-                      degree, same_shape, ignore_zeros, stutter_fold, orphans):
+                      degree, same_shape, ignore_zeros, stutter_fold, orphans, combine_strands):
+    num_fits = 1 if combine_strands else 2
     success = False
-    found_fits = {marker: [False, False] for marker in data["alleles"]}
-    found_fits["All data"] = [False, False]
+    found_fits = {marker: [False] * num_fits for marker in data["alleles"]}
+    found_fits["All data"] = [False] * num_fits
 
     stutlen = len(seq) * abs(stutter_fold)
     all_lengths = []
@@ -284,11 +297,11 @@ def fit_stutter_model(outfile, raw_outfile, data, library, seq, patterns, min_r2
                 else:
                     variant = "%i%s>-" % (position + 1, allele[position : end])
                 for sample in data["alleles"][marker][allele]:
-                    amount = [0., 0.]  # Reads per 100 reads of allele.
+                    amount = [0.] * num_fits  # Reads per 100 reads of allele.
                     for sequence in data["samples"][sample, marker]:
                         if variant in call_variants(allele, sequence):
-                            amount[0] += data["samples"][sample, marker][sequence][0]
-                            amount[1] += data["samples"][sample, marker][sequence][1]
+                            for i in range(num_fits):
+                                amount[i] += data["samples"][sample, marker][sequence][i]
                     if is_reverse_complement:
                         amount = amount[::-1]
                     all_observed_amounts.append(amount)
@@ -315,7 +328,7 @@ def fit_stutter_model(outfile, raw_outfile, data, library, seq, patterns, min_r2
         if same_shape or len(set(lengths)) < min_lengths:
             continue
         lengths = np.array(lengths)
-        for i in (0, 1):
+        for i in range(num_fits):
             if not observed_amounts[:, i].any():
                 # All zero.
                 continue
@@ -362,7 +375,7 @@ def fit_stutter_model(outfile, raw_outfile, data, library, seq, patterns, min_r2
     if same_shape:
         markers = np.array(markers)
         from_markers = np.array(from_markers)
-    for i in (0, 1):
+    for i in range(num_fits):
         if not all_observed_amounts[:, i].any():
             # All zero.
             continue
@@ -419,12 +432,12 @@ def fit_stutter_model(outfile, raw_outfile, data, library, seq, patterns, min_r2
     for marker in found_fits:
         if not orphans and not all(found_fits[marker]):
             continue
-        for i in (0, 1):
+        for i in range(num_fits):
             if not found_fits[marker][i]:
                 continue
+            direction = "total" if num_fits == 1 else "reverse" if i else "forward"
             print_fit(outfile, found_fits[marker][i][0], found_fits[marker][i][1], seq, marker,
-                      stutter_fold, "reverse" if i else "forward", found_fits[marker][i][2],
-                      found_fits[marker][i][3])
+                      stutter_fold, direction, found_fits[marker][i][2], found_fits[marker][i][3])
 
     return success
 #fit_stutter_model
@@ -433,6 +446,9 @@ def fit_stutter_model(outfile, raw_outfile, data, library, seq, patterns, min_r2
 def add_arguments(parser):
     add_input_output_args(parser)
     add_allele_detection_args(parser)
+    parser.add_argument("-C", "--combine-strands", action="store_true",
+        help="if specified, stutter will be modeled for the total number of reads, "
+             "instead of separately for either strand")
     filtergroup = parser.add_argument_group("filtering options")
     filtergroup.add_argument("-m", "--min-pct", metavar="PCT", type=float,
         default=_DEF_THRESHOLD_PCT,
@@ -485,7 +501,7 @@ def run(args):
         fit_stutter(files[0], files[1], args.allelelist, args.annotation_column, args.min_pct,
                     args.min_abs, args.min_lengths, args.min_samples, args.library, args.min_r2,
                     args.orphans, args.degree, args.same_shape, args.ignore_zeros,
-                    args.max_unit_length, args.raw_outfile, args.marker)
+                    args.max_unit_length, args.raw_outfile, args.marker, args.combine_strands)
     except IOError as e:
         if e.errno == EPIPE:
             return

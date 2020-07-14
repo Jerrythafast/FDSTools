@@ -29,9 +29,17 @@ BGAnalyse 1.1.0:
 * Samples with 0 reads on one strand for a genuine allele are now accepted.
 
 BGEstimate 1.2.0:
+* Added the -C/--combine-strands option, to estimate noise profiles for the total number
+  of reads instead of estimating separate noise profiles for either strand.
 * Removed the random subsampling arguments.
 
+BHomRaw 1.1.0:
+* Added the -C/--combine-strands option, to calculate noise ratios for the total number
+  of reads only, instead of calculating separate noise ratios for either strand.
+
 BGHomStats 1.1.0:
+* Added the -C/--combine-strands option, to calculate statistics for the total number
+  of reads only, instead of calculating separate statistics for either strand.
 * Removed the random subsampling arguments.
 
 BGPredict 1.1.0:
@@ -41,6 +49,8 @@ BGPredict 1.1.0:
   be interpreted as being slightly shorter if they continue into the flanks.
 
 Stuttermodel 1.2.0:
+* Added the -C/--combine-strands option, to model stutter for the total number of
+  reads instead of fitting a separate stutter prediction model for either strand.
 * Removed the random subsampling arguments.
 * Flanks are now ignored even if the library file is given; repeats may
   be interpreted as being slightly shorter if they continue into the flanks.
@@ -61,7 +71,6 @@ HOMOLOGATION
 * Check that all tools allow for additional columns.
 * Standardise the 'flags' column and use it in more tools.
 * Make better use of print_debug() in all tools and postpone string formatting.
-* Could do a timeit run for {k: i for i, k in enumerate(l)} vs {l[i]: i for i in range(len(l))}
 
 
 
@@ -227,6 +236,25 @@ Reserved option letters:
 -l  Library
 -e  Sample tag extraction pattern
 -f  Sample tag format
+
+Options:
+allelefinder    a   c d e fF  h       l mMn o      R      v   x
+bganalyse       a   c d e fF  h       l m   o p           v
+bgcorrect             d e fF  h i     l  M  o             v
+bgestimate      a   cCd e f g hH      l mMn o p    RsS    v
+bghomraw        a   cCd e fF  h       l mMn o       sS    v
+bghomstats      a   cCd e fF  h       l mMn o       sS    v
+bgmerge               d       h       l     o             v
+bgpredict        A    d       h       l  Mn           t   v
+findnewalleles        d e f   h i     l  M  o             v
+library         a     d       h                       t   v
+samplestats     aAbBcCd e f   h i       mMnNo pP          v     yY
+seqconvert      a   c d e f   h i     lLmM  o     r       v
+stuttermark         c d e f   h i     l m n o     r s     v
+stuttermodel    a   cCdDe f   h       lLmMn oO    r sSt u v       z
+tssv            aA    dD   F  h         mMn        R   T  v    X
+vis             aAbBcCd       hH Ij    LmMnN  p  Q  sStT UvVw xX Y Z
+
 
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
