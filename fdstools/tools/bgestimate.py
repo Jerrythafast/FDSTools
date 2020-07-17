@@ -39,7 +39,7 @@ from errno import EPIPE
 from ..lib.cli import add_sequence_format_args, add_input_output_args, get_input_output_files,\
                       add_allele_detection_args, pos_int_arg
 from ..lib.io import get_sample_data, parse_allelelist, try_write_pipe
-from ..lib.noise import load_profiles_new
+from ..lib.noise import load_profiles
 from ..lib.util import nnls
 
 __version__ = "1.2.0"
@@ -477,7 +477,7 @@ def generate_profiles(samples_in, outfile, reportfile, allelefile, annotation_co
     preprocess_data(data, min_sample_pct, combine_strands)
 
     # Load starting profiles.
-    start_profiles = {} if profiles_in is None else load_profiles_new(profiles_in, library)
+    start_profiles = {} if profiles_in is None else load_profiles(profiles_in, library)
 
     if reportfile:
         t1 = time.time()

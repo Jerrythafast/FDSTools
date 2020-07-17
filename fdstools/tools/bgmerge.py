@@ -43,7 +43,7 @@ import sys
 from errno import EPIPE
 
 from ..lib.cli import add_sequence_format_args, glob_path
-from ..lib.noise import load_profiles_new
+from ..lib.noise import load_profiles
 
 __version__ = "1.1.0"
 
@@ -52,10 +52,10 @@ def merge_profiles(infiles, outfile, library):
     merged_profiles = {}
     for infile in infiles:
         if infile == "-":
-            profiles = load_profiles_new(sys.stdin, library)
+            profiles = load_profiles(sys.stdin, library)
         else:
             with open(infile, "tr") as handle:
-                profiles = load_profiles_new(handle, library)
+                profiles = load_profiles(handle, library)
         for marker, markerprofile in profiles.items():
             if marker not in merged_profiles:
                 merged_profiles[marker] = markerprofile

@@ -28,6 +28,11 @@ BGAnalyse 1.1.0:
 * Fixed bug that caused non-integer percentiles to appear rounded down in the output.
 * Samples with 0 reads on one strand for a genuine allele are now accepted.
 
+BGCorrect 1.1.0:
+* The correction_flags column may now contain a comma-separated list of "corrected_X"
+  flags, one for each tool used in the noise profile of that particular allele.
+* Greatly reduced memory usage.
+
 BGEstimate 1.2.0:
 * Added the -C/--combine-strands option, to estimate noise profiles for the total number
   of reads instead of estimating separate noise profiles for either strand.

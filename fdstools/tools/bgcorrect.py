@@ -108,6 +108,12 @@ def get_sample_data(infile, convert_to_raw=False, library=None):
 #get_sample_data
 
 
+def get_correction_tool_flags(profile_of_allele):
+    return ",".join(("corrected_" + tool for tool in sorted(
+        t for x in profile_of_allele.values() for t in x["tools"])))
+#get_correction_tool_flags
+
+
 def match_profile(column_names, data, profile, convert_to_raw, library, marker):
     (colid_marker, colid_sequence, colid_forward, colid_reverse, colid_total, colid_forward_noise,
      colid_reverse_noise, colid_total_noise, colid_forward_add, colid_reverse_add, colid_total_add,
@@ -117,14 +123,28 @@ def match_profile(column_names, data, profile, convert_to_raw, library, marker):
         "total_noise", "forward_add", "reverse_add", "total_add", "forward_corrected",
         "reverse_corrected", "total_corrected", "correction_flags", "weight")
 
+
+    alleles = set(profile)
+    other_seqs = set(seq for allele in profile for seq in profile[allele] if seq not in alleles)
+    sequences = [seq for subset in (alleles, other_seqs) for seq in subset]
+    seq_index = {seq: i for i, seq in enumerate(sequences)}
+
     # Enter profiles into P.
-    P1 = np.array((profile["forward"],))
-    P2 = np.array((profile["reverse"],))
+    P1 = np.zeros((len(alleles), len(sequences)))
+    P2 = np.zeros((len(alleles), len(sequences)))
+    np.fill_diagonal(P1, 100.)
+    np.fill_diagonal(P2, 100.)
+    for allele in profile:
+        allele_index = seq_index[allele]
+        for sequence in profile[allele]:
+            sequence_index = seq_index[sequence]
+            P1[allele_index, sequence_index] = profile[allele][sequence]["forward"]
+            P2[allele_index, sequence_index] = profile[allele][sequence]["reverse"]
 
     # Enter sample into C.
-    seqs = []
-    C1 = np.zeros((1, profile["m"]))
-    C2 = np.zeros((1, profile["m"]))
+    used_sequences = set()  # Sequences found in the sample.
+    C1 = np.zeros((1, len(sequences)))
+    C2 = np.zeros((1, len(sequences)))
     for line in data:
         if line[colid_sequence] in SEQ_SPECIAL_VALUES:
             continue
@@ -133,18 +153,18 @@ def match_profile(column_names, data, profile, convert_to_raw, library, marker):
                                               library=library, marker=marker)
         else:
             sequence = line[colid_sequence]
-        seqs.append(sequence)
+        used_sequences.add(sequence)
         try:
-            i = profile["seqs"].index(sequence)
-        except ValueError:
+            sequence_index = seq_index[sequence]
+        except KeyError:
             # Note: Not adding any new sequences to the profile, since
             # they will just be zeroes and have no effect on the result.
             continue
-        C1[0, i] = line[colid_forward]
-        C2[0, i] = line[colid_reverse]
+        C1[0, sequence_index] = line[colid_forward]
+        C2[0, sequence_index] = line[colid_reverse]
 
     # Stop if this sample has no explicit data for this marker.
-    if not seqs:
+    if not used_sequences:
         return
 
     # Compute corrected read counts.
@@ -169,8 +189,8 @@ def match_profile(column_names, data, profile, convert_to_raw, library, marker):
             continue
         j += 1
         try:
-            i = profile["seqs"].index(seqs[j - 1])
-        except ValueError:
+            sequence_index = seq_index[sequence]
+        except KeyError:
             line[colid_correction_flags] = "not_in_ref_db"
             continue
         line[colid_forward_noise] = forward_noise[0, i]
@@ -179,37 +199,30 @@ def match_profile(column_names, data, profile, convert_to_raw, library, marker):
         line[colid_forward_corrected] -= line[colid_forward_noise]
         line[colid_reverse_corrected] -= line[colid_reverse_noise]
         line[colid_total_corrected] -= line[colid_total_noise]
-        if i < profile["n"]:
+        if i < len(alleles):
             line[colid_forward_add] = forward_add[0, i]
             line[colid_reverse_add] = reverse_add[0, i]
             line[colid_total_add] = forward_add[0, i] + reverse_add[0, i]
             line[colid_forward_corrected] += line[colid_forward_add]
             line[colid_reverse_corrected] += line[colid_reverse_add]
             line[colid_total_corrected] += line[colid_total_add]
-            if "bgestimate" in profile["tool"][i]:
-                line[colid_correction_flags] = "corrected_bgestimate"
-            elif "bghomstats" in profile["tool"][i]:
-                line[colid_correction_flags] = "corrected_bghomstats"
-            elif "bgpredict" in profile["tool"][i]:
-                line[colid_correction_flags] = "corrected_bgpredict"
-            else:
-                line[colid_correction_flags] = "corrected"
+            line[colid_correction_flags] = get_correction_tool_flags(profile[sequence])
             line[colid_weight] = A[0, i]
         else:
             line[colid_correction_flags] = "corrected_as_background_only"
             line[colid_weight] = line[colid_total_corrected] / 100
 
     # Add sequences that are in the profile but not in the sample.
-    for i in range(profile["m"]):
-        if profile["seqs"][i] in seqs:
+    for sequence, i in seq_index.items():
+        if sequence in used_sequences:
             continue
         amount = forward_noise[0, i] + reverse_noise[0, i]
-        if i < profile["n"]:
+        if i < len(alleles):
             amount += forward_add[0, i] + reverse_add[0, i]
         if amount > 0:
             line = [""] * len(column_names)
             line[colid_marker] = marker
-            line[colid_sequence] = profile["seqs"][i]
+            line[colid_sequence] = sequence
             line[colid_forward] = 0
             line[colid_reverse] = 0
             line[colid_total] = 0
@@ -219,21 +232,14 @@ def match_profile(column_names, data, profile, convert_to_raw, library, marker):
             line[colid_forward_corrected] = -line[colid_forward_noise]
             line[colid_reverse_corrected] = -line[colid_reverse_noise]
             line[colid_total_corrected] = -line[colid_total_noise]
-            if i < profile["n"]:
+            if i < len(alleles):
                 line[colid_forward_add] = forward_add[0, i]
                 line[colid_reverse_add] = reverse_add[0, i]
                 line[colid_total_add] = forward_add[0, i] + reverse_add[0, i]
                 line[colid_forward_corrected] += line[colid_forward_add]
                 line[colid_reverse_corrected] += line[colid_reverse_add]
                 line[colid_total_corrected] += line[colid_total_add]
-                if "bgestimate" in profile["tool"][i]:
-                    line[colid_correction_flags] = "corrected_bgestimate"
-                elif "bghomstats" in profile["tool"][i]:
-                    line[colid_correction_flags] = "corrected_bghomstats"
-                elif "bgpredict" in profile["tool"][i]:
-                    line[colid_correction_flags] = "corrected_bgpredict"
-                else:
-                    line[colid_correction_flags] = "corrected"
+                line[colid_correction_flags] = get_correction_tool_flags(profile[sequence])
                 line[colid_weight] = A[0, i]
             else:
                 line[colid_forward_add] = 0
