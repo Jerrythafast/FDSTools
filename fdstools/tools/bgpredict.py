@@ -70,7 +70,7 @@ _DEF_THRESHOLD_PCT = 0.5
 _DEF_MIN_R2 = 0.
 
 
-def parse_stuttermodel(stuttermodel, min_r2=0, use_all_data=False):
+def parse_stuttermodel(stuttermodel, min_r2=0, use_all_data=False, combine_strands=False):
     column_names = stuttermodel.readline().rstrip("\r\n").split("\t")
     if column_names == [""]:
         return {}  # Empty file.
@@ -102,29 +102,36 @@ def parse_stuttermodel(stuttermodel, min_r2=0, use_all_data=False):
         if r2 < min_r2:
             continue
         coefs = [float(line[colid_coef]) for colid_coef in reversed(colids_coefs)]
-        if marker not in model:
-            model[marker] = {}
         if not seq or not PAT_SEQ_RAW.match(seq):
             raise ValueError(
                 "Invalid stutter model file: Encountered invalid repeat sequence '%s'!" % seq)
-        if direction == "reverse":
-            seq = reverse_complement(seq)
-        elif direction != "forward":
+        if direction not in ("forward", "reverse", "total"):
             raise ValueError(
                 "Invalid stutter model file: Unknown sequence strand '%s'!" % direction)
-        if (seq, stutter_fold) in model[marker]:
-            raise ValueError(
-                "Invalid stutter model file: Encountered two models for %+i "
-                "stutter of %s repeats in marker %s!" % (stutter_fold, seq, marker))
-        if seq not in repeat_patterns:
-            repeat_patterns[seq] = get_repeat_pattern(seq)
-        model[marker][seq, stutter_fold] = {
-            "lbound": lbound,
-            "r2": r2,
-            "pat": repeat_patterns[seq],
-            "func": lambda x, lbound=lbound, coefs=coefs, degree=degree:
-                0. if x < lbound else max(0.,
-                    sum(coefs[i] * x**(degree-i) for i in range(len(coefs))))}
+        if ((combine_strands and direction != "total") or
+                (not combine_strands and direction == "total")):
+            # Skipping this model because the user didn't ask for it.
+            continue
+        if marker not in model:
+            model[marker] = {}
+        for strand in ("forward", "reverse") if combine_strands else (direction,):
+            if strand == "reverse":
+                seq = reverse_complement(seq)
+            if (seq, stutter_fold) in model[marker]:
+                if combine_strands and strand == "reverse" and seq == reverse_complement(seq):
+                    continue  # Palindromic repeat unit.
+                raise ValueError(
+                    "Invalid stutter model file: Encountered two models for %+i "
+                    "stutter of %s repeats in marker %s!" % (stutter_fold, seq, marker))
+            if seq not in repeat_patterns:
+                repeat_patterns[seq] = get_repeat_pattern(seq)
+            model[marker][seq, stutter_fold] = {
+                "lbound": lbound,
+                "r2": r2,
+                "pat": repeat_patterns[seq],
+                "func": lambda x, lbound=lbound, coefs=coefs, degree=degree:
+                    0. if x < lbound else max(0.,
+                        sum(coefs[i] * x**(degree-i) for i in range(len(coefs))))}
 
     # Extend marker-specific models with "All data" fits where possible.
     if use_all_data and "All data" in model:
@@ -202,15 +209,19 @@ def get_relative_frequencies(stutters, combinations):
 #get_relative_frequencies
 
 
-def predict_profiles(stuttermodel, seqsfile, outfile, default_marker,
-                     use_all_data, min_pct, min_r2, library):
+def predict_profiles(stuttermodel, seqsfile, outfile, default_marker, use_all_data, min_pct,
+                     min_r2, library, combine_strands):
     if min_pct <= 0:
         raise ValueError("The -n/--min-pct option cannot be negative or zero!")
 
     # Parse stutter model file.
-    model = parse_stuttermodel(stuttermodel, min_r2, use_all_data)
+    model = parse_stuttermodel(stuttermodel, min_r2, use_all_data, combine_strands)
+    strands = ("total",) if combine_strands else ("forward", "reverse")
 
-    outfile.write("\t".join(("marker", "allele", "sequence", "fmean", "rmean", "tool")) + "\n")
+    if combine_strands:
+        outfile.write("\t".join(("marker", "allele", "sequence", "tmean", "tool")) + "\n")
+    else:
+        outfile.write("\t".join(("marker", "allele", "sequence", "fmean", "rmean", "tool")) + "\n")
 
     # Read list of sequences and compute stutter profiles for each.
     column_names = seqsfile.readline().rstrip("\r\n").split("\t")
@@ -229,11 +240,14 @@ def predict_profiles(stuttermodel, seqsfile, outfile, default_marker,
                 continue
         if line[colid_sequence] in SEQ_SPECIAL_VALUES:
             continue
+
         allele = ensure_sequence_format(line[colid_sequence], "raw",
             library=library, marker=marker)
-        p = {"sequences": [allele], "forward": [100], "reverse": [100]}
-        for rc in (False, True):
-            if rc:
+
+        p = {"sequences": [allele]}
+        for strand in strands:
+            p[strand] = [100]
+            if strand == "reverse":
                 allele = reverse_complement(allele)
             stutters = get_all_stutters(allele, model[marker], min_pct)
             if not stutters:
@@ -250,25 +264,21 @@ def predict_profiles(stuttermodel, seqsfile, outfile, default_marker,
                         s["end"] - s["stutlen"] + 1,
                         allele[s["end"] - s["stutlen"] : s["end"]])
                     for s in combinations[i]])
-                if rc:
+                if strand == "reverse":
                     sequence = reverse_complement(sequence)
                 try:
                     i = p["sequences"].index(sequence)
                 except ValueError:
                     p["sequences"].append(sequence)
-                    p["forward"].append(0)
-                    p["reverse"].append(0)
+                    for strandx in strands:
+                        p[strandx].append(0)
                     i = -1
-                p["reverse" if rc else "forward"][i] = freq
-        allele = ensure_sequence_format(p["sequences"][0], "raw", library=library, marker=marker)
+                p[strand][i] = freq
         for i in range(len(p["sequences"])):
-            if p["forward"][i] < min_pct and p["reverse"][i] < min_pct:
+            if all(p[strand][i] < min_pct for strand in strands):
                 continue
-            outfile.write("\t".join((
-                marker,
-                allele,
-                ensure_sequence_format(p["sequences"][i], "raw", library=library, marker=marker)) +
-                tuple(map(str, (p["forward"][i], p["reverse"][i]))) + ("bgpredict",)) + "\n")
+            outfile.write("\t".join((marker, p["sequences"][0], p["sequences"][i]) +
+                tuple(str(p[strand][i]) for strand in strands) + ("bgpredict",)) + "\n")
 #predict_profiles
 
 
@@ -280,6 +290,9 @@ def add_arguments(parser):
     parser.add_argument("outfile", metavar="OUT", nargs="?", default=sys.stdout,
         type=argparse.FileType("tw"),
         help="the file to write the output to (default: write to stdout)")
+    parser.add_argument("-C", "--combine-strands", action="store_true",
+        help="if specified, stutter will be modeled for the total number of reads, "
+             "instead of separately for either strand")
     parser.add_argument("-M", "--marker", metavar="MARKER",
         help="assume the specified marker for all sequences")
     parser.add_argument("-A", "--use-all-data", action="store_true",
@@ -303,7 +316,8 @@ def run(args):
 
     try:
         predict_profiles(args.stuttermodel, args.seqs, args.outfile, args.marker,
-                         args.use_all_data, args.min_pct, args.min_r2, args.library)
+                         args.use_all_data, args.min_pct, args.min_r2, args.library,
+                         args.combine_strands)
     except IOError as e:
         if e.errno == EPIPE:
             return

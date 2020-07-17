@@ -45,6 +45,8 @@ BGHomStats 1.1.0:
 BGPredict 1.1.0:
 * The default value of the -t/--min-r2 option has been changed to 0, effectively
   disabling the filter by default.
+* Added the -C/--combine-strands option, to use stutter models trained on the total
+  number of reads instead of the separate models per strand.
 * Flanks are now ignored even if the library file is given; repeats may
   be interpreted as being slightly shorter if they continue into the flanks.
 
@@ -54,6 +56,7 @@ Stuttermodel 1.2.0:
 * Removed the random subsampling arguments.
 * Flanks are now ignored even if the library file is given; repeats may
   be interpreted as being slightly shorter if they continue into the flanks.
+* Duplicate models are no longer produced for palindromic repeat units such as AT.
 
 TSSV 2.1.0:
 * Removed the error that occurred when the -D/--dir option is used and

@@ -257,7 +257,9 @@ def fit_stutter(samples_in, outfile, allelefile, annotation_column, min_pct, min
 
 def fit_stutter_model(outfile, raw_outfile, data, library, seq, patterns, min_r2, min_lengths,
                       degree, same_shape, ignore_zeros, stutter_fold, orphans, combine_strands):
-    num_fits = 1 if combine_strands else 2
+    palindromic = seq == reverse_complement(seq)
+    num_amounts = 1 if combine_strands else 2
+    num_fits = 1 if palindromic else num_amounts
     success = False
     found_fits = {marker: [False] * num_fits for marker in data["alleles"]}
     found_fits["All data"] = [False] * num_fits
@@ -275,8 +277,9 @@ def fit_stutter_model(outfile, raw_outfile, data, library, seq, patterns, min_r2
         for allele in data["alleles"][marker]:
 
             # Get all possible stutter positions in this allele.
-            positions = [(m, False) for m in patterns[0].finditer(allele)] + \
-                        [(m, True) for m in patterns[1].finditer(allele)]
+            positions = [(m, False) for m in patterns[0].finditer(allele)]
+            if not palindromic:
+                positions.extend((m, True) for m in patterns[1].finditer(allele))
             for m, is_reverse_complement in positions:
                 start = m.start()
                 end = m.end()
@@ -297,13 +300,22 @@ def fit_stutter_model(outfile, raw_outfile, data, library, seq, patterns, min_r2
                 else:
                     variant = "%i%s>-" % (position + 1, allele[position : end])
                 for sample in data["alleles"][marker][allele]:
-                    amount = [0.] * num_fits  # Reads per 100 reads of allele.
+                    amount = [0.] * num_amounts  # Reads per 100 reads of allele.
                     for sequence in data["samples"][sample, marker]:
                         if variant in call_variants(allele, sequence):
-                            for i in range(num_fits):
+                            for i in range(num_amounts):
                                 amount[i] += data["samples"][sample, marker][sequence][i]
                     if is_reverse_complement:
                         amount = amount[::-1]
+                    if palindromic:
+                        # The forward and reverse reads are now
+                        # side-by-side in amounts.  But for palindromic
+                        # repeat units, they must be added separately.
+                        all_observed_amounts.append([amount[0]])
+                        observed_amounts.append([amount[0]])
+                        all_lengths.append(length)
+                        lengths.append(length)
+                        amount = [amount[1]]
                     all_observed_amounts.append(amount)
                     observed_amounts.append(amount)
                     all_lengths.append(length)
@@ -313,6 +325,8 @@ def fit_stutter_model(outfile, raw_outfile, data, library, seq, patterns, min_r2
                             markers.append(marker)
                             marker_i += 1
                         from_markers.append(marker_i)
+                        if palindromic:
+                            from_markers.append(marker_i)
 
         # Write raw data for this marker.
         observed_amounts = np.array(observed_amounts)
@@ -435,7 +449,7 @@ def fit_stutter_model(outfile, raw_outfile, data, library, seq, patterns, min_r2
         for i in range(num_fits):
             if not found_fits[marker][i]:
                 continue
-            direction = "total" if num_fits == 1 else "reverse" if i else "forward"
+            direction = "total" if combine_strands else "reverse" if i else "forward"
             print_fit(outfile, found_fits[marker][i][0], found_fits[marker][i][1], seq, marker,
                       stutter_fold, direction, found_fits[marker][i][2], found_fits[marker][i][3])
 
