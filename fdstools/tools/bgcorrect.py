@@ -109,8 +109,8 @@ def get_sample_data(infile, convert_to_raw=False, library=None):
 
 
 def get_correction_tool_flags(profile_of_allele):
-    return ",".join(("corrected_" + tool for tool in sorted(
-        t for x in profile_of_allele.values() for t in x["tools"])))
+    return ",".join(("corrected_" + tool for tool in sorted(set(
+        t for x in profile_of_allele.values() for t in x["tools"]))))
 #get_correction_tool_flags
 
 
@@ -123,15 +123,16 @@ def match_profile(column_names, data, profile, convert_to_raw, library, marker):
         "total_noise", "forward_add", "reverse_add", "total_add", "forward_corrected",
         "reverse_corrected", "total_corrected", "correction_flags", "weight")
 
-
     alleles = set(profile)
     other_seqs = set(seq for allele in profile for seq in profile[allele] if seq not in alleles)
-    sequences = [seq for subset in (alleles, other_seqs) for seq in subset]
-    seq_index = {seq: i for i, seq in enumerate(sequences)}
+    seq_index = {seq: i for i, seq in enumerate(
+        sequence for subset in (alleles, other_seqs) for sequence in subset)}
+    num_alleles = len(alleles)
+    num_seqs = len(seq_index)
 
     # Enter profiles into P.
-    P1 = np.zeros((len(alleles), len(sequences)))
-    P2 = np.zeros((len(alleles), len(sequences)))
+    P1 = np.zeros((num_alleles, num_seqs))
+    P2 = np.zeros((num_alleles, num_seqs))
     np.fill_diagonal(P1, 100.)
     np.fill_diagonal(P2, 100.)
     for allele in profile:
@@ -143,8 +144,8 @@ def match_profile(column_names, data, profile, convert_to_raw, library, marker):
 
     # Enter sample into C.
     used_sequences = set()  # Sequences found in the sample.
-    C1 = np.zeros((1, len(sequences)))
-    C2 = np.zeros((1, len(sequences)))
+    C1 = np.zeros((1, num_seqs))
+    C2 = np.zeros((1, num_seqs))
     for line in data:
         if line[colid_sequence] in SEQ_SPECIAL_VALUES:
             continue
@@ -183,13 +184,11 @@ def match_profile(column_names, data, profile, convert_to_raw, library, marker):
     forward_add.round(3, forward_add)
     reverse_add.round(3, reverse_add)
 
-    j = 0
     for line in data:
         if line[colid_sequence] in SEQ_SPECIAL_VALUES:
             continue
-        j += 1
         try:
-            sequence_index = seq_index[sequence]
+            i = seq_index[line[colid_sequence]]
         except KeyError:
             line[colid_correction_flags] = "not_in_ref_db"
             continue
@@ -199,7 +198,7 @@ def match_profile(column_names, data, profile, convert_to_raw, library, marker):
         line[colid_forward_corrected] -= line[colid_forward_noise]
         line[colid_reverse_corrected] -= line[colid_reverse_noise]
         line[colid_total_corrected] -= line[colid_total_noise]
-        if i < len(alleles):
+        if i < num_alleles:
             line[colid_forward_add] = forward_add[0, i]
             line[colid_reverse_add] = reverse_add[0, i]
             line[colid_total_add] = forward_add[0, i] + reverse_add[0, i]
@@ -217,7 +216,7 @@ def match_profile(column_names, data, profile, convert_to_raw, library, marker):
         if sequence in used_sequences:
             continue
         amount = forward_noise[0, i] + reverse_noise[0, i]
-        if i < len(alleles):
+        if i < num_alleles:
             amount += forward_add[0, i] + reverse_add[0, i]
         if amount > 0:
             line = [""] * len(column_names)
@@ -232,7 +231,7 @@ def match_profile(column_names, data, profile, convert_to_raw, library, marker):
             line[colid_forward_corrected] = -line[colid_forward_noise]
             line[colid_reverse_corrected] = -line[colid_reverse_noise]
             line[colid_total_corrected] = -line[colid_total_noise]
-            if i < len(alleles):
+            if i < num_alleles:
                 line[colid_forward_add] = forward_add[0, i]
                 line[colid_reverse_add] = reverse_add[0, i]
                 line[colid_total_add] = forward_add[0, i] + reverse_add[0, i]

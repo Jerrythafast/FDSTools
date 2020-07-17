@@ -248,6 +248,7 @@ def predict_profiles(stuttermodel, seqsfile, outfile, default_marker, use_all_da
         p = {"sequences": [allele]}
         for strand in strands:
             p[strand] = [100]
+        for strand in strands:
             if strand == "reverse":
                 allele = reverse_complement(allele)
             stutters = get_all_stutters(allele, model[marker], min_pct)

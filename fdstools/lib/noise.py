@@ -29,8 +29,8 @@ def load_profiles(profilefile, library=None):
     column_names = profilefile.readline().rstrip("\r\n").split("\t")
     if column_names == [""]:
         return {}  # Empty file.
-    colid_marker, colid_allele, colid_sequence, colid_tool = get_column_ids(
-        column_names, "marker", "allele", "sequence", "tool")
+    colid_marker, colid_allele, colid_sequence, colid_tools = get_column_ids(
+        column_names, "marker", "allele", "sequence", "tools")
 
     colid_fmean, colid_rmean, colid_tmean = get_column_ids(
         column_names, "fmean", "rmean", "tmean", optional=True)
@@ -57,7 +57,7 @@ def load_profiles(profilefile, library=None):
                 "Invalid background noise profiles file: encountered multiple values for marker "
                 "'%s' allele '%s' sequence '%s'" % (marker, allele, sequence))
         profiles[marker][allele][sequence] = {
-            "tools": set(map(str.strip, line[colid_tool].split(","))),
+            "tools": set(map(str.strip, line[colid_tools].split(","))),
             "forward": float(line[colid_fmean]) if colid_fmean is not None else 0.,
             "reverse": float(line[colid_rmean]) if colid_rmean is not None else 0.,
             "total": float(line[colid_tmean]) if colid_tmean is not None else 0.}

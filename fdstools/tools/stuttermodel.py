@@ -307,7 +307,7 @@ def fit_stutter_model(outfile, raw_outfile, data, library, seq, patterns, min_r2
                                 amount[i] += data["samples"][sample, marker][sequence][i]
                     if is_reverse_complement:
                         amount = amount[::-1]
-                    if palindromic:
+                    if palindromic and not combine_strands:
                         # The forward and reverse reads are now
                         # side-by-side in amounts.  But for palindromic
                         # repeat units, they must be added separately.
@@ -325,7 +325,7 @@ def fit_stutter_model(outfile, raw_outfile, data, library, seq, patterns, min_r2
                             markers.append(marker)
                             marker_i += 1
                         from_markers.append(marker_i)
-                        if palindromic:
+                        if palindromic and not combine_strands:
                             from_markers.append(marker_i)
 
         # Write raw data for this marker.
