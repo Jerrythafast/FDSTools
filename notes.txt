@@ -32,6 +32,7 @@ BGEstimate 1.2.0:
 * Added the -C/--combine-strands option, to estimate noise profiles for the total number
   of reads instead of estimating separate noise profiles for either strand.
 * Removed the random subsampling arguments.
+* The "tool" output column has been renamed to "tools".
 
 BHomRaw 1.1.0:
 * Added the -C/--combine-strands option, to calculate noise ratios for the total number
@@ -41,6 +42,12 @@ BGHomStats 1.1.0:
 * Added the -C/--combine-strands option, to calculate statistics for the total number
   of reads only, instead of calculating separate statistics for either strand.
 * Removed the random subsampling arguments.
+* The "tool" output column has been renamed to "tools".
+
+BGMerge 1.1.0:
+* Noise profiles for forward, reverse and total noise are now merged independently.
+* The "tool" output column has been renamed to "tools" and now contains all tools used
+  for the merged noise profile.
 
 BGPredict 1.1.0:
 * The default value of the -t/--min-r2 option has been changed to 0, effectively
@@ -49,6 +56,7 @@ BGPredict 1.1.0:
   number of reads instead of the separate models per strand.
 * Flanks are now ignored even if the library file is given; repeats may
   be interpreted as being slightly shorter if they continue into the flanks.
+* The "tool" output column has been renamed to "tools".
 
 Stuttermodel 1.2.0:
 * Added the -C/--combine-strands option, to model stutter for the total number of

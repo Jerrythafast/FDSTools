@@ -152,10 +152,10 @@ def compute_stats(samples_in, outfile, allelefile, annotation_column, min_pct, m
 
     if combine_strands:
         outfile.write("\t".join(["marker", "allele", "sequence", "n", "tmin", "tmax", "tmean",
-            "tvariance", "tool"]) + "\n")
+            "tvariance", "tools"]) + "\n")
     else:
         outfile.write("\t".join(["marker", "allele", "sequence", "n", "fmin", "fmax", "fmean",
-            "fvariance", "rmin", "rmax", "rmean", "rvariance", "tool"]) + "\n")
+            "fvariance", "rmin", "rmax", "rmean", "rvariance", "tools"]) + "\n")
     for marker, allele in data:
         for sequence in data[marker, allele]:
             outfile.write("\t".join(

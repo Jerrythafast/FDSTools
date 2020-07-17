@@ -44,37 +44,48 @@ from errno import EPIPE
 
 from ..lib.cli import add_sequence_format_args, glob_path
 from ..lib.noise import load_profiles_new
-from ..lib.seq import ensure_sequence_format
 
 __version__ = "1.1.0"
 
 
 def merge_profiles(infiles, outfile, library):
-    outfile.write("\t".join(("marker", "allele", "sequence", "fmean", "rmean", "tool")) + "\n")
-    seen = {}
+    merged_profiles = {}
     for infile in infiles:
         if infile == "-":
             profiles = load_profiles_new(sys.stdin, library)
         else:
             with open(infile, "tr") as handle:
                 profiles = load_profiles_new(handle, library)
-        for marker in profiles:
-            for allele in profiles[marker]:
-                for sequence in profiles[marker][allele]:
-                    if marker not in seen:
-                        seen[marker] = {}
-                    if allele not in seen[marker]:
-                        seen[marker][allele] = set()
-                    elif sequence in seen[marker][allele]:
+        for marker, markerprofile in profiles.items():
+            if marker not in merged_profiles:
+                merged_profiles[marker] = markerprofile
+                continue
+            mergedmarkerprofile = merged_profiles[marker]
+            for allele, alleleprofile in markerprofile.items():
+                if allele not in mergedmarkerprofile:
+                    mergedmarkerprofile[allele] = alleleprofile
+                    continue
+                mergedalleleprofile = mergedmarkerprofile[allele]
+                for sequence, sequenceprofile in alleleprofile.items():
+                    if sequence not in mergedalleleprofile:
+                        mergedalleleprofile[sequence] = sequenceprofile
                         continue
-                    outfile.write("\t".join([marker] + [
-                            ensure_sequence_format(seq, "raw", library=library, marker=marker)
-                            for seq in (allele, sequence)] +
-                        list(map(str, (
-                            profiles[marker][allele][sequence]["forward"],
-                            profiles[marker][allele][sequence]["reverse"]))) +
-                        [profiles[marker][allele][sequence]["tool"]]) + "\n")
-                    seen[marker][allele].add(sequence)
+                    for strand in ("forward", "reverse", "total"):
+                        if not mergedalleleprofile[sequence][strand]:
+                            mergedalleleprofile[sequence][strand] = sequenceprofile[strand]
+                            mergedalleleprofile[sequence]["tools"].add(sequenceprofile["tools"])
+
+    outfile.write("\t".join(
+        ("marker", "allele", "sequence", "fmean", "rmean", "tmean", "tools")) + "\n")
+    for marker, markerprofile in merged_profiles.items():
+        for allele, alleleprofile in markerprofile.items():
+            for sequence, sequenceprofile in alleleprofile.items():
+                outfile.write("\t".join(map(str, (
+                    marker, allele, sequence,
+                    sequenceprofile["forward"],
+                    sequenceprofile["reverse"],
+                    sequenceprofile["total"],
+                    ",".join(sequenceprofile["tools"])))) + "\n")
 #merge_profiles
 
 

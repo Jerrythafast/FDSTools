@@ -219,9 +219,10 @@ def predict_profiles(stuttermodel, seqsfile, outfile, default_marker, use_all_da
     strands = ("total",) if combine_strands else ("forward", "reverse")
 
     if combine_strands:
-        outfile.write("\t".join(("marker", "allele", "sequence", "tmean", "tool")) + "\n")
+        outfile.write("\t".join(("marker", "allele", "sequence", "tmean", "tools")) + "\n")
     else:
-        outfile.write("\t".join(("marker", "allele", "sequence", "fmean", "rmean", "tool")) + "\n")
+        outfile.write("\t".join(
+            ("marker", "allele", "sequence", "fmean", "rmean", "tools")) + "\n")
 
     # Read list of sequences and compute stutter profiles for each.
     column_names = seqsfile.readline().rstrip("\r\n").split("\t")

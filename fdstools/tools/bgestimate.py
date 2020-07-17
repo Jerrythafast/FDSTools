@@ -484,9 +484,10 @@ def generate_profiles(samples_in, outfile, reportfile, allelefile, annotation_co
         try_write_pipe(reportfile, "Data loading and filtering took %f seconds\n" % (t1 - t0))
 
     if combine_strands:
-        outfile.write("\t".join(("marker", "allele", "sequence", "tmean", "tool")) + "\n")
+        outfile.write("\t".join(("marker", "allele", "sequence", "tmean", "tools")) + "\n")
     else:
-        outfile.write("\t".join(("marker", "allele", "sequence", "fmean", "rmean", "tool")) + "\n")
+        outfile.write("\t".join(
+            ("marker", "allele", "sequence", "fmean", "rmean", "tools")) + "\n")
     for marker in tuple(data):
         p = data[marker]["profiles"]
         profile_size = len(p["alleles"])

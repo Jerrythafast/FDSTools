@@ -125,7 +125,7 @@ def load_profiles_new(profilefile, library=None):
                 "Invalid background noise profiles file: encountered multiple values for marker "
                 "'%s' allele '%s' sequence '%s'" % (marker, allele, sequence))
         profiles[marker][allele][sequence] = {
-            "tool": line[colid_tool],
+            "tools": set(map(str.strip, line[colid_tool].split(","))),
             "forward": float(line[colid_fmean]) if colid_fmean is not None else 0.,
             "reverse": float(line[colid_rmean]) if colid_rmean is not None else 0.,
             "total": float(line[colid_tmean]) if colid_tmean is not None else 0.}
