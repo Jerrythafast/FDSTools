@@ -24,6 +24,10 @@ Changed in 2.0.0:
 * Includes Vis 1.1.0
 
 
+Allelefinder 1.1.0:
+* Removed the -c/--stuttermark-column argument. Allelefinder will look for stutter
+  annotations in the "flags" column instead, if present.
+
 BGAnalyse 1.1.0:
 * Fixed bug that caused non-integer percentiles to appear rounded down in the output.
 * Samples with 0 reads on one strand for a genuine allele are now accepted.
@@ -65,6 +69,11 @@ BGPredict 1.1.0:
   be interpreted as being slightly shorter if they continue into the flanks.
 * The "tool" output column has been renamed to "tools".
 
+Stuttermark 1.6.0:
+* Stuttermark now writes its annotations to the "flags" column.
+* Removed the -c/--column-name option to change the output column name.
+* Removed the "ALLELE" and "UNKNOWN" annotations.
+
 Stuttermodel 1.2.0:
 * Added the -C/--combine-strands option, to model stutter for the total number of
   reads instead of fitting a separate stutter prediction model for either strand.
@@ -87,7 +96,6 @@ Vis 1.1.0:
 HOMOLOGATION
 * Check that all tools check the number of columns at each line (like Stuttermark does).
 * Check that all tools allow for additional columns.
-* Standardise the 'flags' column and use it in more tools.
 * Make better use of print_debug() in all tools and postpone string formatting.
 
 

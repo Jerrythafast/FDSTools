@@ -72,19 +72,14 @@ _DEF_MAX_NOISY = 2
 
 
 def find_alleles(samples_in, outfile, reportfile, min_reads, min_allele_pct, max_noise_pct,
-                 max_alleles, max_noisy, stuttermark_column, seqformat, library):
+                 max_alleles, max_noisy, seqformat, library):
     outfile.write("\t".join(["sample", "marker", "total", "allele"]) + "\n")
-    allelelist = {}
     get_sample_data(
         samples_in,
         lambda tag, data: find_alleles_sample(
-            data if stuttermark_column is None
-                 else {key: data[key] for key in data if key[0] in
-                       allelelist[tag] and key[1] in allelelist[tag][key[0]]},
-            outfile, reportfile, tag, min_reads, min_allele_pct, max_noise_pct,
+            data, outfile, reportfile, tag, min_reads, min_allele_pct, max_noise_pct,
             max_alleles, max_noisy, seqformat, library),
-        allelelist,
-        stuttermark_column)
+        extra_columns={"flags": True})
 #find_alleles
 
 
@@ -94,15 +89,24 @@ def find_alleles_sample(data, outfile, reportfile, tag, min_reads, min_allele_pc
     top_allele = {}
     alleles = {}
     for marker, sequence in data:
+        if sequence in SEQ_SPECIAL_VALUES:
+            continue
+
+        # Skip lines that have been marked as stutter artefacts.
+        try:
+            flags = set(map(str.strip, data[marker, sequence].pop()["flags"].split(",")))
+            if any(flag.startswith("STUTTER") for flag in flags):
+                continue
+        except KeyError:
+            # Flags column wasn't present.
+            pass
+
         reads = sum(data[marker, sequence])
 
         if marker not in alleles:
             alleles[marker] = {}
             top_allele[marker] = 0
             top_noise[marker] = ["-", 0]
-
-        if sequence in SEQ_SPECIAL_VALUES:
-            continue
 
         if reads > top_allele[marker]:
             # New highest allele!
@@ -196,9 +200,6 @@ def add_arguments(parser):
         type=pos_int_arg, default=_DEF_MAX_NOISY,
         help="entirely reject a sample if more than this number of markers "
              "have a high non-allelic sequence (default: %(default)s)")
-    filtergroup.add_argument("-c", "--stuttermark-column", metavar="COLNAME",
-        help="name of column with Stuttermark output; if specified, sequences "
-             "for which the value in this column does not start with ALLELE are ignored")
     add_sequence_format_args(parser)
 #add_arguments
 
@@ -210,8 +211,8 @@ def run(args):
 
     try:
         find_alleles(files[0], files[1], args.report, args.min_reads, args.min_allele_pct,
-                     args.max_noise_pct, args.max_alleles, args.max_noisy, args.stuttermark_column,
-                     args.sequence_format, args.library)
+                     args.max_noise_pct, args.max_alleles, args.max_noisy, args.sequence_format,
+                     args.library)
     except IOError as e:
         if e.errno == EPIPE:
             try:
