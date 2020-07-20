@@ -100,7 +100,6 @@ To-do:
 * Avoid reduce() in lib/seq.py
 * Write 'INS' and 'DEL' in uppercase in mtDNA nomenclature.
 * General:
-  * Ability to bypass zero-reads-on-one-strand checks (ForenSeq requirement).
   * Link with STRNaming for allele nomenclature.
 * Allelefinder:
   * Allow to set a minimum allele height for the lower allele.

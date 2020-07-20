@@ -153,18 +153,18 @@ def solve_profile_mixture_single(samples, genotypes, n, starting_values={},
         prev_scorex = cur_scorex = sys.float_info.max
         for w in range(200):
             for p in range(n):
-                nn = list(range(p)) + list(range(p + 1, n))
                 if not E[p, p]:
                     # This would be an utter failure, but let's be safe.
                     if reportfile:
                         try_write_pipe(reportfile,
                             "%4i - No samples appear to have allele %i\n" % (v, p))
-                    P[p, nn] = 0
-                else:
-                    tmp = (F[p, :] - E[None, p, nn] @ P[nn, :]) / E[p, p]
-                    tmp[tmp < 0] = 0
-                    tmp[0, p] = 100
-                    P[p, :] = tmp
+                    P[p, :p] = 0
+                    P[p, p+1:] = 0
+                    continue
+                tmp = (F[p, :] - E[p:p+1, :p] @ P[:p, :] - E[p:p+1, p+1:] @ P[p+1:, :]) / E[p, p]
+                tmp[tmp < 0] = 0
+                tmp[0, p] = 100
+                P[p, :] = tmp
             prev_scorex = cur_scorex
             cur_scorex = np.square(C - A @ P).sum()
             score_changex = (prev_scorex - cur_scorex) / prev_scorex
@@ -243,15 +243,14 @@ def solve_profile_mixture_single(samples, genotypes, n, starting_values={},
         prev_scorex = cur_scorex = sys.float_info.max
         for w in range(200):
             for p in range(n):
-                nn = list(range(p)) + list(range(p + 1, n))
                 if not E[p, p]:
                     V[p, :] = 0
-                else:
-                    tmp = (F[p, :] - E[None, p, nn] @ V[nn, :]) / E[p, p]
-                    tmp[tmp < 0] = 0
-                    tmp[0, p] = 0  # No variance for actual allele.
-                    tmp[P[p, :] == 0] = 0  # No variance for zero means.
-                    V[p, :] = tmp
+                    continue
+                tmp = (F[p, :] - E[p:p+1, :p] @ V[:p, :] - E[p:p+1, p+1:] @ V[p+1:, :]) / E[p, p]
+                tmp[tmp < 0] = 0
+                tmp[0, p] = 0  # No variance for actual allele.
+                tmp[P[p, :] == 0] = 0  # No variance for zero means.
+                V[p, :] = tmp
             prev_scorex = cur_scorex
             cur_scorex = np.square(C - A @ V).sum()
             score_changex = (prev_scorex - cur_scorex) / prev_scorex

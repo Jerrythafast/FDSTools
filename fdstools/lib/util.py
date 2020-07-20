@@ -21,7 +21,7 @@
 #
 
 import sys
-#import numpy as np  # Only imported when actually running this tool.
+#import numpy as np  # Only imported when it gets used.
 
 
 def adjust_stats(value, stats=None):
@@ -67,8 +67,7 @@ def nnls(A, C, B=None, max_iter=200, min_change=0.0001, debug=False):
     prev_score = cur_score = sys.float_info.max
     for i in range(max_iter):
         for n in range(B.shape[0]):
-            nn = list(range(n)) + list(range(n + 1, B.shape[0]))
-            tmp = (F[n, :] - E[None, n, nn] @ B[nn, :]) / E[n, n]
+            tmp = (F[n, :] - E[None, n, :n] @ B[:n, :] - E[None, n, n+1:] @ B[n+1:, :]) / E[n, n]
             tmp[np.isnan(tmp)] = 0
             tmp[tmp < 0] = 0
             B[n, :] = tmp
