@@ -448,7 +448,8 @@ def compute_stats(infile, outfile, min_reads, min_per_strand, min_pct_of_max, mi
                         for aggr in ("", "_mp_sum", "_mp_max")):
                     if column in ci:
                         combined[ci[column]] += row[ci[column]]
-                combined[ci["weight"]] += row[ci["weight"]]
+                if "weight" in ci:
+                    combined[ci["weight"]] += row[ci["weight"]]
             elif filter_action == "off" or row not in filtered[marker]:
                 for i in (ci[col] for col in COLUMN_ORDER if col in ci
                         and col not in ("total", "forward", "reverse")):
