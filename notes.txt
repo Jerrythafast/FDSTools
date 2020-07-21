@@ -69,6 +69,11 @@ BGPredict 1.1.0:
   be interpreted as being slightly shorter if they continue into the flanks.
 * The "tool" output column has been renamed to "tools".
 
+Samplestats 1.3.0:
+* Added the -F/--min-allele-reads and -D/--max-noise-pct options, which can be used to
+  suppress allele calls for low-coverage and high-noise markers, respectively.
+* Changed the default value of the -b/--min-per-strand option from 1 to 0.
+
 Stuttermark 1.6.0:
 * Stuttermark now writes its annotations to the "flags" column.
 * Removed the -c/--column-name option to change the output column name.
@@ -103,8 +108,6 @@ HOMOLOGATION
 
 
 To-do:
-* Suspected bug (marked with FIXME) in samplestats.
-* Clean up samplestats code.
 * Avoid reduce() in lib/seq.py
 * Write 'INS' and 'DEL' in uppercase in mtDNA nomenclature.
 * General:
@@ -263,7 +266,7 @@ Reserved option letters:
 -f  Sample tag format
 
 Options:
-allelefinder    a   c d e fF  h       l mMn o      R      v   x
+allelefinder    a     d e fF  h       l mMn o      R      v   x
 bganalyse       a   c d e fF  h       l m   o p           v
 bgcorrect             d e fF  h i     l  M  o             v
 bgestimate      a   cCd e f g hH      l mMn o p    RsS    v
@@ -273,9 +276,9 @@ bgmerge               d       h       l     o             v
 bgpredict        A    d       h       l  Mn           t   v
 findnewalleles        d e f   h i     l  M  o             v
 library         a     d       h                       t   v
-samplestats     aAbBcCd e f   h i       mMnNo pP          v     yY
+samplestats     aAbBcCdDe fF  h i       mMnNo pP          v     yY
 seqconvert      a   c d e f   h i     lLmM  o     r       v
-stuttermark         c d e f   h i     l m n o     r s     v
+stuttermark           d e f   h i     l m n o     r s     v
 stuttermodel    a   cCdDe f   h       lLmMn oO    r sSt u v       z
 tssv            aA    dD   F  h         mMn        R   T  v    X
 vis             aAbBcCd       hH Ij    LmMnN  p  Q  sStT UvVw xX Y Z
