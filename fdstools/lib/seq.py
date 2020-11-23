@@ -237,16 +237,16 @@ def call_variants(template, sequence, *, location=("?", 1), cache=True, debug=Fa
 
     if debug:
         print("GAP1")
-        for i in range(len(matrix_gap1), row_offset):
+        for i in range(0, len(matrix_gap1), row_offset):
             print(("%5i" * row_offset) % tuple(matrix_gap1[i : i + row_offset]))
         print("GAP2")
-        for i in range(len(matrix_gap2), row_offset):
+        for i in range(0, len(matrix_gap2), row_offset):
             print(("%5i" * row_offset) % tuple(matrix_gap2[i : i + row_offset]))
         print("Match")
-        for i in range(len(matrix_match), row_offset):
+        for i in range(0, len(matrix_match), row_offset):
             print(("%5i" * row_offset) % tuple(matrix_match[i : i + row_offset]))
         print("FLAGS")
-        for i in range(len(matrix_direction), row_offset):
+        for i in range(0, len(matrix_direction), row_offset):
             print(("%5s|" * row_offset) % tuple("".join((
                 "h" if x & A_HORZ_O else " ",
                 "H" if x & A_HORZ_E else " ",
