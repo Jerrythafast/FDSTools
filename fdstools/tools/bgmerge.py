@@ -73,7 +73,7 @@ def merge_profiles(infiles, outfile, library):
                     for strand in ("forward", "reverse", "total"):
                         if not mergedalleleprofile[sequence][strand]:
                             mergedalleleprofile[sequence][strand] = sequenceprofile[strand]
-                            mergedalleleprofile[sequence]["tools"].add(sequenceprofile["tools"])
+                            mergedalleleprofile[sequence]["tools"].update(sequenceprofile["tools"])
 
     outfile.write("\t".join(
         ("marker", "allele", "sequence", "fmean", "rmean", "tmean", "tools")) + "\n")

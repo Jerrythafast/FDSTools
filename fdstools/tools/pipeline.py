@@ -47,14 +47,22 @@ tools in FDSTools.  Please refer to the tool-specific help for a full
 description of each tool.  Type 'fdstools -h TOOL' to get help with the
 given TOOL.
 """
-import pkgutil, sys, os, tempfile, re, argparse
-#import threading, subprocess  # Only imported when running this tool.
+import os
+import pkgutil
+import re
+import subprocess
+import sys
+import tempfile
+import threading
 
 import fdstools.tools
 
-from ..lib import DEF_TAG_EXPR, DEF_TAG_FORMAT, get_tag, \
-                  regex_arg, INI_COMMENT, glob_path, print_db
-from ConfigParser import RawConfigParser, NoSectionError, NoOptionError
+from configparser import RawConfigParser, NoSectionError, NoOptionError
+from functools import reduce
+
+from ..lib.cli import DEF_TAG_EXPR, DEF_TAG_FORMAT, get_tag, regex_arg, glob_path
+from ..lib.io import print_db
+from ..lib.library import INI_COMMENT
 
 
 __version__ = "1.1.0"
@@ -76,12 +84,10 @@ PACKAGE_PREFIX = fdstools.tools.__name__ + "."
 NAME = __name__[len(PACKAGE_PREFIX):]
 
 # Argument names that will not be written in generated INI files.
-HIDDEN_ARGS = ("infile", "infile2", "infiles", "outfile", "outfiles",
-    "raw-outfile", "library", "library2", "allelelist", "report", "tag-expr",
-    "tag-format", "sequence-format", "type", "title", "stuttermodel", "seqs",
-    "profiles", "column-name", "stuttermark-column", "annotation-column",
-    "marker-column", "allele-column", "output-column", "reverse-complement",
-    "limit-reads", "drop-samples")
+HIDDEN_ARGS = ("infile", "infile2", "infiles", "outfile", "outfiles", "raw-outfile",
+    "library", "library2", "allelelist", "report", "tag-expr", "tag-format",
+    "sequence-format", "type", "title", "stuttermodel", "seqs", "profiles",
+    "annotation-column", "marker-column", "allele-column", "output-column", "reverse-complement")
 
 # Tools that are run for each type of analysis pipeline.
 ANALYSIS_TOOLS = {
@@ -173,7 +179,7 @@ class ArgumentCollector:
                 kwargs["default"] = "-"
             elif kwargs["default"] is sys.stderr:
                 kwargs["default"] = "/dev/stderr"
-            elif kwargs["default"] is sys.maxint:
+            elif kwargs["default"] is sys.maxsize:
                 kwargs["default"] = "<MAX>"
             elif isinstance(kwargs["default"], list):
                 kwargs["default"] = " ".join(kwargs["default"])
@@ -189,12 +195,10 @@ class ArgumentCollector:
 
 
 def split_quoted_string(text):
-    return reduce(
-        lambda x, y: x + ["".join([
-            y[0].replace("\\\"", "\""),
-            y[1].replace("\\'", "'"),
-            y[2]])],
-        PAT_SPLIT_QUOTED.findall(text), [])
+    return ["".join((
+        y[0].replace("\\\"", "\""),
+        y[1].replace("\\'", "'"),
+        y[2])) for y in PAT_SPLIT_QUOTED.findall(text)]
 #split_quoted_string
 
 
@@ -249,6 +253,8 @@ def parse_bool_arg(section, option, value):
 def get_argv(toolname, arg_defs, config):
     """Get argument list for the given tool."""
     arglist = (["fdstools", toolname], [])
+    if debug:
+        arglist[0].append("-d")
     for arg in arg_defs[toolname]:
         try:
             value = config.get(toolname, arg[0]).strip()
@@ -267,7 +273,7 @@ def get_argv(toolname, arg_defs, config):
             if "optname" in arg[1]:
                 continue
             if "default" in arg[1] and arg[1]["default"] == "<MAX>":
-                value = str(sys.maxint)
+                value = str(sys.maxsize)
         if "nargs" in arg[1] and arg[1]["nargs"] not in (1, "?"):
             value = split_quoted_string(value)
         else:
@@ -903,17 +909,6 @@ def add_arguments(parser):
 
 
 def run(args):
-    # Import threading and subprocess modules.
-    global threading, subprocess
-    import threading
-    if os.name == "posix" and sys.version_info[0] < 3:
-        try:
-            import subprocess32 as subprocess
-        except ImportError:
-            import subprocess
-    else:
-        import subprocess
-
     # Export debug flag to the global scope.
     global debug
     debug = args.debug
