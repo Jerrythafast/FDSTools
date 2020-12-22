@@ -30,8 +30,9 @@ from functools import reduce
 PAT_SEQ_RAW = re.compile("^[ACGT]*$")
 PAT_SEQ_IUPAC = re.compile("^[ACGTUWSMKRYBDHVNacgtuwsmkrybdhvn]*$")
 PAT_SEQ_TSSV = re.compile("^(?:[ACGT]+\(\d+\))*$")
-PAT_SEQ_ALLELENAME_STR = re.compile(  # First line: n_ACT[m] or alias.
-    "^(?:(?:(?:CE)?-?\d+(?:\.\d+)?_(?:[ACGT]+\[\d+\])*)|((?!_).+?))"
+PAT_SEQ_ALLELENAME_STR = re.compile(
+    "^(?:(?:(?:CE)?-?\d+(?:\.\d+)?_(?:[ACGT]+\[\d+\]|"  # n_ACT[m]
+    "\[(?: ?\d+(?:\.1)?[ACGT-]+>[ACGT-]+)*\])*)|((?!_).+?))"  # [1A>T]
     "(?:_[-+]\d+(?:\.1)?(?P<a>(?:(?<=\.1)-)|(?<!\.1)[ACGT]+)>"  # _+3A>
         "(?!(?P=a))(?:[ACGT]+|-))*$")  # Portion of variants after '>'.
 PAT_SEQ_ALLELENAME_SNP = re.compile(
@@ -44,7 +45,7 @@ PAT_SEQ_ALLELENAME_MT = re.compile(
 
 # Patterns that match blocks of TSSV-style sequences and allele names.
 PAT_TSSV_BLOCK = re.compile("([ACGT]+)\((\d+)\)")
-PAT_ALLELENAME_BLOCK = re.compile("([ACGT]+)\[(\d+)\]")
+PAT_ALLELENAME_BLOCK = re.compile("([ACGT]+)\[(\d+)\]|\[((?: ?\d+(?:\.1)?[ACGT-]+>[ACGT-]+)*)\]")
 
 # Patterns that match a single variant.
 PAT_VARIANT_STR = re.compile(
@@ -394,7 +395,7 @@ def mutate_sequence(seq, variants, *, location=None):
 
 def reverse_complement(sequence):
     """Return the reverse complement of the given DNA sequence."""
-    return "".join(COMPL[x] if x in COMPL else x for x in reversed(sequence))
+    return "".join(COMPL.get(x, x) for x in reversed(sequence))
 #reverse_complement
 
 

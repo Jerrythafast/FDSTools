@@ -1,4 +1,6 @@
 Changed in 2.0.0:
+* FDSTools can now be run using 'python -m fdstools' too, which is helpful
+  when the regular 'fdstools' command is not available on the PATH.
 * FDSTools will now display a 'Failed to load X' message if importing tool X
   failed. The other tools will remain available.
 * FDSTools will now display a 'Failed to configure X' message if configuring
@@ -105,6 +107,7 @@ HOMOLOGATION
 * Check that all tools check the number of columns at each line (like Stuttermark does).
 * Check that all tools allow for additional columns.
 * Make better use of print_debug() in all tools and postpone string formatting.
+* Add the -C/--combine-strands option to the pipeline tool.
 
 
 
