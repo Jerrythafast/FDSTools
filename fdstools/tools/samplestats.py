@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 
 #
-# Copyright (C) 2020 Jerry Hoogenboom
+# Copyright (C) 2021 Jerry Hoogenboom
 #
 # This file is part of FDSTools, data analysis tools for Massively
 # Parallel Sequencing of forensic DNA markers.
@@ -104,7 +104,7 @@ _DEF_MIN_ALLELE_READS = 0
 # (i.e., non-allelic sequences) above this threshold are detected, the
 # sample is considered 'noisy' for this marker.
 # This value can be overridden by the -D command line option.
-_DEF_MAX_NOISE_PCT = 100.
+_DEF_MAX_NONALLELE_PCT = 100.
 
 # Default minimum number of reads for filtering.
 # This value can be overridden by the -N command line option.
@@ -251,7 +251,7 @@ def add_pct_columns(row, ci, column, aggr):
 
 
 def compute_stats(infile, outfile, min_reads, min_per_strand, min_pct_of_max, min_pct_of_sum,
-                  min_correction, min_recovery, min_allele_reads, max_noise_pct, filter_action,
+                  min_correction, min_recovery, min_allele_reads, max_nonallele_pct, filter_action,
                   filter_absolute, min_reads_filt, min_per_strand_filt, min_pct_of_max_filt,
                   min_pct_of_sum_filt, min_correction_filt, min_recovery_filt):
     # Check presence of required columns.
@@ -412,7 +412,8 @@ def compute_stats(infile, outfile, min_reads, min_per_strand, min_pct_of_max, mi
                 max_noise_reads = row[ci[total_column]]
 
         # Remove allele flags again if coverage is low or noise is high.
-        if allele_reads < min_allele_reads or 100 * max_noise_reads / allele_reads > max_noise_pct:
+        if allele_reads < min_allele_reads or \
+                100 * max_noise_reads / allele_reads > max_nonallele_pct:
             for allele in alleles:
                 allele[ci["flags"]].remove("allele")
 
@@ -569,8 +570,8 @@ def add_arguments(parser):
         type=float, default=_DEF_MIN_ALLELE_READS,
         help="force a minimum total number of reads for all alleles on a marker; don't call "
              "any alleles otherwise (default: %(default)s)")
-    intergroup.add_argument('-D', '--max-noise-pct', metavar="PCT",
-        type=float, default=_DEF_MAX_NOISE_PCT,
+    intergroup.add_argument('-D', '--max-nonallele-pct', metavar="PCT",
+        type=float, default=_DEF_MAX_NONALLELE_PCT,
         help="drop all allele markings if the highest non-allelic sequence is at least this "
              "percentage of the highest allele of that marker (default: %(default)s)")
     filtergroup = parser.add_argument_group("filtering options",
@@ -625,7 +626,7 @@ def run(args):
             infile = sys.stdin if infiles[0] == "-" else open(infiles[0], "tr")
             compute_stats(infile, outfile, args.min_reads, args.min_per_strand,
                           args.min_pct_of_max, args.min_pct_of_sum, args.min_correction,
-                          args.min_recovery, args.min_allele_reads, args.max_noise_pct,
+                          args.min_recovery, args.min_allele_reads, args.max_nonallele_pct,
                           args.filter_action, args.filter_absolute, args.min_reads_filt,
                           args.min_per_strand_filt, args.min_pct_of_max_filt,
                           args.min_pct_of_sum_filt, args.min_correction_filt,
