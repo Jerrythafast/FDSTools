@@ -61,7 +61,10 @@ def regex_arg(value):
 def library_arg(value):
     """Value is a library file name; parse and return the library."""
     try:
-        return parse_library(value)
+        if value == "-":
+            return parse_library(sys.stdin)
+        with open(value, "tr") as libfile:
+            return parse_library(libfile)
     except Exception as err:
         raise argparse.ArgumentTypeError(err)
 #library_arg

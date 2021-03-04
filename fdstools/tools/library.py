@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 
 #
-# Copyright (C) 2020 Jerry Hoogenboom
+# Copyright (C) 2021 Jerry Hoogenboom
 #
 # This file is part of FDSTools, data analysis tools for Massively
 # Parallel Sequencing of forensic DNA markers.
@@ -24,24 +24,19 @@
 Create an empty FDSTools library file.
 
 An FDSTools library file contains various details about the forensic
-markers used in the analysis, such as the flanking (primer) sequences,
-general STR structure or reference sequence of non-STR markers, genomic
-location, expected number of alleles, expected length range of alleles,
-etc.  FDSTools uses library files for tasks such as linking raw sequence
-reads to markers and converting sequences to allele names or vice versa.
+markers used in the analysis, such as the genomic location, expected
+number of alleles, expected length range of alleles, etc.  FDSTools
+primarily uses library files for configuring STRNaming, which is
+responsible for converting sequences to allele names and vice versa.
+This is true even for non-STR markers and fragments on the
+mitochondrial genome.
 
-In FDSTools, sequences of STR alleles are split up into three parts: a
-prefix, the STR, and a suffix.  The prefix and suffix are optional and
-are meant to fill the gap between the STR and the primer binding sites.
-The primer binding sites are called 'flanks' in the library file.  For
-non-STR markers, FDSTools library files simply contain the reference
-sequence of the region between the flanks.
-
-Allele names typically consist of an allele number compatible with those
-obtained from Capillary Electrophoresis (CE), followed by the STR
-sequence in a shortened form and any substitutions or other variants
-that occur in the prefix and suffix.  The first prefix/suffix in the
-library file is used as the reference sequence for calling variants.
+In its simplest form, the library file only contains the positions (on
+the human genome reference sequence, GRCh38) of the reported range of
+each marker.  This is referred to as a 'smart' library file.
+Alternatively, markers can be explicitly configured, which was the
+default prior to FDSTools version 2.0.  Explicit configuration is
+currently required when the analysed markers are non-human.
 
 Special alleles, such as the 'X' and 'Y' allele from the Amelogenin
 gender test, may be given an explicit allele name by specifying an Alias
@@ -75,6 +70,8 @@ def make_empty_library_ini(type, aliases=False):
 
     # Create sections and add comments to explain how to use them.
     if aliases:
+        #FIXME: re-implement aliases
+        raise ValueError("Aliases are not currently supported in this version of FDSTools")
         ini.add_section("aliases")
         ini.add_comment("aliases",
             "Assign an explicit allele name to a specific sequence of a "
@@ -93,69 +90,17 @@ def make_empty_library_ini(type, aliases=False):
             ";AmelY = Amel, TCAGCTATGAGGTAATTTTTCTCTTTACTAATTTTGATCACTGTTTGCAT"
             "TAGCAGTCCCCTGGGCTCTGTAAAGAATAGTGGGTGGATTCTTCATCCCAAATAAAGTGGTTTCT"
             "CAAGTGGTCCCAATTTTACAGTTCCTACCATCAGCTTCCCA, Y")
-    ini.add_section("flanks")
-    ini.add_comment("flanks",
-        "The flanking sequences (e.g., primer sequences) of each marker. "
-        "Specify two comma-separated values: left flank and right flank, "
-        "in the same sequence orientation (strand).")
-    if type != "non-str":
-        ini.set("flanks", ";CSF1P0 = CCTGTGTCAGACCCTGTT, GTTGGAACACTGCCCTGG")
-    if type != "str":
-        ini.set("flanks", ";MitoFrag = ATTATTTATCGCACCTACGT, TGGCGGTATGCACTTTTAACAG")
-    if aliases:
-        ini.set("flanks", ";Amel = ACCCTGGTTATATCAACT, GTTTAAGCTCTGATGGTT")
-    if type != "non-str":
-        ini.add_section("prefix")
-        ini.add_comment("prefix",
-            "Specify all known prefix sequences of each STR marker, "
-            "separated by commas. The prefix is the sequence between the left "
-            "flank and the repeat and is omitted from allele names. The first "
-            "sequence listed is used as the reference sequence for that "
-            "marker when generating allele names. Deviations from the "
-            "reference are expressed as variants. IUPAC notation for "
-            "ambiguous bases (e.g., 'R' for 'A or G') is supported, except "
-            "for the first sequence given. Lowercase letters represent "
-            "optional bases.")
-        ini.set("prefix", ";CSF1P0 = CTAAGTACTTC")
-        ini.add_section("suffix")
-        ini.add_comment("suffix",
-            "Specify all known suffix sequences of each STR marker, "
-            "separated by commas. The suffix is the sequence between the "
-            "repeat and the right flank. The first sequence listed is used as "
-            "the reference sequence for that marker when generating "
-            "allele names.")
-        ini.set("suffix",
-            ";CSF1P0 = CTAATCTATCTATCTTCTATCTATGAAGGCAGTTACTGTTAATATCTTCATTTTA"
-            "CAGGTAGGAAAACTGAGACACAGGGTGGTTAGCAACCTGCTAGTCCTTGGCAGACTCAG, CTAA"
-            "TCTATCTATCTTCTATCTATGAAGGCAGTTACTGTTAATATCTTCATTTTACAGGTAGGAAAACT"
-            "GAGACACAGGGTGGTTAGAAACCTGCTAGTCCTTGGCAGACTCAG, ATAATCTATCTATCTTCT"
-            "ATCTATGAAGGCAGTTACTGTTAATATCTTCATTTTACAGGTAGGAAAACTGAGACACAGGGTGG"
-            "TTAGCAACCTGCTAGTCCTTGGCAGACTCAG")
-        ini.add_section("repeat")
-        ini.add_comment("repeat",
-            "Specify the repeat structure of each STR marker in space-"
-            "separated triples of sequence, minimum number of repeats, "
-            "and maximum number of repeats.")
-        ini.set("repeat", ";CSF1P0 = CTAT 0 19 CTAC 0 1 TTAT 0 1 CAT 0 1 CTAT 0 19")
-    if aliases or type != "str":
-        ini.add_section("no_repeat")
-        ini.add_comment("no_repeat", "Specify the reference sequence for each non-STR marker.")
-        if type != "str":
-            ini.set("no_repeat", ";MitoFrag = TCAATATTACAGGCGAACATACTTACTAAAGT"
-            "GTGTTAATTAATTAATGCTTGTAGGACATAATAATAACAATTGAATGTCTGCACAGCCACTTTCC"
-            "ACACAGACATCATAACAAAAAATTTCCACCAAACCCCCCCTCCCCCGCTTCTGGCCACAGCACTT"
-            "AAACACATCTCTGCCAAACCCCAAAAACAAAGAACCCTAACACCAGCCTAACCAGATTTCAAATT"
-            "TTATCTTT")
-        if aliases:
-            ini.set("no_repeat", ";Amel = TCAGCTATGAGGTAATTTTTCTCTTTACTAATTTTG"
-            "ACCATTGTTTGCGTTAACAATGCCCTGGGCTCTGTAAAGAATAGTGTGTTGATTCTTTATCCCAG"
-            "ATGTTTCTCAAGTGGTCCTGATTTTACAGTTCCTACCACCAGCTTCCCA")
     ini.add_section("genome_position")
-    ini.add_comment("genome_position",
-        "Specify the chromosome number and position of the first base after "
-        "the first flank of each marker. Optionally, you may specify the "
-        "position of the last base of the fragment as well.%s" % (
-            " Specify 'M' as the chromosome name for markers on mitochondrial "
+    ini.add_comment("genome_position", #smart, str, non-str, full
+        "Specify the chromosome number and positions of the first and last reported nucleotide of "
+        "each marker (both inclusive, using human genome build GRCh38%s).%s" % (
+            " and rCRS for human mtDNA" if type != "str" else "",
+            " This section is required for automatic configuration of markers; it is optional "
+            "for markers that are explictily configured in this library file."
+                if type != "smart" else ""))
+    if type != "str":
+        ini.add_comment("genome_position",
+            "Specify 'M' as the chromosome name for markers on mitochondrial "
             "DNA. Allele names generated for these markers will follow mtDNA "
             "nomenclature guidelines (Parson et al., 2014). If one of your "
             "mtDNA fragments starts near the end of the reference sequence "
@@ -167,55 +112,72 @@ def make_empty_library_ini(type, aliases=False):
             "fragment starts at position 1. Similarly, for a fragment that "
             "spans position 3107 in the rCRS (which is nonexistent), you may "
             "specify \"M, (starting position), 3106, 3108, (ending "
-            "position)\"." if type != "str" else ""))
-    ini.add_comment("genome_position",
-        "Using human genome build GRCh38%s." % (
-            " and rCRS for human mtDNA" if type != "str" else ""))
-    if type != "non-str":
-        ini.set("genome_position", ";CSF1P0 = 5, 150076311, 150076487")
-    if type != "str":
-        ini.set("genome_position", ";MitoFrag = M, 173, 407")
-    if aliases:
-        ini.set("genome_position", ";Amel = X, 11296816, 11296965")
-    if type == "str" or type == "full":
-        ini.add_section("length_adjust")
-        ini.add_comment("length_adjust",
-            "To prevent discrepancies between traditional CE allele numbers "
-            "and the CE number in FDSTools allele names, the CE allele number "
-            "as calculated by FDSTools is based on the length of the sequence "
-            "(prefix+repeat+suffix) minus the adjustment specified here.")
-        ini.set("length_adjust", ";CSF1P0 = 0")
-        ini.add_section("block_length")
-        ini.add_comment("block_length",
-            "Specify the repeat unit length of each STR marker. The default length is 4.")
-        ini.set("block_length", ";CSF1P0 = 4")
+            "position)\".")
+    ini.add_section("flanks")
+    ini.add_comment("flanks",
+        "The TSSV tool will use a pair of short anchor sequences just outside the reported range "
+        "of each marker (e.g., primer sequences) to identify which input reads correspond to "
+        "which marker. %s" % (
+            "Specify two comma-separated values: left flank and right flank sequence, in the same "
+            "sequence orientation (strand)."
+                if type in ("str", "non-str") else
+            ("The default length of the anchor sequences used can be specified as an argument to "
+            "the TSSV tool. Individual alternative lengths can be specified here for each marker. "
+            "Specify two comma-separated values: one for the left and one for the right flank. "
+            "The value can be a number (the length of sequence to use) or an explicit anchor "
+            "sequence to use.%s" % (
+                " For markers configured explicitly in this library file, the anchor sequences "
+                "must be specified explicitly as well." if type == "full" else ""))))
     ini.add_section("max_expected_copies")
     ini.add_comment("max_expected_copies",
-        "Specify the maximum expected number of copies (i.e., alleles) for "
-        "each marker in a single reference sample (only used for "
-        "allelefinder). The default is 2. Specify 1 here for haploid markers "
-        "(i.e., those %son the Y chromosome)." % (
+        "By default, the Allelefinder tool will report up to 2 alleles per marker, but only a "
+        "single allele for markers %son the Y chromosome. If this is incorrect, specify the "
+        "maximum expected number of copies (i.e., alleles) for each marker in a "
+        "single-contributor reference sample here." % (
             "on mitochondrial DNA or " if type != "str" else ""))
-    if type != "non-str":
-        ini.set("max_expected_copies", ";CSF1P0 = 2")
-    if type != "str":
-        ini.set("max_expected_copies", ";MitoFrag = 1")
-    if aliases:
-        ini.set("max_expected_copies", ";Amel = 2")
     ini.add_section("expected_allele_length")
     ini.add_comment("expected_allele_length",
         "Specify one or two values for each marker. The first value gives the "
         "expected minimum length (in nucleotides, %sexcluding flanks) of the "
         "alleles and the second value (if given) specifies the maximum allele "
-        "length expected for that marker (both inclusive). TSSV will filter "
+        "length expected for that marker (both inclusive). The TSSV tool will filter "
         "sequences that have a length outside this range." %
-        ("including prefix and suffix, " if type != "non-str" else ""))
-    if type != "non-str":
-        ini.set("expected_allele_length", ";CSF1P0 = 100")
-    if type != "str":
-        ini.set("expected_allele_length", ";MitoFrag = 150")
-    if aliases:
-        ini.set("expected_allele_length", ";Amel = 100")
+        ("including prefix and suffix, " if type in ("str", "full") else ""))
+
+    if type in ("str", "full"):
+        ini.add_section("prefix")
+        ini.add_comment("prefix",
+            "For explicitly-configured STR markers: Specify the prefix sequence of each STR "
+            "marker. The prefix is the sequence between the left flank and the repeat and is "
+            "omitted from allele names. The sequence is used as the reference sequence for that "
+            "marker when generating allele names. Deviations from the reference are expressed as "
+            "variants.")
+        ini.add_section("suffix")
+        ini.add_comment("suffix",
+            "For explicitly-configured STR markers: Specify the suffix sequence of each STR "
+            "marker. The suffix is the sequence between the repeat and the right flank. The "
+            "sequence is used as the reference sequence for that marker when generating allele "
+            "names.")
+        ini.add_section("repeat")
+        ini.add_comment("repeat",
+            "For explicitly-configured STR markers: Specify the repeat structure of each STR "
+            "marker in space-separated triples of sequence, minimum number of repeats, and "
+            "maximum number of repeats.")
+        ini.add_section("length_adjust")
+        ini.add_comment("length_adjust",
+            "For explicitly-configured STR markers: To prevent discrepancies between traditional "
+            "CE allele numbers and the CE number in FDSTools allele names, the CE allele number "
+            "as calculated by FDSTools is based on the length of the repeat sequence minus the "
+            "adjustment specified here.")
+        ini.add_section("block_length")
+        ini.add_comment("block_length",
+            "For explicitly-configured STR markers: Specify the repeat unit length of each STR "
+            "marker. By default, the length of the repeat unit of the longest repeat is used.")
+    if type in ("non-str", "full"):
+        ini.add_section("no_repeat")
+        ini.add_comment("no_repeat",
+            "For explicitly-configured non-STR markers: Specify the reference sequence for each "
+            "non-STR marker.")
     return ini
 #make_empty_library_ini
 
@@ -231,13 +193,14 @@ def add_arguments(parser):
     parser.add_argument("outfile", nargs="?", metavar="OUT",
         default=sys.stdout, type=argparse.FileType("tw"),
         help="the file to write the output to (default: write to stdout)")
-    parser.add_argument("-t", "--type", metavar="TYPE", default="full",
-        choices=("full", "str", "non-str"),
-        help="the type of markers that this library file will be used for; "
-             "'full' (the default) will create a library file with all "
-             "possible sections, whereas 'str' or 'non-str' will only output "
-             "the sections applicable to STR and non-STR markers, "
-             "respectively")
+    parser.add_argument("-t", "--type", metavar="TYPE", default="smart",
+        choices=("smart", "full", "str", "non-str"),
+        help="the type of markers that this library file will be used for; with 'smart' (the "
+             "default), only the genomic positions of the analysed ranges need to be specified "
+             "and FDSTools will automatically detect and configure allele naming using STRNaming "
+             "(currently only supported for markers in the human genome); 'full' will create a "
+             "library file with all possible sections; 'str' or 'non-str' will only output "
+             "sections used to explicitly define STR and non-STR markers, respectively")
     parser.add_argument("-a", "--aliases", action="store_true",
         help="if specified, the [aliases] section is included, which can be "
              "used to explicitly assign allele names to specific sequences of "

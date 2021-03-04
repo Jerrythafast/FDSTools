@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 
 #
-# Copyright (C) 2020 Jerry Hoogenboom
+# Copyright (C) 2021 Jerry Hoogenboom
 #
 # This file is part of FDSTools, data analysis tools for Massively
 # Parallel Sequencing of forensic DNA markers.
@@ -79,6 +79,7 @@ def find_alleles(samples_in, outfile, reportfile, min_reads, min_allele_pct, max
         lambda tag, data: find_alleles_sample(
             data, outfile, reportfile, tag, min_reads, min_allele_pct, max_noise_pct,
             max_alleles, max_noisy, seqformat, library),
+        drop_special_seq=True, after_correction=True, combine_strands=True,
         extra_columns={"flags": True})
 #find_alleles
 
@@ -89,9 +90,6 @@ def find_alleles_sample(data, outfile, reportfile, tag, min_reads, min_allele_pc
     top_allele = {}
     alleles = {}
     for marker, sequence in data:
-        if sequence in SEQ_SPECIAL_VALUES:
-            continue
-
         # Skip lines that have been marked as stutter artefacts.
         try:
             flags = set(map(str.strip, data[marker, sequence].pop()["flags"].split(",")))
@@ -101,7 +99,7 @@ def find_alleles_sample(data, outfile, reportfile, tag, min_reads, min_allele_pc
             # Flags column wasn't present.
             pass
 
-        reads = sum(data[marker, sequence])
+        reads = data[marker, sequence][0]
 
         if marker not in alleles:
             alleles[marker] = {}
@@ -170,8 +168,9 @@ def find_alleles_sample(data, outfile, reportfile, tag, min_reads, min_allele_pc
 def get_max_expected_alleles(max_alleles, marker, library):
     if max_alleles is not None:
         return max_alleles
-    if library is not None and "max_expected_copies" in library:
-        return library["max_expected_copies"].get(marker, 2)
+    if library is not None:
+        range = library.get_range(marker)
+        return range.get_option("max_expected_copies", 1 if range.location[0] in ("MY") else 2)
     return 2
 #get_max_expected_alleles
 
@@ -193,9 +192,9 @@ def add_arguments(parser):
         help="require at least this number of reads for the highest allele "
              "of each marker (default: %(default)s)")
     filtergroup.add_argument("-a", "--max-alleles", metavar="N", type=pos_int_arg,
-        help="allow no more than this number of alleles per marker; if "
-             "unspecified, the amounts given in the library file are used, "
-             "which have a default value of 2")
+        help="allow no more than this number of alleles per marker; if unspecified, the amounts "
+             "given in the library file are used, which have a default value of 1 for markers on "
+             "the mitochondrial genome and Y chromosome, or 2 otherwise")
     filtergroup.add_argument("-x", "--max-noisy", metavar="N",
         type=pos_int_arg, default=_DEF_MAX_NOISY,
         help="entirely reject a sample if more than this number of markers "

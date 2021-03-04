@@ -35,7 +35,7 @@ allele name 'CE9_AGAT[6]ACCT[3]'.
 
 Seqconvert can be used to explicitly convert all sequences in a file to
 the same output format.  Conversions are done using a library file, see
-the help text of the libconvert tool for details.
+the help text of the library tool for details.
 
 You can specify multiple input files using the -i/--input option.  This
 is especially useful when generating allele names for many samples that

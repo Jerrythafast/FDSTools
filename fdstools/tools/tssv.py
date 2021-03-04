@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 
 #
-# Copyright (C) 2020 Jerry Hoogenboom
+# Copyright (C) 2021 Jerry Hoogenboom
 #
 # This file is part of FDSTools, data analysis tools for Massively
 # Parallel Sequencing of forensic DNA markers.
@@ -79,6 +79,10 @@ __version__ = "2.1.0"
 
 # Default values for parameters are specified below.
 
+# Default flanking sequence length.
+# This value can be overridden by the -L command line option.
+_DEF_FLANK_LENGTH = 16
+
 # Default maximum number of mismatches per nucleotide in the flanking
 # sequences to allow.
 # This value can be overridden by the -m command line option.
@@ -96,7 +100,8 @@ _DEF_MINIMUM = 1
 
 
 class TSSV:
-    def __init__(self, library, threshold, indel_score, dirname, workers, deduplicate, infile):
+    def __init__(self, library, flank_length, threshold, indel_score, dirname, workers,
+                 deduplicate, infile):
         # User inputs.
         self.library = library
         self.indel_score = indel_score
@@ -105,11 +110,21 @@ class TSSV:
         self.lock = Lock()
 
         # Convert library.
-        self.tssv_library = {marker: (
-            (flanks[0], reverse_complement(flanks[1])), (
-                math.ceil(len(flanks[0]) * threshold),
-                math.ceil(len(flanks[1]) * threshold)))
-            for marker, flanks in library["flanks"].items()}
+        refseq_store = library.get_structure_store().get_refseq_store()
+        self.tssv_library = {}
+        for marker, range in library.get_ranges().items():
+            flanks = list(range.get_option("flanks", (flank_length, flank_length)))
+            if not all(flanks):
+                raise ValueError("Missing flanking sequence for marker %s" % marker)
+            chromosome, start, *_, end = range.location
+            if isinstance(flanks[0], int):
+                flanks[0] = refseq_store.get_refseq(chromosome, start - flanks[0], start)
+            if isinstance(flanks[1], int):
+                flanks[1] = refseq_store.get_refseq(chromosome, end + 1, end + 1 + flanks[1])
+            self.tssv_library[marker] = (
+                (flanks[0], reverse_complement(flanks[1])), (
+                math.ceil(len(flanks[0]) * threshold if threshold < 1 else threshold),
+                math.ceil(len(flanks[1]) * threshold if threshold < 1 else threshold)))
 
         # Open input file.
         file_format, self.input = init_sequence_file_read(infile)
@@ -236,7 +251,7 @@ class TSSV:
         if aggregate_filtered:
             aggregates = {}
             for marker, sequences in self.sequences.items():
-                expected_length = self.library.get("expected_length", {}).get(marker)
+                expected_length = self.library.get_range(marker).get_option("expected_allele_length")
                 for sequence, (forward, reverse) in sequences.items():
                     if not seq_pass_filt(sequence, forward + reverse, minimum, expected_length):
                         if marker not in aggregates:
@@ -246,7 +261,7 @@ class TSSV:
 
         # Filter out sequences with low read counts and invalid bases.
         for marker in tuple(self.sequences):
-            expected_length = self.library.get("expected_length", {}).get(marker)
+            expected_length = self.library.get_range(marker).get_option("expected_allele_length")
             self.sequences[marker] = {sequence: counts
                 for sequence, counts in self.sequences[marker].items()
                 if seq_pass_filt(sequence, sum(counts), minimum, expected_length)}
@@ -485,10 +500,11 @@ def init_sequence_file_read(infile):
 #init_sequence_file_read
 
 
-def run_tssv_lite(infile, outfile, reportfile, library, seqformat, threshold, minimum,
-                  aggregate_filtered, missing_marker_action, dirname, indel_score, workers,
-                  no_deduplicate):
-    tssv = TSSV(library, threshold, indel_score, dirname, workers, not no_deduplicate, infile)
+def run_tssv_lite(infile, outfile, reportfile, library, flank_length, seqformat, threshold,
+                  minimum, aggregate_filtered, missing_marker_action, dirname, indel_score,
+                  workers, no_deduplicate):
+    tssv = TSSV(library, flank_length, threshold, indel_score, dirname, workers,
+        not no_deduplicate, infile)
     tssv.process_file()
     tssv.filter_sequences(aggregate_filtered, minimum, missing_marker_action)
 
@@ -509,6 +525,10 @@ def run_tssv_lite(infile, outfile, reportfile, library, seqformat, threshold, mi
 def add_arguments(parser):
     add_sequence_format_args(parser, default_format="raw", force=False, require_library=True)
     add_input_output_args(parser, single_in=True, batch_support=False, report_out=True)
+    parser.add_argument("-L", "--flank-length", metavar="N", type=pos_int_arg,
+        default=_DEF_FLANK_LENGTH,
+        help="length of anchor (flanking) sequences to use, if not specified in the library file "
+             "(default: %(default)s)")
     parser.add_argument("-D", "--dir",
         help="output directory for verbose output; when given, a subdirectory "
              "will be created for each marker, each with a separate "
@@ -523,8 +543,8 @@ def add_arguments(parser):
              "reduced in expense of longer running time")
     filtergroup = parser.add_argument_group("filtering options")
     filtergroup.add_argument("-m", "--mismatches", type=float, default=_DEF_MISMATCHES,
-        help="number of mismatches per nucleotide to allow in flanking "
-             "sequences (default: %(default)s)")
+        help="number of mismatches (per nucleotide of flanking sequence if less than 1, else "
+             "absolute) to allow in flanking sequences, rounded upward (default: %(default)s)")
     filtergroup.add_argument("-n", "--indel-score", metavar="N",
         type=pos_int_arg, default=_DEF_INDEL_SCORE,
         help="insertions and deletions in the flanking sequences are penalised this number of "
@@ -549,7 +569,7 @@ def run(args):
     if not files:
         raise ValueError("please specify an input file, or pipe in the output of another program")
     infile = sys.stdin if files[0] == "-" else open(files[0], "tr")
-    run_tssv_lite(infile, files[1], args.report, args.library,
+    run_tssv_lite(infile, files[1], args.report, args.library, args.flank_length,
                   args.sequence_format, args.mismatches, args.minimum,
                   args.aggregate_filtered, args.missing_marker_action,
                   args.dir, args.indel_score, args.num_threads, args.no_deduplicate)
