@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 
 #
-# Copyright (C) 2020 Jerry Hoogenboom
+# Copyright (C) 2021 Jerry Hoogenboom
 #
 # This file is part of FDSTools, data analysis tools for Massively
 # Parallel Sequencing of forensic DNA markers.
@@ -62,7 +62,7 @@ def library_arg(value):
     """Value is a library file name; parse and return the library."""
     try:
         return parse_library(value)
-    except ValueError as err:
+    except Exception as err:
         raise argparse.ArgumentTypeError(err)
 #library_arg
 
@@ -75,7 +75,7 @@ def comma_separated_arg(list_type, element_type):
     def parse_comma_separated_arg(value):
         try:
             return list_type(map(element_type, value.split(",")))
-        except Error as err:
+        except Exception as err:
             raise argparse.ArgumentTypeError(err)
     return parse_comma_separated_arg
 #comma_separated_arg

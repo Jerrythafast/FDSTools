@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 
 #
-# Copyright (C) 2020 Jerry Hoogenboom
+# Copyright (C) 2021 Jerry Hoogenboom
 #
 # This file is part of FDSTools, data analysis tools for Massively
 # Parallel Sequencing of forensic DNA markers.
@@ -78,6 +78,18 @@ class _HelpFormatter(argparse.HelpFormatter):
 #_HelpFormatter
 
 
+def make_error_interceptor(parser):
+    parser.fdstools_print_error_and_exit = parser.error
+    def custom_error_function(*args, **kwargs):
+        if "-d" in sys.argv or "--debug" in sys.argv:
+            exception, traceback = sys.exc_info()[1:]
+            if exception is not None:
+                raise exception.with_traceback(traceback)
+        parser.fdstools_print_error_and_exit(*args, **kwargs)
+    parser.error = custom_error_function
+#make_error_interceptor
+
+
 def main():
     """
     Main entry point.
@@ -86,6 +98,7 @@ def main():
     parser = argparse.ArgumentParser(formatter_class=_HelpFormatter, prog=prog,
                                      add_help=False, description=usage[0])
     parser.version = version(prog)
+    make_error_interceptor(parser)
     parser.add_argument("-h", "--help", action=_HelpAction,
         default=argparse.SUPPRESS, nargs=argparse.REMAINDER,
         help="show this help message, or help for the specified TOOL, and exit")
@@ -106,7 +119,7 @@ def main():
         try:
             module = importer.find_module(prefix + name).load_module(prefix + name)
         except Exception as error:
-            sys.stderr.write("Failed to load '%s': %s\n" % (name, error))
+            sys.stderr.write("FDSTools failed to load '%s': %s\n" % (name, error))
             continue
         subparser = subparsers.add_parser(
             name,
@@ -114,6 +127,7 @@ def main():
             help=module.__doc__.split("\n\n", 1)[0],
             description=module.__doc__)
         tool_subparsers[name] = subparser
+        make_error_interceptor(subparser)
         subparser.add_argument("-v", "--version", action=_VersionAction, default=argparse.SUPPRESS,
             nargs=0, help="show version number and exit")
         subparser.add_argument("-d", "--debug", action="store_true", default=argparse.SUPPRESS,
@@ -123,23 +137,25 @@ def main():
             module.add_arguments(subparser)
             subparser.set_defaults(func=module.run)
         except Exception as error:
-            sys.stderr.write("Failed to configure '%s': %s\n" % (name, error))
+            sys.stderr.write("FDSTools failed to configure '%s': %s\n" % (name, error))
             error_to_reraise = error
             def reraise_error(args):
                 raise error_to_reraise
             subparser.set_defaults(func=reraise_error)
             continue
+
+    # Assume the user wants help if they just type 'fdstools'.
+    if len(sys.argv) == 1:
+        sys.argv.append("-h")
+
     try:
-        # Assume the user wants help if they just type 'fdstools'.
-        if len(sys.argv) == 1:
-            sys.argv.append("-h")
         args, unknowns = parser.parse_known_args()
     except Exception as error:
-        parser.error(error)
+        parser.error(error)  # Either re-raises or exits.
     try:
         if unknowns:
             # Politely inform the user about unknown arguments.
-            tool_subparsers[args.tool].error(
+            tool_subparsers[args.tool].fdstools_print_error_and_exit(
                 "The following arguments are not known. Please check spelling "
                 "and argument order: '%s'." % "', '".join(unknowns))
         if args.debug:
@@ -150,7 +166,7 @@ def main():
     except Exception as error:
         if args.debug:
             raise
-        tool_subparsers[args.tool].error(error)
+        tool_subparsers[args.tool].fdstools_print_error_and_exit(error)
 #main
 
 
