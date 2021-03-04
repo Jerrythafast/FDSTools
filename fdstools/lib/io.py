@@ -68,7 +68,7 @@ def parse_allelelist(allelelist, *, convert=None, library=None):
 
 def read_sample_data_file(infile, data, annotation_column=None, seqformat=None, library=None,
                           default_marker=None, drop_special_seq=False, after_correction=False,
-                          extra_columns=None):
+                          combine_strands=False, extra_columns=None):
     """Add data from infile to data dict as [marker, sequence]=reads."""
     # TODO: require keywords
     # Get column numbers.
@@ -76,21 +76,32 @@ def read_sample_data_file(infile, data, annotation_column=None, seqformat=None, 
     if column_names == [""]:
         return []  # Empty file.
     colid_sequence = get_column_ids(column_names, "sequence")
-    colid_forward = None
-    colid_reverse = None
-    numtype = int
-    if after_correction:
-        colid_forward, colid_reverse = get_column_ids(column_names,
-            "forward_corrected", "reverse_corrected",
-            optional=(after_correction != "require"))
-    if colid_forward is None:
-        colid_forward = get_column_ids(column_names, "forward")
+    if combine_strands:
+        colid_total = None
+        numtype = int
+        if after_correction:
+            colid_total = get_column_ids(column_names, "total_corrected",
+                optional=(after_correction != "require"))
+        if colid_total is None:
+            colid_total = get_column_ids(column_names, "total")
+        else:
+            numtype = float
     else:
-        numtype = float
-    if colid_reverse is None:
-        colid_reverse = get_column_ids(column_names, "reverse")
-    else:
-        numtype = float
+        colid_forward = None
+        colid_reverse = None
+        numtype = int
+        if after_correction:
+            colid_forward, colid_reverse = get_column_ids(column_names,
+                "forward_corrected", "reverse_corrected",
+                optional=(after_correction != "require"))
+        if colid_forward is None:
+            colid_forward = get_column_ids(column_names, "forward")
+        else:
+            numtype = float
+        if colid_reverse is None:
+            colid_reverse = get_column_ids(column_names, "reverse")
+        else:
+            numtype = float
     if extra_columns is not None:
         extra_colids = {c: i for c, i in
             ((c, get_column_ids(column_names, c, optional=extra_columns[c]))
@@ -117,7 +128,10 @@ def read_sample_data_file(infile, data, annotation_column=None, seqformat=None, 
             line[colid_sequence], seqformat, library=library, marker=marker)
         if annotation_column is not None and line[colid_annotation].startswith("ALLELE"):
             found_alleles.append((marker, sequence))
-        data[marker, sequence] = list(map(numtype, (line[colid_forward], line[colid_reverse])))
+        if combine_strands:
+            data[marker, sequence] = [numtype(line[colid_total])]
+        else:
+            data[marker, sequence] = list(map(numtype, (line[colid_forward], line[colid_reverse])))
         if extra_columns is not None:
             data[marker, sequence].append({c: line[extra_colids[c]] for c in extra_colids})
 
@@ -127,7 +141,8 @@ def read_sample_data_file(infile, data, annotation_column=None, seqformat=None, 
 
 def get_sample_data(tags_to_files, callback, allelelist=None, annotation_column=None,
                     seqformat=None, library=None, marker=None, homozygotes=False,
-                    drop_special_seq=False, after_correction=False, extra_columns=None):
+                    drop_special_seq=False, after_correction=False, combine_strands=False,
+                    extra_columns=None):
     """
     Parse sample data.
     TODO: write full doc, and require keywords...
@@ -139,7 +154,7 @@ def get_sample_data(tags_to_files, callback, allelelist=None, annotation_column=
             infile = sys.stdin if infile == "-" else open(infile, "tr")
             alleles.update(read_sample_data_file(
                 infile, data, annotation_column, seqformat, library, marker,
-                drop_special_seq, after_correction, extra_columns))
+                drop_special_seq, after_correction, combine_strands, extra_columns))
             if infile != sys.stdin:
                 infile.close()
         if allelelist is not None:

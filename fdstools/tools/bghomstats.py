@@ -63,7 +63,7 @@ _DEF_MIN_SAMPLES = 2
 _DEF_MIN_SAMPLE_PCT = 80.
 
 
-def add_sample_data(data, sample_data, sample_alleles, min_pct, min_abs, tag, combine_strands):
+def add_sample_data(data, sample_data, sample_alleles, min_pct, min_abs, tag):
     # Check presence of all alleles.
     for marker in sample_alleles:
         allele = sample_alleles[marker]
@@ -72,7 +72,7 @@ def add_sample_data(data, sample_data, sample_alleles, min_pct, min_abs, tag, co
         except KeyError:
             raise ValueError(
                 "Missing allele %s of marker %s in sample %s!" % (allele, marker, tag))
-        if (combine_strands and not sum(reads)) or (not combine_strands and 0 in reads):
+        if 0 in reads:
             raise ValueError(
                 "Allele %s of marker %s has 0 reads in sample %s!" % (allele, marker, tag))
 
@@ -83,12 +83,8 @@ def add_sample_data(data, sample_data, sample_alleles, min_pct, min_abs, tag, co
             continue
         allele = sample_alleles[marker]
 
-        if combine_strands:
-            reads = [sum(sample_data[marker, sequence])]
-            factors = [100 / sum(sample_data[marker, allele])]
-        else:
-            reads = sample_data[marker, sequence]
-            factors = [100 / x for x in sample_data[marker, allele]]
+        reads = sample_data[marker, sequence]
+        factors = [100 / x for x in sample_data[marker, allele]]
 
         if (marker, allele) not in data:
             data[marker, allele] = {}
@@ -142,9 +138,9 @@ def compute_stats(samples_in, outfile, allelefile, annotation_column, min_pct, m
         lambda tag, sample_data: add_sample_data(
             data, sample_data,
             {m: allelelist[tag][m].pop() for m in allelelist[tag]},
-            min_pct, min_abs, tag, combine_strands),
-        allelelist, annotation_column, seqformat, library, marker, True,
-        drop_special_seq=True)
+            min_pct, min_abs, tag),
+        allelelist, annotation_column, seqformat, library, marker,
+        homozygotes=True, drop_special_seq=True, combine_strands=combine_strands)
 
     # Ensure minimum number of samples per allele and filter
     # insignificant background products.

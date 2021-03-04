@@ -346,15 +346,12 @@ def add_sample_data(data, sample_data, sample_alleles, min_pct, min_abs, tag, co
         thresholds[marker] = {}
         for allele in sample_alleles[marker]:
             try:
-                reads = sample_data[marker, allele]
+                if 0 in sample_data[marker, allele]:
+                    raise ValueError("Allele %s of marker %s has 0 reads in sample %s!" %
+                        (allele, marker, tag))
             except KeyError:
                 raise ValueError(
                     "Missing allele %s of marker %s in sample %s!" % (allele, marker, tag))
-            if combine_strands:
-                reads = [sum(reads)]
-            if 0 in reads:
-                raise ValueError("Allele %s of marker %s has 0 reads in sample %s!" %
-                    (allele, marker, tag))
             try:
                 i = p["alleles"].index(allele)
             except ValueError:
@@ -459,7 +456,8 @@ def generate_profiles(samples_in, outfile, reportfile, allelefile, annotation_co
     # Read sample data.
     sample_data = {}
     get_sample_data(samples_in, lambda tag, data: sample_data.update({tag: data}),
-                    allelelist, annotation_column, "raw", library, marker, homozygotes, True)
+                    allelelist, annotation_column, "raw", library, marker, homozygotes,
+                    drop_special_seq=True, combine_strands=combine_strands)
 
     # Ensure minimum number of samples and genotypes per allele.
     allelelist = {tag: allelelist[tag] for tag in sample_data}

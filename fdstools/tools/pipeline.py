@@ -86,7 +86,7 @@ NAME = __name__[len(PACKAGE_PREFIX):]
 # Argument names that will not be written in generated INI files.
 HIDDEN_ARGS = ("infile", "infile2", "infiles", "outfile", "outfiles", "raw-outfile",
     "library", "library2", "allelelist", "report", "tag-expr", "tag-format",
-    "sequence-format", "type", "title", "stuttermodel", "seqs", "profiles",
+    "sequence-format", "type", "title", "stuttermodel", "seqs", "profiles", "combine-strands",
     "annotation-column", "marker-column", "allele-column", "output-column", "reverse-complement")
 
 # Tools that are run for each type of analysis pipeline.
@@ -107,10 +107,10 @@ ANALYSIS_ARGS = {
         ("analysis", "in-library", "in-sample-raw", "tag-expr", "tag-format"),
     "reference-database":
         ("analysis", "in-library", "in-samples", "in-allelelist", "prefix",
-        "tag-expr", "tag-format"),
+        "tag-expr", "tag-format", "combine-strands"),
     "case-sample":
         ("analysis", "in-library", "in-sample-raw", "in-stuttermodel",
-        "in-bgprofiles", "store-predictions", "tag-expr", "tag-format")
+        "in-bgprofiles", "store-predictions", "tag-expr", "tag-format", "combine-strands")
 }
 
 # Pipeline default argument values overriding the tool's own defaults.
@@ -217,8 +217,12 @@ def get_tools(hide_pipeline):
             path=fdstools.tools.__path__):
         if hide_pipeline and name == NAME:
             continue
-        tools[name] = importer.find_module(PACKAGE_PREFIX + name).load_module(
-            PACKAGE_PREFIX + name)
+        try:
+            tools[name] = importer.find_module(PACKAGE_PREFIX + name).load_module(
+                PACKAGE_PREFIX + name)
+        except Exception as error:
+            sys.stderr.write("FDSTools failed to load '%s': %s\n" % (name, error))
+            continue
     return tools
 #get_tools
 
@@ -441,6 +445,7 @@ def run_ref_database_analysis(arg_defs, config):
     if allelefile is None:
         allelefile =  prefix + "allelelist.txt"
         run_allelefinder = True
+    combine_strands = ini_try_get_option(config, NAME, "combine-strands", "")
 
     # Overwrite any explicit I/O configuration.
     if run_allelefinder:
@@ -462,6 +467,7 @@ def run_ref_database_analysis(arg_defs, config):
     config.set("bgestimate", "library", in_library)
     config.set("bgestimate", "tag-expr", tag_expr)
     config.set("bgestimate", "tag-format", tag_format)
+    config.set("bgestimate", "combine-strands", combine_strands)
     if not config.has_section("stuttermodel"):
         config.add_section("stuttermodel")
     config.set("stuttermodel", "allelelist", allelefile)
@@ -471,6 +477,7 @@ def run_ref_database_analysis(arg_defs, config):
     config.set("stuttermodel", "tag-expr", tag_expr)
     config.set("stuttermodel", "tag-format", tag_format)
     config.set("stuttermodel", "raw-outfile", prefix + "stuttermodel-raw.txt")
+    config.set("stuttermodel", "combine-strands", combine_strands)
     if not config.has_section("bghomraw"):
         config.add_section("bghomraw")
     config.set("bghomraw", "allelelist", allelefile)
@@ -479,6 +486,7 @@ def run_ref_database_analysis(arg_defs, config):
     config.set("bghomraw", "library", in_library)
     config.set("bghomraw", "tag-expr", tag_expr)
     config.set("bghomraw", "tag-format", tag_format)
+    config.set("bghomraw", "combine-strands", combine_strands)
     if not config.has_option("bghomraw", "sequence-format"):
         config.set("bghomraw", "sequence-format", "allelename")
     if not config.has_section("vis"):
@@ -585,6 +593,7 @@ def run_case_sample_analysis(arg_defs, config):
             config, NAME, "store-predictions", "False"))
     out_bgpredict = tag + "-bgpredict.txt" if store_predictions else "-"
     out_bgmerge = tag + "-bgmerge.txt" if store_predictions else "-"
+    combine_strands = ini_try_get_option(config, NAME, "combine-strands", "")
 
 
     # Overwrite any explicit I/O configuration.
@@ -601,6 +610,7 @@ def run_case_sample_analysis(arg_defs, config):
         config.set("bgpredict", "seqs", "-")
         config.set("bgpredict", "outfile", out_bgpredict)
         config.set("bgpredict", "library", in_library)
+        config.set("bgpredict", "combine-strands", combine_strands)
         if in_bgprofiles is not None:
             if not config.has_section("bgmerge"):
                 config.add_section("bgmerge")
@@ -622,6 +632,7 @@ def run_case_sample_analysis(arg_defs, config):
         config.set("bgcorrect", "outfile", "-")
         config.remove_option("bgcorrect", "outfiles")
         config.set("bgcorrect", "library", in_library)
+        config.set("bgcorrect", "combine-strands", combine_strands)
     if not config.has_section("seqconvert"):
         config.add_section("seqconvert")
     if not config.has_option("seqconvert", "sequence-format"):
@@ -772,7 +783,7 @@ def run_case_sample_analysis(arg_defs, config):
 
 
 def add_ini_arg(argument, value, config):
-    if value is None:
+    if value is None or value == False:
         return
     if isinstance(value, list):
         value = " ".join(
@@ -905,6 +916,9 @@ def add_arguments(parser):
     group.add_argument("-P", "--prefix",
         help="[ref-database] if specified, all output file names are prefixed "
              "with this value")
+    group.add_argument("-C", "--combine-strands", action="store_true",
+        help="[ref-database, case-sample] if specified, noise analysis will be performed on the "
+             "total number of reads, instead of separately for either strand")
 #add_arguments
 
 

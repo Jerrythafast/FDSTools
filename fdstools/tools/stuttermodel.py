@@ -149,7 +149,7 @@ def print_fit(outfile, fit, lengths, seq, marker, stutter_fold, direction, lower
 #print_fit
 
 
-def add_sample_data(data, sample_data, sample_alleles, tag, min_pct, min_abs, combine_strands):
+def add_sample_data(data, sample_data, sample_alleles, tag, min_pct, min_abs):
     # Check presence of all alleles.
     for marker in sample_alleles:
         allele = sample_alleles[marker]
@@ -158,7 +158,7 @@ def add_sample_data(data, sample_data, sample_alleles, tag, min_pct, min_abs, co
         except KeyError:
             raise ValueError(
                 "Missing allele %s of marker %s in sample %s!" % (allele, marker, tag))
-        if (combine_strands and not sum(reads)) or (not combine_strands and 0 in reads):
+        if 0 in reads:
             raise ValueError(
                 "Allele %s of marker %s has 0 reads in sample %s!" % (allele, marker, tag))
 
@@ -176,12 +176,8 @@ def add_sample_data(data, sample_data, sample_alleles, tag, min_pct, min_abs, co
             continue
         allele = sample_alleles[marker]
 
-        if combine_strands:
-            reads = [sum(sample_data[marker, sequence])]
-            factors = [100 / sum(sample_data[marker, allele])]
-        else:
-            reads = sample_data[marker, sequence]
-            factors = [100 / x for x in sample_data[marker, allele]]
+        reads = sample_data[marker, sequence]
+        factors = [100 / x for x in sample_data[marker, allele]]
 
         if (tag, marker) not in data["samples"]:
             data["samples"][tag, marker] = {}
@@ -222,8 +218,9 @@ def fit_stutter(samples_in, outfile, allelefile, annotation_column, min_pct, min
         lambda tag, sample_data: add_sample_data(
             data, sample_data,
             {m: allelelist[tag][m].pop() for m in allelelist[tag]},
-            tag, min_pct, min_abs, combine_strands),
-        allelelist, annotation_column, "raw", library, marker, True, True)
+            tag, min_pct, min_abs),
+        allelelist, annotation_column, "raw", library, marker,
+        homozygotes=True, drop_special_seq=True, combine_strands=combine_strands)
 
     # Ensure minimum number of samples per allele.
     filter_data(data, min_samples)

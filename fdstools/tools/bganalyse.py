@@ -78,7 +78,7 @@ def process_sample(sample_data, sample_alleles, tag, library):
             if (marker, allele) not in sample_data:
                 raise ValueError(
                     "Missing allele %s of marker %s in sample %s!" % (allele, marker, tag))
-            this_allele_reads = sum(sample_data[marker, allele][0 : 2])
+            this_allele_reads = sample_data[marker, allele][0]
             if not this_allele_reads:
                 raise ValueError("Allele %s of marker %s has 0 reads!" % (allele, marker))
             allele_reads[marker] += this_allele_reads
@@ -89,7 +89,7 @@ def process_sample(sample_data, sample_alleles, tag, library):
     marker_reads = {}
     total_reads = 0
     for marker, sequence in sample_data:
-        reads = sum(sample_data[marker, sequence][0 : 2])
+        reads = sample_data[marker, sequence][0]
         total_reads += reads
         if marker not in sample_alleles or not sample_alleles[marker]:
             # Sample does not participate in this marker.
@@ -101,7 +101,7 @@ def process_sample(sample_data, sample_alleles, tag, library):
             marker_reads[marker] += reads
         if sequence in sample_alleles[marker]:
             # Note: Some noise has recovery in the order of 1E17.
-            recovery = get_total_recovery(sample_data[marker, sequence][2])
+            recovery = get_total_recovery(sample_data[marker, sequence][1])
             if recovery > noise[marker][3]:
                 noise[marker][3] = recovery
         else:
@@ -199,7 +199,7 @@ def analyse_background(samples_in, outfile, allelefile, annotation_column, seqfo
         lambda tag, sample_data: data.__setitem__(tag, process_sample(
             sample_data, allelelist[tag], tag, library)),
         allelelist, annotation_column, seqformat, library,
-        after_correction=True, drop_special_seq=True,
+        drop_special_seq=True, after_correction=True, combine_strands=True,
         extra_columns={
             "total_recovery": True,
             "total_add": True,
