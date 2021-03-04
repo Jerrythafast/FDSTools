@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 
 #
-# Copyright (C) 2020 Jerry Hoogenboom
+# Copyright (C) 2021 Jerry Hoogenboom
 #
 # This file is part of FDSTools, data analysis tools for Massively
 # Parallel Sequencing of forensic DNA markers.
@@ -29,11 +29,11 @@ def load_profiles(profilefile, library=None):
     column_names = profilefile.readline().rstrip("\r\n").split("\t")
     if column_names == [""]:
         return {}  # Empty file.
-    colid_marker, colid_allele, colid_sequence, colid_tools = get_column_ids(
-        column_names, "marker", "allele", "sequence", "tools")
+    colid_marker, colid_allele, colid_sequence = get_column_ids(
+        column_names, "marker", "allele", "sequence")
 
-    colid_fmean, colid_rmean, colid_tmean = get_column_ids(
-        column_names, "fmean", "rmean", "tmean", optional=True)
+    colid_tool, colid_tools, colid_fmean, colid_rmean, colid_tmean = get_column_ids(
+        column_names, "tool", "tools", "fmean", "rmean", "tmean", optional=True)
 
     if colid_fmean is None and colid_rmean is None and colid_tmean is None:
         raise ValueError("Invalid background noise profiles file: the columns 'fmean', 'rmean', "
@@ -56,8 +56,11 @@ def load_profiles(profilefile, library=None):
             raise ValueError(
                 "Invalid background noise profiles file: encountered multiple values for marker "
                 "'%s' allele '%s' sequence '%s'" % (marker, allele, sequence))
+        tools = set([] if colid_tools is None else map(str.strip, line[colid_tools].split(",")))
+        if colid_tool is not None:
+            tools.add(line[colid_tool].strip())
         profiles[marker][allele][sequence] = {
-            "tools": set(map(str.strip, line[colid_tools].split(","))),
+            "tools": tools,
             "forward": float(line[colid_fmean]) if colid_fmean is not None else 0.,
             "reverse": float(line[colid_rmean]) if colid_rmean is not None else 0.,
             "total": float(line[colid_tmean]) if colid_tmean is not None else 0.}
