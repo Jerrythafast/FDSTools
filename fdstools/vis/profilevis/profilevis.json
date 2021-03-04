@@ -1,5 +1,5 @@
 {
-  "fdstools_visversion": "2.0.0",
+  "fdstools_visversion": "2.0.1",
   "width": 600,
   "height": 10,
   "signals": [
@@ -45,13 +45,14 @@
         "type": "tsv",
         "parse": {
           "fmean": "number",
-          "rmean": "number"
+          "rmean": "number",
+          "tmean": "number"
         }
       },
       "transform": [
         {
           "type": "filter",
-          "test": "datum.allele != datum.sequence && max(datum.fmean, datum.rmean) >= amplitude_pct_threshold && test(marker_regex, datum.marker)"
+          "test": "datum.allele != datum.sequence && max(datum.fmean, datum.rmean, datum.tmean) >= amplitude_pct_threshold && test(marker_regex, datum.marker)"
         },
         {
           "type": "formula",
@@ -65,13 +66,23 @@
         },
         {
           "type": "formula",
+          "field": "tmean",
+          "expr": "max(datum.tmean, low)"
+        },
+        {
+          "type": "formula",
           "field": "flabel",
-          "expr": "indexof(''+round(datum.fmean*10)/10, '.') == -1? ((round(datum.fmean*10)/10) + '.0') : slice((round(datum.fmean*10)/10)+'0', 0, indexof((round(datum.fmean*10)/10) + '.', '.')+2)"
+          "expr": "!datum.fmean? '' : indexof(''+round(datum.fmean*10)/10, '.') == -1? ((round(datum.fmean*10)/10) + '.0') : slice((round(datum.fmean*10)/10)+'0', 0, indexof((round(datum.fmean*10)/10) + '.', '.')+2)"
         },
         {
           "type": "formula",
           "field": "rlabel",
-          "expr": "indexof(''+round(datum.rmean*10)/10, '.') == -1? ((round(datum.rmean*10)/10) + '.0') : slice((round(datum.rmean*10)/10)+'0', 0, indexof((round(datum.rmean*10)/10) + '.', '.')+2)"
+          "expr": "!datum.rmean? '' : indexof(''+round(datum.rmean*10)/10, '.') == -1? ((round(datum.rmean*10)/10) + '.0') : slice((round(datum.rmean*10)/10)+'0', 0, indexof((round(datum.rmean*10)/10) + '.', '.')+2)"
+        },
+        {
+          "type": "formula",
+          "field": "tlabel",
+          "expr": "!datum.tmean? '' : indexof(''+round(datum.tmean*10)/10, '.') == -1? ((round(datum.tmean*10)/10) + '.0') : slice((round(datum.tmean*10)/10)+'0', 0, indexof((round(datum.tmean*10)/10) + '.', '.')+2)"
         },
         {
           "type": "formula",
@@ -195,7 +206,7 @@
       "range": "width",
       "domainMin": {"signal": "low"},
       "domainMax": {"fields": [
-        {"data": "table", "field": ["fmean", "rmean"]},
+        {"data": "table", "field": ["fmean", "rmean", "tmean"]},
         {"data": "points", "field": ["fnoise", "rnoise", "tnoise"]}
       ]}
     },
@@ -266,7 +277,7 @@
           "nice": true,
           "range": "width",
           "domainMin": {"signal": "low"},
-          "domainMax": {"field": ["fmean", "rmean", "points.max_fnoise", "points.max_rnoise", "points.max_tnoise"]}
+          "domainMax": {"field": ["fmean", "rmean", "tmean", "points.max_fnoise", "points.max_rnoise", "points.max_tnoise"]}
         },
         {
           "name": "y",
@@ -395,6 +406,33 @@
                   "y": {"scale": "labels", "value": "Reverse reads"},
                   "fontWeight": {"value": "bold"},
                   "text": {"field": "rlabel"},
+                  "align": {"value": "left"},
+                  "baseline": {"value": "middle"},
+                  "fill": {"value": "#000000"}
+                }
+              }
+            },
+            {
+              "type": "rect",
+              "properties": {
+                "update": {
+                  "x": {"scale": "x", "signal": "low"},
+                  "x2": {"scale": "x", "field": "tmean"},
+                  "y": {"scale": "bars", "value": "Forward reads"},
+                  "height": {"scale": "bars", "band": true, "mult": 2},
+                  "fill": {"scale": "c", "value": "Total reads"},
+                  "fillOpacity": {"value": 0.8}
+                }
+              }
+            },
+            {
+              "type": "text",
+              "properties": {
+                "update": {
+                  "x": {"scale": "x", "field": "tmean", "offset": 5},
+                  "y": {"scale": "bars", "value": "Reverse reads"},
+                  "fontWeight": {"value": "bold"},
+                  "text": {"field": "tlabel"},
                   "align": {"value": "left"},
                   "baseline": {"value": "middle"},
                   "fill": {"value": "#000000"}

@@ -1,5 +1,5 @@
 {
-  "fdstools_visversion": "2.0.2",
+  "fdstools_visversion": "2.0.3",
   "width": 600,
   "height": 10,
   "signals": [
@@ -91,7 +91,8 @@
           "stutter": "number",
           "length": "number",
           "forward": "number",
-          "reverse": "number"
+          "reverse": "number",
+          "total": "number"
         }
       },
       "transform": [
@@ -111,7 +112,7 @@
         },
         {
           "type": "fold",
-          "fields": ["forward", "reverse"],
+          "fields": ["forward", "reverse", "total"],
           "output": {"key": "direction", "value": "value"}
         },
         {
