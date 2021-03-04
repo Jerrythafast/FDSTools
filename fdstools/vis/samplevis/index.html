@@ -2,7 +2,7 @@
 <html>
 <head>
     <!--
-    # Copyright (C) 2020 Jerry Hoogenboom
+    # Copyright (C) 2021 Jerry Hoogenboom
     #
     # This file is part of FDSTools, data analysis tools for Massively
     # Parallel Sequencing of forensic DNA markers.
@@ -24,7 +24,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>Sample Visualisation - FDSTools</title>
-    <!-- VERSION 2.2.1 -->
+    <!-- VERSION 2.2.3 -->
     <!-- BEGIN_LIBRARIES -->
     <script src="https://vega.github.io/vega-editor/vendor/d3.min.js"></script>
     <script src="https://vega.github.io/vega/vega.min.js"></script>
@@ -947,7 +947,8 @@ function parse(maintainSelection){
                     sa._prev = null;
                     datum._prev = null;
                     sa._id = datum._id;
-                    sa.aggr._id = datum.aggr._id;
+                    sa.aggrm._id = datum.aggrm._id;
+                    sa.aggrs._id = datum.aggrs._id;
                     sa.rank = datum.rank;
                     sa.thedatum = null;
                     datum.thedatum = null;
@@ -1249,7 +1250,9 @@ function saveTable(){
                 if(autoSelected.indexOf(datum) < 0 && userSelected.indexOf(datum) >= 0)
                     notes.push("user_added");
                 if(datum.correction_flags)
-                        notes.push(datum.correction_flags);
+                        notes.concat(datum.correction_flags.split(",").map(function(x){
+                            return x.trim();
+                        }));
                 return [
                     datum.marker,
                     datum.sequence,
@@ -1374,28 +1377,39 @@ function updateTable(i){
         if(autoSelected.indexOf(datum) < 0 && userSelected.indexOf(datum) >= 0)
             notes.push("User-added");
         if(datum.correction_flags){
-            if(datum.correction_flags == "corrected_bgestimate")
-                notes.push("BGCorrect-BGEstimate");
-            else if(datum.correction_flags == "corrected_bghomstats")
-                notes.push("BGCorrect-BGHomStats");
-            else if(datum.correction_flags == "corrected_bgpredict"){
-                notes.push("BGCorrect-BGPredict");
+            var warn = 0;
+            datum.correction_flags.split(",").map(function(flag){
+                return flag.trim();
+            }).forEach(function(flag){
+                if(flag == "corrected_bgestimate"){
+                    notes.push("BGCorrect-BGEstimate");
+                    warn |= 1;
+                }
+                else if(flag == "corrected_bghomstats"){
+                    notes.push("BGCorrect-BGHomStats");
+                    warn |= 1;
+                }
+                else if(flag == "corrected_bgpredict"){
+                    notes.push("BGCorrect-BGPredict");
+                    warn |= 2;
+                }
+                else if(flag == "corrected_as_background_only"){
+                    notes.push("BGCorrect-as-background-only");
+                    warn |= 2;
+                }
+                else if(flag == "not_in_ref_db"){
+                    notes.push("BGCorrect-not-in-ref-db");
+                    warn |= 2;
+                }
+                else if(flag == "not_corrected"){
+                    notes.push("BGCorrect-not-corrected");
+                    warn |= 2;
+                }
+                else
+                    notes.push(flag);
+            });
+            if(warn == 2)
                 cell.style.backgroundColor = "#ffe8c8";
-            }
-            else if(datum.correction_flags == "corrected_as_background_only"){
-                notes.push("BGCorrect-as-background-only");
-                cell.style.backgroundColor = "#ffe8c8";
-            }
-            else if(datum.correction_flags == "not_in_ref_db"){
-                notes.push("BGCorrect-not-in-ref-db");
-                cell.style.backgroundColor = "#ffe8c8";
-            }
-            else if(datum.correction_flags == "not_corrected"){
-                notes.push("BGCorrect-not-corrected");
-                cell.style.backgroundColor = "#ffe8c8";
-            }
-            else
-                notes.push(datum.correction_flags);
         }
         cell.appendChild(document.createTextNode(notes.join(", ")));
     });
@@ -1523,8 +1537,8 @@ function onLoadSpec(has_data, no_file_chooser){
     }
 
     //Doing allele calling outside of Vega.
-    graph_spec.data[6].source = null;
-    graph_spec.data[6].transform = null;
+    graph_spec.data[12].source = null;
+    graph_spec.data[12].transform = null;
 
     //Parse data outside of Vega.
     data_format = graph_spec.data[0].format;
