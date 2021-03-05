@@ -367,6 +367,6 @@ def parse_library(handle):
                     "three values (chromosome, start position, end position)" % marker)
             # TODO: Alias of STR markers was defined as excluding the prefix/suffix!
             chromosome, start, end = settings["genome_position"]
-            reported_range_store.add_range(marker, chromosome, start, end, False, options=options)
+            reported_range_store.add_range(marker, chromosome, start, end + 1, False, options=options)
     return reported_range_store
 #parse_library
