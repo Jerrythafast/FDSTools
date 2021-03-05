@@ -91,15 +91,15 @@ def ensure_sequence_format(seq, to_format, *, from_format=None, library=None, ma
                           "conversion requires a library file" % (from_format, to_format))
 
     # Perform conversions.
-    range = library.get_range(marker)
+    reported_range = library.get_range(marker)
     if from_format == "allelename":
-        seq = range.from_name(seq)
+        seq = reported_range.from_name(seq)
     elif from_format == "tssv":
-        seq = range.from_tssv(seq)
+        seq = reported_range.from_tssv(seq)
     if to_format == "tssv":
-        return range.get_tssv(seq)
+        return reported_range.get_tssv(seq)
     if to_format == "allelename":
-        return range.get_name(seq)
+        return reported_range.get_name(seq)
     return seq
 #ensure_sequence_format
 

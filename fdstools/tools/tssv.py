@@ -112,11 +112,11 @@ class TSSV:
         # Convert library.
         refseq_store = library.get_structure_store().get_refseq_store()
         self.tssv_library = {}
-        for marker, range in library.get_ranges().items():
-            flanks = list(range.get_option("flanks", (flank_length, flank_length)))
+        for marker, reported_range in library.get_ranges().items():
+            flanks = list(reported_range.get_option("flanks", (flank_length, flank_length)))
             if not all(flanks):
                 raise ValueError("Missing flanking sequence for marker %s" % marker)
-            chromosome, start, *_, end = range.location
+            chromosome, start, *_, end = reported_range.location
             if isinstance(flanks[0], int):
                 flanks[0] = refseq_store.get_refseq(chromosome, start - flanks[0], start)
             if isinstance(flanks[1], int):

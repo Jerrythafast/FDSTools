@@ -157,8 +157,11 @@ To-do:
   * All tools should check the number of columns at each line (like Stuttermark does).
   * All tools should allow for additional columns to be present.
   * Make better use of print_debug() in all tools and postpone string formatting.
-* TSSV: New option: When two reported ranges overlap completely, and the flanks of the longer
-  one pair up for a particular sequence, don't attempt to apply the shorter reported range too.
+* Library functions:
+  * Aliases, or some way to specify multi-copy markers with different refseqs like Amel.
+  * Built-in library files.
+* TSSV:
+  * Ability to uniquely target overlapping ranges.
 * Allelefinder:
   * Allow to set a minimum allele height for the lower allele.
 * Group tools by function in the command line help and put Pipeline on top.

@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 
 #
-# Copyright (C) 2020 Jerry Hoogenboom
+# Copyright (C) 2021 Jerry Hoogenboom
 #
 # This file is part of FDSTools, data analysis tools for Massively
 # Parallel Sequencing of forensic DNA markers.
@@ -20,7 +20,7 @@
 # along with FDSTools.  If not, see <http://www.gnu.org/licenses/>.
 #
 
-import io
+import io, pkgutil  #FIXME, this is temporary
 import re
 import sys
 import textwrap
@@ -285,7 +285,11 @@ def parse_library(handle):
             markers[marker][section_low] = value
 
     # Create a ReportedRangeStore to store data about each marker.
-    reported_range_store = classes.ReportedRangeStore()
+    reported_range_store = classes.ReportedRangeStore(
+        # FIXME: Now preloading ForenSeq structures from STRNaming, pending
+        # native full-genome support in STRNaming.
+        structure_store=classes.ReferenceStructureStore(
+            io.StringIO(pkgutil.get_data("strnaming", "data/structures.txt").decode())))
     MUTEX_GROUPS = {
         "explicit STR": ("prefix", "suffix", "repeat", "length_adjust", "block_length"),
         "explicit non-STR": ("no_repeat",),
@@ -310,7 +314,7 @@ def parse_library(handle):
                 raise ValueError(
                     "Please specify an explit flanking sequence, not just a length, for marker %s"
                         % marker)
-            range = add_legacy_range(reported_range_store, marker,
+            reported_range = add_legacy_range(reported_range_store, marker,
                 settings.get("prefix", ""),
                 settings.get("suffix", ""),
                 [(unit, int(min_repeats), int(max_repeats)) for unit, min_repeats, max_repeats in
@@ -318,9 +322,9 @@ def parse_library(handle):
                 options,
                 settings.get("genome_position", None))
             if "length_adjust" in settings:
-                range.length_adjust -= settings["length_adjust"]
+                reported_range.length_adjust -= settings["length_adjust"]
             if "block_length" in settings:
-                range.block_length = settings["block_length"]
+                reported_range.block_length = settings["block_length"]
         elif "explicit non-STR" in groups:
             # Legacy FDSTools-style definition of a non-STR marker.
             if "flanks" not in options:
@@ -363,6 +367,6 @@ def parse_library(handle):
                     "three values (chromosome, start position, end position)" % marker)
             # TODO: Alias of STR markers was defined as excluding the prefix/suffix!
             chromosome, start, end = settings["genome_position"]
-            reported_range_store.add_range(marker, chromosome, start, end, None, False, options=options)
+            reported_range_store.add_range(marker, chromosome, start, end, False, options=options)
     return reported_range_store
 #parse_library
