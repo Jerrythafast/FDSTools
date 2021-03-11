@@ -359,14 +359,20 @@ def parse_library(handle):
             add_legacy_range(reported_range_store, marker, refseq, "", [], options, pos)
         else:
             # Use STRNaming for this marker.
-            if "genome_position" not in settings:
+            try:
+                genome_position = settings["genome_position"]
+            except KeyError:
                 raise ValueError("No genomic position given for marker %s" % marker)
-            if len(settings["genome_position"]) != 3:
+            if not len(genome_position) % 2:
                 raise ValueError(
-                    "Invalid genomic position given for marker %s: need exactly "
-                    "three values (chromosome, start position, end position)" % marker)
+                    "Invalid genomic position given for marker %s: need an odd number of values "
+                    "(chromosome, start position, end position[, start2, end2, ...])" % marker)
             # TODO: Alias of STR markers was defined as excluding the prefix/suffix!
-            chromosome, start, end = settings["genome_position"]
-            reported_range_store.add_range(marker, chromosome, start, end + 1, False, options=options)
+            if len(genome_position) == 3:
+                chromosome, start, end = genome_position
+                reported_range_store.add_range(
+                    marker, chromosome, start, end + 1, False, options=options)
+            else:
+                reported_range_store.add_complex_range(marker, genome_position, options=options)
     return reported_range_store
 #parse_library
