@@ -308,9 +308,8 @@ def parse_library(handle):
         if "explicit STR" in groups:
             # Legacy FDSTools-style definition of an STR marker.
             # TODO: Alias of STR markers was defined as excluding the prefix/suffix!
-            if "flanks" not in options:
-                options["flanks"] = ("", "")
-            elif any(isinstance(flank, int) for flank in options["flanks"]):
+            options["flanks"] = settings.get("flanks", ("", ""))
+            if any(isinstance(flank, int) for flank in options["flanks"]):
                 raise ValueError(
                     "Please specify an explit flanking sequence, not just a length, for marker %s"
                         % marker)
@@ -327,9 +326,8 @@ def parse_library(handle):
                 reported_range.block_length = settings["block_length"]
         elif "explicit non-STR" in groups:
             # Legacy FDSTools-style definition of a non-STR marker.
-            if "flanks" not in options:
-                options["flanks"] = ("", "")
-            elif any(isinstance(flank, int) for flank in options["flanks"]):
+            options["flanks"] = settings.get("flanks", ("", ""))
+            if any(isinstance(flank, int) for flank in options["flanks"]):
                 raise ValueError(
                     "Please specify an explit flanking sequence, not just a length, for marker %s"
                         % marker)
@@ -368,6 +366,8 @@ def parse_library(handle):
                     "Invalid genomic position given for marker %s: need an odd number of values "
                     "(chromosome, start position, end position[, start2, end2, ...])" % marker)
             # TODO: Alias of STR markers was defined as excluding the prefix/suffix!
+            if "flanks" in settings:
+                options["flanks"] = settings["flanks"]
             if len(genome_position) == 3:
                 chromosome, start, end = genome_position
                 reported_range_store.add_range(
