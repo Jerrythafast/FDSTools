@@ -60,6 +60,7 @@ References:
 [2] https://github.com/jfjlaros/tssv
 """
 import gzip
+import io
 import itertools
 import math
 import os
@@ -481,15 +482,15 @@ def init_sequence_file_read(rawfile):
     generates tuples of (header, sequence) from a FastA stream or
     tuples of (header, sequence, quality) from a FastQ stream.
     """
-    bytes = rawfile.peek(2)[:2]
-    if bytes == b"\x1f\x8b":
+    magic = rawfile.peek(2)[:2]
+    if magic == b"\x1f\x8b":
         # GZipped input file.
         infile = gzip.open(rawfile, "rt", encoding="UTF-8")
         filetype = ".gz"
-    elif bytes and bytes[0:] in b">@":
+    elif magic and magic[0] in b">@":
         # FastA/FastQ input file.
         infile = io.TextIOWrapper(rawfile, encoding="UTF-8")
-        filetype = ".fa" if bytes[0] == b">" else ".fq"
+        filetype = ".fa" if magic[0] == b">" else ".fq"
     else:
         raise ValueError("Input file is not a GZip, FastQ or FastA file")
 
