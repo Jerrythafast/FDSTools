@@ -126,6 +126,7 @@ TSSV 2.1.0:
   use, unless explicitly specified per marker in the library file.
 * The -m/--mismatches option value will now be taken as an absolute number of allowed
   mismatches if it is larger than 1.
+* Added support for GZipped FastA/FastQ files.
 * Removed the error that occurred when the -D/--dir option is used and
   the output directory already exists.
 * Don't abort if the report stream is closed; log a message to the

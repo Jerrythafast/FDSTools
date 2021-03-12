@@ -59,6 +59,7 @@ References:
 [1] https://github.com/Jerrythafast/FLASH-lowercase-overhang
 [2] https://github.com/jfjlaros/tssv
 """
+import gzip
 import itertools
 import math
 import os
@@ -332,6 +333,18 @@ class TSSV:
             self.outfiles["statistics"].write(line)
         try_write_pipe(outfile, line)
     #write_statistics_table
+
+
+    def close_output_files(self):
+        if self.outfiles:
+            for key, value in self.outfiles:
+                if key == "marker":
+                    for markerfiles in value.values():
+                        for markerfile in markerfiles.values():
+                            markerfile.close()
+                else:
+                    value.close()
+    #close_output_files
 #TSSV
 
 
@@ -341,19 +354,20 @@ def prepare_output_dir(dir, markers, file_format):
         os.makedirs(os.path.join(dir, marker), exist_ok=True)
 
     # Open output files.
+    open_seq_out = gzip.open if file_format.endswith(".gz") else open
     return {
         "sequences": open(os.path.join(dir, "sequences.csv"), "tw", encoding="UTF-8"),
         "statistics": open(os.path.join(dir, "statistics.csv"), "tw", encoding="UTF-8"),
-        "unknown": open(os.path.join(dir, "unknown.f" + file_format[-1]), "tw", encoding="UTF-8"),
+        "unknown": open_seq_out(os.path.join(dir, "unknown" + file_format), "tw", encoding="UTF-8"),
         "markers": {
             marker: {
-                "sequences": open(os.path.join(dir, marker, "sequences.csv"), "tw",
+                "sequences": open_seq_out(os.path.join(dir, marker, "sequences.csv"), "tw",
                     encoding="UTF-8"),
-                "paired": open(os.path.join(dir, marker, "paired.f" + file_format[-1]), "tw",
+                "paired": open_seq_out(os.path.join(dir, marker, "paired" + file_format), "tw",
                     encoding="UTF-8"),
-                "noend": open(os.path.join(dir, marker, "noend.f" + file_format[-1]), "tw",
+                "noend": open_seq_out(os.path.join(dir, marker, "noend" + file_format), "tw",
                     encoding="UTF-8"),
-                "nostart": open(os.path.join(dir, marker, "nostart.f" + file_format[-1]), "tw",
+                "nostart": open_seq_out(os.path.join(dir, marker, "nostart" + file_format), "tw",
                     encoding="UTF-8"),
             } for marker in markers
         }
@@ -461,17 +475,29 @@ def write_sequence_record(outfile, record):
 #write_sequence_record
 
 
-def init_sequence_file_read(infile):
+def init_sequence_file_read(rawfile):
     """
     Return a 2-tuple with "fasta" or "fastq" and a generator that
     generates tuples of (header, sequence) from a FastA stream or
     tuples of (header, sequence, quality) from a FastQ stream.
     """
+    bytes = rawfile.peek(2)[:2]
+    if bytes == b"\x1f\x8b":
+        # GZipped input file.
+        infile = gzip.open(rawfile, "rt", encoding="UTF-8")
+        filetype = ".gz"
+    elif bytes and bytes[0:] in b">@":
+        # FastA/FastQ input file.
+        infile = io.TextIOWrapper(rawfile, encoding="UTF-8")
+        filetype = ".fa" if bytes[0] == b">" else ".fq"
+    else:
+        raise ValueError("Input file is not a GZip, FastQ or FastA file")
+
     firstchar = infile.read(1)
-    if not firstchar:
-        return
-    if firstchar not in ">@":
-        raise ValueError("Input file is not a FastQ or FastA file")
+    if not firstchar or firstchar not in ">@":
+        raise ValueError("Input GZip file does not contain a FastQ or FastA file")
+    if filetype == ".gz":
+        filetype = ".fa.gz" if firstchar == ">" else ".fq.gz"
 
     def genreads():
         state = 0
@@ -500,7 +526,7 @@ def init_sequence_file_read(infile):
                 state = 1
         yield (header, seq) if state == 1 else (header, seq, qual)
 
-    return "fasta" if firstchar == ">" else "fastq", genreads()
+    return filetype, genreads()
 #init_sequence_file_read
 
 
@@ -515,6 +541,7 @@ def run_tssv_lite(infile, outfile, reportfile, library, flank_length, seqformat,
     try:
         tssv.write_sequence_tables(outfile, seqformat)
         tssv.write_statistics_table(reportfile)
+        tssv.close_output_files()
     except IOError as e:
         if e.errno == EPIPE:
             try:
@@ -572,11 +599,11 @@ def run(args):
     files = get_input_output_files(args, single_in=True, batch_support=False)
     if not files:
         raise ValueError("please specify an input file, or pipe in the output of another program")
-    infile = sys.stdin if files[0] == "-" else open(files[0], "tr", encoding="UTF-8")
+    infile = sys.stdin.buffer if files[0] == "-" else open(files[0], "br")
     run_tssv_lite(infile, files[1], args.report, args.library, args.flank_length,
                   args.sequence_format, args.mismatches, args.minimum,
                   args.aggregate_filtered, args.missing_marker_action,
                   args.dir, args.indel_score, args.num_threads, args.no_deduplicate)
-    if infile != sys.stdin:
+    if infile != sys.stdin.buffer:
         infile.close()
 #run
