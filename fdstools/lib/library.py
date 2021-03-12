@@ -70,9 +70,11 @@ def add_legacy_range(reported_range_store, marker, prefix, suffix, blocks, optio
     # # Each given unit occurs once; stretch length (in bp) reflects relative number of repeats in the input.
     # # Overlong gap (if any) is inserted between two stretches.
     # TODO:  Strictly speaking, a gap of >20nt should result in multiple structures.
-    flanks = options["flanks"]
     if genome_position is None:
-        genome_position = (marker, len(flanks[0]) + 1)
+        # NOTE: For legacy ranges with no genome_position, the reported
+        # range starts at position 1. This necessarily means the left
+        # flank, if any, goes into nonpositive positions, which is OK.
+        genome_position = (marker, 1)
     if blocks and len(genome_position) > 3:
         raise ValueError(
             "Gapped or combined genomic range is not supported for STR marker %s" % marker)
@@ -88,6 +90,7 @@ def add_legacy_range(reported_range_store, marker, prefix, suffix, blocks, optio
             units[unit] = units.get(unit, 0) + max_repeats
 
     # Start building refseq and stretches.
+    flanks = options["flanks"]
     refseq = [flanks[0], prefix]
     stretches = []
     start = genome_position[1]
