@@ -63,7 +63,7 @@ def library_arg(value):
     try:
         if value == "-":
             return parse_library(sys.stdin)
-        with open(value, "tr") as libfile:
+        with open(value, "tr", encoding="UTF-8") as libfile:
             return parse_library(libfile)
     except Exception as err:
         raise argparse.ArgumentTypeError(err)
@@ -140,7 +140,8 @@ def add_input_output_args(parser, *, single_in=False, batch_support=False, repor
                     ((parser.prog.rsplit(" ", 1)[-1],) * 2))
     elif single_in:
         # Single input file and no batch support: single positional.
-        parser.add_argument("outfile", nargs="?", metavar="OUT", type=argparse.FileType("tw"),
+        parser.add_argument("outfile", nargs="?", metavar="OUT",
+            type=argparse.FileType("tw", encoding="UTF-8"),
             default=sys.stdout, help="the file to write the output to (default: write to stdout)")
     elif batch_support:
         # Multiple input files and batch support: use -o option.
@@ -155,10 +156,11 @@ def add_input_output_args(parser, *, single_in=False, batch_support=False, repor
     else:
         # Multiple input files and no batch support: use -o option.
         group.add_argument("-o", "--output", dest="outfile", metavar="FILE",
-            type=argparse.FileType("tw"), default=sys.stdout,
+            type=argparse.FileType("tw", encoding="UTF-8"), default=sys.stdout,
             help="file to write output to (default: write to stdout)")
     if report_out:
-        group.add_argument("-R", "--report", metavar="FILE", type=argparse.FileType("tw"),
+        group.add_argument("-R", "--report", metavar="FILE",
+            type=argparse.FileType("tw", encoding="UTF-8"),
             default=sys.stderr, help="file to write a report to (default: write to stderr)")
 
     # Sample tag parsing options group.
@@ -185,7 +187,8 @@ def add_input_output_args(parser, *, single_in=False, batch_support=False, repor
 def add_allele_detection_args(parser):
     """Add arguments for specifying known alleles of a sample."""
     group = parser.add_argument_group("allele detection options")
-    group.add_argument("-a", "--allelelist", metavar="ALLELEFILE", type=argparse.FileType("tr"),
+    group.add_argument("-a", "--allelelist", metavar="ALLELEFILE",
+        type=argparse.FileType("tr", encoding="UTF-8"),
         help="file containing a list of the true alleles of each sample "
              "(e.g., obtained from allelefinder)")
     group.add_argument("-c", "--annotation-column", metavar="COLNAME",
@@ -278,12 +281,14 @@ def get_input_output_files(args, *, single_in=False, batch_support=False):
                 outfile = DEF_OUTFILE_FORMAT
             return ((tag,
                     [infiles[i] for i in range(len(tags)) if tags[i] == tag],
-                    open(outfile.replace("\\1", tag).replace("\\2", args.tool), "tw"))
+                    open(outfile.replace("\\1", tag).replace("\\2", args.tool), "tw",
+                        encoding="UTF-8"))
                     for tag in set(tags))
 
         # Link each output file to each input file.
         # Treating files with the same sample tag as separate samples.
-        return ((tag, [infiles[i]], open(outfiles[i], "tw")) for i, tag in enumerate(tags))
+        return ((tag, [infiles[i]], open(outfiles[i], "tw", encoding="UTF-8"))
+            for i, tag in enumerate(tags))
 
     if not single_in and batch_support:
         # N infiles, one or N outfiles.

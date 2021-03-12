@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 
 #
-# Copyright (C) 2020 Jerry Hoogenboom
+# Copyright (C) 2021 Jerry Hoogenboom
 #
 # This file is part of FDSTools, data analysis tools for Massively
 # Parallel Sequencing of forensic DNA markers.
@@ -54,7 +54,7 @@ def merge_profiles(infiles, outfile, library):
         if infile == "-":
             profiles = load_profiles(sys.stdin, library)
         else:
-            with open(infile, "tr") as handle:
+            with open(infile, "tr", encoding="UTF-8") as handle:
                 profiles = load_profiles(handle, library)
         for marker, markerprofile in profiles.items():
             if marker not in merged_profiles:
@@ -96,7 +96,7 @@ def add_arguments(parser):
              "use '-' to use stdin as an explicit input source")
     outgroup = parser.add_argument_group("output file options")
     outgroup.add_argument("-o", "--output", dest="outfile", metavar="FILE",
-        type=argparse.FileType("tw"), default=sys.stdout,
+        type=argparse.FileType("tw", encoding="UTF-8"), default=sys.stdout,
         help="file to write output to (default: write to stdout)")
     add_sequence_format_args(parser, default_format="raw", force=True)
 #add_arguments

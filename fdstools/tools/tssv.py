@@ -342,15 +342,19 @@ def prepare_output_dir(dir, markers, file_format):
 
     # Open output files.
     return {
-        "sequences": open(os.path.join(dir, "sequences.csv"), "tw"),
-        "statistics": open(os.path.join(dir, "statistics.csv"), "tw"),
-        "unknown": open(os.path.join(dir, "unknown.f" + file_format[-1]), "tw"),
+        "sequences": open(os.path.join(dir, "sequences.csv"), "tw", encoding="UTF-8"),
+        "statistics": open(os.path.join(dir, "statistics.csv"), "tw", encoding="UTF-8"),
+        "unknown": open(os.path.join(dir, "unknown.f" + file_format[-1]), "tw", encoding="UTF-8"),
         "markers": {
             marker: {
-                "sequences": open(os.path.join(dir, marker, "sequences.csv"), "tw"),
-                "paired": open(os.path.join(dir, marker, "paired.f" + file_format[-1]), "tw"),
-                "noend": open(os.path.join(dir, marker, "noend.f" + file_format[-1]), "tw"),
-                "nostart": open(os.path.join(dir, marker, "nostart.f" + file_format[-1]), "tw"),
+                "sequences": open(os.path.join(dir, marker, "sequences.csv"), "tw",
+                    encoding="UTF-8"),
+                "paired": open(os.path.join(dir, marker, "paired.f" + file_format[-1]), "tw",
+                    encoding="UTF-8"),
+                "noend": open(os.path.join(dir, marker, "noend.f" + file_format[-1]), "tw",
+                    encoding="UTF-8"),
+                "nostart": open(os.path.join(dir, marker, "nostart.f" + file_format[-1]), "tw",
+                    encoding="UTF-8"),
             } for marker in markers
         }
     }
@@ -568,7 +572,7 @@ def run(args):
     files = get_input_output_files(args, single_in=True, batch_support=False)
     if not files:
         raise ValueError("please specify an input file, or pipe in the output of another program")
-    infile = sys.stdin if files[0] == "-" else open(files[0], "tr")
+    infile = sys.stdin if files[0] == "-" else open(files[0], "tr", encoding="UTF-8")
     run_tssv_lite(infile, files[1], args.report, args.library, args.flank_length,
                   args.sequence_format, args.mismatches, args.minimum,
                   args.aggregate_filtered, args.missing_marker_action,

@@ -191,7 +191,7 @@ def create_library(outfile, type, aliases=False):
 
 def add_arguments(parser):
     parser.add_argument("outfile", nargs="?", metavar="OUT",
-        default=sys.stdout, type=argparse.FileType("tw"),
+        default=sys.stdout, type=argparse.FileType("tw", encoding="UTF-8"),
         help="the file to write the output to (default: write to stdout)")
     parser.add_argument("-t", "--type", metavar="TYPE", default="smart",
         choices=("smart", "full", "str", "non-str"),

@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 
 #
-# Copyright (C) 2020 Jerry Hoogenboom
+# Copyright (C) 2021 Jerry Hoogenboom
 #
 # This file is part of FDSTools, data analysis tools for Massively
 # Parallel Sequencing of forensic DNA markers.
@@ -931,7 +931,7 @@ def run(args):
         raise ValueError("The pipeline configuration file cannot be named '-'")
     if os.path.exists(args.config):
         # Run analysis pipeline using configuration file.
-        args.config = open(args.config, "tr")
+        args.config = open(args.config, "tr", encoding="UTF-8")
         run_ini(get_config(args))
         args.config.close()
     elif args.analysis is not None:
@@ -939,7 +939,7 @@ def run(args):
         print("Configuration file '%s' does not exist, creating default "
               "configuration file for %s analysis..." %
               (args.config, args.analysis))
-        args.config = open(args.config, "tw")
+        args.config = open(args.config, "tw", encoding="UTF-8")
         write_ini(args)
         args.config.close()
     else:

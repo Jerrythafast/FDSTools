@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 
 #
-# Copyright (C) 2020 Jerry Hoogenboom
+# Copyright (C) 2021 Jerry Hoogenboom
 #
 # This file is part of FDSTools, data analysis tools for Massively
 # Parallel Sequencing of forensic DNA markers.
@@ -317,7 +317,7 @@ def add_arguments(parser):
              "selection control, and Vega visualisation files will load data "
              "from a file called '%s'" % _DEF_DATA_FILENAME)
     parser.add_argument("outfile", metavar="OUT", nargs="?",
-        type=argparse.FileType("tw"), default=sys.stdout,
+        type=argparse.FileType("tw", encoding="UTF-8"), default=sys.stdout,
         help="file to write output to (default: write to stdout)")
     parser.add_argument("-V", "--vega", action="store_true",
         help="by default, a full-featured HTML file offering an interactive "
@@ -370,7 +370,7 @@ def add_arguments(parser):
         help="[sample] if specified, do not replace filtered sequences with a "
              "per-marker aggregate 'Other sequences' entry")
     visgroup.add_argument("-I", "--input2", dest="infile2", metavar="FILE",
-        type=argparse.FileType("tr"),
+        type=argparse.FileType("tr", encoding="UTF-8"),
         help="[profile, stuttermodel] raw data points file to overlay on the "
              "background noise profiles or stutter model graphs (as obtained "
              "from bghomraw or the -r/--raw-outfile option of stuttermodel); "
@@ -436,7 +436,7 @@ def run(args):
         args.infile = None if sys.stdin.isatty() else sys.stdin
     if args.infile is not None and args.outfile == sys.stdout and not os.path.exists(args.infile):
         # One filename given, and it does not exist.  Assume outfile.
-        args.outfile = open(args.infile, "tw")
+        args.outfile = open(args.infile, "tw", encoding="UTF-8")
         args.infile = None
 
     if args.outfile.isatty():
@@ -445,7 +445,7 @@ def run(args):
 
     if args.infile is not None and args.infile != sys.stdin:
         # Open the specified input file.
-        args.infile = open(args.infile, "tr")
+        args.infile = open(args.infile, "tr", encoding="UTF-8")
 
     try:
         create_visualisation(args.type, args.infile, args.infile2, args.outfile, args.vega,

@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 
 #
-# Copyright (C) 2020 Jerry Hoogenboom
+# Copyright (C) 2021 Jerry Hoogenboom
 #
 # This file is part of FDSTools, data analysis tools for Massively
 # Parallel Sequencing of forensic DNA markers.
@@ -492,7 +492,8 @@ def add_arguments(parser):
         default=_DEF_MAX_UNIT_LENGTH, metavar="N",
         help="investigate stutter of repeats of units of up to this number of "
              "nucleotides in length (default: %(default)s)")
-    parser.add_argument("-r", "--raw-outfile", type=argparse.FileType("tw"), metavar="RAWFILE",
+    parser.add_argument("-r", "--raw-outfile", type=argparse.FileType("tw", encoding="UTF-8"),
+        metavar="RAWFILE",
         help="write raw data points to this file, for use in stuttermodel "
              "visualisations (specify '-' to write to stdout; normal output on "
              "stdout is then suppressed)")

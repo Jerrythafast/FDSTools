@@ -1,6 +1,7 @@
 Changed in 2.0.0:
 * FDSTools can now be run using 'python -m fdstools' too, which is helpful
   when the regular 'fdstools' command is not available on the PATH.
+* FDSTools will now always use UTF-8 encoding for file I/O.
 * FDSTools will now display a 'Failed to load X' message if importing tool X
   failed. The other tools will remain available.
 * FDSTools will now display a 'Failed to configure X' message if configuring

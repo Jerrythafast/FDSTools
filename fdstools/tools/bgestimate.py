@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 
 #
-# Copyright (C) 2020 Jerry Hoogenboom
+# Copyright (C) 2021 Jerry Hoogenboom
 #
 # This file is part of FDSTools, data analysis tools for Massively
 # Parallel Sequencing of forensic DNA markers.
@@ -583,7 +583,8 @@ def add_arguments(parser):
         help="require this minimum number of unique heterozygous genotypes "
              "for each allele for which no homozygous samples are available "
              "(default: %(default)s)")
-    filtergroup.add_argument("-p", "--profiles", metavar="FILE", type=argparse.FileType("tr"),
+    filtergroup.add_argument("-p", "--profiles", metavar="FILE",
+        type=argparse.FileType("tr", encoding="UTF-8"),
         help="use the given noise profiles file as a starting point")
     filtergroup.add_argument("-M", "--marker", metavar="MARKER", help="work only on MARKER")
     filtergroup.add_argument("-H", "--homozygotes", action="store_true",

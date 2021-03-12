@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 
 #
-# Copyright (C) 2020 Jerry Hoogenboom
+# Copyright (C) 2021 Jerry Hoogenboom
 #
 # This file is part of FDSTools, data analysis tools for Massively
 # Parallel Sequencing of forensic DNA markers.
@@ -153,7 +153,7 @@ def run(args):
     for tag, infiles, outfile in gen:
         for infile in infiles:  # Should be just one, but whatever.
             try:
-                infile = sys.stdin if infile == "-" else open(infile, "tr")
+                infile = sys.stdin if infile == "-" else open(infile, "tr", encoding="UTF-8")
                 convert_sequences(infile, outfile, getattr(args, "sequence-format"), library,
                                   args.marker, args.marker_column, args.allele_column,
                                   args.output_column, library2, args.reverse_complement)

@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 
 #
-# Copyright (C) 2020 Jerry Hoogenboom
+# Copyright (C) 2021 Jerry Hoogenboom
 #
 # This file is part of FDSTools, data analysis tools for Massively
 # Parallel Sequencing of forensic DNA markers.
@@ -289,7 +289,8 @@ def match_profiles(infile, outfile, profiles, library, seqformat, combine_strand
 
 
 def add_arguments(parser):
-    parser.add_argument("profiles", metavar="PROFILES", type=argparse.FileType("tr"),
+    parser.add_argument("profiles", metavar="PROFILES",
+        type=argparse.FileType("tr", encoding="UTF-8"),
         help="file containing background noise profiles to match")
     add_input_output_args(parser, single_in=True, batch_support=True, report_out=False)
     parser.add_argument("-C", "--combine-strands", action="store_true",
@@ -320,7 +321,7 @@ def run(args):
         if len(infiles) > 1:
             raise ValueError("multiple input files for sample '%s' specified " % tag)
         try:
-            infile = sys.stdin if infiles[0] == "-" else open(infiles[0], "tr")
+            infile = sys.stdin if infiles[0] == "-" else open(infiles[0], "tr", encoding="UTF-8")
             match_profiles(infile, outfile, profiles, args.library, args.sequence_format,
                 args.combine_strands)
             if infile != sys.stdin:

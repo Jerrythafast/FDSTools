@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 
 #
-# Copyright (C) 2020 Jerry Hoogenboom
+# Copyright (C) 2021 Jerry Hoogenboom
 #
 # This file is part of FDSTools, data analysis tools for Massively
 # Parallel Sequencing of forensic DNA markers.
@@ -23,11 +23,11 @@
 import setuptools
 import sys
 
-with open("README.rst", "tr") as fh:
+with open("README.rst", "tr", encoding="UTF-8") as fh:
     long_description = fh.read()
 
 version = {}
-with open("fdstools/__init__.py", "tr") as fh:
+with open("fdstools/__init__.py", "tr", encoding="UTF-8") as fh:
     exec(fh.read(), version)
 
 if sys.hexversion < 0x03000000:

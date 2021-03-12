@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 
 #
-# Copyright (C) 2020 Jerry Hoogenboom
+# Copyright (C) 2021 Jerry Hoogenboom
 #
 # This file is part of FDSTools, data analysis tools for Massively
 # Parallel Sequencing of forensic DNA markers.
@@ -448,7 +448,7 @@ def run(args):
         if len(infiles) > 1:
             raise ValueError("multiple input files for sample '%s' specified" % tag)
         try:
-            infile = sys.stdin if infiles[0] == "-" else open(infiles[0], "tr")
+            infile = sys.stdin if infiles[0] == "-" else open(infiles[0], "tr", encoding="UTF-8")
             annotate_alleles(infile, outfile, args.stutter, args.min_reads, args.min_repeats,
                              args.min_report, args.library, args.debug)
             if infile != sys.stdin:

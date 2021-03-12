@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 
 #
-# Copyright (C) 2020 Jerry Hoogenboom
+# Copyright (C) 2021 Jerry Hoogenboom
 #
 # This file is part of FDSTools, data analysis tools for Massively
 # Parallel Sequencing of forensic DNA markers.
@@ -285,12 +285,13 @@ def predict_profiles(stuttermodel, seqsfile, outfile, default_marker, use_all_da
 
 
 def add_arguments(parser):
-    parser.add_argument("stuttermodel", metavar="STUT", type=argparse.FileType("tr"),
+    parser.add_argument("stuttermodel", metavar="STUT",
+        type=argparse.FileType("tr", encoding="UTF-8"),
         help="file containing a trained stutter model")
-    parser.add_argument("seqs", metavar="SEQS", type=argparse.FileType("tr"),
+    parser.add_argument("seqs", metavar="SEQS", type=argparse.FileType("tr", encoding="UTF-8"),
         help="file containing the sequences for which a profile should be predicted")
     parser.add_argument("outfile", metavar="OUT", nargs="?", default=sys.stdout,
-        type=argparse.FileType("tw"),
+        type=argparse.FileType("tw", encoding="UTF-8"),
         help="the file to write the output to (default: write to stdout)")
     parser.add_argument("-C", "--combine-strands", action="store_true",
         help="if specified, stutter will be modeled for the total number of reads, "

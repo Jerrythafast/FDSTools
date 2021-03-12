@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 
 #
-# Copyright (C) 2020 Jerry Hoogenboom
+# Copyright (C) 2021 Jerry Hoogenboom
 #
 # This file is part of FDSTools, data analysis tools for Massively
 # Parallel Sequencing of forensic DNA markers.
@@ -86,7 +86,7 @@ def find_new(infile, outfile, known, library):
 
 
 def add_arguments(parser):
-    parser.add_argument("known", metavar="KNOWN", type=argparse.FileType("tr"),
+    parser.add_argument("known", metavar="KNOWN", type=argparse.FileType("tr", encoding="UTF-8"),
         help="file containing a list of known allelic sequences")
     add_input_output_args(parser, single_in=True, batch_support=True, report_out=False)
     filtergroup = parser.add_argument_group("filtering options")
@@ -108,7 +108,7 @@ def run(args):
         if len(infiles) > 1:
             raise ValueError("multiple input files for sample '%s' specified " % tag)
         try:
-            infile = sys.stdin if infiles[0] == "-" else open(infiles[0], "tr")
+            infile = sys.stdin if infiles[0] == "-" else open(infiles[0], "tr", encoding="UTF-8")
             find_new(infile, outfile, known, args.library)
             if infile != sys.stdin:
                 infile.close()

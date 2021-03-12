@@ -91,7 +91,7 @@ def add_arguments(parser):
     parser.add_argument("infile", nargs="?", metavar="IN", default=sys.stdin,
         help="input library in the legacy TSSV format (default: read from stdin)")
     parser.add_argument("outfile", nargs="?", metavar="OUT",
-        default=sys.stdout, type=argparse.FileType("tw"),
+        default=sys.stdout, type=argparse.FileType("tw", encoding="UTF-8"),
         help="the file to write the FDSTools library to (default: write to stdout)")
     parser.add_argument("-a", "--aliases", action="store_true",
         help="the [aliases] section is included in the output if this option is specified")
@@ -103,12 +103,12 @@ def run(args):
         args.infile = sys.stdin
     if args.infile != sys.stdin and args.outfile == sys.stdout and not os.path.exists(args.infile):
         # One filename given, and it does not exist.  Assume outfile.
-        args.outfile = open(args.infile, "tw")
+        args.outfile = open(args.infile, "tw", encoding="UTF-8")
         args.infile = sys.stdin
 
     if args.infile != sys.stdin:
         # Open the specified input file.
-        args.infile = open(args.infile, "tr")
+        args.infile = open(args.infile, "tr", encoding="UTF-8")
     elif args.infile.isatty():
         # No input given.  Produce a default FDSTools library.
         args.infile = io.StringIO("")
