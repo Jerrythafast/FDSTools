@@ -122,6 +122,7 @@ Stuttermodel 1.2.0:
 * Duplicate models are no longer produced for palindromic repeat units such as AT.
 
 TSSV 2.1.0:
+* Changed the default value for -a/--minimum from 1 to 2.
 * Added the -L/--flank-length option, to specify the length of the anchor sequences to
   use, unless explicitly specified per marker in the library file.
 * The -m/--mismatches option value will now be taken as an absolute number of allowed

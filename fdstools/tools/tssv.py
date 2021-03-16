@@ -97,7 +97,7 @@ _DEF_INDEL_SCORE = 2
 
 # Default minimum number of reads to consider.
 # This value can be overridden by the -a command line option.
-_DEF_MINIMUM = 1
+_DEF_MINIMUM = 2
 
 
 
