@@ -404,16 +404,16 @@ def compute_stats(infile, outfile, min_reads, min_per_strand, min_pct_of_max, mi
                     recovery >= min_recovery) and
                     min(strands) >= min_per_strand):
                 row[ci["flags"]].append("allele")
-                allele_reads += row[ci[total_column]]
+                allele_reads += total_reads
                 alleles.append(row)
 
             # Check if this sequence is the highest noise.
-            elif not is_aggregate and row[ci[total_column]] > max_noise_reads:
-                max_noise_reads = row[ci[total_column]]
+            elif not is_aggregate and total_reads > max_noise_reads:
+                max_noise_reads = total_reads
 
         # Remove allele flags again if coverage is low or noise is high.
-        if allele_reads < min_allele_reads or \
-                100 * max_noise_reads / allele_reads > max_nonallele_pct:
+        if allele_reads and (allele_reads < min_allele_reads or
+                100 * max_noise_reads / allele_reads > max_nonallele_pct):
             for allele in alleles:
                 allele[ci["flags"]].remove("allele")
 
