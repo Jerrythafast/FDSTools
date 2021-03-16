@@ -93,7 +93,8 @@ def make_empty_library_ini(type, aliases=False):
     ini.add_section("genome_position")
     ini.add_comment("genome_position", #smart, str, non-str, full
         "Specify the chromosome number and positions of the first and last reported nucleotide of "
-        "each marker (both inclusive, using human genome build GRCh38%s).%s" % (
+        "each marker (both inclusive, using human genome build GRCh38%s). This range should not "
+        "include the primer binding sites.%s" % (
             " and rCRS for human mtDNA" if type != "str" else "",
             " This section is required for automatic configuration of markers; it is optional "
             "for markers that are explictily configured in this library file."
@@ -196,11 +197,12 @@ def add_arguments(parser):
     parser.add_argument("-t", "--type", metavar="TYPE", default="smart",
         choices=("smart", "full", "str", "non-str"),
         help="the type of markers that this library file will be used for; with 'smart' (the "
-             "default), only the genomic positions of the analysed ranges need to be specified "
-             "and FDSTools will automatically detect and configure allele naming using STRNaming "
-             "(currently only supported for markers in the human genome); 'full' will create a "
-             "library file with all possible sections; 'str' or 'non-str' will only output "
-             "sections used to explicitly define STR and non-STR markers, respectively")
+             "default), only the genomic positions of the analysed ranges (i.e., the amplicon "
+             "excluding the primers) need to be specified and FDSTools will automatically detect "
+             "and configure allele naming using STRNaming (currently only supported for markers "
+             "in the human genome); 'full' will create a library file with all possible sections; "
+             "'str' or 'non-str' will only output sections used to explicitly define STR and "
+             "non-STR markers, respectively")
     parser.add_argument("-a", "--aliases", action="store_true",
         help="if specified, the [aliases] section is included, which can be "
              "used to explicitly assign allele names to specific sequences of "
