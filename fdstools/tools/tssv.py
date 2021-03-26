@@ -366,7 +366,7 @@ def prepare_output_dir(dir, markers, file_format):
         "unknown": open_seq_out(os.path.join(dir, "unknown" + file_format), "tw", encoding="UTF-8"),
         "markers": {
             marker: {
-                "sequences": open_seq_out(os.path.join(dir, marker, "sequences.csv"), "tw",
+                "sequences": open(os.path.join(dir, marker, "sequences.csv"), "tw",
                     encoding="UTF-8"),
                 "paired": open_seq_out(os.path.join(dir, marker, "paired" + file_format), "tw",
                     encoding="UTF-8"),
@@ -406,9 +406,13 @@ def prune_matched_ranges(tssv_library, matched_ranges):
     group_start = 0
     i = 1
     while i <= len(matched_ranges):
-        if i == len(matched_ranges) or matched_ranges[i][0] >= max(end
-                for start, end, seq, strand, marker in matched_ranges[group_start:i]):
-            # End of group.
+        if i == len(matched_ranges) or all(
+                (matched_ranges[i][1]-matched_ranges[i][0] < y[1]-y[0] and
+                    matched_ranges[i][0] + (matched_ranges[i][1]-matched_ranges[i][0])//2 >= y[1])
+                or (matched_ranges[i][1]-matched_ranges[i][0] >= y[1]-y[0] and
+                    y[1] - (y[1]-y[0])//2 <= matched_ranges[i][0])
+                    for y in matched_ranges[group_start:i]):
+            # End of group with at least 50% pairwise overlap.
             if i - group_start > 1:
                 # Overlapping group; eliminate the worst fit iteratively.
                 if not group_scores:
