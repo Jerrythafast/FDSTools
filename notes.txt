@@ -123,6 +123,10 @@ Stuttermodel 1.2.0:
 
 TSSV 2.1.0:
 * Changed the default value for -a/--minimum from 1 to 2.
+* TSSV will no longer assign one read to multiple, seemingly overlapping markers.
+  This makes it possible to configure copies of multi-copy markers as separate markers
+  and have TSSV figure out from which copy a read originates. It also solves situations
+  like the DYS389I/II ambiguity.
 * Added the -L/--flank-length option, to specify the length of the anchor sequences to
   use, unless explicitly specified per marker in the library file.
 * The -m/--mismatches option value will now be taken as an absolute number of allowed
@@ -130,6 +134,7 @@ TSSV 2.1.0:
 * Added support for GZipped FastA/FastQ files.
 * Removed the error that occurred when the -D/--dir option is used and
   the output directory already exists.
+* An informative error message is now displayed when an empty library file is given.
 * Don't abort if the report stream is closed; log a message to the
   report stream if the main output stream is closed.
 

@@ -126,7 +126,11 @@ class TSSV:
             self.tssv_library[marker] = (
                 (flanks[0], reverse_complement(flanks[1])), (
                 math.ceil(len(flanks[0]) * threshold if threshold < 1 else threshold),
-                math.ceil(len(flanks[1]) * threshold if threshold < 1 else threshold)))
+                math.ceil(len(flanks[1]) * threshold if threshold < 1 else threshold)),
+                "".join(refseq_store.get_refseq(chromosome, start, end + 1) for start, end in
+                    zip(reported_range.location[1::2], reported_range.location[2::2])))
+        if not self.tssv_library:
+            raise ValueError("No markers were defined in the given library file")
 
         # Open input file.
         file_format, self.input = init_sequence_file_read(infile)
@@ -383,12 +387,52 @@ def align_pair(reference, reference_rc, pair, indel_score=1):
 #align_pair
 
 
+def relative_distance(reference, sequence):
+    """Return (pct_changed, -len(reference))."""
+    len_reference = len(reference)
+    if len_reference > len(sequence):
+        return (align(reference, sequence, 1, global_align=1)[0] / len_reference, -len_reference)
+    return (align(sequence, reference, 1, global_align=1)[0] / len_reference, -len_reference)
+#relative_distance
+
+
+def prune_matched_ranges(tssv_library, matched_ranges):
+    """Removes overlapping ranges from the provided list."""
+    if len(matched_ranges) < 2:
+        return
+
+    matched_ranges.sort()
+    group_scores = []
+    group_start = 0
+    i = 1
+    while i <= len(matched_ranges):
+        if i == len(matched_ranges) or matched_ranges[i][0] >= max(end
+                for start, end, seq, strand, marker in matched_ranges[group_start:i]):
+            # End of group.
+            if i - group_start > 1:
+                # Overlapping group; eliminate the worst fit iteratively.
+                if not group_scores:
+                    group_scores = [relative_distance(tssv_library[marker][2], seq)
+                        for start, end, seq, strand, marker in matched_ranges]
+                worst_range_index = group_scores.index(max(group_scores[:i - group_start]))
+                del matched_ranges[group_start + worst_range_index]
+                del group_scores[worst_range_index]
+                i = group_start + 1
+                continue
+            # Group consisted of a single range; new group starts here.
+            group_scores = group_scores[1:]
+            group_start = i
+        i += 1
+#prune_matched_ranges
+
+
 def process_sequence(tssv_library, indel_score, seq):
     """Find markers in sequence."""
     seqs = (seq, reverse_complement(seq))
     seqs_up = (seqs[0].upper(), seqs[1].upper())
-    results = []
-    for marker, (pair, thresholds) in tssv_library.items():
+    matched_ranges = []
+    marker_matches = {}
+    for marker, (pair, thresholds, refseq) in tssv_library.items():
         algn = (
             align_pair(seqs_up[0], seqs_up[1], pair, indel_score),
             align_pair(seqs_up[1], seqs_up[0], pair, indel_score))
@@ -413,13 +457,27 @@ def process_sequence(tssv_library, indel_score, seq):
             cutout = seqs[1][algn[1][1][1] : algn[1][1][1] + len(pair[1])]
             if cutout.lower() != cutout:
                 matches += 0b1000
-        results.append((marker, matches,
+        if (matches & 0b0011) == 0b0011 and algn[0][0][1] < algn[0][1][1]:
             # Matched pair in forward sequence.
-            seqs[0][algn[0][0][1] : algn[0][1][1]]
-                if (matches & 0b0011) == 0b0011 and algn[0][0][1] < algn[0][1][1] else None,
+            matched_ranges.append((algn[0][0][1], algn[0][1][1],
+                seqs[0][algn[0][0][1] : algn[0][1][1]], 0, marker))
+        if (matches & 0b1100) == 0b1100 and algn[1][0][1] < algn[1][1][1]:
             # Matched pair in reverse sequence.
-            seqs[1][algn[1][0][1] : algn[1][1][1]]
-                if (matches & 0b1100) == 0b1100 and algn[1][0][1] < algn[1][1][1] else None))
+            matched_ranges.append((len(seq) - algn[1][1][1], len(seq) - algn[1][0][1],
+                seqs[1][algn[1][0][1] : algn[1][1][1]], 1, marker))
+        marker_matches[marker] = matches
+
+    # Eliminate overlapping matched pairs.
+    prune_matched_ranges(tssv_library, matched_ranges)
+
+    # Compile the results.
+    results = []
+    for marker, matches in marker_matches.items():
+        forward = [match[2] for match in matched_ranges if match[3] == 0 and match[4] == marker]
+        reverse = [match[2] for match in matched_ranges if match[3] == 1 and match[4] == marker]
+        results.append((marker, matches,
+            forward[0] if forward else None,
+            reverse[0] if reverse else None))
     return results
 #process_sequence
 

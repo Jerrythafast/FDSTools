@@ -153,10 +153,11 @@ def add_legacy_range(reported_range_store, marker, prefix, suffix, blocks, optio
         refseq_store.add_refseq(genome_position[0], location, refseq[pos:pos+length])
         pos += length
     if stretches:
-        struct_store.add_structure(genome_position[0], stretches)
+        struct_store.add_structure(genome_position[0],
+            [[start, end, len(unit)] for start, end, unit in stretches])
     if len(genome_position) > 3:
         return reported_range_store.add_complex_range(marker, genome_position, options=options)
-    return reported_range_store.add_range(marker, genome_position[0], start, end, False, options=options)
+    return reported_range_store.add_range(marker, genome_position[0], start, end, options=options)
 #add_legacy_range
 
 
@@ -374,7 +375,7 @@ def parse_library(handle):
             if len(genome_position) == 3:
                 chromosome, start, end = genome_position
                 reported_range_store.add_range(
-                    marker, chromosome, start, end + 1, False, options=options)
+                    marker, chromosome, start, end + 1, load_structures=True, options=options)
             else:
                 reported_range_store.add_complex_range(marker, genome_position, options=options)
     return reported_range_store

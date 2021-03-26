@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2020 Jerry Hoogenboom
+ * Copyright (C) 2021 Jerry Hoogenboom
  *
  * This file is part of FDSTools, data analysis tools for Massively
  * Parallel Sequencing of forensic DNA markers.
@@ -47,18 +47,28 @@
  */
 #include <Python.h>
 
-#define METHOD_DOC "align(seq1, seq2, indel_socre)\n"\
+#define METHOD_DOC "align(seq1, seq2, indel_socre, global_align=0)\n"\
                    "\n"\
                    "Return the minimum number of mismatches and the corresponding position by\n"\
                    "aligning seq2 against seq1. Return (len(seq2), 0) if len(seq1) < len(seq2).\n"\
                    "\n"\
-                   "An insertion or deletion of one base is counted as indel_score mismatches."
+                   "An insertion or deletion of one base is counted as indel_score mismatches.\n"\
+                   "If global_align is nonzero, alignment of seq2 will start at the start of\n"\
+                   "seq1 and end the end of seq1."
+
+static char *argumentNames[] = {"seq1", "seq2", "indel_score", "global_align", NULL};
 
 
 /*
 Return the minimum of a and b.
 */
 static __inline unsigned char _min(const unsigned char a, const unsigned char b) {
+    if (a < b) {
+        return a;
+    }
+    return b;
+}
+static __inline unsigned int _imin(const unsigned int a, const unsigned int b) {
     if (a < b) {
         return a;
     }
@@ -125,7 +135,7 @@ The actual matrix starts at the first 16-byte aligned byte and is stored diagona
 The seq1len argument MUST NOT be less than the seq2len argument (this is not checked).
 */
 static unsigned char *_sse2_make_matrix(const unsigned int seq1len, const unsigned int seq2len,
-                                        const unsigned char indel_score) {
+                                        const unsigned char indel_score, const unsigned char global_align) {
     const unsigned int width = (seq2len+31) & ~0x0F,
                        height = seq1len + seq2len + 1;
     unsigned char *mem = malloc(width * height + 16),
@@ -134,9 +144,17 @@ static unsigned char *_sse2_make_matrix(const unsigned int seq1len, const unsign
                   score;
     unsigned int i, j;
 
-    // Set the first column to 0.
-    for (i = 0, cell = matrix; i <= seq1len; i++, cell += width) {
-        *cell = 0;
+    if (global_align) {
+        // Set the first column to 0, 1, 2, 3, 4, ... times the indel_score.
+        for (i = 0, cell = matrix, score = 0; i <= seq1len; i++, cell += width) {
+            *cell = score;
+            score = _sadd(score, indel_score);
+        }
+    } else {
+        // Set the first column to 0.
+        for (i = 0, cell = matrix; i <= seq1len; i++, cell += width) {
+            *cell = 0;
+        }
     }
 
     // Set the first row to 0, 1, 2, 3, 4, ... times the indel_score
@@ -174,7 +192,7 @@ static void _sse2_align(unsigned char *mem, const unsigned int seq1len, const un
     unsigned int x = 1,
                  y = 1,
                  width = (seq2len+31) & ~0x0F,
-                 end = seq1len + _min(16, seq2len),
+                 end = seq1len + _imin(16, seq2len),
                  limit;
     unsigned char *matrix = (unsigned char*)(((Py_uintptr_t)mem + 15) & ~(Py_uintptr_t)0x0F),
                   *d = matrix,
@@ -242,7 +260,7 @@ static void _sse2_align(unsigned char *mem, const unsigned int seq1len, const un
         else if ((x += 16) <= seq2len) {
             // Move right 16 columns.
             y = x;
-            end += _min(16, seq2len + 1 - x);
+            end += _imin(16, seq2len + 1 - x);
             d += 16 * width + 16;
             l = d + width;
             i = l + width + 1;
@@ -274,7 +292,7 @@ static void _sse2_align(unsigned char *mem, const unsigned int seq1len, const un
     }
     printf("         ");
     i = matrix;
-    for (x = 0; x <= seq2len - 1; x++) {
+    for (x = 0; x + 1 <= seq2len; x++) {
         printf("%4c ", seq2[x]);
     }
     for (y = 0; y <= seq1len; y++) {
@@ -296,12 +314,16 @@ Return the smallest possible sequence distance, along with the ending position i
 
 Oprates on an alignment matrix as created with _sse2_make_matrix().
 */
-static PyObject *_sse2_find_min(unsigned char *mem, const unsigned int seq1len, const unsigned int seq2len) {
+static PyObject *_sse2_find_min(unsigned char *mem, const unsigned int seq1len, const unsigned int seq2len, const unsigned char global_align) {
     const unsigned int width = (seq2len+31) & ~0x0F;
     unsigned char *matrix = (unsigned char*)(((Py_uintptr_t)mem + 15) & ~(Py_uintptr_t)0x0F);
     unsigned int distance = seq2len;
     unsigned int position = 0;
     unsigned int i;
+
+    if (global_align) {
+        return Py_BuildValue("II", *(matrix + seq2len * width + seq2len + seq1len * width), seq1len);
+    }
 
     unsigned char *cell = matrix + seq2len * width + seq2len;
     for (i = 0; i <= seq1len; i++, cell += width) {
@@ -324,14 +346,16 @@ The integer specifies the indel penalty score.
 
 Return two python integers: the sequence distance, and the position of the match.
 */
-static PyObject *sse2_align(PyObject *self, PyObject *args) {
+static PyObject *sse2_align(PyObject *self, PyObject *args, PyObject *kwargs) {
     // Parse Python arguments.
     const char *seq1, *seq2;
     const unsigned int seq1len, seq2len;
     const unsigned char indel_score;
+    const unsigned char global_align = 0;
     unsigned char *matrix;
     PyObject *result;
-    if (!PyArg_ParseTuple(args, "s#s#b", &seq1, &seq1len, &seq2, &seq2len, &indel_score)) {
+    if (!PyArg_ParseTupleAndKeywords(args, kwargs, "s#s#b|b", argumentNames,
+            &seq1, &seq1len, &seq2, &seq2len, &indel_score, &global_align)) {
         return NULL;
     }
 
@@ -341,9 +365,11 @@ static PyObject *sse2_align(PyObject *self, PyObject *args) {
         return Py_BuildValue("II", seq2len, 0);
     }
 
-    matrix = _sse2_make_matrix(seq1len, seq2len, indel_score);
-    _sse2_align(matrix, seq1len, seq2len, seq1, seq2, indel_score);
-    result = _sse2_find_min(matrix, seq1len, seq2len);
+    matrix = _sse2_make_matrix(seq1len, seq2len, indel_score, global_align);
+    if (seq1len > 0 && seq2len > 0) {
+        _sse2_align(matrix, seq1len, seq2len, seq1, seq2, indel_score);
+    }
+    result = _sse2_find_min(matrix, seq1len, seq2len, global_align);
     free(matrix);
     return result;
 }
@@ -359,12 +385,20 @@ static PyObject *sse2_align(PyObject *self, PyObject *args) {
 Allocates and returns a pointer to the alignment matrix.
 */
 static unsigned char *_make_matrix(const unsigned int rows, const unsigned int columns,
-                                   const unsigned char indel_score) {
+                                   const unsigned char indel_score, const unsigned char global_align) {
     unsigned char *matrix = malloc(rows * columns * sizeof(char));
     unsigned char score = 0;
     unsigned int i;
-    for (i = 1; i < rows; i++) {
-        *(matrix + i*columns) = 0;
+    if (global_align) {
+        for (i = 1; i < rows; i++) {
+            score = _sadd(score, indel_score);
+            *(matrix + i*columns) = score;
+        }
+        score = 0;
+    } else {
+        for (i = 1; i < rows; i++) {
+            *(matrix + i*columns) = 0;
+        }
     }
     for (i = 0; i < columns; i++) {
         *(matrix + i) = score;
@@ -395,7 +429,7 @@ static void _align(unsigned char *matrix, const unsigned int rows, const unsigne
 #ifdef DEBUG
     // Print matrix.
     printf("         ");
-    for (c = 0; c < columns - 1; c++) {
+    for (c = 0; c + 1 < columns; c++) {
         printf("%4c ", seq2[c]);
     }
     for (r = 0; r < rows; r++) {
@@ -417,10 +451,14 @@ Return the smallest possible sequence distance, along with the ending position i
 
 Oprates on an alignment matrix as created with _make_matrix().
 */
-static PyObject *_find_min(unsigned char *matrix, const unsigned int rows, const unsigned int columns) {
+static PyObject *_find_min(unsigned char *matrix, const unsigned int rows, const unsigned int columns, const unsigned char global_align) {
     unsigned int distance = columns - 1;
     unsigned int position = 0;
     unsigned int r;
+
+    if (global_align) {
+        return Py_BuildValue("II", *(matrix + (rows-1)*columns + columns-1), rows - 1);
+    }
 
     for (r = 0; r < rows; r++) {
         if (*(matrix + r*columns + columns-1) < distance) {
@@ -439,18 +477,21 @@ Align two sequences, finding one in the other.
 Input arguments are two Python strings and a Python integer.
 The second string will be searched inside the first.
 The integer specifies the indel penalty score.
+Optionally, a second integer may be specified. If nonzero (the default), do global alignment.
 
 Return two python integers: the sequence distance, and the position of the match.
 */
-static PyObject *align(PyObject *self, PyObject *args) {
+static PyObject *align(PyObject *self, PyObject *args, PyObject *kwargs) {
     // Parse Python arguments.
     const char *seq1, *seq2;
     const unsigned int seq1len, seq2len;
     const unsigned char indel_score;
+    const unsigned char global_align = 0;
     unsigned int rows, columns;
     unsigned char *matrix;
     PyObject *result;
-    if (!PyArg_ParseTuple(args, "s#s#b", &seq1, &seq1len, &seq2, &seq2len, &indel_score)) {
+    if (!PyArg_ParseTupleAndKeywords(args, kwargs, "s#s#b|b", argumentNames,
+            &seq1, &seq1len, &seq2, &seq2len, &indel_score, &global_align)) {
         return NULL;
     }
 
@@ -463,11 +504,11 @@ static PyObject *align(PyObject *self, PyObject *args) {
     // Allocate memory for the matrix.
     rows = seq1len + 1;
     columns = seq2len + 1;
-    matrix = _make_matrix(rows, columns, indel_score);
+    matrix = _make_matrix(rows, columns, indel_score, global_align);
 
     // Perform the alignment.
     _align(matrix, rows, columns, seq1, seq2, indel_score);
-    result = _find_min(matrix, rows, columns);
+    result = _find_min(matrix, rows, columns, global_align);
 
     // Free the matrix memory and return the result.
     free(matrix);
@@ -479,10 +520,10 @@ static PyObject *align(PyObject *self, PyObject *args) {
 
 
 static PyMethodDef AlignerMethods[] = {
-    {"align",  align, METH_VARARGS, METHOD_DOC},
-    {"_simple_align",  align, METH_VARARGS, METHOD_DOC},
+    {"align",         (PyCFunction)align,      METH_VARARGS | METH_KEYWORDS, METHOD_DOC},
+    {"_simple_align", (PyCFunction)align,      METH_VARARGS | METH_KEYWORDS, METHOD_DOC},
 #if defined(_MSC_VER) || defined(__SSE2__)
-    {"_sse2_align",  sse2_align, METH_VARARGS, METHOD_DOC},
+    {"_sse2_align",   (PyCFunction)sse2_align, METH_VARARGS | METH_KEYWORDS, METHOD_DOC},
 #endif
     {NULL, NULL, 0, NULL}  /* Sentinel */
 };
@@ -508,7 +549,7 @@ PyMODINIT_FUNC PyInit_sg_align(void) {
     printf("CPUID: %02x %02x %02x %02x\n", cpuInfo[0], cpuInfo[1], cpuInfo[2], cpuInfo[3]);
 #endif
     if (cpuInfo[3] & (1 << 26)) {
-        AlignerMethods[0].ml_meth = sse2_align;
+        AlignerMethods[0].ml_meth = (PyCFunction)sse2_align;
     }
 #endif
     return PyModule_Create(&moduledef);
