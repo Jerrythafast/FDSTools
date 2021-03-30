@@ -113,11 +113,6 @@ ANALYSIS_ARGS = {
         "in-bgprofiles", "store-predictions", "tag-expr", "tag-format", "combine-strands")
 }
 
-# Pipeline default argument values overriding the tool's own defaults.
-DEFAULT_OVERRIDE = {
-    "tssv": {"aggregate-filtered": True}
-}
-
 
 class ArgumentCollector:
     class SubCollector:
@@ -843,8 +838,6 @@ def write_ini(args):
                     arg[1]["default"] = getattr(args, arg[0].replace("-","_"))
             elif arg[0] in HIDDEN_ARGS:
                 continue  # Argument is being overridden by this tool.
-            elif name in DEFAULT_OVERRIDE and arg[0] in DEFAULT_OVERRIDE[name]:
-                arg[1]["default"] = DEFAULT_OVERRIDE[name][arg[0]]
             if "help" in arg[1]:
                 args.config.write("%s\n" % format_help(arg[1]["help"], arg[1]))
             if "default" in arg[1]:

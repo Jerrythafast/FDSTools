@@ -646,11 +646,12 @@ def add_arguments(parser):
     filtergroup.add_argument("-a", "--minimum", metavar="N", type=pos_int_arg,
         default=_DEF_MINIMUM,
         help="report only sequences with this minimum number of reads (default: %(default)s)")
-    filtergroup.add_argument("-A", "--aggregate-filtered", action="store_true",
-        help="if specified, sequences that have been filtered (as per the "
-             "-a/--minimum option, the expected_allele_length section in the "
-             "library file, as well as all sequences with ambiguous bases) "
-             "will be aggregated per marker and reported as 'Other sequences'")
+    filtergroup.add_argument("-B", "--no-aggregate-filtered", dest="aggregate_filtered",
+        action="store_false",
+        help="by default, sequences that have been filtered (as per the -a/--minimum option, the "
+             "expected_allele_length section in the library file, as well as all sequences with "
+             "ambiguous bases) will be aggregated per marker and reported as 'Other sequences'; "
+             "specify this option to remove such sequences entirely")
     filtergroup.add_argument("-M", "--missing-marker-action", metavar="ACTION",
         choices=("include", "exclude", "halt"), default="include",
         help="action to take when no sequences are linked to a marker: one of "

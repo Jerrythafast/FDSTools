@@ -123,6 +123,7 @@ Stuttermodel 1.2.0:
 
 TSSV 2.1.0:
 * Changed the default value for -a/--minimum from 1 to 2.
+* Replaced the -A/--aggregate-filtered option with the -B/--no-aggregate-filtered option.
 * TSSV will no longer assign one read to multiple, seemingly overlapping markers.
   This makes it possible to configure copies of multi-copy markers as separate markers
   and have TSSV figure out from which copy a read originates. It also solves situations
