@@ -172,23 +172,24 @@ def parse_library(handle):
             value = ini.get(section, marker)
             section_low = section.lower()
 
-            # Doing aliases first because they are not keyed on the marker name.
-            if section_low == "aliases":
+            # Doing marker groups first because they are not keyed on the marker name.
+            if section_low == "marker_groups":
+                if marker in markers:
+                    raise ValueError(
+                        "Cannot create marker group with name %s; name already in use." % marker)
                 values = PAT_SPLIT.split(value)
-                if len(values) != 3:
-                    raise ValueError("Alias %s does not have 3 values, but %i"
-                                     % (marker, len(values)))
-                if PAT_SEQ_RAW.match(values[1]) is None:
-                    raise ValueError(
-                        "Alias sequence '%s' of alias %s is invalid" % (values[1], marker))
-                if PAT_ALIAS.match(values[2]) is None:
-                    raise ValueError(
-                        "Allele name '%s' of alias %s is invalid" % (values[2], marker))
-                if values[0] not in markers:
-                    markers[values[0]] = {}
-                if "aliases" not in markers[values[0]]:
-                    markers[values[0]]["aliases"] = {}
-                markers[values[0]]["aliases"][values[1]] = values[2]
+                markers[marker] = {"is_group": True, "marker_group": set(values)}
+                for value in values:
+                    if "_" in value:
+                        raise ValueError(
+                            "Marker %s can not be added to group %s; marker name must not "
+                            "contain underscore (_) characters" % (value, marker))
+                    if value not in markers:
+                        markers[value] = {"marker_group": marker}
+                    elif "marker_group" in markers[value]:
+                        raise ValueError("Marker %s can not be added to multiple groups" % value)
+                    else:
+                        markers[value]["marker_group"] = marker
                 continue
 
             # For all other sections, input validation will happen now.
@@ -294,11 +295,15 @@ def parse_library(handle):
         # native full-genome support in STRNaming.
         structure_store=classes.ReferenceStructureStore(
             io.StringIO(pkgutil.get_data("strnaming", "data/structures.txt").decode())))
+    reported_range_store.marker_groups = {}
     MUTEX_GROUPS = {
         "explicit STR": ("prefix", "suffix", "repeat", "length_adjust", "block_length"),
         "explicit non-STR": ("no_repeat",),
         "STRNaming-specific": tuple()}  # NOTE: No STRNaming-specific settings now...
     for marker, settings in markers.items():
+        if settings.get("is_group"):
+            reported_range_store.marker_groups[marker] = settings["marker_group"]
+            continue
         groups = [mutex_group for mutex_group, sections in MUTEX_GROUPS.items()
             if any(section in settings for section in sections)]
         if len(groups) > 1:
@@ -308,10 +313,9 @@ def parse_library(handle):
                         section for section in MUTEX_GROUPS[group] if section in settings))
                     for group in groups)))
         options = {option: settings[option] for option in {"flanks", "max_expected_copies",
-                "expected_allele_length"} & settings.keys()}
+                "expected_allele_length", "marker_group"} & settings.keys()}
         if "explicit STR" in groups:
             # Legacy FDSTools-style definition of an STR marker.
-            # TODO: Alias of STR markers was defined as excluding the prefix/suffix!
             if "flanks" not in options:
                 options["flanks"] = ("", "")
             elif any(isinstance(flank, int) for flank in options["flanks"]):
@@ -337,17 +341,6 @@ def parse_library(handle):
                 raise ValueError(
                     "Please specify an explit flanking sequence, not just a length, for marker %s"
                         % marker)
-
-            # TODO: re-implement aliases including this check:
-            if False:
-                # Sanity check: prohibit prefix/suffix for aliases of non-STRs.
-                for alias in library["aliases"]:
-                    if library["aliases"][alias]["marker"] in library["nostr_reference"] \
-                            and (alias in library["prefix"] or alias in library["suffix"]):
-                        raise ValueError(
-                            "A prefix or suffix was defined for alias %s of non-STR "
-                            "marker %s" % (alias, library["aliases"][alias]["marker"]))
-
             refseq = settings["no_repeat"]
             pos = None
             if "genome_position" in settings:
@@ -371,7 +364,6 @@ def parse_library(handle):
                 raise ValueError(
                     "Invalid genomic position given for marker %s: need an odd number of values "
                     "(chromosome, start position, end position[, start2, end2, ...])" % marker)
-            # TODO: Alias of STR markers was defined as excluding the prefix/suffix!
             if len(genome_position) == 3:
                 chromosome, start, end = genome_position
                 reported_range_store.add_range(
