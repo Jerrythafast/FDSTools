@@ -54,6 +54,10 @@ __version__ = "1.1.0"
 # This value can be overridden by the -n command line option.
 _DEF_MIN_READS = 50
 
+# Default minimum number of reads required for the lowest allele.
+# This value can be overridden by the -N command line option.
+_DEF_MIN_READS_LOWEST = 15
+
 # Default minimum number of reads required for an allele to be called,
 # as a percentage of the number of reads of the highest allele.
 # This value can be overridden by the -m command line option.
@@ -66,26 +70,26 @@ _DEF_MIN_ALLELE_PCT = 30.0
 # This value can be overridden by the -M command line option.
 _DEF_MAX_NOISE_PCT = 10.0
 
-# Default maximum number of noisy markers allowed per sample.
+# Default maximum number or fraction of noisy markers allowed per sample.
 # This value can be overridden by the -x command line option.
-_DEF_MAX_NOISY = 2
+_DEF_MAX_NOISY = 0.1
 
 
-def find_alleles(samples_in, outfile, reportfile, min_reads, min_allele_pct, max_noise_pct,
-                 max_alleles, max_noisy, seqformat, library):
+def find_alleles(samples_in, outfile, reportfile, min_reads, min_reads_lowest, min_allele_pct,
+                 max_noise_pct, max_alleles, max_noisy, seqformat, library):
     outfile.write("\t".join(["sample", "marker", "total", "allele"]) + "\n")
     get_sample_data(
         samples_in,
         lambda tag, data: find_alleles_sample(
-            data, outfile, reportfile, tag, min_reads, min_allele_pct, max_noise_pct,
-            max_alleles, max_noisy, seqformat, library),
+            data, outfile, reportfile, tag, min_reads, min_reads_lowest, min_allele_pct,
+            max_noise_pct, max_alleles, max_noisy, seqformat, library),
         drop_special_seq=True, after_correction=True, combine_strands=True,
         extra_columns={"flags": True})
 #find_alleles
 
 
-def find_alleles_sample(data, outfile, reportfile, tag, min_reads, min_allele_pct, max_noise_pct,
-                        max_alleles, max_noisy, seqformat, library):
+def find_alleles_sample(data, outfile, reportfile, tag, min_reads, min_reads_lowest,
+                        min_allele_pct, max_noise_pct, max_alleles, max_noisy, seqformat, library):
     top_noise = {}
     top_allele = {}
     alleles = {}
@@ -131,6 +135,13 @@ def find_alleles_sample(data, outfile, reportfile, tag, min_reads, min_allele_pc
                 "highest allele has only %i reads\n\n" % (tag, marker, top_allele[marker]))
             alleles[marker] = {}
             continue
+        lowest_allele_reads = min(alleles[marker].values())
+        if lowest_allele_reads < min_reads_lowest:
+            try_write_pipe(reportfile,
+                "Sample %s is not suitable for marker %s:\n"
+                "lowest allele has only %i reads\n\n" % (tag, marker, lowest_allele_reads))
+            alleles[marker] = {}
+            continue
         expect = get_max_expected_alleles(max_alleles, marker, library)
         if len(alleles[marker]) > expect:
             allele_order = sorted(alleles[marker], key=lambda x: -alleles[marker][x])
@@ -152,7 +163,7 @@ def find_alleles_sample(data, outfile, reportfile, tag, min_reads, min_allele_pc
             alleles[marker] = {}
 
     # Drop this sample completely if it has too many noisy markers.
-    if noisy_markers > max_noisy:
+    if noisy_markers > (len(alleles) * max_noisy if max_noisy < 1 else max_noisy):
         try_write_pipe(reportfile, "Sample %s appears to be contaminated!\n\n" % tag)
         return
 
@@ -191,14 +202,19 @@ def add_arguments(parser):
         type=pos_int_arg, default=_DEF_MIN_READS,
         help="require at least this number of reads for the highest allele "
              "of each marker (default: %(default)s)")
+    filtergroup.add_argument("-N", "--min-reads-lowest", metavar="N",
+        type=pos_int_arg, default=_DEF_MIN_READS_LOWEST,
+        help="require at least this number of reads for the lowest allele "
+             "of each marker (default: %(default)s)")
     filtergroup.add_argument("-a", "--max-alleles", metavar="N", type=pos_int_arg,
         help="allow no more than this number of alleles per marker; if unspecified, the amounts "
              "given in the library file are used, which have a default value of 1 for markers on "
              "the mitochondrial genome and Y chromosome, or 2 otherwise")
-    filtergroup.add_argument("-x", "--max-noisy", metavar="N",
-        type=pos_int_arg, default=_DEF_MAX_NOISY,
-        help="entirely reject a sample if more than this number of markers "
-             "have a high non-allelic sequence (default: %(default)s)")
+    filtergroup.add_argument("-x", "--max-noisy", metavar="X",
+        type=float, default=_DEF_MAX_NOISY,
+        help="entirely reject a sample if more than this fraction of markers (if less than 1) or "
+             "absolute number of markers (if 1 or more) have a high non-allelic sequence "
+             "(default: %(default)s)")
     add_sequence_format_args(parser)
 #add_arguments
 
@@ -209,9 +225,9 @@ def run(args):
         raise ValueError("please specify an input file, or pipe in the output of another program")
 
     try:
-        find_alleles(files[0], files[1], args.report, args.min_reads, args.min_allele_pct,
-                     args.max_noise_pct, args.max_alleles, args.max_noisy, args.sequence_format,
-                     args.library)
+        find_alleles(files[0], files[1], args.report, args.min_reads, args.min_reads_lowest,
+                     args.min_allele_pct, args.max_noise_pct, args.max_alleles, args.max_noisy,
+                     args.sequence_format, args.library)
     except IOError as e:
         if e.errno == EPIPE:
             try:

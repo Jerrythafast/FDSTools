@@ -41,10 +41,15 @@ Changed in 2.0.0:
 Allelefinder 1.1.0:
 * Removed the -c/--stuttermark-column argument. Allelefinder will look for stutter
   annotations in the "flags" column instead, if present.
+* The default value of the -x/--max-noisy argument has changed from 2 to 0.1; the
+  value will now be interpreted as a fraction of markers if it is below 1.
 * Allelefinder will now use the total_corrected column if present, else it will use
   the total column. The forward and reverse columns are no longer used by this tool.
 * The -a/--max-alleles option now defaults to 1 for markers on the mitochondrial
   genome or the Y chromosome.
+* Added the -N/--min-reads-lowest argument (default: 15). Allelefinder will not call
+  any alleles on a marker if the lowest allele appears to have less than this number
+  of reads (analogous to the -n/--min-reads option for the highest allele).
 
 BGAnalyse 1.1.0:
 * Fixed bug that caused non-integer percentiles to appear rounded down in the output.
