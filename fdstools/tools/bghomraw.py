@@ -80,7 +80,7 @@ def add_sample_data(data, sample_data, sample_alleles, min_pct, min_abs, tag, co
         allele = sample_alleles[marker]
 
         reads = sample_data[marker, sequence] + [sum(sample_data[marker, sequence])]
-        factors = [100 / x for x in sample_data[marker, allele]]
+        factors = [100 / (x or 1) for x in sample_data[marker, allele]]
         factors.append(100 / sum(sample_data[marker, allele]))
         if (marker, allele) not in data:
             data[marker, allele] = {}
