@@ -132,7 +132,7 @@ def get_noise_matrix(profile, seq_index, strand):
 #get_noise_matrix
 
 
-def match_profile(column_names, data, profile, convert_to_raw, library, marker, combine_strands):
+def match_profile(column_names, data, profile, seqformat, library, marker, combine_strands):
     (colid_marker, colid_sequence, colid_forward, colid_reverse, colid_total, colid_total_noise,
      colid_total_add, colid_total_corrected, colid_correction_flags,
      colid_weight) = get_column_ids(column_names,
@@ -162,14 +162,17 @@ def match_profile(column_names, data, profile, convert_to_raw, library, marker, 
 
     # Enter sample into C.
     used_sequences = set()  # Sequences found in the sample.
+    name2seq = {}  # Mapping names to raw sequences.
     for line in data:
         if line[colid_sequence] in SEQ_SPECIAL_VALUES:
             continue
-        if convert_to_raw:
+        if seqformat == "raw":
+            # Already converted when reading the profile.
+            sequence = line[colid_sequence]
+        else:
             sequence = ensure_sequence_format(line[colid_sequence], "raw",
                                               library=library, marker=marker)
-        else:
-            sequence = line[colid_sequence]
+            name2seq[line[colid_sequence]] = sequence
         used_sequences.add(sequence)
         try:
             sequence_index = seq_index[sequence]
@@ -223,8 +226,9 @@ def match_profile(column_names, data, profile, convert_to_raw, library, marker, 
     for line in data:
         if line[colid_sequence] in SEQ_SPECIAL_VALUES:
             continue
+        sequence = name2seq.get(line[colid_sequence], line[colid_sequence])
         try:
-            i = seq_index[line[colid_sequence]]
+            i = seq_index[sequence]
         except KeyError:
             line[colid_correction_flags] = "not_in_ref_db"
             continue
@@ -234,7 +238,7 @@ def match_profile(column_names, data, profile, convert_to_raw, library, marker, 
         if i < num_alleles:
             for colid_add, colid_corrected, add in zip(colids_add, colids_corr, adds):
                 line[colid_add] = add[0, i]
-            line[colid_correction_flags] = get_correction_tool_flags(profile[line[colid_sequence]])
+            line[colid_correction_flags] = get_correction_tool_flags(profile[sequence])
             line[colid_weight] = A[0, i]
         else:
             line[colid_correction_flags] = "corrected_as_background_only"
@@ -247,7 +251,8 @@ def match_profile(column_names, data, profile, convert_to_raw, library, marker, 
         if correcteds[-1][0, i] > 0:
             line = [""] * len(column_names)
             line[colid_marker] = marker
-            line[colid_sequence] = sequence
+            line[colid_sequence] = sequence if seqformat in (None, "raw") \
+                else ensure_sequence_format(sequence, seqformat, library=library, marker=marker)
             line[colid_forward] = 0
             line[colid_reverse] = 0
             line[colid_total] = 0
@@ -279,7 +284,7 @@ def match_profiles(infile, outfile, profiles, library, seqformat, combine_strand
     for marker in data:
         if marker in profiles:
             match_profile(column_names, data[marker], profiles[marker],
-                          seqformat != "raw", library, marker, combine_strands)
+                          seqformat, library, marker, combine_strands)
         for line in data[marker]:
             if seqformat is not None and seqformat != "raw":
                 line[colid_sequence] = ensure_sequence_format(
