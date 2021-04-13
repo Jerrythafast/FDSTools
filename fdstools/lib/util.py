@@ -67,10 +67,12 @@ def nnls(A, C, B=None, max_iter=200, min_change=0.0001, debug=False):
     prev_score = cur_score = sys.float_info.max
     for i in range(max_iter):
         for n in range(B.shape[0]):
-            tmp = (F[n, :] - E[None, n, :n] @ B[:n, :] - E[None, n, n+1:] @ B[n+1:, :]) / E[n, n]
-            tmp[np.isnan(tmp)] = 0
-            tmp[tmp < 0] = 0
-            B[n, :] = tmp
+            if E[n, n] == 0:
+                B[n, :] = 0
+            else:
+                tmp = (F[n, :] - E[None, n, :n] @ B[:n, :] - E[None, n, n+1:] @ B[n+1:, :])/E[n, n]
+                tmp[tmp < 0] = 0
+                B[n, :] = tmp
         prev_score = cur_score
         cur_score = np.square(C - A @ B).sum()
         score_change = (prev_score - cur_score) / prev_score
