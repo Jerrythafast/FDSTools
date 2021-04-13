@@ -25,7 +25,7 @@ import glob
 import re
 import sys
 
-from .library import parse_library
+from .library import parse_library, get_builtin_library, BUILTIN_NAMES
 
 # Default regular expression to capture sample tags in file names.
 # This is the default of the -e command line option.
@@ -63,6 +63,9 @@ def library_arg(value):
     try:
         if value == "-":
             return parse_library(sys.stdin)
+        builtin = get_builtin_library(value)
+        if builtin is not None:
+            return builtin
         with open(value, "tr", encoding="UTF-8") as libfile:
             return parse_library(libfile)
     except Exception as err:
@@ -97,10 +100,12 @@ def add_sequence_format_args(parser, *, default_format=None, force=False, requir
                  + ")")
     if require_library:
         parser.add_argument("library", metavar="LIBRARY", type=library_arg,
-            help="library file with marker definitions")
+            help="library file with marker definitions; custom file or built-in: '%s'" %
+                "', '".join(BUILTIN_NAMES))
     else:
         group.add_argument("-l", "--library", metavar="LIBRARY", type=library_arg,
-            help="library file for sequence format conversion")
+            help="library file with marker definitions; custom file or built-in: '%s'" %
+                "', '".join(BUILTIN_NAMES))
 #add_sequence_format_args
 
 

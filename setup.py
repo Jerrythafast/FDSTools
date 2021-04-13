@@ -66,7 +66,7 @@ setuptools.setup(
             sources=["fdstools/lib/sg_align.c"],
             extra_compile_args=["-O3"])],
     package_data={
-        "fdstools": ["vis/*.*", "vis/*/*"]
+        "fdstools": ["vis/*.*", "vis/*/*", "data/libraries/*.ini"]
     },
     install_requires=["numpy>=1.17", "strnaming>=1.0.0"],
     python_requires=">=3.5",

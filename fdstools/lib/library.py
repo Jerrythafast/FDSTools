@@ -26,6 +26,7 @@ import sys
 import textwrap
 
 from configparser import RawConfigParser, MissingSectionHeaderError
+from pathlib import Path
 from strnaming import classes, libstrnaming
 
 from .seq import PAT_SEQ_RAW
@@ -46,6 +47,11 @@ PAT_SPLIT = re.compile("\s*[,; \t]\s*")
 # TextWrapper object for formatting help texts in generated INI files.
 INI_COMMENT = textwrap.TextWrapper(width=79, initial_indent="; ",
     subsequent_indent="; ", break_on_hyphens=False)
+
+# Dict of built-in library files.
+BUILTIN_LIBS = {_.stem: _
+    for _ in (Path(__file__).parent.parent / "data" / "libraries").glob("*.ini")}
+BUILTIN_NAMES = tuple(BUILTIN_LIBS.keys())
 
 
 def add_legacy_range(reported_range_store, marker, prefix, suffix, blocks, options, genome_position=None):
@@ -380,3 +386,12 @@ def parse_library(handle):
                 reported_range_store.add_complex_range(marker, genome_position, options=options)
     return reported_range_store
 #parse_library
+
+
+def get_builtin_library(name):
+    try:
+        with BUILTIN_LIBS[name].open("rt", encoding="UTF-8") as handle:
+            return parse_library(handle)
+    except KeyError:
+        return None
+#get_builtin_library

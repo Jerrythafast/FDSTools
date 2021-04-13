@@ -62,6 +62,7 @@ from errno import EPIPE
 
 from ..lib.cli import library_arg, add_input_output_args, get_input_output_files
 from ..lib.io import get_column_ids
+from ..lib.library import BUILTIN_NAMES
 from ..lib.seq import SEQ_SPECIAL_VALUES, reverse_complement, ensure_sequence_format
 
 __version__ = "1.1.0"
@@ -132,7 +133,8 @@ def add_arguments(parser):
     parser.add_argument("-M", "--marker", metavar="MARKER",
         help="assume the specified marker for all sequences")
     parser.add_argument("-l", "--library", metavar="LIBRARY", type=library_arg,
-        help="library file for sequence format conversion")
+        help="library file with marker definitions; custom file or built-in: '%s'" %
+             "', '".join(BUILTIN_NAMES))
     parser.add_argument("-L", "--library2", metavar="LIBRARY", type=library_arg,
         help="second library file to use for output; if specified, allele "
              "names can be conveniently updated to fit this new library file")

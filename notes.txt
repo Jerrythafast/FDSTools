@@ -1,6 +1,14 @@
 Changed in 2.0.0:
 * FDSTools can now be run using 'python -m fdstools' too, which is helpful
   when the regular 'fdstools' command is not available on the PATH.
+* FDSTools now contains built-in libraries for commonly-used kits, which can be
+  accessed by specifying a predefined library name instead of a path to a file.
+* Directly supplying a legacy TSSV library (tab-separated format) is no longer
+  supported; instead, the Libconvert tool should explicitly be used to obtain
+  a library file in the native format of FDSTools.
+* Specifying multiple prefix and suffix sequences for one marker is no longer
+  supported; users migrating their library files from v1.x to v2.0 will have
+  to make sure only the first prefix or suffix sequence is retained.
 * FDSTools will now always use UTF-8 encoding for file I/O.
 * FDSTools will now display a 'Failed to load X' message if importing tool X
   failed. The other tools will remain available.
@@ -9,12 +17,6 @@ Changed in 2.0.0:
   about the error can be obtained by running the troubled tool in debug mode.
 * FDSTools will now display detailed error information when the -d/--debug
   argument is given, if an unexpected error occurs during argument parsing.
-* Directly supplying a legacy TSSV library (tab-separated format) is no longer
-  supported; instead, the Libconvert tool should explicitly be used to obtain
-  a library file in the native format of FDSTools.
-* Specifying multiple prefix and suffix sequences for one marker is no longer
-  supported; users migrating their library files from v1.x to v2.0 will have
-  to make sure only the first prefix or suffix sequence is retained.
 * Includes Allelefinder 1.1.0
 * Includes BGAnalyse 1.1.0
 * Includes BGCorrect 1.1.0
@@ -100,6 +102,7 @@ Libconvert 1.2.0:
 Library 1.1.0:
 * Introduce the new 'smart' library file and make it the default. All explanatory comments
   have been updated.
+* Added the -b/--builtin option to pre-fill the new library file with built-in info.
 
 Pipeline 1.1.0:
 * Added the -C/--combine-strands option, to analyse noise for the total number of
@@ -173,11 +176,6 @@ To-do:
   * Make better use of print_debug() in all tools and postpone string formatting.
 * Library functions:
   * Aliases, or some way to specify multi-copy markers with different refseqs like Amel.
-  * Built-in library files.
-* TSSV:
-  * Ability to uniquely target overlapping ranges.
-* Allelefinder:
-  * Allow to set a minimum allele height for the lower allele.
 * Group tools by function in the command line help and put Pipeline on top.
 * Samplevis:
   * Detect whether correction was performed; hide related columns if not.

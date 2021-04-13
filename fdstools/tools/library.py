@@ -52,7 +52,7 @@ from configparser import RawConfigParser
 from errno import EPIPE
 from types import MethodType
 
-from ..lib.library import INI_COMMENT
+from ..lib.library import BUILTIN_LIBS, BUILTIN_NAMES, INI_COMMENT
 
 __version__ = "1.1.0"
 
@@ -183,10 +183,14 @@ def make_empty_library_ini(type, aliases=False):
 #make_empty_library_ini
 
 
-def create_library(outfile, type, aliases=False):
+def create_library(outfile, type, aliases=False, builtin=None):
     outfile.write(INI_COMMENT.fill(
         "Lines beginning with a semicolon (;) are ignored by FDSTools.") + "\n\n")
-    make_empty_library_ini(type, aliases).write(outfile)
+    library = make_empty_library_ini(type, aliases)
+    if builtin is not None:
+        with BUILTIN_LIBS[builtin].open("rt", encoding="UTF-8") as handle:
+            library.read_file(handle, source=builtin)
+    library.write(outfile)
 #create_library
 
 
@@ -207,12 +211,14 @@ def add_arguments(parser):
         help="if specified, the [aliases] section is included, which can be "
              "used to explicitly assign allele names to specific sequences of "
              "specific markers")
+    parser.add_argument("-b", "--builtin", metavar="NAME", choices=BUILTIN_NAMES,
+        help="start with a built-in library file, choose from '%s'" % "', '".join(BUILTIN_NAMES))
 #add_arguments
 
 
 def run(args):
     try:
-        create_library(args.outfile, args.type, args.aliases)
+        create_library(args.outfile, args.type, args.aliases, args.builtin)
     except IOError as e:
         if e.errno == EPIPE:
             return
