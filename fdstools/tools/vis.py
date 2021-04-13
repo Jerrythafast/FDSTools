@@ -311,7 +311,7 @@ def add_arguments(parser):
              "stuttermodel; 'bganalyse' to visualise data obtained from "
              "bganalyse; use 'allele' to visualise the allele list obtained "
              "from allelefinder")
-    parser.add_argument("infile", metavar="IN", nargs="?",
+    parser.add_argument("infile", metavar="IN", nargs="?", default=sys.stdin,
         help="file containing the data to embed in the visualisation file; if "
              "not specified, HTML visualisation files will contain a file "
              "selection control, and Vega visualisation files will load data "
@@ -433,19 +433,21 @@ def add_arguments(parser):
 
 def run(args):
     if args.infile == "-":
-        args.infile = None if sys.stdin.isatty() else sys.stdin
-    if args.infile is not None and args.outfile == sys.stdout and not os.path.exists(args.infile):
+        args.infile = sys.stdin
+    if args.infile != sys.stdin and args.outfile == sys.stdout and not os.path.exists(args.infile):
         # One filename given, and it does not exist.  Assume outfile.
         args.outfile = open(args.infile, "tw", encoding="UTF-8")
-        args.infile = None
-
-    if args.outfile.isatty():
+        args.infile = sys.stdin
+    elif args.outfile.isatty():
         raise ValueError("Please specify a file name to write the %s to." %
             ("Vega graph specification (JSON format)" if args.vega else "HTML document"))
 
-    if args.infile is not None and args.infile != sys.stdin:
+    if args.infile != sys.stdin:
         # Open the specified input file.
         args.infile = open(args.infile, "tr", encoding="UTF-8")
+    elif args.infile.isatty():
+        # No input given.  Produce an empty visualisation.
+        args.infile = None
 
     try:
         create_visualisation(args.type, args.infile, args.infile2, args.outfile, args.vega,
