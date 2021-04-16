@@ -118,7 +118,9 @@ def make_empty_library_ini(type, aliases=False):
     ini.add_comment("flanks",
         "The TSSV tool will use a pair of short anchor sequences just outside the reported range "
         "of each marker (e.g., primer sequences) to identify which input reads correspond to "
-        "which marker. %s" % (
+        "which marker. %s The sequence may contain IUPAC codes for ambiguous positions to account "
+        "for degenerate bases in the primers or for bisulfite-converted targets in methylation-"
+        "based studies (e.g., Y matches either C or T)." % (
             "Specify two comma-separated values: left flank and right flank sequence, in the same "
             "sequence orientation (strand)."
                 if type in ("str", "non-str") else
