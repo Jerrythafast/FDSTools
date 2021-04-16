@@ -1,5 +1,5 @@
 {
-  "fdstools_visversion": "2.2.3",
+  "fdstools_visversion": "2.3.0",
   "width": 600,
   "height": 10,
   "signals": [
@@ -41,7 +41,7 @@
     },
     {
       "name": "allele_orientation_threshold",
-      "init": 1
+      "init": 0
     },
     {
       "name": "show_negative",
@@ -61,7 +61,7 @@
     },
     {
       "name": "bias_threshold",
-      "init": 25
+      "init": 0
     },
     {
       "name": "filter_marker",

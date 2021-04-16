@@ -37,7 +37,7 @@ Changed in 2.0.0:
 * Includes TSSV 2.1.0
 * Includes Vis 1.1.0
 * Includes Profilevis 2.0.1
-* Includes Samplevis 2.2.3
+* Includes Samplevis 2.3.0
 * Includes Stuttermodelvis 2.0.3
 
 
@@ -122,6 +122,7 @@ Samplestats 1.3.0:
 * Added the -F/--min-allele-reads and -D/--max-nonallele-pct options, which can be used
   to suppress allele calls for low-coverage and high-noise markers, respectively.
 * Changed the default value of the -b/--min-per-strand option from 1 to 0.
+* Changed the default value of the -B/--min-per-strand-filt option from 1 to 0.
 
 Stuttermark 1.6.0:
 * Stuttermark now writes its annotations to the "flags" column.
@@ -158,18 +159,22 @@ TSSV 2.1.0:
   report stream if the main output stream is closed.
 
 Vis 1.1.0:
+* Changed the default value of the -B/--bias-threshold option from 25 to 0.
+* Changed the default value of the -Z/--allele-min-per-strand option from 1 to 0.
 * Removed the -O/--online option.
 
 Profilevis 2.0.1:
 * Added ability to display background noise profiles operating on total read counts.
 
-Samplevis 2.2.3:
+Samplevis 2.3.0:
 * Fixed an issue that prevented manually marking additional alleles.
 * Fixed an issue with restoring allele calls after the visualisation has been saved.
 * Added ability to display background noise profiles operating on total read counts.
 * Added ability to display multiple noise correction notes for a single sequence.
 * Added ability to display and save notes based on the optional 'flags' column, such
   as Novel allele calls from FindNewAlleles.
+* Changed default minimum number of reads per strand for table filtering from 1 to 0.
+* Changed the default bias threshold from 25% to 0% (disabled).
 
 Stuttermodelvis 2.0.3:
 * Added ability to display stutter models fitted on total read counts.

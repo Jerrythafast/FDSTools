@@ -112,7 +112,7 @@ _DEF_MIN_READS_FILT = 1
 
 # Default minimum number of reads per strand for filtering.
 # This value can be overridden by the -B command line option.
-_DEF_MIN_PER_STRAND_FILT = 1
+_DEF_MIN_PER_STRAND_FILT = 0
 
 # Default minimum percentage of reads w.r.t. the highest allele of the
 # marker for filtering.

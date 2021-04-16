@@ -102,12 +102,12 @@ _DEF_THRESHOLD_CORRECTION_ALLELE = 0
 _DEF_THRESHOLD_RECOVERY_ALLELE = 0
 
 # Default minimum number of reads per strand to mark as allele in Samplevis.
-# This value can be overridden by the -b command line option.
-_DEF_THRESHOLD_ORIENTATION_ALLELE = 1
+# This value can be overridden by the -Z command line option.
+_DEF_THRESHOLD_ORIENTATION_ALLELE = 0
 
 # Default percentage of reads on one strand to mark as bias.
 # This value can be overridden by the -B command line option.
-_DEF_THRESHOLD_BIAS = 25.0
+_DEF_THRESHOLD_BIAS = 0.0
 
 # Default width of bars in bar graphs, in pixels.
 # This value can be overridden by the -b command line option.
