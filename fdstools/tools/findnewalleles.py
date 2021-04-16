@@ -23,9 +23,8 @@
 """
 Mark all sequences that are not in another list of sequences.
 
-Adds a new column 'new_allele' to the input data.  An asterisk (*) will
-be placed in this column for any sequence that does not occur in the
-provided list of known sequences.
+If not present, a new column 'flags' is added to the output.  Any sequence that
+does not occur in the provided list of known sequences is flagged 'novel'.
 """
 import argparse
 import sys
@@ -39,23 +38,20 @@ from ..lib.seq import SEQ_SPECIAL_VALUES, ensure_sequence_format
 __version__ = "1.1.0"
 
 
-def read_known(infile, library, default_marker=None):
+def read_known(infile, library):
     """Read sequence list from infile, return {marker: [sequences]}."""
-    # Get column numbers.  The marker name column is optional.
+    # Get column numbers.
     column_names = infile.readline().rstrip("\r\n").split("\t")
     if column_names == [""]:
         return {}  # Empty file.
-    colid_sequence = get_column_ids(column_names, "sequence")
-    colid_marker = get_column_ids(column_names, "marker", optional=True)
+    colid_marker, colid_sequence = get_column_ids(column_names, "marker", "sequence")
 
     data = {}
     for line in infile:
         line = line.rstrip("\r\n").split("\t")
         if line[colid_sequence] in SEQ_SPECIAL_VALUES:
             continue
-        marker = line[colid_marker] if colid_marker is not None else default_marker
-        if default_marker is not None and marker != default_marker:
-            continue
+        marker = line[colid_marker]
         sequence = ensure_sequence_format(line[colid_sequence], "raw",
                                           library=library, marker=marker)
         if marker in data:
@@ -72,15 +68,20 @@ def find_new(infile, outfile, known, library):
     if column_names == [""]:
         return  # Empty file.
     colid_marker, colid_sequence = get_column_ids(column_names, "marker", "sequence")
-    column_names.insert(colid_sequence + 1, "new_allele")
+    colid_flags = get_column_ids(column_names, "flags", optional=True)
+    if colid_flags is None:
+        column_names.append("flags")
+        colid_flags = -1
 
     outfile.write("\t".join(column_names) + "\n")
     for line in infile:
         cols = line.rstrip("\r\n").split("\t")
+        if colid_flags == -1:
+            cols.append("")
         marker = cols[colid_marker]
-        cols.insert(colid_sequence + 1, "" if marker in known and
-            ensure_sequence_format(cols[colid_sequence], "raw",
-            library=library, marker=marker) in known[marker] else "*")
+        if marker not in known or ensure_sequence_format(cols[colid_sequence], "raw",
+                library=library, marker=marker) not in known[marker]:
+            cols[colid_flags] += ",novel" if cols[colid_flags] else "novel"
         outfile.write("\t".join(cols) + "\n")
 #find_new
 
@@ -89,8 +90,6 @@ def add_arguments(parser):
     parser.add_argument("known", metavar="KNOWN", type=argparse.FileType("tr", encoding="UTF-8"),
         help="file containing a list of known allelic sequences")
     add_input_output_args(parser, single_in=True, batch_support=True, report_out=False)
-    filtergroup = parser.add_argument_group("filtering options")
-    filtergroup.add_argument("-M", "--marker", metavar="MARKER", help="work only on MARKER")
     add_sequence_format_args(parser, default_format="raw", force=True)
 #add_arguments
 
@@ -101,7 +100,7 @@ def run(args):
         raise ValueError("please specify an input file, or pipe in the output of another program")
 
     # Read list of known sequences once.
-    known = read_known(args.known, args.library, args.marker)
+    known = read_known(args.known, args.library)
 
     for tag, infiles, outfile in gen:
         # TODO: Aggregate data from all infiles of each sample.

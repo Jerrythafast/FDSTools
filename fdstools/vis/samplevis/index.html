@@ -1250,9 +1250,13 @@ function saveTable(){
                 if(autoSelected.indexOf(datum) < 0 && userSelected.indexOf(datum) >= 0)
                     notes.push("user_added");
                 if(datum.correction_flags)
-                        notes.concat(datum.correction_flags.split(",").map(function(x){
+                        notes.push.apply(notes, datum.correction_flags.split(",").map(function(x){
                             return x.trim();
                         }));
+                if(datum.flags)
+                    notes.push.apply(notes, datum.flags.split(",").map(function(x){
+                        return x.trim();
+                    }));
                 return [
                     datum.marker,
                     datum.sequence,
@@ -1376,8 +1380,8 @@ function updateTable(i){
         }
         if(autoSelected.indexOf(datum) < 0 && userSelected.indexOf(datum) >= 0)
             notes.push("User-added");
+        var warn = 0;
         if(datum.correction_flags){
-            var warn = 0;
             datum.correction_flags.split(",").map(function(flag){
                 return flag.trim();
             }).forEach(function(flag){
@@ -1408,8 +1412,21 @@ function updateTable(i){
                 else
                     notes.push(flag);
             });
-            if(warn == 2)
-                cell.style.backgroundColor = "#ffe8c8";
+        }
+        if(datum.flags){
+            datum.flags.split(",").map(function(flag){
+                return flag.trim();
+            }).forEach(function(flag){
+                if(flag == "novel"){
+                    notes.push("Novel");
+                    warn |= 4;
+                }
+                else
+                    notes.push(flag);
+            });
+        }
+        if(warn == 2 || warn & 4){
+            cell.style.backgroundColor = "#ffe8c8";
         }
         cell.appendChild(document.createTextNode(notes.join(", ")));
     });

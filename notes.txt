@@ -97,6 +97,10 @@ BGPredict 1.1.0:
   be interpreted as being slightly shorter if they continue into the flanks.
 * The "tool" output column has been renamed to "tools".
 
+FindNewAlleles 1.1.0:
+* New alleles are now flagged as "novel" in the "flags" column.
+* Removed the -m/--marker option.
+
 Libconvert 1.2.0:
 * Removed conversion from FDSTools to TSSV format.
 * Removed the -a/--aliases option.
@@ -164,6 +168,8 @@ Samplevis 2.2.3:
 * Fixed an issue with restoring allele calls after the visualisation has been saved.
 * Added ability to display background noise profiles operating on total read counts.
 * Added ability to display multiple noise correction notes for a single sequence.
+* Added ability to display and save notes based on the optional 'flags' column, such
+  as Novel allele calls from FindNewAlleles.
 
 Stuttermodelvis 2.0.3:
 * Added ability to display stutter models fitted on total read counts.
