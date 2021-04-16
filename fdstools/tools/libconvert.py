@@ -53,7 +53,7 @@ from .library import make_empty_library_ini
 __version__ = "1.2.0"
 
 
-def convert_library(infile, outfile, aliases=False):
+def convert_library(infile, outfile):
     markers = {}
     for line in infile:
         line = [x.strip() for x in line.rstrip("\r\n").split("\t")]
@@ -74,7 +74,7 @@ def convert_library(infile, outfile, aliases=False):
 
     outfile.write(INI_COMMENT.fill(
         "Lines beginning with a semicolon (;) are ignored by FDSTools.") + "\n\n")
-    ini = make_empty_library_ini("str", aliases)
+    ini = make_empty_library_ini("str")
 
     # Enter flanking sequences and STR definitions.
     fmt = "%%-%is" % max(map(len, markers.keys() or [""]))
@@ -93,8 +93,6 @@ def add_arguments(parser):
     parser.add_argument("outfile", nargs="?", metavar="OUT",
         default=sys.stdout, type=argparse.FileType("tw", encoding="UTF-8"),
         help="the file to write the FDSTools library to (default: write to stdout)")
-    parser.add_argument("-a", "--aliases", action="store_true",
-        help="the [aliases] section is included in the output if this option is specified")
 #add_arguments
 
 
@@ -114,7 +112,7 @@ def run(args):
         args.infile = io.StringIO("")
 
     try:
-        convert_library(args.infile, args.outfile, args.aliases)
+        convert_library(args.infile, args.outfile)
     except IOError as e:
         if e.errno == EPIPE:
             return

@@ -35,9 +35,6 @@ from .seq import PAT_SEQ_RAW, PAT_SEQ_IUPAC
 PAT_STR_DEF = re.compile("^(?:(?:(?<=^)|(?<!^)\s+)[ACGT]+\s+\d+\s+\d+)*$")
 PAT_STR_DEF_BLOCK = re.compile("([ACGT]+)\s+(\d+)\s+(\d+)")
 
-# Pattern that matches a valid sequence alias name.
-PAT_ALIAS = re.compile("^(?!_).+$")
-
 # Pattern that matches a chromosome name/number.
 PAT_CHROMOSOME = re.compile("^(?:[Cc][Hh][Rr](?:[Oo][Mm])?)?([1-9XYM]|1\d|2[0-2])$")
 
@@ -177,28 +174,7 @@ def parse_library(handle):
         for marker in ini.options(section):
             value = ini.get(section, marker)
             section_low = section.lower()
-
-            # Doing aliases first because they are not keyed on the marker name.
-            if section_low == "aliases":
-                values = PAT_SPLIT.split(value)
-                if len(values) != 3:
-                    raise ValueError("Alias %s does not have 3 values, but %i"
-                                     % (marker, len(values)))
-                if PAT_SEQ_RAW.match(values[1]) is None:
-                    raise ValueError(
-                        "Alias sequence '%s' of alias %s is invalid" % (values[1], marker))
-                if PAT_ALIAS.match(values[2]) is None:
-                    raise ValueError(
-                        "Allele name '%s' of alias %s is invalid" % (values[2], marker))
-                if values[0] not in markers:
-                    markers[values[0]] = {}
-                if "aliases" not in markers[values[0]]:
-                    markers[values[0]]["aliases"] = {}
-                markers[values[0]]["aliases"][values[1]] = values[2]
-                continue
-
-            # For all other sections, input validation will happen now.
-            elif section_low == "flanks":
+            if section_low == "flanks":
                 value = PAT_SPLIT.split(value)
                 if len(value) != 2:
                     raise ValueError(
@@ -343,17 +319,6 @@ def parse_library(handle):
                 raise ValueError(
                     "Please specify an explit flanking sequence, not just a length, for marker %s"
                         % marker)
-
-            # TODO: re-implement aliases including this check:
-            if False:
-                # Sanity check: prohibit prefix/suffix for aliases of non-STRs.
-                for alias in library["aliases"]:
-                    if library["aliases"][alias]["marker"] in library["nostr_reference"] \
-                            and (alias in library["prefix"] or alias in library["suffix"]):
-                        raise ValueError(
-                            "A prefix or suffix was defined for alias %s of non-STR "
-                            "marker %s" % (alias, library["aliases"][alias]["marker"]))
-
             refseq = settings["no_repeat"]
             pos = None
             if "genome_position" in settings:

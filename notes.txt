@@ -9,6 +9,7 @@ Changed in 2.0.0:
 * Specifying multiple prefix and suffix sequences for one marker is no longer
   supported; users migrating their library files from v1.x to v2.0 will have
   to make sure only the first prefix or suffix sequence is retained.
+* Aliases, custom allele names for specific sequences, have been removed.
 * FDSTools will now always use UTF-8 encoding for file I/O.
 * FDSTools will now display a 'Failed to load X' message if importing tool X
   failed. The other tools will remain available.
@@ -98,11 +99,13 @@ BGPredict 1.1.0:
 
 Libconvert 1.2.0:
 * Removed conversion from FDSTools to TSSV format.
+* Removed the -a/--aliases option.
 
 Library 1.1.0:
 * Introduce the new 'smart' library file and make it the default. All explanatory comments
   have been updated.
 * Added the -b/--builtin option to pre-fill the new library file with built-in info.
+* Removed the -a/--aliases option.
 
 Pipeline 1.1.0:
 * Added the -C/--combine-strands option, to analyse noise for the total number of

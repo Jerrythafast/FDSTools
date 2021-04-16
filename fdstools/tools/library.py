@@ -63,33 +63,12 @@ def ini_add_comment(ini, section, comment):
 #ini_add_comment
 
 
-def make_empty_library_ini(type, aliases=False):
+def make_empty_library_ini(type):
     ini = RawConfigParser(allow_no_value=True)
     ini.optionxform = str
     ini.add_comment = MethodType(ini_add_comment, ini)
 
     # Create sections and add comments to explain how to use them.
-    if aliases:
-        #FIXME: re-implement aliases
-        raise ValueError("Aliases are not currently supported in this version of FDSTools")
-        ini.add_section("aliases")
-        ini.add_comment("aliases",
-            "Assign an explicit allele name to a specific sequence of a "
-            "specific marker. Specify three comma-separated values: "
-            "marker name, sequence, and allele name. You may use the "
-            "alias name in the %s to specify them for this allele "
-            "specifically.%s" % (
-                "flanks section" if type == "non-str" else "flanks, prefix, and suffix sections",
-                " You cannot specify a repeat structure for an alias."
-                    if type != "non-str" else ""))
-        ini.set("aliases",
-            ";AmelX = Amel, TCAGCTATGAGGTAATTTTTCTCTTTACTAATTTTGACCATTGTTTGCGT"
-            "TAACAATGCCCTGGGCTCTGTAAAGAATAGTGTGTTGATTCTTTATCCCAGATGTTTCTCAAGTG"
-            "GTCCTGATTTTACAGTTCCTACCACCAGCTTCCCA, X")
-        ini.set("aliases",
-            ";AmelY = Amel, TCAGCTATGAGGTAATTTTTCTCTTTACTAATTTTGATCACTGTTTGCAT"
-            "TAGCAGTCCCCTGGGCTCTGTAAAGAATAGTGGGTGGATTCTTCATCCCAAATAAAGTGGTTTCT"
-            "CAAGTGGTCCCAATTTTACAGTTCCTACCATCAGCTTCCCA, Y")
     ini.add_section("genome_position")
     ini.add_comment("genome_position", #smart, str, non-str, full
         "Specify the chromosome number and positions of the first and last reported nucleotide of "
@@ -185,10 +164,10 @@ def make_empty_library_ini(type, aliases=False):
 #make_empty_library_ini
 
 
-def create_library(outfile, type, aliases=False, builtin=None):
+def create_library(outfile, type, builtin=None):
     outfile.write(INI_COMMENT.fill(
         "Lines beginning with a semicolon (;) are ignored by FDSTools.") + "\n\n")
-    library = make_empty_library_ini(type, aliases)
+    library = make_empty_library_ini(type)
     if builtin is not None:
         with BUILTIN_LIBS[builtin].open("rt", encoding="UTF-8") as handle:
             library.read_file(handle, source=builtin)
@@ -209,10 +188,6 @@ def add_arguments(parser):
              "in the human genome); 'full' will create a library file with all possible sections; "
              "'str' or 'non-str' will only output sections used to explicitly define STR and "
              "non-STR markers, respectively")
-    parser.add_argument("-a", "--aliases", action="store_true",
-        help="if specified, the [aliases] section is included, which can be "
-             "used to explicitly assign allele names to specific sequences of "
-             "specific markers")
     parser.add_argument("-b", "--builtin", metavar="NAME", choices=BUILTIN_NAMES,
         help="start with a built-in library file, choose from '%s'" % "', '".join(BUILTIN_NAMES))
 #add_arguments
@@ -220,7 +195,7 @@ def add_arguments(parser):
 
 def run(args):
     try:
-        create_library(args.outfile, args.type, args.aliases, args.builtin)
+        create_library(args.outfile, args.type, args.builtin)
     except IOError as e:
         if e.errno == EPIPE:
             return

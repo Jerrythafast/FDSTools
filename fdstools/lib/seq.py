@@ -29,8 +29,8 @@ PAT_SEQ_RAW = re.compile("^[ACGT]*$")
 PAT_SEQ_IUPAC = re.compile("^[ACGTUWSMKRYBDHVN]*$")
 PAT_SEQ_TSSV = re.compile("^(?:[ACGT]+\(\d+\))*$")
 PAT_SEQ_ALLELENAME_STR = re.compile(
-    "^(?:(?:(?:CE)?-?\d+(?:\.\d+)?_(?:[ACGT]+\[\d+\]|"  # n_ACT[m]
-    "\[(?: ?\d+(?:\.1)?[ACGT-]+>[ACGT-]+)*\])*)|((?!_).+?))"  # [1A>T]
+    "^(?:CE)?-?\d+(?:\.\d+)?_"  # Second line: ACG[n][qA>C]GT[m]
+    "(?:[ACGT]+\[\d+\]|\[(?: ?\d+(?:\.1)?[ACGT-]+>[ACGT-]+)*\])*"
     "(?:_[-+]\d+(?:\.1)?(?P<a>(?:(?<=\.1)-)|(?<!\.1)[ACGT]+)>"  # _+3A>
         "(?!(?P=a))(?:[ACGT]+|-))*$")  # Portion of variants after '>'.
 PAT_SEQ_ALLELENAME_SNP = re.compile(
