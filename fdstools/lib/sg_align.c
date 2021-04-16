@@ -47,16 +47,21 @@
  */
 #include <Python.h>
 
-#define METHOD_DOC "align(seq1, seq2, indel_socre, global_align=0)\n"\
+#define METHOD_DOC "align(seq1, seq2, indel_score, global_align=0, bitwise=0)\n"\
                    "\n"\
                    "Return the minimum number of mismatches and the corresponding position by\n"\
                    "aligning seq2 against seq1. Return (len(seq2), 0) if len(seq1) < len(seq2).\n"\
                    "\n"\
                    "An insertion or deletion of one base is counted as indel_score mismatches.\n"\
                    "If global_align is nonzero, alignment of seq2 will start at the start of\n"\
-                   "seq1 and end the end of seq1."
+                   "seq1 and end the end of seq1.\n"\
+                   "If bitwise is nonzero, bitwise AND will be used to determine matches. Use\n"\
+                   "str.translate(str.maketrans('ACGTUMRSWYKVHDBN', 'ABDHHCEFIJLGKMNO')) on the\n"\
+                   "input sequences to perform matching based on IUPAC ambiguity coding. In\n"\
+                   "general, seq1[i] and seq2[j] will match if all bits set in seq1[i] are also\n"\
+                   "set in seq2[j]."
 
-static char *argumentNames[] = {"seq1", "seq2", "indel_score", "global_align", NULL};
+static char *argumentNames[] = {"seq1", "seq2", "indel_score", "global_align", "bitwise", NULL};
 
 
 /*
@@ -188,7 +193,8 @@ static void _revseq(const char *seq, char *seqr, const unsigned int len){
 Fill the alignment matrix as created with _sse2_make_matrix().
 */
 static void _sse2_align(unsigned char *mem, const unsigned int seq1len, const unsigned int seq2len,
-                        const char *seq1, const char *seq2, const unsigned char indel_score) {
+                        const char *seq1, const char *seq2, const unsigned char indel_score,
+                        const unsigned char bitwise) {
     unsigned int x = 1,
                  y = 1,
                  width = (seq2len+31) & ~0x0F,
@@ -200,7 +206,8 @@ static void _sse2_align(unsigned char *mem, const unsigned int seq1len, const un
                   *i = l + width + 1;
 
     const __m128i ones = _mm_set1_epi8(1),
-        indel_scores = _mm_set1_epi8(indel_score);
+                  zeros = _mm_set1_epi8(0),
+                  indel_scores = _mm_set1_epi8(indel_score);
     __m128i md = _mm_load_si128((__m128i*)d),
             ml = _mm_load_si128((__m128i*)l),
             mu = _mm_loadu_si128((__m128i*)(l + 1)),
@@ -224,8 +231,15 @@ static void _sse2_align(unsigned char *mem, const unsigned int seq1len, const un
 #endif
 
     while (y < end) {
-        mi = _mm_min_epu8(_mm_adds_epu8(_mm_min_epu8(ml, mu), indel_scores),
-             _mm_adds_epu8(md, _mm_add_epi8(_mm_cmpeq_epi8(mx, my), ones)));
+        if (bitwise) {
+            mi = _mm_min_epu8(_mm_adds_epu8(_mm_min_epu8(ml, mu), indel_scores),
+                 _mm_adds_epu8(md,
+                    _mm_add_epi8(_mm_cmpeq_epi8(_mm_andnot_si128(mx, my), zeros), ones)));
+        }
+        else {
+            mi = _mm_min_epu8(_mm_adds_epu8(_mm_min_epu8(ml, mu), indel_scores),
+                 _mm_adds_epu8(md, _mm_add_epi8(_mm_cmpeq_epi8(mx, my), ones)));
+        }
         _mm_storeu_si128((__m128i*)i, mi);
 
 #ifdef DEBUG
@@ -343,6 +357,8 @@ Align two sequences, finding one in the other.
 Input arguments are two Python strings and a Python integer.
 The second string will be searched inside the first.
 The integer specifies the indel penalty score.
+Optionally, a second integer may be specified. If nonzero, do global alignment.
+Optionally, a third integer may be specified. If nonzero, use bitwise AND for matching.
 
 Return two python integers: the sequence distance, and the position of the match.
 */
@@ -352,10 +368,11 @@ static PyObject *sse2_align(PyObject *self, PyObject *args, PyObject *kwargs) {
     const unsigned int seq1len, seq2len;
     const unsigned char indel_score;
     const unsigned char global_align = 0;
+    const unsigned char bitwise = 0;
     unsigned char *matrix;
     PyObject *result;
-    if (!PyArg_ParseTupleAndKeywords(args, kwargs, "s#s#b|b", argumentNames,
-            &seq1, &seq1len, &seq2, &seq2len, &indel_score, &global_align)) {
+    if (!PyArg_ParseTupleAndKeywords(args, kwargs, "s#s#b|bb", argumentNames,
+            &seq1, &seq1len, &seq2, &seq2len, &indel_score, &global_align, &bitwise)) {
         return NULL;
     }
 
@@ -367,7 +384,7 @@ static PyObject *sse2_align(PyObject *self, PyObject *args, PyObject *kwargs) {
 
     matrix = _sse2_make_matrix(seq1len, seq2len, indel_score, global_align);
     if (seq1len > 0 && seq2len > 0) {
-        _sse2_align(matrix, seq1len, seq2len, seq1, seq2, indel_score);
+        _sse2_align(matrix, seq1len, seq2len, seq1, seq2, indel_score, bitwise);
     }
     result = _sse2_find_min(matrix, seq1len, seq2len, global_align);
     free(matrix);
@@ -412,17 +429,30 @@ static unsigned char *_make_matrix(const unsigned int rows, const unsigned int c
 Fill the alignment matrix as created with _make_matrix().
 */
 static void _align(unsigned char *matrix, const unsigned int rows, const unsigned int columns,
-                   const char *seq1, const char *seq2, const unsigned char indel_score) {
+                   const char *seq1, const char *seq2, const unsigned char indel_score,
+                   const unsigned char bitwise) {
     unsigned int r, c;
     unsigned char *d = matrix,
                   *l = d + 1,
                   *u = d + columns,
                   *i = l + columns;
-    for (r = 1; r < rows; r++, d++, l++, u++, i++) {
-        for (c = 1; c < columns; c++, d++, l++, u++, i++) {
-            *i = _min(
-                _sadd(_min(*l, *u), indel_score),
-                _sadd(*d, seq1[r - 1] != seq2[c - 1]));
+    if (bitwise) {
+        // Match if all bits set in seq1[i] are also set in seq2[j].
+        for (r = 1; r < rows; r++, d++, l++, u++, i++) {
+            for (c = 1; c < columns; c++, d++, l++, u++, i++) {
+                *i = _min(
+                    _sadd(_min(*l, *u), indel_score),
+                    _sadd(*d, (seq1[r - 1] & ~seq2[c - 1]) != 0));
+            }
+        }
+    }
+    else {
+        for (r = 1; r < rows; r++, d++, l++, u++, i++) {
+            for (c = 1; c < columns; c++, d++, l++, u++, i++) {
+                *i = _min(
+                    _sadd(_min(*l, *u), indel_score),
+                    _sadd(*d, seq1[r - 1] != seq2[c - 1]));
+            }
         }
     }
 
@@ -477,7 +507,8 @@ Align two sequences, finding one in the other.
 Input arguments are two Python strings and a Python integer.
 The second string will be searched inside the first.
 The integer specifies the indel penalty score.
-Optionally, a second integer may be specified. If nonzero (the default), do global alignment.
+Optionally, a second integer may be specified. If nonzero, do global alignment.
+Optionally, a third integer may be specified. If nonzero, use bitwise AND for matching.
 
 Return two python integers: the sequence distance, and the position of the match.
 */
@@ -487,11 +518,12 @@ static PyObject *align(PyObject *self, PyObject *args, PyObject *kwargs) {
     const unsigned int seq1len, seq2len;
     const unsigned char indel_score;
     const unsigned char global_align = 0;
+    const unsigned char bitwise = 0;
     unsigned int rows, columns;
     unsigned char *matrix;
     PyObject *result;
-    if (!PyArg_ParseTupleAndKeywords(args, kwargs, "s#s#b|b", argumentNames,
-            &seq1, &seq1len, &seq2, &seq2len, &indel_score, &global_align)) {
+    if (!PyArg_ParseTupleAndKeywords(args, kwargs, "s#s#b|bb", argumentNames,
+            &seq1, &seq1len, &seq2, &seq2len, &indel_score, &global_align, &bitwise)) {
         return NULL;
     }
 
@@ -507,7 +539,7 @@ static PyObject *align(PyObject *self, PyObject *args, PyObject *kwargs) {
     matrix = _make_matrix(rows, columns, indel_score, global_align);
 
     // Perform the alignment.
-    _align(matrix, rows, columns, seq1, seq2, indel_score);
+    _align(matrix, rows, columns, seq1, seq2, indel_score, bitwise);
     result = _find_min(matrix, rows, columns, global_align);
 
     // Free the matrix memory and return the result.

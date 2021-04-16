@@ -26,6 +26,7 @@ from strnaming import libsequence
 
 # Patterns that match entire sequences.
 PAT_SEQ_RAW = re.compile("^[ACGT]*$")
+PAT_SEQ_IUPAC = re.compile("^[ACGTUWSMKRYBDHVN]*$")
 PAT_SEQ_TSSV = re.compile("^(?:[ACGT]+\(\d+\))*$")
 PAT_SEQ_ALLELENAME_STR = re.compile(
     "^(?:(?:(?:CE)?-?\d+(?:\.\d+)?_(?:[ACGT]+\[\d+\]|"  # n_ACT[m]

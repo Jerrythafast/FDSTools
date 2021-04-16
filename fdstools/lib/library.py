@@ -29,7 +29,7 @@ from configparser import RawConfigParser, MissingSectionHeaderError
 from pathlib import Path
 from strnaming import classes, libstrnaming
 
-from .seq import PAT_SEQ_RAW
+from .seq import PAT_SEQ_RAW, PAT_SEQ_IUPAC
 
 # Patterns that match (parts of) an STR definition.
 PAT_STR_DEF = re.compile("^(?:(?:(?<=^)|(?<!^)\s+)[ACGT]+\s+\d+\s+\d+)*$")
@@ -205,7 +205,7 @@ def parse_library(handle):
                         "For marker %s, %i flanking sequences were given, "
                         "need exactly 2" % (marker, len(value)))
                 for i, val in enumerate(value):
-                    if PAT_SEQ_RAW.match(val) is None:
+                    if PAT_SEQ_IUPAC.match(val) is None:
                         try:
                             value[i] = int(val)
                             if value[i] < 1:

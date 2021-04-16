@@ -140,6 +140,9 @@ TSSV 2.1.0:
   use, unless explicitly specified per marker in the library file.
 * The -m/--mismatches option value will now be taken as an absolute number of allowed
   mismatches if it is larger than 1.
+* The flanks may now contain IUPAC ambiguity codes, which can be used to match against
+  degenerate bases in the primers or bisulfite-converted Cytosine bases in methylation-based
+  essays (C/T=Y).
 * Added support for GZipped FastA/FastQ files.
 * Removed the error that occurred when the -D/--dir option is used and
   the output directory already exists.

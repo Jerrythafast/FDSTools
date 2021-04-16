@@ -99,6 +99,8 @@ _DEF_INDEL_SCORE = 2
 # This value can be overridden by the -a command line option.
 _DEF_MINIMUM = 2
 
+IUPAC_BITS = str.maketrans("ACGTUMRSWYKVHDBN", "ABDHHCEFIJLGKMNO")
+
 
 
 class TSSV:
@@ -113,6 +115,7 @@ class TSSV:
 
         # Convert library.
         refseq_store = library.get_structure_store().get_refseq_store()
+        self.has_iupac = False
         self.tssv_library = {}
         for marker, reported_range in library.get_ranges().items():
             flanks = list(reported_range.get_option("flanks", (flank_length, flank_length)))
@@ -123,12 +126,19 @@ class TSSV:
                 flanks[0] = refseq_store.get_refseq(chromosome, start - flanks[0], start)
             if isinstance(flanks[1], int):
                 flanks[1] = refseq_store.get_refseq(chromosome, end + 1, end + 1 + flanks[1])
+            flanks[1] = reverse_complement(flanks[1])
+            translate_flank = [0 if PAT_SEQ_RAW.match(flank) else 1 for flank in flanks]
+            if any(translate_flank):
+                self.has_iupac = True
+            pair = tuple((flank.translate(IUPAC_BITS) if trans else flank, trans)
+                for flank, trans in zip(flanks, translate_flank))
             self.tssv_library[marker] = (
-                (flanks[0], reverse_complement(flanks[1])), (
-                math.ceil(len(flanks[0]) * threshold if threshold < 1 else threshold),
-                math.ceil(len(flanks[1]) * threshold if threshold < 1 else threshold)),
+                pair, (
+                    math.ceil(len(flanks[0]) * threshold if threshold < 1 else threshold),
+                    math.ceil(len(flanks[1]) * threshold if threshold < 1 else threshold)),
                 "".join(refseq_store.get_refseq(chromosome, start, end + 1) for start, end in
                     zip(reported_range.location[1::2], reported_range.location[2::2])))
+
         if not self.tssv_library:
             raise ValueError("No markers were defined in the given library file")
 
@@ -232,14 +242,15 @@ class TSSV:
     def process_file(self):
         if self.workers == 1:
             for seq in self.dedup_reads():
-                self.cache_results(seq, process_sequence(self.tssv_library, self.indel_score, seq))
+                self.cache_results(seq, process_sequence(
+                    self.tssv_library, self.indel_score, self.has_iupac, seq))
         else:
             # Start worker processes.  The work is divided into tasks that
             # require about 1 million alignments each.
             done_queue = SimpleQueue()
             chunksize = 1000000 // (4 * len(self.tssv_library)) or 1
             thread = Thread(target=feeder, args=(self.dedup_reads(), self.tssv_library,
-                self.indel_score, self.workers, chunksize, done_queue))
+                self.indel_score, self.has_iupac, self.workers, chunksize, done_queue))
             thread.daemon = True
             thread.start()
             for seq, results in itertools.chain.from_iterable(iter(done_queue.get, None)):
@@ -380,10 +391,12 @@ def prepare_output_dir(dir, markers, file_format):
 #prepare_output_dir
 
 
-def align_pair(reference, reference_rc, pair, indel_score=1):
-    left_dist, left_pos = align(reference, pair[0], indel_score)
-    right_dist, right_pos = align(reference_rc, pair[1], indel_score)
-    return (left_dist, left_pos), (right_dist, len(reference) - right_pos)
+def align_pair(reference, reference_rc, pair, indel_score):
+    left_dist, left_pos = align(
+        reference[pair[0][1]], pair[0][0], indel_score, bitwise=pair[0][1])
+    right_dist, right_pos = align(
+        reference_rc[pair[1][1]], pair[1][0], indel_score, bitwise=pair[1][1])
+    return (left_dist, left_pos), (right_dist, len(reference[0]) - right_pos)
 #align_pair
 
 
@@ -430,10 +443,11 @@ def prune_matched_ranges(tssv_library, matched_ranges):
 #prune_matched_ranges
 
 
-def process_sequence(tssv_library, indel_score, seq):
+def process_sequence(tssv_library, indel_score, has_iupac, seq):
     """Find markers in sequence."""
     seqs = (seq, reverse_complement(seq))
-    seqs_up = (seqs[0].upper(), seqs[1].upper())
+    seqs_up = tuple((x, x.translate(IUPAC_BITS) if has_iupac else None)
+        for x in (seqs[0].upper(), seqs[1].upper()))
     matched_ranges = []
     marker_matches = {}
     for marker, (pair, thresholds, refseq) in tssv_library.items():
@@ -443,22 +457,22 @@ def process_sequence(tssv_library, indel_score, seq):
         matches = 0
         if algn[0][0][0] <= thresholds[0]:
             # Left marker was found in forward sequence
-            cutout = seqs[0][max(0, algn[0][0][1] - len(pair[0])) : algn[0][0][1]]
+            cutout = seqs[0][max(0, algn[0][0][1] - len(pair[0][0])) : algn[0][0][1]]
             if cutout.lower() != cutout:
                 matches += 0b0001
         if algn[0][1][0] <= thresholds[1]:
             # Right marker was found in forward sequence.
-            cutout = seqs[0][algn[0][1][1] : algn[0][1][1] + len(pair[1])]
+            cutout = seqs[0][algn[0][1][1] : algn[0][1][1] + len(pair[1][0])]
             if cutout.lower() != cutout:
                 matches += 0b0010
         if algn[1][0][0] <= thresholds[0]:
             # Left marker was found in reverse sequence
-            cutout = seqs[1][max(0, algn[1][0][1] - len(pair[0])) : algn[1][0][1]]
+            cutout = seqs[1][max(0, algn[1][0][1] - len(pair[0][0])) : algn[1][0][1]]
             if cutout.lower() != cutout:
                 matches += 0b0100
         if algn[1][1][0] <= thresholds[1]:
             # Right marker was found in reverse sequence.
-            cutout = seqs[1][algn[1][1][1] : algn[1][1][1] + len(pair[1])]
+            cutout = seqs[1][algn[1][1][1] : algn[1][1][1] + len(pair[1][0])]
             if cutout.lower() != cutout:
                 matches += 0b1000
         if (matches & 0b0011) == 0b0011 and algn[0][0][1] < algn[0][1][1]:
@@ -493,17 +507,17 @@ def seq_pass_filt(sequence, reads, threshold, explen=None):
 #seq_pass_filt
 
 
-def worker(tssv_library, indel_score, task_queue, done_queue):
+def worker(tssv_library, indel_score, has_iupac, task_queue, done_queue):
     """
     Read sequences from task_queue, write findings to done_queue.
     """
     for task in iter(task_queue.get, None):
-        done_queue.put(
-            tuple((seq, process_sequence(tssv_library, indel_score, seq)) for seq in task))
+        done_queue.put(tuple(
+            (seq, process_sequence(tssv_library, indel_score, has_iupac, seq)) for seq in task))
 #worker
 
 
-def feeder(input, tssv_library, indel_score, workers, chunksize, done_queue):
+def feeder(input, tssv_library, indel_score, has_iupac, workers, chunksize, done_queue):
     """
     Start worker processes, feed them sequences from input and have them
     write their results to done_queue.
@@ -511,7 +525,8 @@ def feeder(input, tssv_library, indel_score, workers, chunksize, done_queue):
     task_queue = SimpleQueue()
     processes = []
     for i in range(workers):
-        process = Process(target=worker, args=(tssv_library, indel_score, task_queue, done_queue))
+        process = Process(target=worker,
+            args=(tssv_library, indel_score, has_iupac, task_queue, done_queue))
         process.daemon = True
         process.start()
         processes.append(process)
