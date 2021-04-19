@@ -7,18 +7,18 @@ FDSTools Changelog
 - When running setup.py on python3, a message is displayed that this
   version is only compatible with python2 but a newer is available.
 - Updated dependency requirements (python>=2.7.9,<3 and numpy<1.17).
-- Includes Samplevis v2.2.2
+- Includes [Samplevis](#Samplevis) v2.2.2
 
 
 ### Version 1.2.0
-- Includes Pipeline v1.0.4
-- Includes Samplestats v1.2.0
-- Includes TSSV v2.0.0
-- Includes Samplevis v2.2.1
+- Includes [Pipeline](#Pipeline) v1.0.4
+- Includes [Samplestats](#Samplestats) v1.2.0
+- Includes [TSSV](#TSSV) v2.0.0
+- Includes [Samplevis](#Samplevis) v2.2.1
 
 
 ### Version 1.1.1
-- Includes TSSV v1.1.1
+- Includes [TSSV](#TSSV) v1.1.1
 
 
 ### Version 1.1.0
@@ -30,28 +30,28 @@ FDSTools Changelog
   This greatly helps in tracking down issues in pipelines involving
   multiple tools, as tools will now shutdown gracefully if an upstream
   tool fails to write output.
-- Includes Allelefinder v1.0.1
-- Includes BGAnalyse v1.0.1
-- Includes BGCorrect v1.0.2
-- Includes BGEstimate v1.1.2
-- Includes BGHomRaw v1.0.1
-- Includes BGHomStats v1.0.1
-- Includes BGMerge v1.0.3
-- Includes BGPredict v1.0.2
-- Includes FindNewAlleles v1.0.1
-- Includes Libconvert v1.1.2
-- Includes Library v1.0.3
-- Includes Pipeline v1.0.3
-- Includes Samplestats v1.1.1
-- Includes Seqconvert v1.0.2
-- Includes Stuttermark v1.5.1
-- Includes Stuttermodel v1.1.2
-- Includes TSSV v1.1.0
-- Includes Vis v1.0.4
-- Includes BGRawvis v2.0.1
-- Includes Profilevis v2.0.1
-- Includes Samplevis v2.2.0
-- Includes Stuttermodelvis v2.0.3
+- Includes [Allelefinder](#Allelefinder) v1.0.1
+- Includes [BGAnalyse](#BGAnalyse) v1.0.1
+- Includes [BGCorrect](#BGCorrect) v1.0.2
+- Includes [BGEstimate](#BGEstimate) v1.1.2
+- Includes [BGHomRaw](#BGHomRaw) v1.0.1
+- Includes [BGHomStats](#BGHomStats) v1.0.1
+- Includes [BGMerge](#BGMerge) v1.0.3
+- Includes [BGPredict](#BGPredict) v1.0.2
+- Includes [FindNewAlleles](#FindNewAlleles) v1.0.1
+- Includes [Libconvert](#Libconvert) v1.1.2
+- Includes [Library](#Library) v1.0.3
+- Includes [Pipeline](#Pipeline) v1.0.3
+- Includes [Samplestats](#Samplestats) v1.1.1
+- Includes [Seqconvert](#Seqconvert) v1.0.2
+- Includes [Stuttermark](#Stuttermark) v1.5.1
+- Includes [Stuttermodel](#Stuttermodel) v1.1.2
+- Includes [TSSV](#TSSV) v1.1.0
+- Includes [Vis](#Vis) v1.0.4
+- Includes [BGRawvis](#BGRawvis) v2.0.1
+- Includes [Profilevis](#Profilevis) v2.0.1
+- Includes [Samplevis](#Samplevis) v2.2.0
+- Includes [Stuttermodelvis](#Stuttermodelvis) v2.0.3
 
 
 ### Version 1.0.1
@@ -70,12 +70,12 @@ FDSTools Changelog
   the corresponding marker is assumed instead. This situation was not
   handled correctly when converting from raw sequences to TSSV or
   allelename format, which resulted in the alias remaining unused.
-- Includes Libconvert v1.1.1
-- Includes Library v1.0.2
-- Includes Pipeline v1.0.2
-- Includes Vis v1.0.3
-- Includes Samplevis v2.1.2
-- Includes Stuttermodelvis v2.0.2
+- Includes [Libconvert](#Libconvert) v1.1.1
+- Includes [Library](#Library) v1.0.2
+- Includes [Pipeline](#Pipeline) v1.0.2
+- Includes [Vis](#Vis) v1.0.3
+- Includes [Samplevis](#Samplevis) v2.1.2
+- Includes [Stuttermodelvis](#Stuttermodelvis) v2.0.2
 
 
 ### Version 1.0.0
@@ -85,31 +85,31 @@ FDSTools Changelog
   sequences, FDSTools would crash with an 'Invalid allele name' error
 - Tools that take a list of files as their argument (through the -i option
   or as positionals) now explicitly support '*' and '?' wildcards
-- Includes BGEstimate v1.1.1
-- Includes BGMerge v1.0.2
-- Includes Library v1.0.1
-- Includes Pipeline v1.0.1
-- Includes Stuttermodel v1.1.1
-- Includes Allelevis v2.0.1
-- Includes Samplevis v2.1.1
-- Includes Stuttermodelvis v2.0.1
+- Includes [BGEstimate](#BGEstimate) v1.1.1
+- Includes [BGMerge](#BGMerge) v1.0.2
+- Includes [Library](#Library) v1.0.1
+- Includes [Pipeline](#Pipeline) v1.0.1
+- Includes [Stuttermodel](#Stuttermodel) v1.1.1
+- Includes [Allelevis](#Allelevis) v2.0.1
+- Includes [Samplevis](#Samplevis) v2.1.1
+- Includes [Stuttermodelvis](#Stuttermodelvis) v2.0.1
 
 
 ### Version 0.0.5
 - The Blame tool was removed in favour of BGAnalyse
-- Includes BGAnalyse v1.0.0
-- Includes Libconvert v1.1.0
-- Includes Library v1.0.0
-- Includes Pipeline v1.0.0
-- Includes Samplestats v1.1.0
-- Includes TSSV v1.0.2
-- Includes Vis v1.0.2
-- Includes Allelevis v2.0.0
-- Includes BGAnalysevis v1.0.0
-- Includes BGRawvis v2.0.0
-- Includes Profilevis v2.0.0
-- Includes Samplevis v2.1.0
-- Includes Stuttermodelvis v2.0.0
+- Includes [BGAnalyse](#BGAnalyse) v1.0.0
+- Includes [Libconvert](#Libconvert) v1.1.0
+- Includes [Library](#Library) v1.0.0
+- Includes [Pipeline](#Pipeline) v1.0.0
+- Includes [Samplestats](#Samplestats) v1.1.0
+- Includes [TSSV](#TSSV) v1.0.2
+- Includes [Vis](#Vis) v1.0.2
+- Includes [Allelevis](#Allelevis) v2.0.0
+- Includes [BGAnalysevis](#BGAnalysevis) v1.0.0
+- Includes [BGRawvis](#BGRawvis) v2.0.0
+- Includes [Profilevis](#Profilevis) v2.0.0
+- Includes [Samplevis](#Samplevis) v2.1.0
+- Includes [Stuttermodelvis](#Stuttermodelvis) v2.0.0
 
 
 ### Version 0.0.4
@@ -121,57 +121,57 @@ FDSTools Changelog
 - Added more detailed license information to FDSTools
 - Updated bundled JavaScript library Vega to v2.6.0
 - Updated bundled JavaScript library D3 to v3.5.17
-- Includes BGCorrect v1.0.1
-- Includes BGEstimate v1.1.0
-- Includes BGMerge v1.0.1
-- Includes BGPredict v1.0.1
-- Includes Libconvert v1.0.1
-- Includes Samplestats v1.0.1
-- Includes Seqconvert v1.0.1
-- Includes Stuttermodel v1.1.0
-- Includes TSSV v1.0.1
-- Includes Vis v1.0.1
-- Includes Allelevis v1.0.0beta2
-- Includes BGRawvis v1.0.1
-- Includes Profilevis v1.0.1
-- Includes Samplevis v2.0.1
-- Includes Stuttermodelvis v1.0.0beta2
+- Includes [BGCorrect](#BGCorrect) v1.0.1
+- Includes [BGEstimate](#BGEstimate) v1.1.0
+- Includes [BGMerge](#BGMerge) v1.0.1
+- Includes [BGPredict](#BGPredict) v1.0.1
+- Includes [Libconvert](#Libconvert) v1.0.1
+- Includes [Samplestats](#Samplestats) v1.0.1
+- Includes [Seqconvert](#Seqconvert) v1.0.1
+- Includes [Stuttermodel](#Stuttermodel) v1.1.0
+- Includes [TSSV](#TSSV) v1.0.1
+- Includes [Vis](#Vis) v1.0.1
+- Includes [Allelevis](#Allelevis) v1.0.0beta2
+- Includes [BGRawvis](#BGRawvis) v1.0.1
+- Includes [Profilevis](#Profilevis) v1.0.1
+- Includes [Samplevis](#Samplevis) v2.0.1
+- Includes [Stuttermodelvis](#Stuttermodelvis) v1.0.0beta2
 
 
 ### Version 0.0.3
 - Updated bundled JavaScript library Vega to v2.5.0
 - Updated bundled JavaScript library D3 to v3.5.12
-- Includes Allelefinder v1.0.0
-- Includes BGCorrect v1.0.0
-- Includes BGEstimate v1.0.0
-- Includes BGHomRaw v1.0.0
-- Includes BGHomStats v1.0.0
-- Includes BGMerge v1.0.0
-- Includes BGPredict v1.0.0
-- Includes Blame v1.0.0
-- Includes FindNewAlleles v1.0.0
-- Includes Libconvert v1.0.0
-- Includes Samplestats v1.0.0
-- Includes Seqconvert v1.0.0
-- Includes Stuttermark v1.5.0
-- Includes Stuttermodel v1.0.0
-- Includes TSSV v1.0.0
-- Includes Vis v1.0.0
-- Includes Allelevis v1.0.0beta1
-- Includes BGRawvis v1.0.0
-- Includes Profilevis v1.0.0
-- Includes Samplevis v2.0.0
-- Includes Stuttermodelvis v1.0.0beta1
+- Includes [Allelefinder](#Allelefinder) v1.0.0
+- Includes [BGCorrect](#BGCorrect) v1.0.0
+- Includes [BGEstimate](#BGEstimate) v1.0.0
+- Includes [BGHomRaw](#BGHomRaw) v1.0.0
+- Includes [BGHomStats](#BGHomStats) v1.0.0
+- Includes [BGMerge](#BGMerge) v1.0.0
+- Includes [BGPredict](#BGPredict) v1.0.0
+- Includes [Blame](#Blame) v1.0.0
+- Includes [FindNewAlleles](#FindNewAlleles) v1.0.0
+- Includes [Libconvert](#Libconvert) v1.0.0
+- Includes [Samplestats](#Samplestats) v1.0.0
+- Includes [Seqconvert](#Seqconvert) v1.0.0
+- Includes [Stuttermark](#Stuttermark) v1.5.0
+- Includes [Stuttermodel](#Stuttermodel) v1.0.0
+- Includes [TSSV](#TSSV) v1.0.0
+- Includes [Vis](#Vis) v1.0.0
+- Includes [Allelevis](#Allelevis) v1.0.0beta1
+- Includes [BGRawvis](#BGRawvis) v1.0.0
+- Includes [Profilevis](#Profilevis) v1.0.0
+- Includes [Samplevis](#Samplevis) v2.0.0
+- Includes [Stuttermodelvis](#Stuttermodelvis) v1.0.0beta1
 
 
 ### Version 0.0.2
 - Added global -d/--debug switch
-- Includes Stuttermark v1.4
+- Includes [Stuttermark](#Stuttermark) v1.4
 
 
 ### Version 0.0.1
 - Initial version
-- Includes Stuttermark v1.3
+- Includes [Stuttermark](#Stuttermark) v1.3
 
 
 
