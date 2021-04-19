@@ -1,35 +1,45 @@
 Forensic DNA Sequencing Tools
 =============================
-
 Tools for filtering and interpretation of Massively Parallel Sequencing data of
 forensic DNA samples. To obtain a list of included tools with a brief
 description of each tool, run:
 
-    ``fdstools -h``
+    fdstools --help
 
 For a complete description of a specific tool and its command line arguments,
 run:
 
-    ``fdstools -h TOOLNAME``
+    fdstools --help TOOLNAME
 
 
 Installation
 ------------
+FDSTools requires Python version 3.5 or later.
 
-The recommended way to install FDSTools is by using the ``pip`` package
-installer. If you have ``pip`` installed, you can easily install FDSTools by
-typing:
+The recommended way to install FDSTools is by using the `pip` package
+installer. If you have `pip` installed, you can easily install FDSTools by
+running the following command:
 
-    ``pip install -U fdstools``
+    pip install -U fdstools
 
 Alternatively, FDSTools can be installed by running:
 
-    ``python setup.py install``
+    python setup.py install
 
 
 Release Notes
 -------------
-v1.2.1 (in progress)
+### Version 2.0.0 (in progress)
+    Transition to Python 3.5, along with a major upgrade to all tools to
+    provide an overall better experience.
+
+    Allele naming is now handled by STRNaming, eliminating the need for
+    complex library files. Library files of commonly-used kits are built in.
+
+    Kits that sequence a target on a single strand (such as the ForenSeq DNA
+    Signature Prep Kit by Verogen) are now supported.
+
+### Version 1.2.1 (in progress)
     This release focuses on finishing support for Python2 before the transition
     to Python3. FDSTools will now display the help page if no command is given.
     A message about the transition to Python3 in the next version of FDSTools
@@ -37,9 +47,9 @@ v1.2.1 (in progress)
     numbers have been updated to ensure smooth installation on Python2 as well
     as a smooth transition to Python3.
 
-v1.2.0 (2019-03-29)
+### Version 1.2.0 (2019-03-29)
     Major improvements and fixes to the TSSV tool. Most notably, it no longer
-    relies on the external ``tssvl`` program because that is no longer
+    relies on the external `tssvl` program because that is no longer
     compatible with FDSTools. Furthermore, the new TSSV tool v2.0.0 comes with
     a major performance upgrade and has some updated command-line arguments.
 
@@ -47,12 +57,12 @@ v1.2.0 (2019-03-29)
     apply graph filtering before noise correction in Samplevis, making the
     effects of noise correction more apparent.
 
-v1.1.1 (2017-03-15)
+### Version 1.1.1 (2017-03-15)
     Fixeds incorrect calculation of tLeft, fLeft, rLeft, tRight and fRight
     columns in the report output file of TSSV, when -T/--num-threads was set to
     2 or higher. The primary output was unaffected.
 
-v1.1.0 (2017-03-14)
+### Version 1.1.0 (2017-03-14)
     In STR allele names for sequences that don't exactly match the description
     given in the library file, no more insertions are produced at the end of
     the prefix or the beginning of the suffix, in favour of extra STR blocks.
@@ -70,7 +80,7 @@ v1.1.0 (2017-03-14)
 
     Finally, various small bugs and glitches were fixed.
 
-v1.0.1 (2016-12-21)
+### Version 1.0.1 (2016-12-21)
     FDSTools library files may now contain IUPAC ambiguous bases in the prefix
     prefix and suffix sequences of STR markers (except the first sequence, as
     it is used as the reference). Additionally, optional bases may be
@@ -86,7 +96,7 @@ v1.0.1 (2016-12-21)
 
     And various minor bug fixes and improvements throughout.
 
-v1.0.0 (2016-10-03)
+### Version 1.0.0 (2016-10-03)
     Fixed an issue with variant descriptions in allele names of non-STR markers
     that made it impossible to convert those back to raw sequences.
 
@@ -96,7 +106,7 @@ v1.0.0 (2016-10-03)
 
     And various minor bug fixes.
 
-v0.0.5 (2016-09-06)
+### Version 0.0.5 (2016-09-06)
     Added the Library tool, for creating a template library file that includes
     helpful commentary and examples to get new users started. Creating an empty
     library file used to be a somewhat confusing option in the Libconvert tool.
@@ -119,7 +129,7 @@ v0.0.5 (2016-09-06)
     Various upgrades to visualisations, bringing a new responsive design to all
     HTML visualisations and fixing various issues.
 
-v0.0.4 (2016-07-26)
+### Version 0.0.4 (2016-07-26)
     Improved debugging: FDSTools will now print profiling information to stdout
     when the -d/--debug option was specified. Also, all tools now correctly
     interpret '-' as the output filename as 'write to standard out'.
@@ -144,7 +154,7 @@ v0.0.4 (2016-07-26)
     Various minor fixes and enhancements have been made, mostly to the
     visualisations.
 
-v0.0.3 (2016-02-02)
+### Version 0.0.3 (2016-02-02)
     First version of FDSTools with all strings attached. Introduces 15 new tools
     and five visualisations.
 
@@ -153,7 +163,7 @@ v0.0.3 (2016-02-02)
     tools. WARNING: Stuttermark is now INCOMPATIBLE with output from TSSV, but
     made compatible with TSSV-Lite and the new, bundled TSSV tool instead.
 
-v0.0.2 (2015-07-23)
+### Version 0.0.2 (2015-07-23)
     Added a new global option: -d/--debug. This option disables the suppression
     of technical details that would normally be visible when an error occurs.
 
@@ -161,5 +171,5 @@ v0.0.2 (2015-07-23)
     automatically rewritten as TSSV-style sequences using a specified library
     file. Also, the 'name' column is now optional.
 
-v0.0.1 (2015-07-02)
+### Version 0.0.1 (2015-07-02)
     Initial version of FDSTools, featuring a single tool: Stuttermark v1.3.

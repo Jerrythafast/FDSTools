@@ -1,6 +1,6 @@
 FDSTools Changelog
-------------------
-v1.2.1
+==================
+### Version 1.2.1
     - FDSTools will now display the help page if no command is given.
     - The command-line help pages and debug output will now display a message
       that FDSTools v2 is available and how to get it.
@@ -9,16 +9,16 @@ v1.2.1
     - Updated dependency requirements (python>=2.7.9,<3 and numpy<1.17).
     - Includes Samplevis v2.2.2
 
-v1.2.0
+### Version 1.2.0
     - Includes Pipeline v1.0.4
     - Includes Samplestats v1.2.0
     - Includes TSSV v2.0.0
     - Includes Samplevis v2.2.1
 
-v1.1.1
+### Version 1.1.1
     - Includes TSSV v1.1.1
 
-v1.1.0
+### Version 1.1.0
     - Allele name heuristics: don't produce insertions at the end of the prefix
       or at the beginning of the suffix; just include extra STR blocks.
     - FDSTools will no longer crash with a 'column not found' error when
@@ -50,7 +50,7 @@ v1.1.0
     - Includes Samplevis v2.2.0
     - Includes Stuttermodelvis v2.0.3
 
-v1.0.1
+### Version 1.0.1
     - Fixed crash that occurred when using the -i option to run the same
       command on multiple input files.
     - The 'usage' line now always starts with 'fdstools', even if FDSTools was
@@ -73,7 +73,7 @@ v1.0.1
     - Includes Samplevis v2.1.2
     - Includes Stuttermodelvis v2.0.2
 
-v1.0.0
+### Version 1.0.0
     - Fixed bug that caused variant descriptions in allele names of non-STR
       markers to be prepended with plus signs similar to suffix variants
       in STR markers; when attempting to convert these allele names back to raw
@@ -89,7 +89,7 @@ v1.0.0
     - Includes Samplevis v2.1.1
     - Includes Stuttermodelvis v2.0.1
 
-v0.0.5
+### Version 0.0.5
     - The Blame tool was removed in favour of BGAnalyse
     - Includes BGAnalyse v1.0.0
     - Includes Libconvert v1.1.0
@@ -105,7 +105,7 @@ v0.0.5
     - Includes Samplevis v2.1.0
     - Includes Stuttermodelvis v2.0.0
 
-v0.0.4
+### Version 0.0.4
     - FDSTools will now print profiling information to stdout when the
       -d/--debug option was specified
     - Fixed bug where specifying '-' as the output filename would be taken
@@ -130,7 +130,7 @@ v0.0.4
     - Includes Samplevis v2.0.1
     - Includes Stuttermodelvis v1.0.0beta2
 
-v0.0.3
+### Version 0.0.3
     - Updated bundled JavaScript library Vega to v2.5.0
     - Updated bundled JavaScript library D3 to v3.5.12
     - Includes Allelefinder v1.0.0
@@ -155,61 +155,61 @@ v0.0.3
     - Includes Samplevis v2.0.0
     - Includes Stuttermodelvis v1.0.0beta1
 
-v0.0.2
+### Version 0.0.2
     - Added global -d/--debug switch
     - Includes Stuttermark v1.4
 
-v0.0.1
+### Version 0.0.1
     - Initial version
     - Includes Stuttermark v1.3
 
 
 Allelefinder
-~~~~~~~~~~~~
-v1.0.1
+------------
+### Version 1.0.1
     - Fixed crash that occurred when converting sequences to allele name format
       when no library file was provided.
     - Shut down cleanly when the output pipe is closed.
 
-v1.0.0
+### Version 1.0.0
     - Initial version
 
 
 BGAnalyse
-~~~~~~~~~
-v1.0.1
+---------
+### Version 1.0.1
     - Shut down cleanly when the output pipe is closed.
 
-v1.0.0
+### Version 1.0.0
     - Initial version
 
 
 BGCorrect
-~~~~~~~~~
-v1.0.2
+---------
+### Version 1.0.2
     - Don't crash on empty input files.
     - Shut down cleanly when the output pipe is closed.
 
-v1.0.1
+### Version 1.0.1
     - Added new column 'weight' to the output. The value in this column
       expresses the number of times that the noise profile of that allele
       fitted in the sample.
 
-v1.0.0
+### Version 1.0.0
     - Initial version
 
 
 BGEstimate
-~~~~~~~~~~
-v1.1.2
+----------
+### Version 1.1.2
     - Shut down cleanly when the output pipe is closed.
 
-v1.1.1
+### Version 1.1.1
     - Added option -p/--profiles which can be used to provide a previously
       created background noise profiles file, from which starting values will
       be read instead of assuming zero noise
 
-v1.1.0
+### Version 1.1.0
     - Added a new option -g/--min-genotypes (default: 3). Only alleles that
       occur in at least this number of unique heterozygous genotypes will be
       considered. This is to avoid 'contamination' of the noise profile of one
@@ -221,54 +221,54 @@ v1.1.0
       of the other alleles of these samples to fall below the threshold as
       well.
 
-v1.0.0
+### Version 1.0.0
     - Initial version
 
 
 BGHomRaw
-~~~~~~~~
-v1.0.1
+--------
+### Version 1.0.1
     - Clarified the 'Allele x of marker y has 0 reads' error message with the
       name of the sample that triggered the error.
     - Shut down cleanly when the output pipe is closed.
 
-v1.0.0
+### Version 1.0.0
     - Initial version
 
 
 BGHomStats
-~~~~~~~~~~
-v1.0.1
+----------
+### Version 1.0.1
     - Error messages about the input data now contain the name of the sample
       that triggered the error.
     - Shut down cleanly when the output pipe is closed.
 
-v1.0.0
+### Version 1.0.0
     - Initial version
 
 
 BGMerge
-~~~~~~~
-v1.0.3
+-------
+### Version 1.0.3
     - Shut down cleanly when the output pipe is closed.
 
-v1.0.2
+### Version 1.0.2
     - Minor changes to facilitate explicit filename wildcard support
 
-v1.0.1
+### Version 1.0.1
     - Reduced memory usage
 
-v1.0.0
+### Version 1.0.0
     - Initial version
 
 
 BGPredict
-~~~~~~~~~
-v1.0.2
+---------
+### Version 1.0.2
     - Don't crash on empty input files.
     - Shut down cleanly when the output pipe is closed.
 
-v1.0.1
+### Version 1.0.1
     - Greatly reduced memory usage.
     - BGPredict will now output nonzero values below the threshold set by
       -n/--min-pct if the predicted noise ratio of the same stutter on the
@@ -276,30 +276,30 @@ v1.0.1
       threshold were clipped to zero, which may cause unnecessarily high strand
       bias in the predicted profile.
 
-v1.0.0
+### Version 1.0.0
     - Initial version
 
 
 FindNewAlleles
-~~~~~~~~~~~~~~
-v1.0.1
+--------------
+### Version 1.0.1
     - Don't crash on empty input files.
     - Shut down cleanly when the output pipe is closed.
 
-v1.0.0
+### Version 1.0.0
     - Initial version
 
 
 Libconvert
-~~~~~~~~~~
-v1.1.2
+----------
+### Version 1.1.2
     - Shut down cleanly when the output pipe is closed.
 
-v1.1.1
+### Version 1.1.1
     - Adjustments for supporting IUPAC notation in prefix and suffix sequences
       when converting from FDSTools to TSSV library format.
 
-v1.1.0
+### Version 1.1.0
     - When converting to FDSTools format, Libconvert automatically creates an
       empty FDSTools library file with the same contents as what would be
       obtained from the new Library tool without arguments.
@@ -311,73 +311,73 @@ v1.1.0
       file if no input file was given has been removed from the documentation
       (but not from the tool itself).
 
-v1.0.1
+### Version 1.0.1
     - Specifying '-' as the first positional argument to libconvert will now
       correctly interpret this as "read from stdin" instead of throwing a "file
       not found" error (or reading from a file named "-" if it exists)
 
-v1.0.0
+### Version 1.0.0
     - Initial version
 
 
 Library
-~~~~~~~
-v1.0.3
+-------
+### Version 1.0.3
     - Shut down cleanly when the output pipe is closed.
 
-v1.0.2
+### Version 1.0.2
     - Added documentation for IUPAC support to the descriptive comment of the
       [prefix] section.
 
-v1.0.1
+### Version 1.0.1
     - Updated some of the comments describing the sections
     - Added proper examples for non-STR markers and aliases
 
-v1.0.0
+### Version 1.0.0
     - Initial version
 
 
 Pipeline
-~~~~~~~~
-v1.0.4
+--------
+### Version 1.0.4
     - Removed reference to the 'is-fastq' option of TSSV.
 
-v1.0.3
+### Version 1.0.3
     - Fixed glitch that caused the 'bgprofiles.html' output file of the
       reference-database analysis to lack a proper title.
 
-v1.0.2
+### Version 1.0.2
     - Added -A/--in-allelelist option, with which an existing allele list file
       can be provided when running the reference-database analysis pipeline,
       bypassing Allelefinder.
 
-v1.0.1
+### Version 1.0.1
     - Removed checking of the existence of the files specified for the
       -S/--in-samples option; instead, this is left to the downstream tools to
       find out, consistent with how this works with other input file options
     - Only output the running commands if the -d/--debug option was specified
 
-v1.0.0
+### Version 1.0.0
     - Initial version
 
 
 Samplestats
-~~~~~~~~~~~
-v1.2.0
+-----------
+### Version 1.2.0
     - Fixed bug where the 'Other sequences' could be treated as the maximum
       against which the '*_mp_max' columns are calculated.
 
-v1.1.1
+### Version 1.1.1
     - Don't crash on empty input files.
     - Shut down cleanly when the output pipe is closed.
 
-v1.1.0
+### Version 1.1.0
     - Changed default allele calling option thresholds:
         - Changed default value of -m/--min-pct-of-max from 5.0 to 2.0
         - Changed default value of -p/--min-pct-of-sum from 3.0 to 1.5
     - Mentioned allele calling in the tool descriptions
 
-v1.0.1
+### Version 1.0.1
     - Samplestats will now round to 4 or 5 significant digits if a value is
       above 1000 or 10000, respectively. Previously, this was only done for the
       combined 'Other sequences' values
@@ -391,71 +391,71 @@ v1.0.1
     - Added support for the new 'weight' column produced by BGCorrect when the
       -a/--filter-action option is set to 'combine'
 
-v1.0.0
+### Version 1.0.0
     - Initial version
 
 
 Seqconvert
-~~~~~~~~~~
-v1.0.2
+----------
+### Version 1.0.2
     - Shut down cleanly when the output pipe is closed.
 
-v1.0.1
+### Version 1.0.1
     - Internal naming of the first positional argument was changed from
       'format' to 'sequence-format'. This was done for consistency with the
       -F/--sequence-format option in other tools, giving it the same name in
       Pipeline configuration files.
 
-v1.0.0
+### Version 1.0.0
     - Initial version
 
 
 Stuttermark
-~~~~~~~~~~~
-v1.5.1
+-----------
+### Version 1.5.1
     - Don't crash on empty input files.
     - Shut down cleanly when the output pipe is closed.
 
-v1.5.0
+### Version 1.5.0
     - Changed column names 'name' and 'allele' to 'marker' and 'sequence',
       respectively. WARNING: Stuttermark is now INCOMPATIBLE with output
       from TSSV, but made compatible with TSSV-Lite and the new, bundled TSSV
       tool instead.
 
-v1.4.0
+### Version 1.4.0
     - Stuttermark now accepts raw sequences and allele names as input, which
       are automatically rewritten as TSSV-style sequences using a specified
       library file
     - The 'name' column is now optional
 
-v1.3.0
+### Version 1.3.0
     - First version of Stuttermark to be included in ``fdstools``
     - Fixed crash that occurred when an empty allele (e.g., a primer dimer)
       was encountered
     - Stuttermark now prints a warning if an allele is encountered that is
       not a TSSV-style sequence
 
-v1.2.0
+### Version 1.2.0
     - All settings are now available from the command line
     - Use 1-based indexing in ``STUTTER`` annotations
 
-v1.1.0
+### Version 1.1.0
     - Stuttermark now accepts file names and the minimum number of reads to
       evaluate as command line arguments
 
-v1.0.0
+### Version 1.0.0
     - Initial version
 
 
 Stuttermodel
-~~~~~~~~~~~~
-v1.1.2
+------------
+### Version 1.1.2
     - Shut down cleanly when the output pipe is closed.
 
-v1.1.1
+### Version 1.1.1
     - Minor change to internal variant representation
 
-v1.1.0
+### Version 1.1.0
     - Stuttermodel will now only output a fit for one strand if it could also
       obtain a fit for the other strand (for the same marker, unit, and stutter
       depth). This new behaviour can be disabled with a new -O/--orphans
@@ -463,13 +463,13 @@ v1.1.0
     - Fixed bug that caused Stuttermodel to output only the raw data points for
       -1 and +1 stutter when normal output was supressed
 
-v1.0.0
+### Version 1.0.0
     - Initial version
 
 
 TSSV
-~~~~
-v2.0.0
+----
+### Version 2.0.0
     - Removed dependency on external tssv package (it is no longer compatible).
     - Greatly increased performance by deduplicating the input reads.
     - Removed the -q/--is-fastq option in favour of automatic detection.
@@ -479,71 +479,71 @@ v2.0.0
     - The -D/--dir option can now be used together with -T/--num-threads.
     - Fixed potential crash that could occur under very specific circumstances.
 
-v1.1.1
+### Version 1.1.1
     - Fixed incorrect calculation of tLeft, fLeft, rLeft, tRight and fRight
       columns in the report output file when -T/--num-threads was set to 2 or
       higher. The primary output was unaffected.
 
-v1.1.0
+### Version 1.1.0
     - Added option '-T/--num-threads' (default: 1), which controls the number
       of worker threads TSSV may spawn to run the analysis in parallel.
     - Shut down cleanly when the output pipe is closed.
 
-v1.0.2
+### Version 1.0.2
     - Added new option -n/--indel-score which can be used to increase the
       penalty given to insertions and deletions in the flanking sequences
       w.r.t. the penalty given to mismatches.
     - NOTE: Requires TSSV v0.4.0 or newer to be installed.
 
-v1.0.1
+### Version 1.0.1
     - Renamed the '--is_fastq' option to '--is-fastq', which was the only
       option with an underscore instead of a hyphen in FDSTools
     - Fixed crash that would occur if -F/--sequence-format was set to anything
       other than 'raw'
 
-v1.0.0
+### Version 1.0.0
     - Initial version
 
 
 Vis
-~~~
-v1.0.4
+---
+### Version 1.0.4
     - Shut down cleanly when the output pipe is closed.
 
-v1.0.3
+### Version 1.0.3
     - The -n/--min-abs and -s/--min-per-strand options now accept non-integer
       values as well.
     - Added six options to control the Table Filtering Options of Samplevis.
     - Grouped some options as 'Display Options' in the command line help.
 
-v1.0.2
+### Version 1.0.2
     - Changed default value of -n/--min-abs from 15 to 5
     - Added -I/--input2 option, which allows for specifying a file with raw
       data points for Stuttermodelvis and Profilevis
     - Added support for creating BGAnalysevis visualisations
 
-v1.0.1
+### Version 1.0.1
     - Added -j/--jitter option for Stuttermodelvis (default: 0.25)
     - Fixed bug where Vis would not allow the -n/--min-abs and the
       -s/--min-per-strand options to be set to 0
 
-v1.0.0
+### Version 1.0.0
     - Initial version
 
 
 Allelevis
-~~~~~~~~~
-v2.0.1
+---------
+### Version 2.0.1
     - Added tooltip support to HTML visualisations
 
-v2.0.0
+### Version 2.0.0
     - Replaced the simple Options overlay with responsive design options panels
       in HTML visualisations
     - Reduced Vega graph spec complexity by using the new Rank transform to
       position the subgraphs
     - Fixed glitch that caused unnecessary padding around the graph
 
-v1.0.0beta2
+### Version 1.0.0beta2
     - Fixed potential crash/corruption that could occur with very unfortunate
       combinations of sample names and marker names
     - HTML visualisations made with the -O/--online option of the Vis tool will
@@ -551,32 +551,32 @@ v1.0.0beta2
     - Added two more colours to the legend, such that a maximum of 22 markers
       is now supported without re-using colours
 
-v1.0.0beta1
+### Version 1.0.0beta1
     - Initial version
 
 
 BGAnalysevis
-~~~~~~~~~~~~
-v1.0.0
+------------
+### Version 1.0.0
     - Initial version
 
 
 BGRawvis
-~~~~~~~~
-v2.0.1
+--------
+### Version 2.0.1
     - Changed default save filename in HTML visualisations to 'bgprofiles-raw'.
     - Fixed glitch where, in HTML visualisations with embedded data and a
       custom title, the custom title was truncated to the last '.' as if it
       were a file name.
 
-v2.0.0
+### Version 2.0.0
     - Replaced the simple Options overlay with responsive design options panels
       in HTML visualisations
     - Sequences are now sorted by CE allele length when applicable
     - Changed default minimum number of reads from 15 to 5
     - Added marker selection menu for easier filtering
 
-v1.0.1
+### Version 1.0.1
     - Fixed a JavaScript crash that would occur in HTML visualisations if the
       Marker name filter resulted in an invalid regular expression (e.g., when
       the entered value ends with a backslash)
@@ -585,26 +585,26 @@ v1.0.1
     - HTML visualisations made with the -O/--online option of the Vis tool will
       now contain https URLs instead of http
 
-v1.0.0
+### Version 1.0.0
     - Initial version
 
 
 Profilevis
-~~~~~~~~~~
-v2.0.1
+----------
+### Version 2.0.1
     - Changed default save filename in HTML visualisations to 'bgprofiles'.
     - Fixed glitch where, in HTML visualisations with embedded data and a
       custom title, the custom title was truncated to the last '.' as if it
       were a file name.
 
-v2.0.0
+### Version 2.0.0
     - Replaced the simple Options overlay with responsive design options panels
       in HTML visualisations
     - Alleles and sequences are now sorted by CE allele length when applicable
     - Added option to plot BGHomRaw data on top of the profiles
     - Added marker selection menu for easier filtering
 
-v1.0.1
+### Version 1.0.1
     - Fixed a JavaScript crash that would occur in HTML visualisations if the
       Marker name filter resulted in an invalid regular expression (e.g., when
       the entered value ends with a backslash)
@@ -613,35 +613,35 @@ v1.0.1
     - HTML visualisations made with the -O/--online option of the Vis tool will
       now contain https URLs instead of http
 
-v1.0.0
+### Version 1.0.0
     - Initial version
 
 
 Samplevis
-~~~~~~~~~
-v2.2.2
+---------
+### Version 2.2.2
     - Minor change to the calculation of percentage of forward reads to prevent
       roundoff effects
 
-v2.2.1
+### Version 2.2.1
     - Added an option to apply graph filtering before noise correction (on by
       default)
 
-v2.2.0
+### Version 2.2.0
     - Fixed incorrect calculation of 'percentage of highest' if the 'sequence'
       with the highest read count within a marker is the aggregated 'Other
       sequences' data. In exceptional cases, this could have resulted in the
       erroneous omission of an allele in the visualisation (graphs and/or
       tables).
 
-v2.1.2
+### Version 2.1.2
     - Added 'Save page' link to HTML visualisations, which offers for download
       a copy of the entire HTML visualisation including the user's changes.
     - Added automatic allele calling to static visualisations.
     - The net effect of the allele calling thresholds (table filtering options)
       is now visualised in the graphs as a dashed vertical red line.
 
-v2.1.1
+### Version 2.1.1
     - Added tooltip support to HTML visualisations
     - The tooltip may include a 'new allele' note if the input sample was
       analysed with FindNewAlleles
@@ -655,14 +655,14 @@ v2.1.1
     - Fixed glitch that caused 'Infinity%' or 'NaN%' to be written in some
       cells in the allele tables in HTML visualisations
 
-v2.1.0
+### Version 2.1.0
     - Changed default minimum number of reads for graph filtering from 15 to 5
     - Changed default table filtering options:
         - Percentage of highest allele per marker changed from 5% to 2%
         - Percentage of the marker's total reads changed from 3% to 1.5%
         - Minimum number of reads in both orientations changed from 0 to 1
 
-v2.0.1
+### Version 2.0.1
     - Fixed a JavaScript crash that would occur in HTML visualisations if the
       Marker name filter resulted in an invalid regular expression (e.g., when
       the entered value ends with a backslash)
@@ -679,28 +679,28 @@ v2.0.1
     - HTML visualisations made with the -O/--online option of the Vis tool will
       now contain https URLs instead of http
 
-v2.0.0
+### Version 2.0.0
     - Initial version
 
 
 Stuttermodelvis
-~~~~~~~~~~~~~~~
-v2.0.3
+---------------
+### Version 2.0.3
     - Fixed bug that caused HTML visualisations with embedded data to fail
       while loading.
     - Fixed glitch where, in HTML visualisations with embedded data and a
       custom title, the custom title was truncated to the last '.' as if it
       were a file name.
 
-v2.0.2
+### Version 2.0.2
     - Added filtering option for the stutter amount (-1, +1, -2, etc.).
     - Added filtering option for the coefficient of determination (r squared
       value) of the fit functions.
 
-v2.0.1
+### Version 2.0.1
     - Changed the unit in the horizontal axis title from 'bp' to 'nt'
 
-v2.0.0
+### Version 2.0.0
     - Replaced the simple Options overlay with responsive design options panels
       in HTML visualisations
     - Fixed glitch that caused the graphs to be re-rendered twice when loading
@@ -709,7 +709,7 @@ v2.0.0
       in an HTML visualisation through drag-and-drop
     - Added repeat unit selection menu for easier filtering
 
-v1.0.0beta2
+### Version 1.0.0beta2
     - HTML visualisations now support drawing raw data points on top of the fit
       functions. The points can be drawn with an adjustable jitter to reduce
       overlap.
@@ -721,5 +721,5 @@ v1.0.0beta2
     - HTML visualisations made with the -O/--online option of the Vis tool will
       now contain https URLs instead of http
 
-v1.0.0beta1
+### Version 1.0.0beta1
     - Initial version
