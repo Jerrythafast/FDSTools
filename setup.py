@@ -23,7 +23,7 @@
 import setuptools
 import sys
 
-with open("README.rst", "tr", encoding="UTF-8") as fh:
+with open("README.md", "tr", encoding="UTF-8") as fh:
     long_description = fh.read()
 
 version = {}
@@ -42,7 +42,7 @@ setuptools.setup(
     version=version["__version__"],
     description="Forensic DNA Sequencing Tools",
     long_description=long_description,
-    long_description_content_type="text/x-rst",
+    long_description_content_type="text/markdown",
     url="https://fdstools.nl",
     project_urls={
         "Bug Tracker": "https://github.com/Jerrythafast/FDSTools/issues",
