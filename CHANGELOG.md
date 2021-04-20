@@ -82,9 +82,9 @@ FDSTools Changelog
 - Fixed bug that caused variant descriptions in allele names of non-STR
   markers to be prepended with plus signs similar to suffix variants
   in STR markers; when attempting to convert these allele names back to raw
-  sequences, FDSTools would crash with an 'Invalid allele name' error
+  sequences, FDSTools would crash with an 'Invalid allele name' error.
 - Tools that take a list of files as their argument (through the -i option
-  or as positionals) now explicitly support '*' and '?' wildcards
+  or as positionals) now explicitly support '*' and '?' wildcards.
 - Includes [BGEstimate](#BGEstimate) v1.1.1
 - Includes [BGMerge](#BGMerge) v1.0.2
 - Includes [Library](#Library) v1.0.1
@@ -96,7 +96,7 @@ FDSTools Changelog
 
 
 ### Version 0.0.5
-- The Blame tool was removed in favour of BGAnalyse
+- The Blame tool was removed in favour of BGAnalyse.
 - Includes [BGAnalyse](#BGAnalyse) v1.0.0
 - Includes [Libconvert](#Libconvert) v1.1.0
 - Includes [Library](#Library) v1.0.0
@@ -114,11 +114,11 @@ FDSTools Changelog
 
 ### Version 0.0.4
 - FDSTools will now print profiling information to stdout when the
-  -d/--debug option was specified
+  -d/--debug option was specified.
 - Fixed bug where specifying '-' as the output filename would be taken
   literally, while it should have been interpreted as 'write to standard
-  out' (Affected tools: BGCorrect, Samplestats, Seqconvert, Stuttermark)
-- Added more detailed license information to FDSTools
+  out'. (Affected tools: BGCorrect, Samplestats, Seqconvert, Stuttermark)
+- Added more detailed license information to FDSTools.
 - Updated bundled JavaScript library Vega to v2.6.0
 - Updated bundled JavaScript library D3 to v3.5.17
 - Includes [BGCorrect](#BGCorrect) v1.0.1
@@ -165,13 +165,13 @@ FDSTools Changelog
 
 
 ### Version 0.0.2
-- Added global -d/--debug switch
-- Includes [Stuttermark](#Stuttermark) v1.4
+- Added global -d/--debug switch.
+- Includes [Stuttermark](#Stuttermark) v1.4.0
 
 
 ### Version 0.0.1
-- Initial version
-- Includes [Stuttermark](#Stuttermark) v1.3
+- Initial version.
+- Includes [Stuttermark](#Stuttermark) v1.3.0
 
 
 
@@ -184,7 +184,7 @@ Allelefinder
 
 
 ### Version 1.0.0
-- Initial version
+- Initial version.
 
 
 
@@ -195,7 +195,7 @@ BGAnalyse
 
 
 ### Version 1.0.0
-- Initial version
+- Initial version.
 
 
 
@@ -213,7 +213,7 @@ BGCorrect
 
 
 ### Version 1.0.0
-- Initial version
+- Initial version.
 
 
 
@@ -226,7 +226,7 @@ BGEstimate
 ### Version 1.1.1
 - Added option -p/--profiles which can be used to provide a previously
   created background noise profiles file, from which starting values will
-  be read instead of assuming zero noise
+  be read instead of assuming zero noise.
 
 
 ### Version 1.1.0
@@ -243,7 +243,7 @@ BGEstimate
 
 
 ### Version 1.0.0
-- Initial version
+- Initial version.
 
 
 
@@ -256,7 +256,7 @@ BGHomRaw
 
 
 ### Version 1.0.0
-- Initial version
+- Initial version.
 
 
 
@@ -269,7 +269,7 @@ BGHomStats
 
 
 ### Version 1.0.0
-- Initial version
+- Initial version.
 
 
 
@@ -280,15 +280,15 @@ BGMerge
 
 
 ### Version 1.0.2
-- Minor changes to facilitate explicit filename wildcard support
+- Minor changes to facilitate explicit filename wildcard support.
 
 
 ### Version 1.0.1
-- Reduced memory usage
+- Reduced memory usage.
 
 
 ### Version 1.0.0
-- Initial version
+- Initial version.
 
 
 
@@ -309,7 +309,7 @@ BGPredict
 
 
 ### Version 1.0.0
-- Initial version
+- Initial version.
 
 
 
@@ -321,7 +321,7 @@ FindNewAlleles
 
 
 ### Version 1.0.0
-- Initial version
+- Initial version.
 
 
 
@@ -352,11 +352,11 @@ Libconvert
 ### Version 1.0.1
 - Specifying '-' as the first positional argument to libconvert will now
   correctly interpret this as "read from stdin" instead of throwing a "file
-  not found" error (or reading from a file named "-" if it exists)
+  not found" error (or reading from a file named "-" if it exists).
 
 
 ### Version 1.0.0
-- Initial version
+- Initial version.
 
 
 
@@ -372,12 +372,12 @@ Library
 
 
 ### Version 1.0.1
-- Updated some of the comments describing the sections
-- Added proper examples for non-STR markers and aliases
+- Updated some of the comments describing the sections.
+- Added proper examples for non-STR markers and aliases.
 
 
 ### Version 1.0.0
-- Initial version
+- Initial version.
 
 
 
@@ -401,12 +401,12 @@ Pipeline
 ### Version 1.0.1
 - Removed checking of the existence of the files specified for the
   -S/--in-samples option; instead, this is left to the downstream tools to
-  find out, consistent with how this works with other input file options
-- Only output the running commands if the -d/--debug option was specified
+  find out, consistent with how this works with other input file options.
+- Only output the running commands if the -d/--debug option was specified.
 
 
 ### Version 1.0.0
-- Initial version
+- Initial version.
 
 
 
@@ -424,28 +424,28 @@ Samplestats
 
 ### Version 1.1.0
 - Changed default allele calling option thresholds:
-    - Changed default value of -m/--min-pct-of-max from 5.0 to 2.0
-    - Changed default value of -p/--min-pct-of-sum from 3.0 to 1.5
-- Mentioned allele calling in the tool descriptions
+    - Changed default value of -m/--min-pct-of-max from 5.0 to 2.0.
+    - Changed default value of -p/--min-pct-of-sum from 3.0 to 1.5.
+- Mentioned allele calling in the tool descriptions.
 
 
 ### Version 1.0.1
 - Samplestats will now round to 4 or 5 significant digits if a value is
   above 1000 or 10000, respectively. Previously, this was only done for the
-  combined 'Other sequences' values
+  combined 'Other sequences' values.
 - The 'Other sequences' lines will now also include values for
-  total_recovery, forward_recovery, and reverse_recovery
+  total_recovery, forward_recovery, and reverse_recovery.
 - The total_recovery, forward_recovery, and reverse_recovery columns are no
   longer placed to the left of all the other columns generated by
-  Samplestats
+  Samplestats.
 - The help text for Samplestats erroneously listed the X_recovery_pct
-  instead of X_recovery
+  instead of X_recovery.
 - Added support for the new 'weight' column produced by BGCorrect when the
-  -a/--filter-action option is set to 'combine'
+  -a/--filter-action option is set to 'combine'.
 
 
 ### Version 1.0.0
-- Initial version
+- Initial version.
 
 
 
@@ -463,7 +463,7 @@ Seqconvert
 
 
 ### Version 1.0.0
-- Initial version
+- Initial version.
 
 
 
@@ -484,30 +484,30 @@ Stuttermark
 ### Version 1.4.0
 - Stuttermark now accepts raw sequences and allele names as input, which
   are automatically rewritten as TSSV-style sequences using a specified
-  library file
-- The 'name' column is now optional
+  library file.
+- The 'name' column is now optional.
 
 
 ### Version 1.3.0
-- First version of Stuttermark to be included in ``fdstools``
+- First version of Stuttermark to be included in ``fdstools``.
 - Fixed crash that occurred when an empty allele (e.g., a primer dimer)
-  was encountered
+  was encountered.
 - Stuttermark now prints a warning if an allele is encountered that is
-  not a TSSV-style sequence
+  not a TSSV-style sequence.
 
 
 ### Version 1.2.0
-- All settings are now available from the command line
-- Use 1-based indexing in ``STUTTER`` annotations
+- All settings are now available from the command line.
+- Use 1-based indexing in ``STUTTER`` annotations.
 
 
 ### Version 1.1.0
 - Stuttermark now accepts file names and the minimum number of reads to
-  evaluate as command line arguments
+  evaluate as command line arguments.
 
 
 ### Version 1.0.0
-- Initial version
+- Initial version.
 
 
 
@@ -518,7 +518,7 @@ Stuttermodel
 
 
 ### Version 1.1.1
-- Minor change to internal variant representation
+- Minor change to internal variant representation.
 
 
 ### Version 1.1.0
@@ -527,11 +527,11 @@ Stuttermodel
   depth). This new behaviour can be disabled with a new -O/--orphans
   option.
 - Fixed bug that caused Stuttermodel to output only the raw data points for
-  -1 and +1 stutter when normal output was supressed
+  -1 and +1 stutter when normal output was supressed.
 
 
 ### Version 1.0.0
-- Initial version
+- Initial version.
 
 
 
@@ -569,13 +569,13 @@ TSSV
 
 ### Version 1.0.1
 - Renamed the '--is_fastq' option to '--is-fastq', which was the only
-  option with an underscore instead of a hyphen in FDSTools
+  option with an underscore instead of a hyphen in FDSTools.
 - Fixed crash that would occur if -F/--sequence-format was set to anything
-  other than 'raw'
+  other than 'raw'.
 
 
 ### Version 1.0.0
-- Initial version
+- Initial version.
 
 
 
@@ -593,55 +593,55 @@ Vis
 
 
 ### Version 1.0.2
-- Changed default value of -n/--min-abs from 15 to 5
+- Changed default value of -n/--min-abs from 15 to 5.
 - Added -I/--input2 option, which allows for specifying a file with raw
-  data points for Stuttermodelvis and Profilevis
-- Added support for creating BGAnalysevis visualisations
+  data points for Stuttermodelvis and Profilevis.
+- Added support for creating BGAnalysevis visualisations.
 
 
 ### Version 1.0.1
-- Added -j/--jitter option for Stuttermodelvis (default: 0.25)
+- Added -j/--jitter option for Stuttermodelvis (default: 0.25).
 - Fixed bug where Vis would not allow the -n/--min-abs and the
-  -s/--min-per-strand options to be set to 0
+  -s/--min-per-strand options to be set to 0.
 
 
 ### Version 1.0.0
-- Initial version
+- Initial version.
 
 
 
 Allelevis
 ---------
 ### Version 2.0.1
-- Added tooltip support to HTML visualisations
+- Added tooltip support to HTML visualisations.
 
 
 ### Version 2.0.0
 - Replaced the simple Options overlay with responsive design options panels
-  in HTML visualisations
+  in HTML visualisations.
 - Reduced Vega graph spec complexity by using the new Rank transform to
-  position the subgraphs
-- Fixed glitch that caused unnecessary padding around the graph
+  position the subgraphs.
+- Fixed glitch that caused unnecessary padding around the graph.
 
 
 ### Version 1.0.0beta2
 - Fixed potential crash/corruption that could occur with very unfortunate
-  combinations of sample names and marker names
+  combinations of sample names and marker names.
 - HTML visualisations made with the -O/--online option of the Vis tool will
-  now contain https URLs instead of http
+  now contain https URLs instead of http.
 - Added two more colours to the legend, such that a maximum of 22 markers
-  is now supported without re-using colours
+  is now supported without re-using colours.
 
 
 ### Version 1.0.0beta1
-- Initial version
+- Initial version.
 
 
 
 BGAnalysevis
 ------------
 ### Version 1.0.0
-- Initial version
+- Initial version.
 
 
 
@@ -656,24 +656,24 @@ BGRawvis
 
 ### Version 2.0.0
 - Replaced the simple Options overlay with responsive design options panels
-  in HTML visualisations
-- Sequences are now sorted by CE allele length when applicable
-- Changed default minimum number of reads from 15 to 5
-- Added marker selection menu for easier filtering
+  in HTML visualisations.
+- Sequences are now sorted by CE allele length when applicable.
+- Changed default minimum number of reads from 15 to 5.
+- Added marker selection menu for easier filtering.
 
 
 ### Version 1.0.1
 - Fixed a JavaScript crash that would occur in HTML visualisations if the
   Marker name filter resulted in an invalid regular expression (e.g., when
-  the entered value ends with a backslash)
+  the entered value ends with a backslash).
 - Reduced Vega graph spec complexity by using the new Rank transform to
-  position the subgraphs
+  position the subgraphs.
 - HTML visualisations made with the -O/--online option of the Vis tool will
-  now contain https URLs instead of http
+  now contain https URLs instead of http.
 
 
 ### Version 1.0.0
-- Initial version
+- Initial version.
 
 
 
@@ -688,24 +688,24 @@ Profilevis
 
 ### Version 2.0.0
 - Replaced the simple Options overlay with responsive design options panels
-  in HTML visualisations
-- Alleles and sequences are now sorted by CE allele length when applicable
-- Added option to plot BGHomRaw data on top of the profiles
-- Added marker selection menu for easier filtering
+  in HTML visualisations.
+- Alleles and sequences are now sorted by CE allele length when applicable.
+- Added option to plot BGHomRaw data on top of the profiles.
+- Added marker selection menu for easier filtering.
 
 
 ### Version 1.0.1
 - Fixed a JavaScript crash that would occur in HTML visualisations if the
   Marker name filter resulted in an invalid regular expression (e.g., when
-  the entered value ends with a backslash)
+  the entered value ends with a backslash).
 - Reduced Vega graph spec complexity by using the new Rank transform to
   position the subgraphs.
 - HTML visualisations made with the -O/--online option of the Vis tool will
-  now contain https URLs instead of http
+  now contain https URLs instead of http.
 
 
 ### Version 1.0.0
-- Initial version
+- Initial version.
 
 
 
@@ -713,12 +713,12 @@ Samplevis
 ---------
 ### Version 2.2.2
 - Minor change to the calculation of percentage of forward reads to prevent
-  roundoff effects
+  roundoff effects.
 
 
 ### Version 2.2.1
 - Added an option to apply graph filtering before noise correction (on by
-  default)
+  default).
 
 
 ### Version 2.2.0
@@ -738,36 +738,36 @@ Samplevis
 
 
 ### Version 2.1.1
-- Added tooltip support to HTML visualisations
+- Added tooltip support to HTML visualisations.
 - The tooltip may include a 'new allele' note if the input sample was
-  analysed with FindNewAlleles
+  analysed with FindNewAlleles.
 - The allele tables in HTML visualisations will now grow much wider than
-  before if the screen (or window) is very narrow
-- Improved line breaking behaviour in the tables in HTML visualisations
+  before if the screen (or window) is very narrow.
+- Improved line breaking behaviour in the tables in HTML visualisations.
 - Improved determination of column widths of the allele tables when
-  printing an HTML visualisation
+  printing an HTML visualisation.
 - When printing an HTML visualisation, the graph and the corresponding
-  table of a marker will be kept on the same page in all browsers now
+  table of a marker will be kept on the same page in all browsers now.
 - Fixed glitch that caused 'Infinity%' or 'NaN%' to be written in some
-  cells in the allele tables in HTML visualisations
+  cells in the allele tables in HTML visualisations.
 
 
 ### Version 2.1.0
-- Changed default minimum number of reads for graph filtering from 15 to 5
+- Changed default minimum number of reads for graph filtering from 15 to 5.
 - Changed default table filtering options:
-    - Percentage of highest allele per marker changed from 5% to 2%
-    - Percentage of the marker's total reads changed from 3% to 1.5%
-    - Minimum number of reads in both orientations changed from 0 to 1
+    - Percentage of highest allele per marker changed from 5% to 2%.
+    - Percentage of the marker's total reads changed from 3% to 1.5%.
+    - Minimum number of reads in both orientations changed from 0 to 1.
 
 
 ### Version 2.0.1
 - Fixed a JavaScript crash that would occur in HTML visualisations if the
   Marker name filter resulted in an invalid regular expression (e.g., when
-  the entered value ends with a backslash)
+  the entered value ends with a backslash).
 - Reduced Vega graph spec complexity by using the new Rank transform to
-  position the subgraphs
+  position the subgraphs.
 - Fixed a glitch in HTML visualisations where clicking the 'Truncate
-  sequences to' label would select the marker spacing input
+  sequences to' label would select the marker spacing input.
 - In HTML visualisations, the 'Notes' table cells with 'BGPredict' in them
   now get a light orange background to warn the user that their background
   profile was computed. If a sequence was explicitly 'not corrected', 'not
@@ -775,11 +775,11 @@ Samplevis
 - The message bar at the bottom of Samplevis HTML visualisations will now
   grow no larger than 3 lines. A scroll bar will appear as needed.
 - HTML visualisations made with the -O/--online option of the Vis tool will
-  now contain https URLs instead of http
+  now contain https URLs instead of http.
 
 
 ### Version 2.0.0
-- Initial version
+- Initial version.
 
 
 
@@ -800,17 +800,17 @@ Stuttermodelvis
 
 
 ### Version 2.0.1
-- Changed the unit in the horizontal axis title from 'bp' to 'nt'
+- Changed the unit in the horizontal axis title from 'bp' to 'nt'.
 
 
 ### Version 2.0.0
 - Replaced the simple Options overlay with responsive design options panels
-  in HTML visualisations
+  in HTML visualisations.
 - Fixed glitch that caused the graphs to be re-rendered twice when loading
-  a file by drag-and-drop in HTML visualisations
+  a file by drag-and-drop in HTML visualisations.
 - Fixed glitch that made it possible to replace the data that was embedded
-  in an HTML visualisation through drag-and-drop
-- Added repeat unit selection menu for easier filtering
+  in an HTML visualisation through drag-and-drop.
+- Added repeat unit selection menu for easier filtering.
 
 
 ### Version 1.0.0beta2
@@ -819,11 +819,11 @@ Stuttermodelvis
   overlap.
 - Fixed a JavaScript crash that would occur in HTML visualisations if the
   Repeat unit or Marker name filter resulted in an invalid regular
-  expression (e.g., when the entered value ends with a backslash)
+  expression (e.g., when the entered value ends with a backslash).
 - Reduced Vega graph spec complexity by using the new Rank transform to
   position the subgraphs.
 - HTML visualisations made with the -O/--online option of the Vis tool will
-  now contain https URLs instead of http
+  now contain https URLs instead of http.
 
 
 ### Version 1.0.0beta1
