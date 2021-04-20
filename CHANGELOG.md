@@ -1,5 +1,48 @@
 FDSTools Changelog
 ==================
+### Version 2.0.0
+- FDSTools can now be run using 'python -m fdstools' too, which is helpful
+  when the regular 'fdstools' command is not available on the PATH.
+- FDSTools now contains built-in libraries for commonly-used kits, which can be
+  accessed by specifying a predefined library name instead of a path to a file.
+- Directly supplying a legacy TSSV library (tab-separated format) is no longer
+  supported; instead, the Libconvert tool should explicitly be used to obtain
+  a library file in the native format of FDSTools.
+- Specifying multiple prefix and suffix sequences for one marker is no longer
+  supported; users migrating their library files from v1.x to v2.0 will have
+  to make sure only the first prefix or suffix sequence is retained.
+- Aliases, custom allele names for specific sequences, have been removed.
+- FDSTools will now always use UTF-8 encoding for file I/O.
+- FDSTools will now display a 'Failed to load X' message if importing tool X
+  failed. The other tools will remain available.
+- FDSTools will now display a 'Failed to configure X' message if configuring
+  tool X failed. The other tools will remain available, and more information
+  about the error can be obtained by running the troubled tool in debug mode.
+- FDSTools will now display detailed error information when the -d/--debug
+  argument is given, if an unexpected error occurs during argument parsing.
+- Includes [Allelefinder v1.1.0](#Allelefinder-110)
+- Includes [BGAnalyse v1.1.0](#BGAnalyse-110)
+- Includes [BGCorrect v1.1.0](#BGCorrect-110)
+- Includes [BGEstimate v1.2.0](#BGEstimate-120)
+- Includes [BGHomRaw v1.1.0](#BGHomRaw-110)
+- Includes [BGHomStats v1.1.0](#BGHomStats-110)
+- Includes [BGMerge v1.1.0](#BGMerge-110)
+- Includes [BGPredict v1.1.0](#BGPredict-110)
+- Includes [FindNewAlleles v1.1.0](#FindNewAlleles-110)
+- Includes [Libconvert v1.2.0](#Libconvert-120)
+- Includes [Library v1.1.0](#Library-110)
+- Includes [Pipeline v1.1.0](#Pipeline-110)
+- Includes [Samplestats v1.3.0](#Samplestats-130)
+- Includes [Seqconvert v1.1.0](#Seqconvert-110)
+- Includes [Stuttermark v1.6.0](#Stuttermark-160)
+- Includes [Stuttermodel v1.2.0](#Stuttermodel-120)
+- Includes [TSSV v2.1.0](#TSSV-210)
+- Includes [Vis v1.1.0](#Vis-110)
+- Includes [Profilevis v2.0.1](#Profilevis-201)
+- Includes [Samplevis v2.3.0](#Samplevis-230)
+- Includes [Stuttermodelvis v2.0.4](#Stuttermodelvis-204)
+
+
 ### Version 1.2.1
 - FDSTools will now display the help page if no command is given.
 - The command-line help pages and debug output will now display a message
@@ -177,6 +220,20 @@ FDSTools Changelog
 
 Allelefinder
 ------------
+### Allelefinder 1.1.0
+- Removed the -c/--stuttermark-column argument. Allelefinder will look for stutter
+  annotations in the 'flags' column instead, if present.
+- The default value of the -x/--max-noisy argument has changed from 2 to 0.1; the
+  value will now be interpreted as a fraction of markers if it is below 1.
+- Allelefinder will now use the total_corrected column if present, else it will use
+  the total column. The forward and reverse columns are no longer used by this tool.
+- The -a/--max-alleles option now defaults to 1 for markers on the mitochondrial
+  genome or the Y chromosome.
+- Added the -N/--min-reads-lowest argument (default: 15). Allelefinder will not call
+  any alleles on a marker if the lowest allele appears to have less than this number
+  of reads (analogous to the -n/--min-reads option for the highest allele).
+
+
 ### Allelefinder 1.0.1
 - Fixed crash that occurred when converting sequences to allele name format
   when no library file was provided.
@@ -190,6 +247,13 @@ Allelefinder
 
 BGAnalyse
 ---------
+### BGAnalyse 1.1.0
+- Fixed bug that caused non-integer percentiles to appear rounded down in the output.
+- BGAnalyse will now use the total_corrected column instead of the forward_corrected
+  and reverse_corrected columns. As a result, samples with 0 reads on one strand for
+  a genuine allele are now accepted.
+
+
 ### BGAnalyse 1.0.1
 - Shut down cleanly when the output pipe is closed.
 
@@ -201,6 +265,14 @@ BGAnalyse
 
 BGCorrect
 ---------
+### BGCorrect 1.1.0
+- Added the -C/--combine-strands option, to apply noise correction only for the total
+  number of reads instead of separately for either strand.
+- The correction_flags column may now contain a comma-separated list of 'corrected_X'
+  flags, one for each tool used in the noise profile of that particular allele.
+- Greatly reduced memory usage.
+
+
 ### BGCorrect 1.0.2
 - Don't crash on empty input files.
 - Shut down cleanly when the output pipe is closed.
@@ -219,6 +291,13 @@ BGCorrect
 
 BGEstimate
 ----------
+### BGEstimate 1.2.0
+- Added the -C/--combine-strands option, to estimate noise profiles for the total number
+  of reads instead of estimating separate noise profiles for either strand.
+- Removed the random subsampling arguments.
+- The 'tool' output column has been renamed to 'tools'.
+
+
 ### BGEstimate 1.1.2
 - Shut down cleanly when the output pipe is closed.
 
@@ -249,6 +328,11 @@ BGEstimate
 
 BGHomRaw
 --------
+### BGHomRaw 1.1.0
+- Added the -C/--combine-strands option, to calculate noise ratios for the total number
+  of reads only, instead of calculating separate noise ratios for either strand.
+
+
 ### BGHomRaw 1.0.1
 - Clarified the 'Allele x of marker y has 0 reads' error message with the
   name of the sample that triggered the error.
@@ -262,6 +346,13 @@ BGHomRaw
 
 BGHomStats
 ----------
+### BGHomStats 1.1.0
+- Added the -C/--combine-strands option, to calculate statistics for the total number
+  of reads only, instead of calculating separate statistics for either strand.
+- Removed the random subsampling arguments.
+- The 'tool' output column has been renamed to 'tools'.
+
+
 ### BGHomStats 1.0.1
 - Error messages about the input data now contain the name of the sample
   that triggered the error.
@@ -275,6 +366,12 @@ BGHomStats
 
 BGMerge
 -------
+### BGMerge 1.1.0
+- Noise profiles for forward, reverse and total noise are now merged independently.
+- The 'tool' output column has been renamed to 'tools' and now contains all tools used
+  for the merged noise profile.
+
+
 ### BGMerge 1.0.3
 - Shut down cleanly when the output pipe is closed.
 
@@ -294,6 +391,16 @@ BGMerge
 
 BGPredict
 ---------
+### BGPredict 1.1.0
+- The default value of the -t/--min-r2 option has been changed to 0, effectively
+  disabling the filter by default.
+- Added the -C/--combine-strands option, to use stutter models trained on the total
+  number of reads instead of the separate models per strand.
+- Flanks are now ignored even if the library file is given; repeats may
+  be interpreted as being slightly shorter if they continue into the flanks.
+- The 'tool' output column has been renamed to 'tools'.
+
+
 ### BGPredict 1.0.2
 - Don't crash on empty input files.
 - Shut down cleanly when the output pipe is closed.
@@ -315,6 +422,11 @@ BGPredict
 
 FindNewAlleles
 --------------
+### FindNewAlleles 1.1.0
+- New alleles are now flagged as 'novel' in the 'flags' column.
+- Removed the -m/--marker option.
+
+
 ### FindNewAlleles 1.0.1
 - Don't crash on empty input files.
 - Shut down cleanly when the output pipe is closed.
@@ -327,6 +439,11 @@ FindNewAlleles
 
 Libconvert
 ----------
+### Libconvert 1.2.0
+- Removed conversion from FDSTools to TSSV format.
+- Removed the -a/--aliases option.
+
+
 ### Libconvert 1.1.2
 - Shut down cleanly when the output pipe is closed.
 
@@ -362,6 +479,13 @@ Libconvert
 
 Library
 -------
+### Library 1.1.0
+- Introduce the new 'smart' library file and make it the default. All explanatory comments
+  have been updated.
+- Added the -b/--builtin option to pre-fill the new library file with built-in info.
+- Removed the -a/--aliases option.
+
+
 ### Library 1.0.3
 - Shut down cleanly when the output pipe is closed.
 
@@ -383,6 +507,14 @@ Library
 
 Pipeline
 --------
+### Pipeline 1.1.0
+- Added the -C/--combine-strands option, to analyse noise for the total number of
+  reads instead of separately for either strand.
+- When the -d/--debug option is used, it is now applied to all tools ran in the pipeline.
+- Fixed bug that required specifying the -r/--store-predictions option to run a pipeline
+  file that contained store-predictions=True.
+
+
 ### Pipeline 1.0.4
 - Removed reference to the 'is-fastq' option of TSSV.
 
@@ -412,6 +544,13 @@ Pipeline
 
 Samplestats
 -----------
+### Samplestats 1.3.0
+- Added the -F/--min-allele-reads and -D/--max-nonallele-pct options, which can be used
+  to suppress allele calls for low-coverage and high-noise markers, respectively.
+- Changed the default value of the -b/--min-per-strand option from 1 to 0.
+- Changed the default value of the -B/--min-per-strand-filt option from 1 to 0.
+
+
 ### Samplestats 1.2.0
 - Fixed bug where the 'Other sequences' could be treated as the maximum
   against which the '*_mp_max' columns are calculated.
@@ -451,6 +590,12 @@ Samplestats
 
 Seqconvert
 ----------
+### Stuttermark 1.6.0
+- Stuttermark now writes its annotations to the 'flags' column.
+- Removed the -c/--column-name option to change the output column name.
+- Removed the 'ALLELE' and 'UNKNOWN' annotations.
+
+
 ### Seqconvert 1.0.2
 - Shut down cleanly when the output pipe is closed.
 
@@ -469,6 +614,15 @@ Seqconvert
 
 Stuttermark
 -----------
+### Stuttermodel 1.2.0
+- Added the -C/--combine-strands option, to model stutter for the total number of
+  reads instead of fitting a separate stutter prediction model for either strand.
+- Removed the random subsampling arguments.
+- Flanks are now ignored even if the library file is given; repeats may
+  be interpreted as being slightly shorter if they continue into the flanks.
+- Duplicate models are no longer produced for palindromic repeat units such as AT.
+
+
 ### Stuttermark 1.5.1
 - Don't crash on empty input files.
 - Shut down cleanly when the output pipe is closed.
@@ -489,7 +643,7 @@ Stuttermark
 
 
 ### Stuttermark 1.3.0
-- First version of Stuttermark to be included in ``fdstools``.
+- First version of Stuttermark to be included in `fdstools`.
 - Fixed crash that occurred when an empty allele (e.g., a primer dimer)
   was encountered.
 - Stuttermark now prints a warning if an allele is encountered that is
@@ -498,7 +652,7 @@ Stuttermark
 
 ### Stuttermark 1.2.0
 - All settings are now available from the command line.
-- Use 1-based indexing in ``STUTTER`` annotations.
+- Use 1-based indexing in 'STUTTER' annotations.
 
 
 ### Stuttermark 1.1.0
@@ -537,8 +691,30 @@ Stuttermodel
 
 TSSV
 ----
+### TSSV 2.1.0
+- Changed the default value for -a/--minimum from 1 to 2.
+- Replaced the -A/--aggregate-filtered option with the -B/--no-aggregate-filtered option.
+- TSSV will no longer assign one read to multiple, seemingly overlapping markers.
+  This makes it possible to configure copies of multi-copy markers as separate markers
+  and have TSSV figure out from which copy a read originates. It also solves situations
+  like the DYS389I/II ambiguity.
+- Added the -L/--flank-length option, to specify the length of the anchor sequences to
+  use, unless explicitly specified per marker in the library file.
+- The -m/--mismatches option value will now be taken as an absolute number of allowed
+  mismatches if it is larger than 1.
+- The flanks may now contain IUPAC ambiguity codes, which can be used to match against
+  degenerate bases in the primers or bisulfite-converted Cytosine bases in methylation-based
+  essays (C/T=Y).
+- Added support for GZipped FastA/FastQ files.
+- Removed the error that occurred when the -D/--dir option is used and
+  the output directory already exists.
+- An informative error message is now displayed when an empty library file is given.
+- Don't abort if the report stream is closed; log a message to the
+  report stream if the main output stream is closed.
+
+
 ### TSSV 2.0.0
-- Removed dependency on external tssv package (it is no longer compatible).
+- Removed dependency on external `tssv` package (it is no longer compatible).
 - Greatly increased performance by deduplicating the input reads.
 - Removed the -q/--is-fastq option in favour of automatic detection.
 - Changed the default value for -m/--mismatches from 0.08 to 0.1.
@@ -581,6 +757,12 @@ TSSV
 
 Vis
 ---
+### Vis 1.1.0
+- Changed the default value of the -B/--bias-threshold option from 25 to 0.
+- Changed the default value of the -Z/--allele-min-per-strand option from 1 to 0.
+- Removed the -O/--online option.
+
+
 ### Vis 1.0.4
 - Shut down cleanly when the output pipe is closed.
 
@@ -680,6 +862,10 @@ BGRawvis
 Profilevis
 ----------
 ### Profilevis 2.0.1
+- Added ability to display background noise profiles operating on total read counts.
+
+
+### Profilevis 2.0.1
 - Changed default save filename in HTML visualisations to 'bgprofiles'.
 - Fixed glitch where, in HTML visualisations with embedded data and a
   custom title, the custom title was truncated to the last '.' as if it
@@ -711,6 +897,17 @@ Profilevis
 
 Samplevis
 ---------
+### Samplevis 2.3.0
+- Fixed an issue that prevented manually marking additional alleles.
+- Fixed an issue with restoring allele calls after the visualisation has been saved.
+- Added ability to display background noise profiles operating on total read counts.
+- Added ability to display multiple noise correction notes for a single sequence.
+- Added ability to display and save notes based on the optional 'flags' column, such
+  as Novel allele calls from FindNewAlleles.
+- Changed default minimum number of reads per strand for table filtering from 1 to 0.
+- Changed the default bias threshold from 25% to 0% (disabled).
+
+
 ### Samplevis 2.2.2
 - Minor change to the calculation of percentage of forward reads to prevent
   roundoff effects.
@@ -785,6 +982,10 @@ Samplevis
 
 Stuttermodelvis
 ---------------
+### Stuttermodelvis 2.0.4
+- Added ability to display stutter models fitted on total read counts.
+
+
 ### Stuttermodelvis 2.0.3
 - Fixed bug that caused HTML visualisations with embedded data to fail
   while loading.
