@@ -366,10 +366,10 @@ Return two python integers: the sequence distance, and the position of the match
 static PyObject *sse2_align(PyObject *self, PyObject *args, PyObject *kwargs) {
     // Parse Python arguments.
     const char *seq1, *seq2;
-    const unsigned int seq1len, seq2len;
-    const unsigned char indel_score;
-    const unsigned char global_align = 0;
-    const unsigned char bitwise = 0;
+    unsigned int seq1len, seq2len;
+    unsigned char indel_score;
+    unsigned char global_align = 0;
+    unsigned char bitwise = 0;
     unsigned char *matrix;
     PyObject *result;
     if (!PyArg_ParseTupleAndKeywords(args, kwargs, "s#s#b|bb", argumentNames,
@@ -525,10 +525,10 @@ Return two python integers: the sequence distance, and the position of the match
 static PyObject *align(PyObject *self, PyObject *args, PyObject *kwargs) {
     // Parse Python arguments.
     const char *seq1, *seq2;
-    const unsigned int seq1len, seq2len;
-    const unsigned char indel_score;
-    const unsigned char global_align = 0;
-    const unsigned char bitwise = 0;
+    unsigned int seq1len, seq2len;
+    unsigned char indel_score;
+    unsigned char global_align = 0;
+    unsigned char bitwise = 0;
     unsigned int rows, columns;
     unsigned char *matrix;
     PyObject *result;
