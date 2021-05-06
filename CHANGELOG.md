@@ -1,8 +1,8 @@
 FDSTools Changelog
 ==================
 ### Version 2.0.0
-- FDSTools can now be run using 'python -m fdstools' too, which is helpful
-  when the regular 'fdstools' command is not available on the PATH.
+- FDSTools can now be run using `python -m fdstools` too, which is helpful
+  when the regular `fdstools` command is not available on the PATH.
 - FDSTools now contains built-in libraries for commonly-used kits, which can be
   accessed by specifying a predefined library name instead of a path to a file.
 - Directly supplying a legacy TSSV library (tab-separated format) is no longer
@@ -20,6 +20,7 @@ FDSTools Changelog
   about the error can be obtained by running the troubled tool in debug mode.
 - FDSTools will now display detailed error information when the -d/--debug
   argument is given, if an unexpected error occurs during argument parsing.
+- Updated dependency requirements (python>=3.5, numpy>=1.17 and strnaming>=1.0.0).
 - Includes [Allelefinder v1.1.0](#Allelefinder-110)
 - Includes [BGAnalyse v1.1.0](#BGAnalyse-110)
 - Includes [BGCorrect v1.1.0](#BGCorrect-110)
