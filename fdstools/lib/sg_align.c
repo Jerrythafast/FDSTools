@@ -195,6 +195,13 @@ Fill the alignment matrix as created with _sse2_make_matrix().
 static void _sse2_align(unsigned char *mem, const unsigned int seq1len, const unsigned int seq2len,
                         const char *seq1, const char *seq2, const unsigned char indel_score,
                         const unsigned char bitwise) {
+    // Get copy of seq2 and reverse of seq1, making sure
+    // that we can read 16 bytes (of garbage) past the end.
+    char *seq1r = malloc(seq1len + 16),
+         *seq2f = malloc(seq2len + 16);
+    strcpy(seq2f, seq2);
+    _revseq(seq1, seq1r, seq1len);
+
     unsigned int x = 1,
                  y = 1,
                  width = (seq2len+31) & ~0x0F,
@@ -215,12 +222,6 @@ static void _sse2_align(unsigned char *mem, const unsigned int seq1len, const un
             mx,
             my;
 
-    // Get copy of seq2 and reverse of seq1, making sure
-    // that we can read 16 bytes (of garbage) past the end.
-    char *seq1r = malloc(seq1len + 16),
-         *seq2f = malloc(seq2len + 16);
-    strcpy(seq2f, seq2);
-    _revseq(seq1, seq1r, seq1len);
     mx = _mm_loadu_si128((__m128i*)seq2f);
     my = _mm_loadu_si128((__m128i*)(seq1r + seq1len - 1));
 
