@@ -401,6 +401,9 @@ static PyObject *sse2_align(PyObject *self, PyObject *args, PyObject *kwargs) {
 /*
 Allocates and returns a pointer to the alignment matrix.
 */
+#ifdef __SSE2__
+__attribute__ ((__target__ ("no-sse")))
+#endif
 static unsigned char *_make_matrix(const unsigned int rows, const unsigned int columns,
                                    const unsigned char indel_score, const unsigned char global_align) {
     unsigned char *matrix = malloc(rows * columns * sizeof(char));
@@ -428,6 +431,9 @@ static unsigned char *_make_matrix(const unsigned int rows, const unsigned int c
 /*
 Fill the alignment matrix as created with _make_matrix().
 */
+#ifdef __SSE2__
+__attribute__ ((__target__ ("no-sse")))
+#endif
 static void _align(unsigned char *matrix, const unsigned int rows, const unsigned int columns,
                    const char *seq1, const char *seq2, const unsigned char indel_score,
                    const unsigned char bitwise) {
@@ -481,6 +487,9 @@ Return the smallest possible sequence distance, along with the ending position i
 
 Oprates on an alignment matrix as created with _make_matrix().
 */
+#ifdef __SSE2__
+__attribute__ ((__target__ ("no-sse")))
+#endif
 static PyObject *_find_min(unsigned char *matrix, const unsigned int rows, const unsigned int columns, const unsigned char global_align) {
     unsigned int distance = columns - 1;
     unsigned int position = 0;
