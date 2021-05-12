@@ -31,6 +31,10 @@ highest non-allelic sequence exceeds a given limit, no alleles are
 called for this marker.  If this happens for multiple markers in one
 sample, no alleles are called for this sample at all.
 
+If the input file contains a 'flags' column, any sequences with a flag
+starting with 'STUTTER' will be ignored.  Therefore, it is highly
+recommended to run Allelefinder on the output of Stuttermark.
+
 The allele list obtained from allelefinder should always be checked
 carefully before using it as the input of various other tools operating
 on reference samples.  These tools rely heavily on the correctness of
@@ -43,6 +47,7 @@ from errno import EPIPE
 from ..lib.cli import add_sequence_format_args, add_input_output_args, get_input_output_files, \
                       pos_int_arg
 from ..lib.io import get_sample_data, try_write_pipe
+from ..lib.library import get_max_expected_alleles
 from ..lib.seq import SEQ_SPECIAL_VALUES, ensure_sequence_format
 
 __version__ = "1.1.0"
@@ -174,16 +179,6 @@ def find_alleles_sample(data, outfile, reportfile, tag, min_reads, min_reads_low
                 allele, seqformat, library=library, marker=marker)
             outfile.write("\t".join((tag, marker, str(alleles[marker][allele]), seq)) + "\n")
 #find_alleles_sample
-
-
-def get_max_expected_alleles(max_alleles, marker, library):
-    if max_alleles is not None:
-        return max_alleles
-    if library is not None:
-        r = library.get_range(marker)
-        return r.get_option("max_expected_copies", 1 if r.location[0] in ("MY") else 2)
-    return 2
-#get_max_expected_alleles
 
 
 def add_arguments(parser):

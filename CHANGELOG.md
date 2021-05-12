@@ -548,6 +548,9 @@ Samplestats
 ### Samplestats 1.3.0
 - Added the -E/--min-allele-reads and -D/--max-nonallele-pct options, which can be used
   to suppress allele calls for low-coverage and high-noise markers, respectively.
+- Added the -G/--max-alleles option, which can be used to suppress allele calls if more
+  alleles than expected are called at a marker.
+- Added the -l/--library and -F/--sequence-format options.
 - Changed the default value of the -b/--min-per-strand option from 1 to 0.
 - Changed the default value of the -B/--min-per-strand-filt option from 1 to 0.
 

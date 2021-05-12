@@ -61,7 +61,8 @@ from errno import EPIPE
 
 from ..lib.cli import add_input_output_args, get_input_output_files
 from ..lib.io import get_column_ids
-from ..lib.seq import SEQ_SPECIAL_VALUES
+from ..lib.library import get_max_expected_alleles
+from ..lib.seq import SEQ_SPECIAL_VALUES, ensure_sequence_format
 
 __version__ = "1.3.0"
 
@@ -252,8 +253,9 @@ def add_pct_columns(row, ci, column, aggr):
 
 def compute_stats(infile, outfile, min_reads, min_per_strand, min_pct_of_max, min_pct_of_sum,
                   min_correction, min_recovery, min_allele_reads, max_nonallele_pct, filter_action,
-                  filter_absolute, min_reads_filt, min_per_strand_filt, min_pct_of_max_filt,
-                  min_pct_of_sum_filt, min_correction_filt, min_recovery_filt):
+                  filter_absolute, max_alleles, min_reads_filt, min_per_strand_filt,
+                  min_pct_of_max_filt, min_pct_of_sum_filt, min_correction_filt,
+                  min_recovery_filt, library, sequence_format):
     # Check presence of required columns.
     column_names = infile.readline().rstrip("\r\n").split("\t")
     if column_names == [""]:
@@ -411,12 +413,14 @@ def compute_stats(infile, outfile, min_reads, min_per_strand, min_pct_of_max, mi
             elif not is_aggregate and total_reads > max_noise_reads:
                 max_noise_reads = total_reads
 
-        # Remove allele flags again if coverage is low or noise is high.
-        if allele_reads and (allele_reads < min_allele_reads or
-                100 * max_noise_reads / allele_reads > max_nonallele_pct):
+        if (not max_alleles == 0 and len(alleles) >
+                get_max_expected_alleles(max_alleles, marker, library)) or (allele_reads and
+                (allele_reads < min_allele_reads or
+                100 * max_noise_reads / allele_reads > max_nonallele_pct)):
+            # Remove allele flags if there are more alleles than expected,
+            # total allele coverage is too low, or noise is too high.
             for allele in alleles:
                 allele[ci["flags"]].remove("allele")
-
 
     # Reorder columns.
     new_order = {}
@@ -461,6 +465,9 @@ def compute_stats(infile, outfile, min_reads, min_per_strand, min_pct_of_max, mi
                     else:
                         row[i] = "%#.3g" % row[i]
                 row[ci["flags"]] = ",".join(row[ci["flags"]])
+                if sequence_format is not None:
+                    row[ci["sequence"]] = ensure_sequence_format(
+                        row[ci["sequence"]], sequence_format, library=library, marker=marker)
                 outfile.write("\t".join(map(str,
                     (row[new_order[i]] for i in range(len(row))))) + "\n")
 
@@ -587,6 +594,11 @@ def add_arguments(parser):
         help="if specified, apply filters to absolute read counts (i.e., with "
              "the sign removed), which may keep over-corrected sequences that "
              "would otherwise be filtered out")
+    filtergroup.add_argument("-G", "--max-alleles", metavar="N", type=pos_int_arg,
+         nargs="?", default=0,
+        help="if specified, allow no more than this number of alleles per marker; without N, the "
+             "amounts given in the library file are used, which have a default value of 1 for "
+             "markers on the mitochondrial genome and Y chromosome, or 2 otherwise")
     filtergroup.add_argument("-N", "--min-reads-filt", metavar="N", type=float,
         default=_DEF_MIN_READS_FILT,
         help="the minimum number of reads (default: %(default)s)")
@@ -610,6 +622,7 @@ def add_arguments(parser):
         help="the minimum number of reads that was recovered thanks to "
              "noise correction (by e.g., bgcorrect), as a percentage of the "
              "total number of reads after correction (default: %(default)s)")
+    add_sequence_format_args(parser)
 #add_arguments
 
 
@@ -627,10 +640,10 @@ def run(args):
             compute_stats(infile, outfile, args.min_reads, args.min_per_strand,
                           args.min_pct_of_max, args.min_pct_of_sum, args.min_correction,
                           args.min_recovery, args.min_allele_reads, args.max_nonallele_pct,
-                          args.filter_action, args.filter_absolute, args.min_reads_filt,
-                          args.min_per_strand_filt, args.min_pct_of_max_filt,
+                          args.filter_action, args.filter_absolute, args.max_alleles,
+                          args.min_reads_filt, args.min_per_strand_filt, args.min_pct_of_max_filt,
                           args.min_pct_of_sum_filt, args.min_correction_filt,
-                          args.min_recovery_filt)
+                          args.min_recovery_filt, args.library, args.sequence_format)
             if infile != sys.stdin:
                 infile.close()
         except IOError as e:

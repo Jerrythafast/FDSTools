@@ -360,3 +360,13 @@ def get_builtin_library(name):
     except KeyError:
         return None
 #get_builtin_library
+
+
+def get_max_expected_alleles(max_alleles, marker, library):
+    if max_alleles is not None:
+        return max_alleles
+    if library is not None:
+        r = library.get_range(marker)
+        return r.get_option("max_expected_copies", 1 if r.location[0] in ("MY") else 2)
+    return 2
+#get_max_expected_alleles
