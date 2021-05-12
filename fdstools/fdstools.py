@@ -75,6 +75,13 @@ class _HelpFormatter(argparse.HelpFormatter):
             return ""  # Don't display '...' for -h and -v.
         return super()._format_args(action, default_metavar)
     #_format_args
+
+    def _format_action_invocation(self, action):
+        if not action.option_strings or action.nargs == 0:
+            return super()._format_action_invocation(action)
+        # Show metavar once for each option.
+        return ", ".join(action.option_strings) + " " + self._format_args(
+            action, self._get_default_metavar_for_optional(action))
 #_HelpFormatter
 
 
