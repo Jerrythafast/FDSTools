@@ -591,12 +591,6 @@ Samplestats
 
 Seqconvert
 ----------
-### Stuttermark 1.6.0
-- Stuttermark now writes its annotations to the 'flags' column.
-- Removed the -c/--column-name option to change the output column name.
-- Removed the 'ALLELE' and 'UNKNOWN' annotations.
-
-
 ### Seqconvert 1.0.2
 - Shut down cleanly when the output pipe is closed.
 
@@ -615,13 +609,10 @@ Seqconvert
 
 Stuttermark
 -----------
-### Stuttermodel 1.2.0
-- Added the -C/--combine-strands option, to model stutter for the total number of
-  reads instead of fitting a separate stutter prediction model for either strand.
-- Removed the random subsampling arguments.
-- Flanks are now ignored even if the library file is given; repeats may
-  be interpreted as being slightly shorter if they continue into the flanks.
-- Duplicate models are no longer produced for palindromic repeat units such as AT.
+### Stuttermark 1.6.0
+- Stuttermark now writes its annotations to the 'flags' column.
+- Removed the -c/--column-name option to change the output column name.
+- Removed the 'ALLELE' and 'UNKNOWN' annotations.
 
 
 ### Stuttermark 1.5.1
@@ -668,6 +659,15 @@ Stuttermark
 
 Stuttermodel
 ------------
+### Stuttermodel 1.2.0
+- Added the -C/--combine-strands option, to model stutter for the total number of
+  reads instead of fitting a separate stutter prediction model for either strand.
+- Removed the random subsampling arguments.
+- Flanks are now ignored even if the library file is given; repeats may
+  be interpreted as being slightly shorter if they continue into the flanks.
+- Duplicate models are no longer produced for palindromic repeat units such as AT.
+
+
 ### Stuttermodel 1.1.2
 - Shut down cleanly when the output pipe is closed.
 
