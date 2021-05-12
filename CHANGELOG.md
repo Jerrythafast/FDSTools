@@ -20,7 +20,7 @@ FDSTools Changelog
   about the error can be obtained by running the troubled tool in debug mode.
 - FDSTools will now display detailed error information when the -d/--debug
   argument is given, if an unexpected error occurs during argument parsing.
-- Updated dependency requirements (python>=3.5, numpy>=1.17 and strnaming>=1.0.0).
+- Updated dependency requirements (python>=3.5, numpy>=1.17 and strnaming==1.1.*).
 - Includes [Allelefinder v1.1.0](#Allelefinder-110)
 - Includes [BGAnalyse v1.1.0](#BGAnalyse-110)
 - Includes [BGCorrect v1.1.0](#BGCorrect-110)
@@ -546,7 +546,7 @@ Pipeline
 Samplestats
 -----------
 ### Samplestats 1.3.0
-- Added the -F/--min-allele-reads and -D/--max-nonallele-pct options, which can be used
+- Added the -E/--min-allele-reads and -D/--max-nonallele-pct options, which can be used
   to suppress allele calls for low-coverage and high-noise markers, respectively.
 - Changed the default value of the -b/--min-per-strand option from 1 to 0.
 - Changed the default value of the -B/--min-per-strand-filt option from 1 to 0.

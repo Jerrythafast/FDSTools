@@ -96,7 +96,7 @@ _DEF_MIN_CORRECTION = 0
 _DEF_MIN_RECOVERY = 0
 
 # Default minimum total number of allelic reads.
-# This value can be overridden by the -F command line option.
+# This value can be overridden by the -E command line option.
 _DEF_MIN_ALLELE_READS = 0
 
 # Default maximum amount of noise to allow, as a percentage of the
@@ -566,7 +566,7 @@ def add_arguments(parser):
         help="the minimum number of reads that was recovered thanks to "
              "noise correction (by e.g., bgcorrect), as a percentage of the "
              "total number of reads after correction (default: %(default)s)")
-    intergroup.add_argument('-F', '--min-allele-reads', metavar="N",
+    intergroup.add_argument('-E', '--min-allele-reads', metavar="N",
         type=float, default=_DEF_MIN_ALLELE_READS,
         help="force a minimum total number of reads for all alleles on a marker; don't call "
              "any alleles otherwise (default: %(default)s)")
