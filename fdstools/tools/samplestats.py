@@ -59,7 +59,7 @@ import sys
 
 from errno import EPIPE
 
-from ..lib.cli import add_input_output_args, get_input_output_files
+from ..lib.cli import add_input_output_args, get_input_output_files, pos_int_arg
 from ..lib.io import get_column_ids
 from ..lib.library import get_max_expected_alleles
 from ..lib.seq import SEQ_SPECIAL_VALUES, ensure_sequence_format
