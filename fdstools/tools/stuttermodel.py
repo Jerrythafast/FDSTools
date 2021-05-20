@@ -28,8 +28,10 @@ background noise profiles of alleles for which no reference samples are
 available.
 """
 import argparse
+import re
 #import numpy as np  # Only imported when actually running this tool.
 
+from concurrent.futures import ProcessPoolExecutor
 from errno import EPIPE
 
 from ..lib.cli import add_sequence_format_args, add_input_output_args, add_allele_detection_args,\
@@ -203,9 +205,26 @@ def filter_data(data, min_samples):
 #filter_data
 
 
+def get_variants_async(data, max_unit_length, workers):
+    pat_minimal_repeat = re.compile(
+        r"(.).{,%i}\1" % (max_unit_length-1) if max_unit_length > 1 else r"(.)\1")
+    variants = {}
+    pool = ProcessPoolExecutor(workers)
+    for marker in data["alleles"]:
+        for allele in data["alleles"][marker]:
+            if pat_minimal_repeat.search(allele) is not None:
+                sequences = set(sequence for sample in data["alleles"][marker][allele]
+                    for sequence in data["samples"][sample, marker])
+                for sequence in sequences:
+                    variants[allele, sequence] = pool.submit(call_variants, allele, sequence, cache=False)
+    pool.shutdown(wait=False)
+    return variants
+#get_variants_async
+
+
 def fit_stutter(samples_in, outfile, allelefile, annotation_column, min_pct, min_abs, min_lengths,
                 min_samples, library, min_r2, orphans, degree, same_shape, ignore_zeros,
-                max_unit_length, raw_outfile, marker, combine_strands):
+                max_unit_length, raw_outfile, marker, combine_strands, workers):
 
     # Parse allele list.
     allelelist = {} if allelefile is None else parse_allelelist(allelefile,
@@ -225,6 +244,9 @@ def fit_stutter(samples_in, outfile, allelefile, annotation_column, min_pct, min
     # Ensure minimum number of samples per allele.
     filter_data(data, min_samples)
 
+    # Get started on variant calling in separate worker processes.
+    variants = get_variants_async(data, max_unit_length, workers) if workers > 1 else None
+
     # Compile 2 regular expressions for each unique repeat sequence.
     patterns = {seq: [get_repeat_pattern(seq), get_repeat_pattern(reverse_complement(seq))]
                 for seq in get_unique_repeats(max_unit_length)}
@@ -243,7 +265,7 @@ def fit_stutter(samples_in, outfile, allelefile, annotation_column, min_pct, min
         while True:
             if fit_stutter_model(outfile, raw_outfile, data, library, seq, patterns[seq], min_r2,
                     min_lengths, degree, same_shape, ignore_zeros, stutter_fold, orphans,
-                    combine_strands):
+                    combine_strands, variants):
                 stutter_fold += 1 if stutter_fold > 0 else -1
             elif stutter_fold < 0:
                 stutter_fold = 1
@@ -253,7 +275,8 @@ def fit_stutter(samples_in, outfile, allelefile, annotation_column, min_pct, min
 
 
 def fit_stutter_model(outfile, raw_outfile, data, library, seq, patterns, min_r2, min_lengths,
-                      degree, same_shape, ignore_zeros, stutter_fold, orphans, combine_strands):
+                      degree, same_shape, ignore_zeros, stutter_fold, orphans, combine_strands,
+                      variants):
     palindromic = seq == reverse_complement(seq)
     num_amounts = 1 if combine_strands else 2
     num_fits = 1 if palindromic else num_amounts
@@ -299,7 +322,11 @@ def fit_stutter_model(outfile, raw_outfile, data, library, seq, patterns, min_r2
                 for sample in data["alleles"][marker][allele]:
                     amount = [0.] * num_amounts  # Reads per 100 reads of allele.
                     for sequence in data["samples"][sample, marker]:
-                        if variant in call_variants(allele, sequence):
+                        if variants:
+                            this_variants = variants[allele, sequence].result()
+                        else:
+                            this_variants = call_variants(allele, sequence)
+                        if variant in this_variants:
                             for i in range(num_amounts):
                                 amount[i] += data["samples"][sample, marker][sequence][i]
                     if is_reverse_complement:
@@ -460,6 +487,8 @@ def add_arguments(parser):
     parser.add_argument("-C", "--combine-strands", action="store_true",
         help="if specified, stutter will be modeled for the total number of reads, "
              "instead of separately for either strand")
+    parser.add_argument("-T", "--num-threads", metavar="THREADS", type=pos_int_arg, default=1,
+        help="number of worker threads to use (default: %(default)s)")
     filtergroup = parser.add_argument_group("filtering options")
     filtergroup.add_argument("-m", "--min-pct", metavar="PCT", type=float,
         default=_DEF_THRESHOLD_PCT,
@@ -513,7 +542,8 @@ def run(args):
         fit_stutter(files[0], files[1], args.allelelist, args.annotation_column, args.min_pct,
                     args.min_abs, args.min_lengths, args.min_samples, args.library, args.min_r2,
                     args.orphans, args.degree, args.same_shape, args.ignore_zeros,
-                    args.max_unit_length, args.raw_outfile, args.marker, args.combine_strands)
+                    args.max_unit_length, args.raw_outfile, args.marker, args.combine_strands,
+                    args.num_threads)
     except IOError as e:
         if e.errno == EPIPE:
             return

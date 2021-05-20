@@ -665,6 +665,8 @@ Stuttermodel
 ### Stuttermodel 1.2.0
 - Added the -C/--combine-strands option, to model stutter for the total number of
   reads instead of fitting a separate stutter prediction model for either strand.
+- Added the -T/--num-threads option (default: 1), which controls the number worker
+  threads to use when scanning for potential stutter events.
 - Removed the random subsampling arguments.
 - Flanks are now ignored even if the library file is given; repeats may
   be interpreted as being slightly shorter if they continue into the flanks.
