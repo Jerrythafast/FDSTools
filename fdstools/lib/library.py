@@ -48,7 +48,7 @@ INI_COMMENT = textwrap.TextWrapper(width=79, initial_indent="; ",
 # Dict of built-in library files.
 BUILTIN_LIBS = {_.stem: _
     for _ in (Path(__file__).parent.parent / "data" / "libraries").glob("*.ini")}
-BUILTIN_NAMES = tuple(BUILTIN_LIBS.keys())
+BUILTIN_NAMES = tuple(sorted(BUILTIN_LIBS))
 
 
 def add_legacy_range(reported_range_store, marker, prefix, suffix, blocks, options, genome_position=None):
