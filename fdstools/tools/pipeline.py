@@ -68,7 +68,7 @@ from ..lib.library import INI_COMMENT
 __version__ = "1.1.0"
 
 
-# Pattern to split a comma-, semicolon-, or space-separated list.
+# Pattern to split a quoted string.
 PAT_SPLIT_QUOTED = re.compile(r""""((?:\\"|[^"])*)"|'((?:\\'|[^'])*)'|(\S+)""")
 
 # Pattern that matches a long argparse argument name.

@@ -38,8 +38,8 @@ PAT_STR_DEF_BLOCK = re.compile("([ACGT]+)\s+(\d+)\s+(\d+)")
 # Pattern that matches a chromosome name/number.
 PAT_CHROMOSOME = re.compile("^(?:[Cc][Hh][Rr](?:[Oo][Mm])?)?([1-9XYM]|1\d|2[0-2])$")
 
-# Pattern to split a comma-, semicolon-, or space-separated list.
-PAT_SPLIT = re.compile("\s*[,; \t]\s*")
+# Pattern to split a comma-, tab- or space-separated list.
+PAT_SPLIT = re.compile("\s*[, \t]\s*")
 
 # TextWrapper object for formatting help texts in generated INI files.
 INI_COMMENT = textwrap.TextWrapper(width=79, initial_indent="; ",
@@ -172,7 +172,7 @@ def parse_library(handle):
     ini.readfp(handle)
     for section in ini.sections():
         for marker in ini.options(section):
-            value = ini.get(section, marker)
+            value = ini.get(section, marker).split(";", 1)[0].strip()
             section_low = section.lower()
             if section_low == "flanks":
                 value = PAT_SPLIT.split(value)

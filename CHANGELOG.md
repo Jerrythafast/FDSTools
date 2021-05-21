@@ -11,6 +11,9 @@ FDSTools Changelog
 - Specifying multiple prefix and suffix sequences for one marker is no longer
   supported; users migrating their library files from v1.x to v2.0 will have
   to make sure only the first prefix or suffix sequence is retained.
+- In library files, a semicolon (;) can now be used to add a comment to the end
+  of the line. As a side-effect, it is no longer possible to use semicolons as
+  value separators.
 - Aliases, custom allele names for specific sequences, have been removed.
 - FDSTools will now always use UTF-8 encoding for file I/O.
 - FDSTools will now display a 'Failed to load X' message if importing tool X
