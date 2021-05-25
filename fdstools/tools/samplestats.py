@@ -582,6 +582,12 @@ def add_arguments(parser):
         type=float, default=_DEF_MAX_NONALLELE_PCT,
         help="drop all allele markings if the highest non-allelic sequence is at least this "
              "percentage of the highest allele of that marker (default: %(default)s)")
+    intergroup.add_argument("-G", "--max-alleles", metavar="N", type=pos_int_arg,
+        nargs="?", default=0,
+        help="if specified, do not mark any alleles on a marker if more than N alleles meet the "
+             "criteria; without N, the amounts given in the library file are used, which have a "
+             "default value of 1 for markers on the mitochondrial genome and Y chromosome, or 2 "
+             "otherwise")
     filtergroup = parser.add_argument_group("filtering options",
         "sequences that match the -C or -Y option (or both) and all of the "
         "other settings are retained, all others are filtered")
@@ -595,11 +601,6 @@ def add_arguments(parser):
         help="if specified, apply filters to absolute read counts (i.e., with "
              "the sign removed), which may keep over-corrected sequences that "
              "would otherwise be filtered out")
-    filtergroup.add_argument("-G", "--max-alleles", metavar="N", type=pos_int_arg,
-         nargs="?", default=0,
-        help="if specified, allow no more than this number of alleles per marker; without N, the "
-             "amounts given in the library file are used, which have a default value of 1 for "
-             "markers on the mitochondrial genome and Y chromosome, or 2 otherwise")
     filtergroup.add_argument("-N", "--min-reads-filt", metavar="N", type=float,
         default=_DEF_MIN_READS_FILT,
         help="the minimum number of reads (default: %(default)s)")
