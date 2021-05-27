@@ -116,6 +116,7 @@ def load_data(infile, library=None):
     column_names = infile.readline().rstrip("\r\n").split("\t")
     if column_names == [""]:
         return None, None  # Empty file.
+    expected_column_count = len(column_names)
     colid_total, colid_sequence, = get_column_ids(column_names, "total", "sequence")
     colid_marker, colid_flags = get_column_ids(column_names, "marker", "flags", optional=True)
     if colid_flags is None:
@@ -129,9 +130,9 @@ def load_data(infile, library=None):
 
         # Skip empty/malformed lines (NOTE: allowing additional columns
         # beyond the expected 4 columns).
-        if len(columns) != len(column_names)-1:
+        if len(columns) != expected_column_count:
             if len(line.strip()):
-                print("WARNING: skipped line: %s" % line)
+                print("WARNING: column count mismatch, skipping line: %s" % line)
             continue
 
         # String to integer conversion...
