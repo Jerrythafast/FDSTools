@@ -181,14 +181,13 @@ class TSSV:
 
 
     def cache_results(self, seq, results):
-        self.lock.acquire()
+        """NOTE: In a concurrent context, caller must hold self.lock!"""
         for record in self.cache[seq][1]:
             self.process_results(tuple([record[0], seq]) + record[1:], results)
         if self.deduplicate:
             self.cache[seq] = (True, results)
         else:
             del self.cache[seq]
-        self.lock.release()
     #cache_results
 
 
@@ -197,18 +196,24 @@ class TSSV:
         recognised = 0
         for marker, matches, seq1, seq2 in results:
             recognised |= matches
-            self.counters[marker]["fLeft"] += matches & 1
-            self.counters[marker]["fRight"] += matches >> 1 & 1
-            self.counters[marker]["rLeft"] += matches >> 2 & 1
-            self.counters[marker]["rRight"] += matches >> 3 & 1
+            sequences = self.sequences[marker]
+            counters = self.counters[marker]
+            if matches & 0b0001:
+                counters["fLeft"] += 1
+            if matches & 0b0010:
+                counters["fRight"] += 1
+            if matches & 0b0100:
+                counters["rLeft"] += 1
+            if matches & 0b1000:
+                counters["rRight"] += 1
 
             # Search in the forward strand.
             if seq1 is not None:
-                self.counters[marker]["fPaired"] += 1
-                if seq1 not in self.sequences[marker]:
-                    self.sequences[marker][seq1] = [1, 0]
-                else:
-                    self.sequences[marker][seq1][0] += 1
+                counters["fPaired"] += 1
+                try:
+                    sequences[seq1][0] += 1
+                except KeyError:
+                    sequences[seq1] = [1, 0]
                 if self.outfiles:
                     write_sequence_record(self.outfiles["markers"][marker]["paired"], record)
             elif self.outfiles:
@@ -219,11 +224,11 @@ class TSSV:
 
             # Search in the reverse strand.
             if seq2 is not None:
-                self.counters[marker]["rPaired"] += 1
-                if seq2 not in self.sequences[marker]:
-                    self.sequences[marker][seq2] = [0, 1]
-                else:
-                    self.sequences[marker][seq2][1] += 1
+                counters["rPaired"] += 1
+                try:
+                    sequences[seq2][1] += 1
+                except KeyError:
+                    sequences[seq2] = [0, 1]
                 if self.outfiles:
                     write_sequence_record(self.outfiles["markers"][marker]["paired"], record)
             elif self.outfiles:
@@ -253,8 +258,16 @@ class TSSV:
                 self.indel_score, self.has_iupac, self.workers, chunksize, done_queue))
             thread.daemon = True
             thread.start()
+
+            # Process the results as they come in.
+            # Below is speed-optimized to manage as many workers as possible.
+            acquire_lock = self.lock.acquire
+            release_lock = self.lock.release
+            cache_results = self.cache_results
             for seq, results in itertools.chain.from_iterable(iter(done_queue.get, None)):
-                self.cache_results(seq, results)
+                acquire_lock()
+                cache_results(seq, results)
+                release_lock()
             thread.join()
 
         # Count number of unique sequences per marker.
