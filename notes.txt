@@ -4,7 +4,7 @@ To-do:
   * All tools should allow for additional columns to be present.
   * Make better use of print_debug() in all tools and postpone string formatting.
 * Library functions:
-  * Aliases, or some way to specify multi-copy markers with different refseqs like Amel.
+  * Some way to specify multi-copy markers with different refseqs like Amel.
 * Group tools by function in the command line help and put Pipeline on top.
 * Samplevis:
   * Detect whether correction was performed; hide related columns if not.
@@ -18,6 +18,8 @@ To-do:
     be repainted between each chunk. One major issue with this is that user
     input events may get scheduled between the chunks.
   * Allow table filtering options to be specified for each marker separately.
+* Stuttermodelvis:
+  * Loading of external raw data points file into HTML appears to be broken.
 * Pipeline:
   * Add raw sequence output to ref-sample and case-sample analyses.
 * Samplestats:

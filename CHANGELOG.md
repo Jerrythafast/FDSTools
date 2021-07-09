@@ -666,6 +666,8 @@ Stuttermark
 Stuttermodel
 ------------
 ### Stuttermodel 1.2.0
+- Changed the default value for -t/--min-r2 from 0.8 to 0.5. Stutter correction
+  based on a model with an r-squared score of 0.5 is usually better than no correction.
 - Added the -C/--combine-strands option, to model stutter for the total number of
   reads instead of fitting a separate stutter prediction model for either strand.
 - Added the -T/--num-threads option (default: 1), which controls the number worker
