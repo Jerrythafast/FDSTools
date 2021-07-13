@@ -25,7 +25,7 @@ Compute noise ratios for all noise detected in homozygous reference
 samples.
 
 With this tool, separate data points are produced for each sample, which
-can be visualised using "fdstools vis bgraw".  Use bghomstats or
+can be visualised using 'fdstools vis bgraw'.  Use bghomstats or
 bgestimate to compute aggregate statistics on noise instead.
 """
 from errno import EPIPE
