@@ -326,7 +326,7 @@ def run(args):
         if len(infiles) > 1:
             raise ValueError("multiple input files for sample '%s' specified " % tag)
         try:
-            infile = sys.stdin if infiles[0] == "-" else open(infiles[0], "tr", encoding="UTF-8")
+            infile = sys.stdin if infiles[0] == "-" else open(infiles[0], "rt", encoding="UTF-8")
             match_profiles(infile, outfile, profiles, args.library, args.sequence_format,
                 args.combine_strands)
             if infile != sys.stdin:

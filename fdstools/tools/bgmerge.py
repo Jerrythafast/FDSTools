@@ -54,7 +54,7 @@ def merge_profiles(infiles, outfile, library):
         if infile == "-":
             profiles = load_profiles(sys.stdin, library)
         else:
-            with open(infile, "tr", encoding="UTF-8") as handle:
+            with open(infile, "rt", encoding="UTF-8") as handle:
                 profiles = load_profiles(handle, library)
         for marker, markerprofile in profiles.items():
             if marker not in merged_profiles:

@@ -385,18 +385,18 @@ def prepare_output_dir(dir, markers, file_format):
     # Open output files.
     open_seq_out = gzip.open if file_format.endswith(".gz") else open
     return {
-        "sequences": open(os.path.join(dir, "sequences.csv"), "tw", encoding="UTF-8"),
-        "statistics": open(os.path.join(dir, "statistics.csv"), "tw", encoding="UTF-8"),
-        "unknown": open_seq_out(os.path.join(dir, "unknown" + file_format), "tw", encoding="UTF-8"),
+        "sequences": open(os.path.join(dir, "sequences.csv"), "wt", encoding="UTF-8"),
+        "statistics": open(os.path.join(dir, "statistics.csv"), "wt", encoding="UTF-8"),
+        "unknown": open_seq_out(os.path.join(dir, "unknown" + file_format), "wt", encoding="UTF-8"),
         "markers": {
             marker: {
-                "sequences": open(os.path.join(dir, marker, "sequences.csv"), "tw",
+                "sequences": open(os.path.join(dir, marker, "sequences.csv"), "wt",
                     encoding="UTF-8"),
-                "paired": open_seq_out(os.path.join(dir, marker, "paired" + file_format), "tw",
+                "paired": open_seq_out(os.path.join(dir, marker, "paired" + file_format), "wt",
                     encoding="UTF-8"),
-                "noend": open_seq_out(os.path.join(dir, marker, "noend" + file_format), "tw",
+                "noend": open_seq_out(os.path.join(dir, marker, "noend" + file_format), "wt",
                     encoding="UTF-8"),
-                "nostart": open_seq_out(os.path.join(dir, marker, "nostart" + file_format), "tw",
+                "nostart": open_seq_out(os.path.join(dir, marker, "nostart" + file_format), "wt",
                     encoding="UTF-8"),
             } for marker in markers
         }
@@ -691,7 +691,7 @@ def run(args):
     files = get_input_output_files(args, single_in=True, batch_support=False)
     if not files:
         raise ValueError("please specify an input file, or pipe in the output of another program")
-    infile = sys.stdin.buffer if files[0] == "-" else open(files[0], "br")
+    infile = sys.stdin.buffer if files[0] == "-" else open(files[0], "rb")
     run_tssv_lite(infile, files[1], args.report, args.library, args.flank_length,
                   args.sequence_format, args.mismatches, args.minimum,
                   args.aggregate_filtered, args.missing_marker_action,

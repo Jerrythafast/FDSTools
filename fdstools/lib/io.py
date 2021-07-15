@@ -151,7 +151,7 @@ def get_sample_data(tags_to_files, callback, allelelist=None, annotation_column=
         data = {}
         alleles = set()
         for infile in tags_to_files[tag]:
-            infile = sys.stdin if infile == "-" else open(infile, "tr", encoding="UTF-8")
+            infile = sys.stdin if infile == "-" else open(infile, "rt", encoding="UTF-8")
             alleles.update(read_sample_data_file(
                 infile, data, annotation_column, seqformat, library, marker,
                 drop_special_seq, after_correction, combine_strands, extra_columns))

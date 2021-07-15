@@ -924,7 +924,7 @@ def run(args):
         raise ValueError("The pipeline configuration file cannot be named '-'")
     if os.path.exists(args.config):
         # Run analysis pipeline using configuration file.
-        args.config = open(args.config, "tr", encoding="UTF-8")
+        args.config = open(args.config, "rt", encoding="UTF-8")
         run_ini(get_config(args))
         args.config.close()
     elif args.analysis is not None:
@@ -932,7 +932,7 @@ def run(args):
         print("Configuration file '%s' does not exist, creating default "
               "configuration file for %s analysis..." %
               (args.config, args.analysis))
-        args.config = open(args.config, "tw", encoding="UTF-8")
+        args.config = open(args.config, "wt", encoding="UTF-8")
         write_ini(args)
         args.config.close()
     else:

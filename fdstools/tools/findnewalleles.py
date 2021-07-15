@@ -107,7 +107,7 @@ def run(args):
         if len(infiles) > 1:
             raise ValueError("multiple input files for sample '%s' specified " % tag)
         try:
-            infile = sys.stdin if infiles[0] == "-" else open(infiles[0], "tr", encoding="UTF-8")
+            infile = sys.stdin if infiles[0] == "-" else open(infiles[0], "rt", encoding="UTF-8")
             find_new(infile, outfile, known, args.library)
             if infile != sys.stdin:
                 infile.close()

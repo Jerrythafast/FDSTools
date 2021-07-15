@@ -23,11 +23,11 @@
 import setuptools
 import sys
 
-with open("README.md", "tr", encoding="UTF-8") as fh:
+with open("README.md", "rt", encoding="UTF-8") as fh:
     long_description = fh.read()
 
 version = {}
-with open("fdstools/__init__.py", "tr", encoding="UTF-8") as fh:
+with open("fdstools/__init__.py", "rt", encoding="UTF-8") as fh:
     exec(fh.read(), version)
 
 if sys.hexversion < 0x03000000:

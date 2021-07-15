@@ -449,7 +449,7 @@ def run(args):
         if len(infiles) > 1:
             raise ValueError("multiple input files for sample '%s' specified" % tag)
         try:
-            infile = sys.stdin if infiles[0] == "-" else open(infiles[0], "tr", encoding="UTF-8")
+            infile = sys.stdin if infiles[0] == "-" else open(infiles[0], "rt", encoding="UTF-8")
             annotate_alleles(infile, outfile, args.stutter, args.min_reads, args.min_repeats,
                              args.min_report, args.library, args.debug)
             if infile != sys.stdin:

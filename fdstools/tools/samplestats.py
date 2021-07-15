@@ -638,7 +638,7 @@ def run(args):
         if len(infiles) > 1:
             raise ValueError("multiple input files for sample '%s' specified " % tag)
         try:
-            infile = sys.stdin if infiles[0] == "-" else open(infiles[0], "tr", encoding="UTF-8")
+            infile = sys.stdin if infiles[0] == "-" else open(infiles[0], "rt", encoding="UTF-8")
             compute_stats(infile, outfile, args.min_reads, args.min_per_strand,
                           args.min_pct_of_max, args.min_pct_of_sum, args.min_correction,
                           args.min_recovery, args.min_allele_reads, args.max_nonallele_pct,

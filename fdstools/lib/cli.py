@@ -66,7 +66,7 @@ def library_arg(value):
         builtin = get_builtin_library(value)
         if builtin is not None:
             return builtin
-        with open(value, "tr", encoding="UTF-8") as libfile:
+        with open(value, "rt", encoding="UTF-8") as libfile:
             return parse_library(libfile)
     except Exception as err:
         raise argparse.ArgumentTypeError(err)
@@ -286,13 +286,13 @@ def get_input_output_files(args, *, single_in=False, batch_support=False):
                 outfile = DEF_OUTFILE_FORMAT
             return ((tag,
                     [infiles[i] for i in range(len(tags)) if tags[i] == tag],
-                    open(outfile.replace("\\1", tag).replace("\\2", args.tool), "tw",
+                    open(outfile.replace("\\1", tag).replace("\\2", args.tool), "wt",
                         encoding="UTF-8"))
                     for tag in set(tags))
 
         # Link each output file to each input file.
         # Treating files with the same sample tag as separate samples.
-        return ((tag, [infiles[i]], open(outfiles[i], "tw", encoding="UTF-8"))
+        return ((tag, [infiles[i]], open(outfiles[i], "wt", encoding="UTF-8"))
             for i, tag in enumerate(tags))
 
     if not single_in and batch_support:

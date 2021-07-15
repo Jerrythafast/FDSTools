@@ -101,12 +101,12 @@ def run(args):
         args.infile = sys.stdin
     if args.infile != sys.stdin and args.outfile == sys.stdout and not os.path.exists(args.infile):
         # One filename given, and it does not exist.  Assume outfile.
-        args.outfile = open(args.infile, "tw", encoding="UTF-8")
+        args.outfile = open(args.infile, "wt", encoding="UTF-8")
         args.infile = sys.stdin
 
     if args.infile != sys.stdin:
         # Open the specified input file.
-        args.infile = open(args.infile, "tr", encoding="UTF-8")
+        args.infile = open(args.infile, "rt", encoding="UTF-8")
     elif args.infile.isatty():
         # No input given.  Produce a default FDSTools library.
         args.infile = io.StringIO("")
