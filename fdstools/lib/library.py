@@ -20,7 +20,6 @@
 # along with FDSTools.  If not, see <http://www.gnu.org/licenses/>.
 #
 
-import io, pkgutil  #FIXME, this is temporary
 import re
 import sys
 import textwrap
@@ -271,11 +270,7 @@ def parse_library(handle):
             markers[marker][section_low] = value
 
     # Create a ReportedRangeStore to store data about each marker.
-    reported_range_store = classes.ReportedRangeStore(
-        # FIXME: Now preloading ForenSeq structures from STRNaming, pending
-        # native full-genome support in STRNaming.
-        structure_store=classes.ReferenceStructureStore(
-            io.StringIO(pkgutil.get_data("strnaming", "data/structures.txt").decode())))
+    reported_range_store = classes.ReportedRangeStore()
     MUTEX_GROUPS = {
         "explicit STR": ("prefix", "suffix", "repeat", "length_adjust", "block_length"),
         "explicit non-STR": ("no_repeat",),
