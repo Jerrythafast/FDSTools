@@ -29,7 +29,7 @@ Alternatively, FDSTools can be installed by running:
 
 Release Notes
 -------------
-### Version 2.0.0 (in progress)
+### Version 2.0.0 (2021-07-15)
 Transition to Python 3.5, along with a major upgrade to all tools to
 provide an overall better experience.
 
@@ -40,7 +40,7 @@ Kits that sequence a target on a single strand (such as the ForenSeq DNA
 Signature Prep Kit by Verogen) are now supported.
 
 
-### Version 1.2.1 (in progress)
+### Version 1.2.1 (2021-07-15)
 This release focuses on finishing support for Python2 before the transition
 to Python3. FDSTools will now display the help page if no command is given.
 A message about the transition to Python3 in the next version of FDSTools
