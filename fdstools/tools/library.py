@@ -38,10 +38,6 @@ Alternatively, markers can be explicitly configured, which was the
 default prior to FDSTools version 2.0.  Explicit configuration is
 currently required when the analysed markers are non-human.
 
-Special alleles, such as the 'X' and 'Y' allele from the Amelogenin
-gender test, may be given an explicit allele name by specifying an Alias
-in the FDSTools library file.
-
 Users migrating from the standalone 'TSSV' programme may use the
 libconvert tool to convert their TSSV library file to FDSTools format.
 """

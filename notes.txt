@@ -1,4 +1,5 @@
 To-do:
+* [BUG] Vis can't write to stdout (UnicodeError) on Windows.
 * Homologation:
   * All tools should check the number of columns at each line (like Stuttermark does).
   * All tools should allow for additional columns to be present.
