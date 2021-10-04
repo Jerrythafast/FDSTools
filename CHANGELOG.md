@@ -42,7 +42,7 @@ FDSTools Changelog
 - Includes [Stuttermodel v1.2.0](#Stuttermodel-120)
 - Includes [TSSV v2.1.0](#TSSV-210)
 - Includes [Vis v1.1.0](#Vis-110)
-- Includes [Profilevis v2.0.1](#Profilevis-201)
+- Includes [Profilevis v2.0.2](#Profilevis-202)
 - Includes [Samplevis v2.3.0](#Samplevis-230)
 - Includes [Stuttermodelvis v2.0.4](#Stuttermodelvis-204)
 
@@ -872,7 +872,7 @@ BGRawvis
 
 Profilevis
 ----------
-### Profilevis 2.0.1
+### Profilevis 2.0.2
 - Added ability to display background noise profiles operating on total read counts.
 
 
