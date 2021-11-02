@@ -341,7 +341,7 @@ def parse_library(handle):
                 for i in range(1, len(pos), 2):
                     start, end = pos[i : i + 2]
                     refseq += refseq_store.get_refseq(pos[0], start, end + 1)
-            elif refseq is not None:
+            if "no_repeat" in settings:
                 # If the refseq is specified explicitly, the flanks should also be.
                 if "flanks" not in options:
                     options["flanks"] = ("", "")
