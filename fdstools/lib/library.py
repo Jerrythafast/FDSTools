@@ -317,12 +317,6 @@ def parse_library(handle):
                 reported_range.block_length = settings["block_length"]
         elif "explicit non-STR" in groups:
             # Legacy FDSTools-style definition of a non-STR marker.
-            if "flanks" not in options:
-                options["flanks"] = ("", "")
-            elif any(isinstance(flank, int) for flank in options["flanks"]):
-                raise ValueError(
-                    "Please specify an explit flanking sequence, not just a length, for marker %s"
-                        % marker)
             refseq = settings.get("no_repeat", None)
             pos = settings.get("genome_position", None)
             if refseq is not None and pos is not None:
@@ -347,6 +341,14 @@ def parse_library(handle):
                 for i in range(1, len(pos), 2):
                     start, end = pos[i : i + 2]
                     refseq += refseq_store.get_refseq(pos[0], start, end + 1)
+            elif refseq is not None:
+                # If the refseq is specified explicitly, the flanks should also be.
+                if "flanks" not in options:
+                    options["flanks"] = ("", "")
+                elif any(isinstance(flank, int) for flank in options["flanks"]):
+                    raise ValueError(
+                        "Please specify an explit flanking sequence, not just a length, "
+                        "for marker %s" % marker)
             reported_range = add_legacy_range(
                 reported_range_store, marker, refseq, "", [], options, pos)
 
