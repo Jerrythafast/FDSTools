@@ -294,7 +294,7 @@ def parse_library(handle):
                         section for section in MUTEX_GROUPS[group] if section in settings))
                     for group in groups)))
         options = {option: settings[option] for option in {"flanks", "max_expected_copies",
-                "expected_allele_length"} & settings.keys()}
+                "expected_allele_length", "microhaplotype_positions"} & settings.keys()}
         if "explicit STR" in groups:
             # Legacy FDSTools-style definition of an STR marker.
             # TODO: Alias of STR markers was defined as excluding the prefix/suffix!
