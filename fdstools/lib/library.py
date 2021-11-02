@@ -282,7 +282,7 @@ def parse_library(handle):
     reported_range_store = classes.ReportedRangeStore()
     MUTEX_GROUPS = {
         "explicit STR": ("prefix", "suffix", "repeat", "length_adjust", "block_length"),
-        "explicit non-STR": ("no_repeat", "microhaplotype_positions"),
+        "explicit non-STR": ("no_repeat",),
         "STRNaming-specific": tuple()}  # NOTE: No STRNaming-specific settings now...
     for marker, settings in markers.items():
         groups = [mutex_group for mutex_group, sections in MUTEX_GROUPS.items()
@@ -317,48 +317,26 @@ def parse_library(handle):
                 reported_range.block_length = settings["block_length"]
         elif "explicit non-STR" in groups:
             # Legacy FDSTools-style definition of a non-STR marker.
-            refseq = settings.get("no_repeat", None)
-            pos = settings.get("genome_position", None)
-            if refseq is not None and pos is not None:
+            if "flanks" not in options:
+                options["flanks"] = ("", "")
+            elif any(isinstance(flank, int) for flank in options["flanks"]):
+                raise ValueError(
+                    "Please specify an explit flanking sequence, not just a length, for marker %s"
+                        % marker)
+            refseq = settings["no_repeat"]
+            pos = None
+            if "genome_position" in settings:
+                pos = settings["genome_position"]
+
                 # Sanity check: end position should reflect ref length.
                 length = sum(pos[i] - pos[i - 1] + 1 for i in range(2, len(pos), 2))
                 if len(refseq) < length or (len(pos) % 2 and len(refseq) != length):
                     raise ValueError(
                         "Length of reference sequence of marker %s is %i bases, but "
                         "genome positions add up to %i bases" % (marker, len(refseq), length))
-            elif refseq is None and pos is None:
-                raise ValueError(
-                    "Please specify a [genome_position] for microhaplotype marker " + marker)
-            elif refseq is None:
-                # Get refseq from GRCh38.
-                if not len(pos) % 2:
-                    raise ValueError(
-                        "Invalid genomic position given for marker %s: need an odd number of values "
-                        "(chromosome, start position, end position[, start2, end2, ...])" % marker)
-                struct_store = reported_range_store.get_structure_store()
-                refseq_store = struct_store.get_refseq_store()
-                refseq = ""
-                for i in range(1, len(pos), 2):
-                    start, end = pos[i : i + 2]
-                    refseq += refseq_store.get_refseq(pos[0], start, end + 1)
-            if "no_repeat" in settings:
-                # If the refseq is specified explicitly, the flanks should also be.
-                if "flanks" not in options:
-                    options["flanks"] = ("", "")
-                elif any(isinstance(flank, int) for flank in options["flanks"]):
-                    raise ValueError(
-                        "Please specify an explit flanking sequence, not just a length, "
-                        "for marker %s" % marker)
-            reported_range = add_legacy_range(
-                reported_range_store, marker, refseq, "", [], options, pos)
 
-            if "microhaplotype_positions" in settings:
-                # Put Ns in reporting range refseq for microhaplotype markers.
-                refseq = list(reported_range.refseq)
-                location = reported_range.location
-                for position in settings["microhaplotype_positions"]:
-                    refseq[libsequence.get_genome_pos(location, position, invert=True)] = "N"
-                reported_range.refseq = "".join(refseq)
+            add_legacy_range(reported_range_store, marker, refseq, "", [], options, pos)
+
 
         else:
             # Use STRNaming for this marker.
@@ -377,6 +355,18 @@ def parse_library(handle):
                     marker, chromosome, start, end + 1, load_structures=True, options=options)
             else:
                 reported_range_store.add_complex_range(marker, genome_position, options=options)
+
+        if "microhaplotype_positions" in settings:
+            # Put Ns in reporting range refseq for microhaplotype markers.
+            reported_range = reported_range_store.get_range(marker)
+            if reported_range.library:
+                raise ValueError(
+                    "Cannot define microhaplotype positions for STR marker %s" % marker)
+            refseq = list(reported_range.refseq)
+            location = reported_range.location
+            for position in settings["microhaplotype_positions"]:
+                refseq[libsequence.get_genome_pos(location, position, invert=True)] = "N"
+            reported_range.refseq = "".join(refseq)
     return reported_range_store
 #parse_library
 
