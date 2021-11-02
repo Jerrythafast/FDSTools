@@ -26,7 +26,7 @@ import textwrap
 
 from configparser import RawConfigParser, MissingSectionHeaderError
 from pathlib import Path
-from strnaming import classes, libstrnaming
+from strnaming import classes, libstrnaming, libsequence
 
 from .seq import PAT_SEQ_RAW, PAT_SEQ_IUPAC
 
@@ -241,6 +241,15 @@ def parse_library(handle):
                 if PAT_SEQ_RAW.match(value) is None:
                     raise ValueError(
                         "Reference sequence '%s' of marker %s is invalid" % (value, marker))
+            elif section_low == "microhaplotype_positions":
+                value = PAT_SPLIT.split(value)
+                for i in range(len(value)):
+                    try:
+                        value[i] = int(value[i])
+                    except:
+                        raise ValueError(
+                            "Invalid position number '%s' for microhaplotype marker %s" %
+                            (value[i], marker))
             elif section_low == "expected_allele_length":
                 value = PAT_SPLIT.split(value)
                 try:
@@ -273,7 +282,7 @@ def parse_library(handle):
     reported_range_store = classes.ReportedRangeStore()
     MUTEX_GROUPS = {
         "explicit STR": ("prefix", "suffix", "repeat", "length_adjust", "block_length"),
-        "explicit non-STR": ("no_repeat",),
+        "explicit non-STR": ("no_repeat", "microhaplotype_positions"),
         "STRNaming-specific": tuple()}  # NOTE: No STRNaming-specific settings now...
     for marker, settings in markers.items():
         groups = [mutex_group for mutex_group, sections in MUTEX_GROUPS.items()
@@ -314,19 +323,39 @@ def parse_library(handle):
                 raise ValueError(
                     "Please specify an explit flanking sequence, not just a length, for marker %s"
                         % marker)
-            refseq = settings["no_repeat"]
-            pos = None
-            if "genome_position" in settings:
-                pos = settings["genome_position"]
-
+            refseq = settings.get("no_repeat", None)
+            pos = settings.get("genome_position", None)
+            if refseq is not None and pos is not None:
                 # Sanity check: end position should reflect ref length.
                 length = sum(pos[i] - pos[i - 1] + 1 for i in range(2, len(pos), 2))
                 if len(refseq) < length or (len(pos) % 2 and len(refseq) != length):
                     raise ValueError(
                         "Length of reference sequence of marker %s is %i bases, but "
                         "genome positions add up to %i bases" % (marker, len(refseq), length))
+            elif refseq is None and pos is None:
+                raise ValueError(
+                    "Please specify a [genome_position] for microhaplotype marker " + marker)
+            elif refseq is None:
+                # Get refseq from GRCh38.
+                if not len(pos) % 2:
+                    raise ValueError(
+                        "Invalid genomic position given for marker %s: need an odd number of values "
+                        "(chromosome, start position, end position[, start2, end2, ...])" % marker)
+                struct_store = reported_range_store.get_structure_store()
+                refseq_store = struct_store.get_refseq_store()
+                refseq = ""
+                for i in range(1, len(pos), 2):
+                    start, end = pos[i : i + 2]
+                    refseq += refseq_store.get_refseq(pos[0], start, end + 1)
+            range = add_legacy_range(reported_range_store, marker, refseq, "", [], options, pos)
 
-            add_legacy_range(reported_range_store, marker, refseq, "", [], options, pos)
+            if "microhaplotype_positions" in settings:
+                # Put Ns in reporting range refseq for microhaplotype markers.
+                refseq = list(range.refseq)
+                for position in settings["microhaplotype_positions"]:
+                    refseq[libsequence.get_genome_pos(range.location, position, invert=True)] = "N"
+                range.refseq = "".join(refseq)
+
         else:
             # Use STRNaming for this marker.
             try:

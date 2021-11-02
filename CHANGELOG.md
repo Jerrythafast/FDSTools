@@ -1,5 +1,11 @@
 FDSTools Changelog
 ==================
+### Version 2.0.1
+- Added support for microhaplotype targets. For markers configured as such,
+  the 'allelename' sequence format will look like "MH_AGGTC".
+- Includes [Library v1.1.1](#Library-111)
+
+
 ### Version 2.0.0
 - FDSTools can now be run using `python -m fdstools` too, which is helpful
   when the regular `fdstools` command is not available on the PATH.
@@ -483,6 +489,11 @@ Libconvert
 
 Library
 -------
+### Library 1.1.1
+- Added the -m/--microhaplotypes option, to include the new [microhaplotype_positions]
+  section in the library file.
+
+
 ### Library 1.1.0
 - Introduce the new 'smart' library file and make it the default. All explanatory comments
   have been updated.

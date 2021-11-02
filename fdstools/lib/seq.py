@@ -37,9 +37,14 @@ PAT_SEQ_ALLELENAME_SNP = re.compile(
     "^REF$|^(?:(?:(?<=^)|(?<!^) )"  # 'REF' or space-separated variants.
     "\d+(?:\.1)?(?P<a>(?:(?<=\.1)-)|(?<!\.1)[ACGT]+)>"
         "(?!(?P=a))(?:[ACGT]+|-))+$")  # Portion of variants after '>'.
+PAT_SEQ_ALLELENAME_MH = re.compile(
+    "^MH_[ACGT]*"  # Next line: variants preceded by '_', ref may have N.
+    "(?:_\d+(?:\.1)?(?P<a>(?:(?<=\.1)-)|(?<!\.1)[ACGTN]+)>"
+        "(?!(?P=a))(?:[ACGT]+|-))*$")  # Portion of variants after '>'.
 PAT_SEQ_ALLELENAME_MT = re.compile(
     "^REF$|^(?:(?:(?<=^)|(?<!^) )"  # 'REF' or space-separated variants.
     "(?:-?\d+\.\d+[ACGT]|(?P<a>[ACGT])?\d+(?(a)(?!(?P=a)))(?:[ACGT-]|DEL)))+$")
+PAT_VARIANT_MH = re.compile("^(\d+)N>([ACGT]+)$")
 
 # Special values that may appear in the place of a sequence.
 SEQ_SPECIAL_VALUES = ("No data", "Other sequences")
@@ -50,6 +55,7 @@ reverse_complement = libsequence.reverse_complement
 call_variants = libsequence.call_variants
 mutate_sequence = libsequence.mutate_sequence
 PAT_TSSV_BLOCK = libsequence.PAT_TSSV_BLOCK
+PAT_VARIANT_SNP = libsequence.PAT_VARIANT_SNP
 
 
 def detect_sequence_format(seq):
@@ -64,7 +70,7 @@ def detect_sequence_format(seq):
     if PAT_SEQ_TSSV.match(seq):
         return "tssv"
     if PAT_SEQ_ALLELENAME_STR.match(seq) or PAT_SEQ_ALLELENAME_MT.match(seq) \
-            or PAT_SEQ_ALLELENAME_SNP.match(seq):
+            or PAT_SEQ_ALLELENAME_SNP.match(seq) or PAT_SEQ_ALLELENAME_MH.match(seq):
         return "allelename"
     raise ValueError("Unrecognised sequence format")
 #detect_sequence_format
@@ -94,15 +100,47 @@ def ensure_sequence_format(seq, to_format, *, from_format=None, library=None, ma
     # Perform conversions.
     reported_range = library.get_range(marker)
     if from_format == "allelename":
+        if reported_range.has_option("microhaplotype_positions"):
+            seq = microhaplotype_to_variants(
+                seq, reported_range.get_option("microhaplotype_positions"))
         seq = reported_range.from_name(seq)
     elif from_format == "tssv":
         seq = reported_range.from_tssv(seq)
     if to_format == "tssv":
         return reported_range.get_tssv(seq)
     if to_format == "allelename":
-        return reported_range.get_name(seq)
+        seq = reported_range.get_name(seq)
+        if reported_range.has_option("microhaplotype_positions"):
+            seq = name_microhaplotype(seq)
     return seq
 #ensure_sequence_format
+
+
+def name_microhaplotype(seq):
+    """Convert seq from space-separated variants to a microhap name."""
+    microhaplotype = ""
+    variants = []
+    for variant in seq.split(" "):
+        match = PAT_VARIANT_MH.match(variant)
+        if match:
+            microhaplotype += match.group(2)
+        else:
+            variants.append(variant)
+    return "_".join(["MH", microhaplotype] + variants)
+#name_microhaplotype
+
+
+def microhaplotype_to_variants(seq, positions):
+    """Convert seq from a microhap name to space-separated variants."""
+    _, microhaplotype, *variants = seq.split("_")
+    if len(positions) != len(microhaplotype):
+        raise ValueError("Unable to convert microhaplotype name back to sequence: " + seq)
+    return " ".join(mh_variant for pos, mh_variant in sorted(
+        [(position, "%iN>%s" % (position, base))
+            for position, base in zip(sorted(positions), microhaplotype)] +
+        [(PAT_VARIANT_SNP.match(variant).group("pos"), variant)
+            for variant in variants]))
+#microhaplotype_to_variants
 
 
 def get_repeat_pattern(seq):

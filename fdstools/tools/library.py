@@ -50,7 +50,7 @@ from types import MethodType
 
 from ..lib.library import BUILTIN_LIBS, BUILTIN_NAMES, INI_COMMENT
 
-__version__ = "1.1.0"
+__version__ = "1.1.1"
 
 
 def ini_add_comment(ini, section, comment):
@@ -59,7 +59,7 @@ def ini_add_comment(ini, section, comment):
 #ini_add_comment
 
 
-def make_empty_library_ini(type):
+def make_empty_library_ini(type, microhaplotypes=False):
     ini = RawConfigParser(allow_no_value=True)
     ini.optionxform = str
     ini.add_comment = MethodType(ini_add_comment, ini)
@@ -89,6 +89,16 @@ def make_empty_library_ini(type):
             "spans position 3107 in the rCRS (which is nonexistent), you may "
             "specify \"M, (starting position), 3106, 3108, (ending "
             "position)\".")
+    if microhaplotypes or type == "full":
+        ini.add_section("microhaplotype_positions")
+        ini.add_comment("microhaplotype_positions",
+            "For each microhaplotype marker, specify one or more positions of SNPs that should "
+            "be reported as part of the microhaplotype.%s" % (
+                " If the [genome_position] of the marker is given, positions must be within the "
+                "given range. Otherwise, the reference sequence must be explicitly provided in "
+                "the [no_repeat] section and positions refer to the given reference sequence, "
+                "with position 1 referring to the first base in the reference sequence."
+                    if type in ("non-str", "full") else ""))
     ini.add_section("flanks")
     ini.add_comment("flanks",
         "The TSSV tool will use a pair of short anchor sequences just outside the reported range "
@@ -160,10 +170,10 @@ def make_empty_library_ini(type):
 #make_empty_library_ini
 
 
-def create_library(outfile, type, builtin=None):
+def create_library(outfile, type, microhaplotypes=False, builtin=None):
     outfile.write(INI_COMMENT.fill(
         "Lines beginning with a semicolon (;) are ignored by FDSTools.") + "\n\n")
-    library = make_empty_library_ini(type)
+    library = make_empty_library_ini(type, microhaplotypes)
     if builtin is not None:
         with BUILTIN_LIBS[builtin].open("rt", encoding="UTF-8") as handle:
             library.read_file(handle, source=builtin)
@@ -184,6 +194,9 @@ def add_arguments(parser):
              "in the human genome); 'full' will create a library file with all possible sections; "
              "'str' or 'non-str' will only output sections used to explicitly define STR and "
              "non-STR markers, respectively")
+     parser.add_argument("-m", "--microhaplotypes", action="store_true",
+        help="if specified, the [microhaplotype_positions] section is included, which can be "
+             "used to configure allele calling for microhaplotype targets")
     parser.add_argument("-b", "--builtin", metavar="NAME", choices=BUILTIN_NAMES,
         help="start with a built-in library file, choose from '%s'" % "', '".join(BUILTIN_NAMES))
 #add_arguments
@@ -191,7 +204,7 @@ def add_arguments(parser):
 
 def run(args):
     try:
-        create_library(args.outfile, args.type, args.builtin)
+        create_library(args.outfile, args.type, args.microhaplotypes, args.builtin)
     except IOError as e:
         if e.errno == EPIPE:
             return
