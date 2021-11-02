@@ -347,14 +347,16 @@ def parse_library(handle):
                 for i in range(1, len(pos), 2):
                     start, end = pos[i : i + 2]
                     refseq += refseq_store.get_refseq(pos[0], start, end + 1)
-            range = add_legacy_range(reported_range_store, marker, refseq, "", [], options, pos)
+            reported_range = add_legacy_range(
+                reported_range_store, marker, refseq, "", [], options, pos)
 
             if "microhaplotype_positions" in settings:
                 # Put Ns in reporting range refseq for microhaplotype markers.
-                refseq = list(range.refseq)
+                refseq = list(reported_range.refseq)
+                location = reported_range.location
                 for position in settings["microhaplotype_positions"]:
-                    refseq[libsequence.get_genome_pos(range.location, position, invert=True)] = "N"
-                range.refseq = "".join(refseq)
+                    refseq[libsequence.get_genome_pos(location, position, invert=True)] = "N"
+                reported_range.refseq = "".join(refseq)
 
         else:
             # Use STRNaming for this marker.
