@@ -96,8 +96,8 @@ def make_empty_library_ini(type, microhaplotypes=False):
             "be reported as part of the microhaplotype.%s" % (
                 " If the [genome_position] of the marker is given, positions must be within the "
                 "given range. Otherwise, the reference sequence must be explicitly provided in "
-                "the [no_repeat] section and positions refer to the given reference sequence, "
-                "with position 1 referring to the first base in the reference sequence."
+                "the [no_repeat] section position 1 refers to the first base in the reference "
+                "sequence."
                     if type in ("non-str", "full") else ""))
     ini.add_section("flanks")
     ini.add_comment("flanks",
@@ -194,7 +194,7 @@ def add_arguments(parser):
              "in the human genome); 'full' will create a library file with all possible sections; "
              "'str' or 'non-str' will only output sections used to explicitly define STR and "
              "non-STR markers, respectively")
-     parser.add_argument("-m", "--microhaplotypes", action="store_true",
+    parser.add_argument("-m", "--microhaplotypes", action="store_true",
         help="if specified, the [microhaplotype_positions] section is included, which can be "
              "used to configure allele calling for microhaplotype targets")
     parser.add_argument("-b", "--builtin", metavar="NAME", choices=BUILTIN_NAMES,
