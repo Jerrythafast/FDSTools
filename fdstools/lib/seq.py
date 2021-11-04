@@ -111,22 +111,23 @@ def ensure_sequence_format(seq, to_format, *, from_format=None, library=None, ma
     if to_format == "allelename":
         seq = reported_range.get_name(seq)
         if reported_range.has_option("microhaplotype_positions"):
-            seq = name_microhaplotype(seq)
+            seq = name_microhaplotype(seq, reported_range.get_option("microhaplotype_positions"))
     return seq
 #ensure_sequence_format
 
 
-def name_microhaplotype(seq):
+def name_microhaplotype(seq, positions):
     """Convert seq from space-separated variants to a microhap name."""
-    microhaplotype = ""
+    microhaplotype = {}
     variants = []
     for variant in seq.split(" "):
         match = PAT_VARIANT_MH.match(variant)
         if match:
-            microhaplotype += match.group(2)
+            microhaplotype[int(match.group(1))] = match.group(2)
         else:
             variants.append(variant)
-    return "_".join(["MH", microhaplotype] + variants)
+    return "_".join(
+        ["MH", "".join(microhaplotype.get(position, "?") for position in positions)] + variants)
 #name_microhaplotype
 
 
@@ -137,7 +138,8 @@ def microhaplotype_to_variants(seq, positions):
         raise ValueError("Unable to convert microhaplotype name back to sequence: " + seq)
     return " ".join(mh_variant for pos, mh_variant in sorted(
         [(position, "%iN>%s" % (position, base))
-            for position, base in zip(sorted(positions), microhaplotype)] +
+            for position, base in zip(sorted(positions), microhaplotype)
+            if base != "?"] +
         [(PAT_VARIANT_SNP.match(variant).group("pos"), variant)
             for variant in variants]))
 #microhaplotype_to_variants

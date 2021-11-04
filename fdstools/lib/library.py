@@ -336,8 +336,6 @@ def parse_library(handle):
                         "genome positions add up to %i bases" % (marker, len(refseq), length))
 
             add_legacy_range(reported_range_store, marker, refseq, "", [], options, pos)
-
-
         else:
             # Use STRNaming for this marker.
             try:
