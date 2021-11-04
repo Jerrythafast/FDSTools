@@ -38,7 +38,7 @@ PAT_SEQ_ALLELENAME_SNP = re.compile(
     "\d+(?:\.1)?(?P<a>(?:(?<=\.1)-)|(?<!\.1)[ACGT]+)>"
         "(?!(?P=a))(?:[ACGT]+|-))+$")  # Portion of variants after '>'.
 PAT_SEQ_ALLELENAME_MH = re.compile(
-    "^MH_[ACGT]*"  # Next line: variants preceded by '_', ref may have N.
+    "^MH_[ACGTN]*"  # Next line: variants preceded by '_', ref may have N.
     "(?:_\d+(?:\.1)?(?P<a>(?:(?<=\.1)-)|(?<!\.1)[ACGTN]+)>"
         "(?!(?P=a))(?:[ACGT]+|-))*$")  # Portion of variants after '>'.
 PAT_SEQ_ALLELENAME_MT = re.compile(
@@ -127,7 +127,7 @@ def name_microhaplotype(seq, positions):
         else:
             variants.append(variant)
     return "_".join(
-        ["MH", "".join(microhaplotype.get(position, "?") for position in positions)] + variants)
+        ["MH", "".join(microhaplotype.get(position, "N") for position in positions)] + variants)
 #name_microhaplotype
 
 
@@ -139,8 +139,8 @@ def microhaplotype_to_variants(seq, positions):
     return " ".join(mh_variant for pos, mh_variant in sorted(
         [(position, "%iN>%s" % (position, base))
             for position, base in zip(sorted(positions), microhaplotype)
-            if base != "?"] +
-        [(PAT_VARIANT_SNP.match(variant).group("pos"), variant)
+            if base != "N"] +
+        [(int(PAT_VARIANT_SNP.match(variant).group("pos")), variant)
             for variant in variants]))
 #microhaplotype_to_variants
 
