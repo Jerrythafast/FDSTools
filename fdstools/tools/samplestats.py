@@ -567,13 +567,13 @@ def add_arguments(parser):
              "number of reads (default: %(default)s)")
     intergroup.add_argument("-c", "--min-correction", metavar="PCT",
         type=float, default=_DEF_MIN_CORRECTION,
-        help="the minimum change in read count due to correction by e.g., "
-             "bgcorrect (default: %(default)s)")
+        help="the minimum percentage change in read count due to correction by e.g., "
+             "bgcorrect (total_correction column; default: %(default)s)")
     intergroup.add_argument("-y", "--min-recovery", metavar="PCT",
         type=float, default=_DEF_MIN_RECOVERY,
         help="the minimum number of reads that was recovered thanks to "
-             "noise correction (by e.g., bgcorrect), as a percentage of the "
-             "total number of reads after correction (default: %(default)s)")
+             "noise correction (by e.g., bgcorrect), as a percentage of the total number "
+             "of reads after correction (total_recovery column; default: %(default)s)")
     intergroup.add_argument('-E', '--min-allele-reads', metavar="N",
         type=float, default=_DEF_MIN_ALLELE_READS,
         help="force a minimum total number of reads for all alleles on a marker; don't call "
@@ -581,7 +581,8 @@ def add_arguments(parser):
     intergroup.add_argument('-D', '--max-nonallele-pct', metavar="PCT",
         type=float, default=_DEF_MAX_NONALLELE_PCT,
         help="drop all allele markings if the highest non-allelic sequence is at least this "
-             "percentage of the highest allele of that marker (default: %(default)s)")
+             "percentage of the total number of reads for all alleles on that marker "
+             "(default: %(default)s)")
     intergroup.add_argument("-G", "--max-alleles", metavar="N", type=pos_int_arg,
         nargs="?", default=0,
         help="if specified, do not mark any alleles on a marker if more than N alleles meet the "
@@ -617,13 +618,13 @@ def add_arguments(parser):
              "number of reads (default: %(default)s)")
     filtergroup.add_argument("-C", "--min-correction-filt", metavar="PCT",
         type=float, default=_DEF_MIN_CORRECTION_FILT,
-        help="the minimum change in read count due to correction by e.g., "
-             "bgcorrect (default: %(default)s)")
+        help="the minimum percentage change in read count due to correction by e.g., "
+             "bgcorrect (total_correction column; default: %(default)s)")
     filtergroup.add_argument("-Y", "--min-recovery-filt", metavar="PCT",
         type=float, default=_DEF_MIN_RECOVERY_FILT,
         help="the minimum number of reads that was recovered thanks to "
              "noise correction (by e.g., bgcorrect), as a percentage of the "
-             "total number of reads after correction (default: %(default)s)")
+             "total number of reads after correction (total_recovery column; default: %(default)s)")
     add_sequence_format_args(parser)
 #add_arguments
 
