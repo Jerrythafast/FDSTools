@@ -85,7 +85,7 @@ def find_new(infile, outfile, known, library, remove_allele_flags):
                 library=library, marker=marker) not in known[marker]:
             cols[colid_flags].append("novel")
             if remove_allele_flags and "allele" in cols[colid_flags]:
-                colid_flags.remove("allele")
+                cols[colid_flags].remove("allele")
         cols[colid_flags] = ",".join(cols[colid_flags])
         outfile.write("\t".join(cols) + "\n")
 #find_new
