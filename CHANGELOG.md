@@ -3,6 +3,7 @@ FDSTools Changelog
 ### Version 2.0.1
 - Added support for microhaplotype targets. For markers configured as such,
   the 'allelename' sequence format will look like "MH_AGGTC".
+- Includes [FindNewAlleles v1.1.1](#FindNewAlleles-111)
 - Includes [Library v1.1.1](#Library-111)
 
 
@@ -432,6 +433,11 @@ BGPredict
 
 FindNewAlleles
 --------------
+### FindNewAlleles 1.1.1
+- Added the -r/--remove-allele-flags option. When specified, the 'allele' flag is
+  removed from those alleles that are flagged as 'novel' by this tool.
+
+
 ### FindNewAlleles 1.1.0
 - New alleles are now flagged as 'novel' in the 'flags' column.
 - Removed the -m/--marker option.

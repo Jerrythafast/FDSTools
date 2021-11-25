@@ -35,7 +35,7 @@ from ..lib.cli import add_sequence_format_args, add_input_output_args, get_input
 from ..lib.io import get_column_ids
 from ..lib.seq import SEQ_SPECIAL_VALUES, ensure_sequence_format
 
-__version__ = "1.1.0"
+__version__ = "1.1.1"
 
 
 def read_known(infile, library):
@@ -63,7 +63,7 @@ def read_known(infile, library):
 #read_known
 
 
-def find_new(infile, outfile, known, library):
+def find_new(infile, outfile, known, library, remove_allele_flags):
     column_names = infile.readline().rstrip("\r\n").split("\t")
     if column_names == [""]:
         return  # Empty file.
@@ -77,11 +77,16 @@ def find_new(infile, outfile, known, library):
     for line in infile:
         cols = line.rstrip("\r\n").split("\t")
         if colid_flags == -1:
-            cols.append("")
+            cols.append([])
+        else:
+            cols[colid_flags] = cols[colid_flags].split(",")
         marker = cols[colid_marker]
         if marker not in known or ensure_sequence_format(cols[colid_sequence], "raw",
                 library=library, marker=marker) not in known[marker]:
-            cols[colid_flags] += ",novel" if cols[colid_flags] else "novel"
+            cols[colid_flags].append("novel")
+            if remove_allele_flags and "allele" in cols[colid_flags]:
+                colid_flags.remove("allele")
+        cols[colid_flags] = ",".join(cols[colid_flags])
         outfile.write("\t".join(cols) + "\n")
 #find_new
 
@@ -89,6 +94,8 @@ def find_new(infile, outfile, known, library):
 def add_arguments(parser):
     parser.add_argument("known", metavar="KNOWN", type=argparse.FileType("tr", encoding="UTF-8"),
         help="file containing a list of known allelic sequences")
+    parser.add_argument("-r", "--remove-allele-flags", action="store_true",
+        help="remove the 'allele' flag from the alleles that are marked 'novel'")
     add_input_output_args(parser, single_in=True, batch_support=True, report_out=False)
     add_sequence_format_args(parser, default_format="raw", force=True)
 #add_arguments
@@ -108,7 +115,7 @@ def run(args):
             raise ValueError("multiple input files for sample '%s' specified " % tag)
         try:
             infile = sys.stdin if infiles[0] == "-" else open(infiles[0], "rt", encoding="UTF-8")
-            find_new(infile, outfile, known, args.library)
+            find_new(infile, outfile, known, args.library, args.remove_allele_flags)
             if infile != sys.stdin:
                 infile.close()
         except IOError as e:
