@@ -81,12 +81,12 @@ def find_new(infile, outfile, known, library, remove_allele_flags):
         else:
             cols[colid_flags] = cols[colid_flags].split(",")
         marker = cols[colid_marker]
-        if marker not in known or ensure_sequence_format(cols[colid_sequence], "raw",
+        if marker in known and ensure_sequence_format(cols[colid_sequence], "raw",
                 library=library, marker=marker) not in known[marker]:
             cols[colid_flags].append("novel")
             if remove_allele_flags and "allele" in cols[colid_flags]:
                 cols[colid_flags].remove("allele")
-        cols[colid_flags] = ",".join(cols[colid_flags])
+        cols[colid_flags] = ",".join(flag for flag in cols[colid_flags] if flag)
         outfile.write("\t".join(cols) + "\n")
 #find_new
 
