@@ -5,6 +5,8 @@ FDSTools Changelog
   the 'allelename' sequence format will look like "MH_AGGTC".
 - Includes [FindNewAlleles v1.1.1](#FindNewAlleles-111)
 - Includes [Library v1.1.1](#Library-111)
+- Includes [Samplestats v1.3.1](#Samplestats-131)
+- Includes [Stuttermark v1.6.1](#Stuttermark-161)
 
 
 ### Version 2.0.0
@@ -436,6 +438,8 @@ FindNewAlleles
 ### FindNewAlleles 1.1.1
 - Added the -r/--remove-allele-flags option. When specified, the 'allele' flag is
   removed from those alleles that are flagged as 'novel' by this tool.
+- When a marker is not present in the file with known alleles, no alleles will be
+  marked 'novel' for that marker anymore.
 
 
 ### FindNewAlleles 1.1.0
@@ -565,6 +569,11 @@ Pipeline
 
 Samplestats
 -----------
+### Samplestats 1.3.1
+- Fixed glitch that caused addition of an empty flag in the flags column if it was
+  present but empty in the input.
+
+
 ### Samplestats 1.3.0
 - Added the -E/--min-allele-reads and -D/--max-nonallele-pct options, which can be used
   to suppress allele calls for low-coverage and high-noise markers, respectively.
@@ -632,6 +641,11 @@ Seqconvert
 
 Stuttermark
 -----------
+### Stuttermark 1.6.1
+- Fixed glitch that caused addition of an empty flag in the flags column if it was
+  present but empty in the input.
+
+
 ### Stuttermark 1.6.0
 - Stuttermark now writes its annotations to the 'flags' column.
 - Removed the -c/--column-name option to change the output column name.

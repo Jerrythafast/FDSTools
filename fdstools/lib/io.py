@@ -42,6 +42,11 @@ def get_column_ids(column_names, *names, optional=False):
 #get_column_ids
 
 
+def parse_flags(flags):
+    """Convert comma-separated string of flags to list."""
+    return [flag for flag in map(str.strip, flags.split(",")) if flag]
+
+
 def parse_allelelist(allelelist, *, convert=None, library=None):
     """Read allele list from open file handle."""
     column_names = allelelist.readline().rstrip("\r\n").split("\t")

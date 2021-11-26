@@ -55,10 +55,10 @@ from errno import EPIPE
 
 from ..lib.cli import add_sequence_format_args, add_input_output_args, pos_int_arg,\
                       get_input_output_files
-from ..lib.io import get_column_ids, print_db
+from ..lib.io import get_column_ids, parse_flags, print_db
 from ..lib.seq import SEQ_SPECIAL_VALUES, PAT_TSSV_BLOCK, ensure_sequence_format
 
-__version__ = "1.6.0"
+__version__ = "1.6.1"
 
 
 # Default values for parameters are specified below.
@@ -164,7 +164,7 @@ def load_data(infile, library=None):
         if colid_flags == -1:
             columns.append([])
         else:
-            columns[colid_flags] = list(map(str.strip, columns[colid_flags].split(",")))
+            columns[colid_flags] = parse_flags(columns[colid_flags])
         allelelist.append(columns)
     return column_names, allelelist
 #load_data

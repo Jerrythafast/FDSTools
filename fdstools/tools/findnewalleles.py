@@ -32,7 +32,7 @@ import sys
 from errno import EPIPE
 
 from ..lib.cli import add_sequence_format_args, add_input_output_args, get_input_output_files
-from ..lib.io import get_column_ids
+from ..lib.io import get_column_ids, parse_flags
 from ..lib.seq import SEQ_SPECIAL_VALUES, ensure_sequence_format
 
 __version__ = "1.1.1"
@@ -79,14 +79,14 @@ def find_new(infile, outfile, known, library, remove_allele_flags):
         if colid_flags == -1:
             cols.append([])
         else:
-            cols[colid_flags] = cols[colid_flags].split(",")
+            cols[colid_flags] = parse_flags(cols[colid_flags])
         marker = cols[colid_marker]
         if marker in known and ensure_sequence_format(cols[colid_sequence], "raw",
                 library=library, marker=marker) not in known[marker]:
             cols[colid_flags].append("novel")
             if remove_allele_flags and "allele" in cols[colid_flags]:
                 cols[colid_flags].remove("allele")
-        cols[colid_flags] = ",".join(flag for flag in cols[colid_flags] if flag)
+        cols[colid_flags] = ",".join(flags)
         outfile.write("\t".join(cols) + "\n")
 #find_new
 
