@@ -225,30 +225,79 @@ def pct_or_default(numerator, denominator, default=0):
 #pct_or_default
 
 
-def add_pct_columns(row, ci, column, aggr):
+def append_if_missing(l, item):
+    """Append item to list l if not already added."""
+    if item not in l:
+        l.append(item)
+#append_if_missing
+
+
+def set_or_append(l, i, item):
+    """Store item at index i of list l; append in case of IndexError."""
+    try:
+        l[i] = item
+    except IndexError:
+        l.append(item)
+#set_or_append
+
+
+def add_pct_column_names(column_names, strand, state):
     """
-    If column is not in ci, do nothing.  Else, add all applicable
-    percentage columns relating to column to row.
+    If strand + state is not in column_names, do nothing.
+    Else, add all applicable related columns to column_names.
     """
+    if strand + state not in column_names:
+        return
+    append_if_missing(column_names, strand + state + "_mp_sum")
+    append_if_missing(column_names, strand + state + "_mp_max")
+    if state == "_corrected":
+        append_if_missing(column_names, strand + "_correction_pct")
+    elif state == "_noise":
+        append_if_missing(column_names, strand + "_removed_pct")
+    elif state == "_add":
+        append_if_missing(column_names, strand + "_added_pct")
+    if strand == "total":
+        fwdcol = "forward" + state
+        if fwdcol in column_names:
+            append_if_missing(column_names, fwdcol + "_pct")
+    if state == "_corrected":
+        if strand + "_add" in column_names:
+            append_if_missing(column_names, strand + "_recovery")
+#add_pct_column_names
+
+
+def add_pct_columns(row, ci, strand, state, aggr):
+    """
+    If strand + state is not in ci, do nothing.  Else, calculate all
+    related percentages for row (adding if not already present).
+    """
+    column = strand + state
     if column not in ci:
         return
-    row.append(pct_or_default(row[ci[column]], aggr[column]["sum"]))
-    row.append(pct_or_default(row[ci[column]], aggr[column]["max"]))
-    if column.endswith("_corrected"):
-        othercol = column[:column.index("_")]
-        row.append(pct_or_default(row[ci[column]] - row[ci[othercol]], row[ci[othercol]],
+    set_or_append(row, ci[column + "_mp_sum"],
+        pct_or_default(row[ci[column]], aggr[column]["sum"]))
+    set_or_append(row, ci[column + "_mp_max"],
+        pct_or_default(row[ci[column]], aggr[column]["max"]))
+    if state == "_corrected":
+        set_or_append(row, ci[strand + "_correction_pct"], pct_or_default(
+            row[ci[column]] - row[ci[strand]], row[ci[strand]],
             (row[ci[column]] > 0) * 2 - 1 if row[ci[column]] else 0))
-    elif "_" in column:
-        othercol = column[:column.index("_")]
-        row.append(pct_or_default(row[ci[column]], row[ci[othercol]]))
-    if column.startswith("total"):
-        fwdcol = "forward" + column[5:]
+    elif state == "_noise":
+        set_or_append(row, ci[strand + "_removed_pct"],
+            pct_or_default(row[ci[column]], row[ci[strand]]))
+    elif state == "_add":
+        set_or_append(row, ci[strand + "_added_pct"],
+            pct_or_default(row[ci[column]], row[ci[strand]]))
+    if strand == "total":
+        fwdcol = "forward" + state
         if fwdcol in ci:
-            row.append(pct_or_default(row[ci[fwdcol]], row[ci[column]], int(row[ci[fwdcol]] > 0)))
-    if column.endswith("_corrected"):
-        addcol = column[:-9] + "add"
+            set_or_append(row, ci[fwdcol + "_pct"],
+                pct_or_default(row[ci[fwdcol]], row[ci[column]], int(row[ci[fwdcol]] > 0)))
+    if state == "_corrected":
+        addcol = strand + "_add"
         if addcol in ci:
-            row.append(pct_or_default(row[ci[addcol]], row[ci[column]]))
+            set_or_append(row, ci[strand + "_recovery"],
+                pct_or_default(row[ci[addcol]], row[ci[column]]))
 #add_pct_columns
 
 
@@ -256,76 +305,22 @@ def compute_stats(infile, outfile, min_reads, min_per_strand, min_pct_of_max, mi
                   min_correction, min_recovery, min_allele_reads, max_nonallele_pct, filter_action,
                   filter_absolute, max_alleles, min_reads_filt, min_per_strand_filt,
                   min_pct_of_max_filt, min_pct_of_sum_filt, min_correction_filt,
-                  min_recovery_filt, library, sequence_format):
+                  min_recovery_filt, library, sequence_format, uncall_alleles):
     # Check presence of required columns.
     column_names = infile.readline().rstrip("\r\n").split("\t")
     if column_names == [""]:
         return  # Empty file.
     get_column_ids(column_names, "marker", "sequence", "forward", "reverse", "total")
-    if "flags" not in column_names:
-        column_names.append("flags")
 
     # Add columns for which we have the required data.
-    total_column = "total"
-    if "total_corrected" in column_names:
-        total_column = "total_corrected"
-        column_names.append("total_corrected_mp_sum")
-        column_names.append("total_corrected_mp_max")
-        column_names.append("total_correction_pct")
-        if "forward_corrected" in column_names:
-            column_names.append("forward_corrected_pct")
-        if "total_add" in column_names:
-            column_names.append("total_recovery")
-    if "forward_corrected" in column_names:
-        column_names.append("forward_corrected_mp_sum")
-        column_names.append("forward_corrected_mp_max")
-        column_names.append("forward_correction_pct")
-        if "forward_add" in column_names:
-            column_names.append("forward_recovery")
-    if "reverse_corrected" in column_names:
-        column_names.append("reverse_corrected_mp_sum")
-        column_names.append("reverse_corrected_mp_max")
-        column_names.append("reverse_correction_pct")
-        if "reverse_add" in column_names:
-            column_names.append("reverse_recovery")
-    column_names.append("total_mp_sum")
-    column_names.append("total_mp_max")
-    column_names.append("forward_pct")
-    column_names.append("forward_mp_sum")
-    column_names.append("forward_mp_max")
-    column_names.append("reverse_mp_sum")
-    column_names.append("reverse_mp_max")
-    if "total_noise" in column_names:
-        column_names.append("total_noise_mp_sum")
-        column_names.append("total_noise_mp_max")
-        column_names.append("total_removed_pct")
-        if "forward_noise" in column_names:
-            column_names.append("forward_noise_pct")
-    if "forward_noise" in column_names:
-        column_names.append("forward_noise_mp_sum")
-        column_names.append("forward_noise_mp_max")
-        column_names.append("forward_removed_pct")
-    if "reverse_noise" in column_names:
-        column_names.append("reverse_noise_mp_sum")
-        column_names.append("reverse_noise_mp_max")
-        column_names.append("reverse_removed_pct")
-    if "total_add" in column_names:
-        column_names.append("total_add_mp_sum")
-        column_names.append("total_add_mp_max")
-        column_names.append("total_added_pct")
-        if "forward_add" in column_names:
-            column_names.append("forward_add_pct")
-    if "forward_add" in column_names:
-        column_names.append("forward_add_mp_sum")
-        column_names.append("forward_add_mp_max")
-        column_names.append("forward_added_pct")
-    if "reverse_add" in column_names:
-        column_names.append("reverse_add_mp_sum")
-        column_names.append("reverse_add_mp_max")
-        column_names.append("reverse_added_pct")
+    append_if_missing(column_names, "flags")
+    for state in ("_corrected", "", "_noise", "_add"):
+        for strand in ("total", "forward", "reverse"):
+            add_pct_column_names(column_names, strand, state)
 
     # Build a column number lookup dictionary.
     ci = {name: i for i, name in enumerate(column_names)}
+    total_column = "total_corrected" if "total_corrected" in ci else "total"
 
     # Read data.
     data = {}
@@ -362,10 +357,9 @@ def compute_stats(infile, outfile, min_reads, min_per_strand, min_pct_of_max, mi
         alleles = []
         for row in data[marker]:
             # Add various percentage columns to this row.
-            for column in (strand + state
-                    for state in ("_corrected", "", "_noise", "_add")
-                    for strand in ("total", "forward", "reverse")):
-                add_pct_columns(row, ci, column, aggr)
+            for state in ("_corrected", "", "_noise", "_add"):
+                for strand in ("total", "forward", "reverse"):
+                    add_pct_columns(row, ci, strand, state, aggr)
 
             # The 'No data' lines are fine like this.
             if row[ci["sequence"]] == "No data":
@@ -397,22 +391,30 @@ def compute_stats(infile, outfile, min_reads, min_per_strand, min_pct_of_max, mi
                     recovery < min_recovery_filt) or
                     min(map(fn, strands)) < min_per_strand_filt)):
                 filtered[marker].append(row)
+                continue
+
+            if is_aggregate:
+                continue
 
             # Check if this sequence is an allele.
-            elif (not is_aggregate and
+            if ("allele" in row[ci["flags"]] or (
+                    uncall_alleles != "only" and
                     total_reads >= min_reads and
                     pct_of_max >= min_pct_of_max and
                     pct_of_sum >= min_pct_of_sum and
                     (correction >= min_correction or
                     recovery >= min_recovery) and
-                    min(strands) >= min_per_strand):
-                row[ci["flags"]].append("allele")
+                    min(strands) >= min_per_strand)):
+                append_if_missing(row[ci["flags"]], "allele")
                 allele_reads += total_reads
                 alleles.append(row)
 
             # Check if this sequence is the highest noise.
-            elif not is_aggregate and total_reads > max_noise_reads:
+            elif total_reads > max_noise_reads:
                 max_noise_reads = total_reads
+                if uncall_alleles and "allele" in row[ci["flags"]]:
+                    # Un-call allele.
+                    row[ci["flags"]].remove("allele")
 
         if (not max_alleles == 0 and len(alleles) >
                 get_max_expected_alleles(max_alleles, marker, library)) or (allele_reads and
@@ -552,6 +554,11 @@ def add_arguments(parser):
     intergroup = parser.add_argument_group("interpretation options",
         "sequences that match the -c or -y option (or both) and all of the "
         "other settings are marked as 'allele'")
+    intergroup.add_argument("-U", "--uncall-alleles", nargs="?", metavar="only",
+        choices=("only",), const=True, default=False,
+        help="if specified and the input contains sequences with the 'allele' flag, the flag will "
+             "be removed for sequences not meeting the requirements; with the optional keyword "
+             "'only', no 'allele' flags will be added to any sequences that do meet the criteria")
     intergroup.add_argument("-n", "--min-reads", metavar="N", type=float, default=_DEF_MIN_READS,
         help="the minimum number of reads (default: %(default)s)")
     intergroup.add_argument("-b", "--min-per-strand", metavar="N", type=float,
@@ -588,7 +595,7 @@ def add_arguments(parser):
         help="if specified, do not mark any alleles on a marker if more than N alleles meet the "
              "criteria; without N, the amounts given in the library file are used, which have a "
              "default value of 1 for markers on the mitochondrial genome and Y chromosome, or 2 "
-             "otherwise")
+             "otherwise (Note: don't forget to provide -l/--library!)")
     filtergroup = parser.add_argument_group("filtering options",
         "sequences that match the -C or -Y option (or both) and all of the "
         "other settings are retained, all others are filtered")
@@ -646,7 +653,8 @@ def run(args):
                           args.filter_action, args.filter_absolute, args.max_alleles,
                           args.min_reads_filt, args.min_per_strand_filt, args.min_pct_of_max_filt,
                           args.min_pct_of_sum_filt, args.min_correction_filt,
-                          args.min_recovery_filt, args.library, args.sequence_format)
+                          args.min_recovery_filt, args.library, args.sequence_format,
+                          args.uncall_alleles)
             if infile != sys.stdin:
                 infile.close()
         except IOError as e:

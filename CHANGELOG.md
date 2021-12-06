@@ -572,6 +572,8 @@ Samplestats
 ### Samplestats 1.3.1
 - Fixed glitch that caused addition of an empty flag in the flags column if it was
   present but empty in the input.
+- Added -U/--uncall-alleles option, which lets Samplestats remove allele calls from
+  sequences that do not meet the provided criteria.
 
 
 ### Samplestats 1.3.0

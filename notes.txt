@@ -1,4 +1,8 @@
 To-do:
+* Microhap names with length disparity:
+  * Always allow conversion from allelename to raw if only one position was defined
+  * Include brackets (or commas) around length-changing variants when converting
+    to allelename if multiple positions are defined
 * [BUG] Vis can't write to stdout (UnicodeError) on Windows.
 * Homologation:
   * All tools should check the number of columns at each line (like Stuttermark does).
@@ -8,6 +12,7 @@ To-do:
   * Some way to specify multi-copy markers with different refseqs like Amel.
 * Group tools by function in the command line help and put Pipeline on top.
 * Samplevis:
+  * Add options analogous to samplestats -E -D -G.
   * Detect whether correction was performed; hide related columns if not.
   * A PctOfAlleles column in the tables would be useful for mixtures.
   * Option to choose complete table download (all columns, not all rows).
@@ -24,7 +29,6 @@ To-do:
 * Pipeline:
   * Add raw sequence output to ref-sample and case-sample analyses.
 * Samplestats:
-  * Add capability to run Samplestats again on its own output.
   * Add percentage-of-called-alleles columns.
   * Add per-marker allele calling settings to Samplestats.
 * BGAnalyse:
