@@ -397,7 +397,7 @@ def compute_stats(infile, outfile, min_reads, min_per_strand, min_pct_of_max, mi
                 continue
 
             # Check if this sequence is an allele.
-            if ("allele" in row[ci["flags"]] or (
+            if (("allele" in row[ci["flags"]] and not uncall_alleles) or (
                     uncall_alleles != "only" and
                     total_reads >= min_reads and
                     pct_of_max >= min_pct_of_max and
