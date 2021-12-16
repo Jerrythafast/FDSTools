@@ -237,6 +237,8 @@ def set_or_append(l, i, item):
     try:
         if not l[i]:
             l[i] = item
+        else:
+            l[i] = float(l[i])
     except IndexError:
         l.append(item)
 #set_or_append
@@ -397,25 +399,28 @@ def compute_stats(infile, outfile, min_reads, min_per_strand, min_pct_of_max, mi
             if is_aggregate:
                 continue
 
-            # Check if this sequence is an allele.
-            if (("allele" in row[ci["flags"]] and not uncall_alleles) or (
-                    uncall_alleles != "only" and
+            pass_thresholds = (
                     total_reads >= min_reads and
                     pct_of_max >= min_pct_of_max and
                     pct_of_sum >= min_pct_of_sum and
                     (correction >= min_correction or
                     recovery >= min_recovery) and
-                    min(strands) >= min_per_strand)):
+                    min(strands) >= min_per_strand)
+
+            # Check if this sequence is an allele.
+            if (pass_thresholds and ("allele" in row[ci["flags"]] or uncall_alleles != "only")) or (
+                    not pass_thresholds and "allele" in row[ci["flags"]] and not uncall_alleles):
                 append_if_missing(row[ci["flags"]], "allele")
                 allele_reads += total_reads
                 alleles.append(row)
-
-            # Check if this sequence is the highest noise.
-            elif total_reads > max_noise_reads:
-                max_noise_reads = total_reads
+            else:
                 if uncall_alleles and "allele" in row[ci["flags"]]:
                     # Un-call allele.
                     row[ci["flags"]].remove("allele")
+
+                # Check if this sequence is the highest noise.
+                if total_reads > max_noise_reads:
+                    max_noise_reads = total_reads
 
         if (not max_alleles == 0 and len(alleles) >
                 get_max_expected_alleles(max_alleles, marker, library)) or (allele_reads and
