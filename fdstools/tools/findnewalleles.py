@@ -92,7 +92,7 @@ def find_new(infile, outfile, known, library, remove_allele_flags):
 
 
 def add_arguments(parser):
-    parser.add_argument("known", metavar="KNOWN", type=argparse.FileType("tr", encoding="UTF-8"),
+    parser.add_argument("known", metavar="KNOWN", type=argparse.FileType("rt", encoding="UTF-8"),
         help="file containing a list of known allelic sequences")
     parser.add_argument("-r", "--remove-allele-flags", action="store_true",
         help="remove the 'allele' flag from the alleles that are marked 'novel'")

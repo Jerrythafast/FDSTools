@@ -233,9 +233,10 @@ def append_if_missing(l, item):
 
 
 def set_or_append(l, i, item):
-    """Store item at index i of list l; append in case of IndexError."""
+    """Store item at index i of list l if empty; append in case of IndexError."""
     try:
-        l[i] = item
+        if not l[i]:
+            l[i] = item
     except IndexError:
         l.append(item)
 #set_or_append
