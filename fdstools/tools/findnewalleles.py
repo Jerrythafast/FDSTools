@@ -75,19 +75,20 @@ def find_new(infile, outfile, known, library, remove_allele_flags):
 
     outfile.write("\t".join(column_names) + "\n")
     for line in infile:
-        cols = line.rstrip("\r\n").split("\t")
+        line = line.rstrip("\r\n").split("\t")
         if colid_flags == -1:
-            cols.append([])
+            line.append([])
         else:
-            cols[colid_flags] = parse_flags(cols[colid_flags])
-        marker = cols[colid_marker]
-        if marker in known and ensure_sequence_format(cols[colid_sequence], "raw",
-                library=library, marker=marker) not in known[marker]:
-            cols[colid_flags].append("novel")
-            if remove_allele_flags and "allele" in cols[colid_flags]:
-                cols[colid_flags].remove("allele")
-        cols[colid_flags] = ",".join(cols[colid_flags])
-        outfile.write("\t".join(cols) + "\n")
+            line[colid_flags] = parse_flags(line[colid_flags])
+        if line[colid_sequence] not in SEQ_SPECIAL_VALUES:
+            marker = line[colid_marker]
+            if marker in known and ensure_sequence_format(line[colid_sequence], "raw",
+                    library=library, marker=marker) not in known[marker]:
+                line[colid_flags].append("novel")
+                if remove_allele_flags and "allele" in line[colid_flags]:
+                    line[colid_flags].remove("allele")
+        line[colid_flags] = ",".join(line[colid_flags])
+        outfile.write("\t".join(line) + "\n")
 #find_new
 
 
