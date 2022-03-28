@@ -1,8 +1,4 @@
 To-do:
-* Microhap names with length disparity:
-  * Always allow conversion from allelename to raw if only one position was defined
-  * Include brackets (or commas) around length-changing variants when converting
-    to allelename if multiple positions are defined
 * [BUG] Vis can't write to stdout (UnicodeError) on Windows.
 * Homologation:
   * All tools should check the number of columns at each line (like Stuttermark does).
@@ -38,6 +34,7 @@ To-do:
   * Add grouping, show/hide options, and target coverage for BGAnalyseVis to the
     Vis tool.
   * Add r2 filter and stutter amount for Stuttermodelvis to the Vis tool.
+* Microhap support for length-changing variants and insertions.
 * Exceptions to general mtDNA nomenclature: http://empop.online/methods
 * Reduce noise profile memory usage:
   * Use sparse matrices in BGEstimate and BGCorrect.  May save over 90% of
