@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 
 #
-# Copyright (C) 2021 Jerry Hoogenboom
+# Copyright (C) 2022 Jerry Hoogenboom
 #
 # This file is part of FDSTools, data analysis tools for Massively
 # Parallel Sequencing of forensic DNA markers.
@@ -44,7 +44,7 @@ PAT_SEQ_ALLELENAME_MH = re.compile(
 PAT_SEQ_ALLELENAME_MT = re.compile(
     "^REF$|^(?:(?:(?<=^)|(?<!^) )"  # 'REF' or space-separated variants.
     "(?:-?\d+\.\d+[ACGT]|(?P<a>[ACGT])?\d+(?(a)(?!(?P=a)))(?:[ACGT-]|DEL)))+$")
-PAT_VARIANT_MH = re.compile("^(\d+)N>([ACGT]+)$")
+PAT_VARIANT_MH = re.compile("^(\d+)(N+)>([ACGT-]+)$")
 
 # Special values that may appear in the place of a sequence.
 SEQ_SPECIAL_VALUES = ("No data", "Other sequences")
@@ -122,8 +122,11 @@ def name_microhaplotype(seq, positions):
     variants = []
     for variant in seq.split(" "):
         match = PAT_VARIANT_MH.match(variant)
-        if match:
-            microhaplotype[int(match.group(1))] = match.group(2)
+        if match and len(match.group(2)) == len(match.group(3)):
+            # For now, disallowing most length-changing variants.
+            # Only 'N>-' is allowed (since base can be '-').
+            for pos, base in enumerate(match.group(3), int(match.group(1))):
+                microhaplotype[pos] = base
         else:
             variants.append(variant)
     return "_".join(
@@ -136,10 +139,18 @@ def microhaplotype_to_variants(seq, positions):
     _, microhaplotype, *variants = seq.split("_")
     if len(positions) != len(microhaplotype):
         raise ValueError("Unable to convert microhaplotype name back to sequence: " + seq)
+    microhaplotype = {
+        position: base for position, base in zip(sorted(positions), microhaplotype) if base != "N"}
+
+    # Merge consecutive positions.
+    for position in list(sorted(microhaplotype, reverse=True)):
+        if position - 1 in microhaplotype and "-" not in (
+                microhaplotype[x] for x in (position, position - 1)):
+            microhaplotype[position - 1] += microhaplotype[position]
+            microhaplotype[position] = ""
     return " ".join(mh_variant for pos, mh_variant in sorted(
-        [(position, "%iN>%s" % (position, base))
-            for position, base in zip(sorted(positions), microhaplotype)
-            if base != "N"] +
+        [(position, "%i%s>%s" % (position, "N" * len(base), base))
+            for position, base in microhaplotype.items() if base] +
         [(int(PAT_VARIANT_SNP.match(variant).group("pos")), variant)
             for variant in variants]))
 #microhaplotype_to_variants
@@ -150,7 +161,7 @@ def get_repeat_pattern(seq):
     return re.compile("".join(             # For AGAT, one obtains:
         ["(?:" * (len(seq)-1)] +           # (?:(?:(?:
         ["%s)?" % x for x in seq[1:]] +    # G)?A)?T)?
-        ["(?:", seq, ")+"] +               # (?AGAT)+
+        ["(?:", seq, ")+"] +               # (?:AGAT)+
         ["(?:%s" % x for x in seq[:-1]] +  # (?:A(?:G(?:A
         [")?" * (len(seq)-1)]))            # )?)?)?
 #get_repeat_pattern
