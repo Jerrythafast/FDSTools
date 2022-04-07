@@ -76,7 +76,7 @@ from ..lib.io import try_write_pipe
 from ..lib.seq import PAT_SEQ_RAW, reverse_complement, ensure_sequence_format
 from ..lib.sg_align import align
 
-__version__ = "2.1.0"
+__version__ = "2.1.1"
 
 
 # Default values for parameters are specified below.
@@ -366,8 +366,8 @@ class TSSV:
 
     def close_output_files(self):
         if self.outfiles:
-            for key, value in self.outfiles:
-                if key == "marker":
+            for key, value in self.outfiles.items():
+                if key == "markers":
                     for markerfiles in value.values():
                         for markerfile in markerfiles.values():
                             markerfile.close()

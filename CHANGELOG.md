@@ -7,6 +7,7 @@ FDSTools Changelog
 - Includes [Library v1.1.1](#Library-111)
 - Includes [Samplestats v1.3.1](#Samplestats-131)
 - Includes [Stuttermark v1.6.1](#Stuttermark-161)
+- Includes [TSSV v2.1.1](#TSSV-211)
 
 
 ### Version 2.0.0
@@ -735,6 +736,11 @@ Stuttermodel
 
 TSSV
 ----
+### TSSV 2.1.1
+- Fixed "error: too many values to unpack (expected 2)" when using the -D/--dir option.
+  Thanks to @agynna for reporting!
+
+
 ### TSSV 2.1.0
 - Changed the default value for -a/--minimum from 1 to 2.
 - Replaced the -A/--aggregate-filtered option with the -B/--no-aggregate-filtered option.
