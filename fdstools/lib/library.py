@@ -334,14 +334,14 @@ def parse_library(handle):
                     raise ValueError(
                         "Length of reference sequence of marker %s is %i bases, but "
                         "genome positions add up to %i bases" % (marker, len(refseq), length))
-
             add_legacy_range(reported_range_store, marker, refseq, "", [], options, pos)
         else:
             # Use STRNaming for this marker.
             try:
                 genome_position = settings["genome_position"]
             except KeyError:
-                raise ValueError("No genomic position given for marker %s" % marker)
+                raise ValueError("No genome_position or explicit repeat or no_repeat "
+                                 "configuration provided for marker %s" % marker)
             if not len(genome_position) % 2:
                 raise ValueError(
                     "Invalid genomic position given for marker %s: need an odd number of values "
