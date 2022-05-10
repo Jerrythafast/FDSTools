@@ -33,6 +33,9 @@ Release Notes
 Added support for microhaplotype targets. For markers configured as such,
 the 'allelename' sequence format will look like "MH_AGGTC".
 
+Added ForenSeq DNA Signature Prep Kit library files with ranges specifically
+optimized for FDSTools (often longer than UAS Flanking Region Report).
+
 
 ### Version 2.0.0 (2021-07-15)
 Transition to Python 3.5, along with a major upgrade to all tools to
