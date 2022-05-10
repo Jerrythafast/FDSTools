@@ -102,7 +102,7 @@ _DEF_MIN_RECOVERY = 0
 _DEF_MIN_ALLELE_READS = 0
 
 # Default maximum amount of noise to allow, as a percentage of the
-# number of reads of the highest allele of each marker.  If any noise
+# total number of allelic reads of this marker.  If any noise
 # (i.e., non-allelic sequences) above this threshold are detected, the
 # sample is considered 'noisy' for this marker.
 # This value can be overridden by the -D command line option.
