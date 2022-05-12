@@ -5,6 +5,7 @@ FDSTools Changelog
   the 'allelename' sequence format will look like "MH_AGGTC".
 - Added the ForenSeqA and ForenSeqB built-in libraries, which use ranges
   optimized for FDSTools (often longer than UAS Flaking Region Report).
+- Updated dependency requirement (strnaming~=1.1.2).
 - Includes [FindNewAlleles v1.1.1](#FindNewAlleles-111)
 - Includes [Library v1.1.1](#Library-111)
 - Includes [Samplestats v1.3.1](#Samplestats-131)

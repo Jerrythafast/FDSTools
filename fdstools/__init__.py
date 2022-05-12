@@ -1,5 +1,5 @@
 #
-# Copyright (C) 2020 Jerry Hoogenboom
+# Copyright (C) 2022 Jerry Hoogenboom
 #
 # This file is part of FDSTools, data analysis tools for Massively
 # Parallel Sequencing of forensic DNA markers.

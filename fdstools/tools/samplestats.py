@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 
 #
-# Copyright (C) 2021 Jerry Hoogenboom
+# Copyright (C) 2022 Jerry Hoogenboom
 #
 # This file is part of FDSTools, data analysis tools for Massively
 # Parallel Sequencing of forensic DNA markers.
