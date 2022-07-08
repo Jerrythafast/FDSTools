@@ -65,7 +65,7 @@ from ..lib.io import print_db
 from ..lib.library import INI_COMMENT
 
 
-__version__ = "1.1.0"
+__version__ = "1.1.1"
 
 
 # Pattern to split a quoted string.
@@ -85,7 +85,7 @@ NAME = __name__[len(PACKAGE_PREFIX):]
 
 # Argument names that will not be written in generated INI files.
 HIDDEN_ARGS = ("infile", "infile2", "infiles", "outfile", "outfiles", "raw-outfile",
-    "library", "library2", "allelelist", "report", "tag-expr", "tag-format",
+    "library", "library2", "allelelist", "report", "tag-expr", "tag-format", "uncall-alleles",
     "sequence-format", "type", "title", "stuttermodel", "seqs", "profiles", "combine-strands",
     "annotation-column", "marker-column", "allele-column", "output-column", "reverse-complement")
 
@@ -152,14 +152,12 @@ class ArgumentCollector:
     def add_argument(self, tool, *args, **kwargs):
         # Determine argument name.
         if "dest" in kwargs:
-            name = kwargs["dest"]
+            name = kwargs["dest"].replace("_", "-")
         else:
             for arg in args:
                 match = PAT_ARGNAME.match(arg)
                 if match is not None:
                     name = match.group(1)
-                    if arg.startswith("--") and "nargs" not in kwargs:
-                        kwargs["nargs"] = "?"
                     break
             else:
                 name = args[0]
@@ -167,7 +165,11 @@ class ArgumentCollector:
             kwargs["optname"] = args[0]
 
         # Replace special default values.
-        if "default" in kwargs:
+        if "optname" in kwargs and "nargs" in kwargs and kwargs["nargs"] == "?":
+            # Value can be False (option unspecified), True (option specified),
+            # or an actual value (option specified with argument).
+            kwargs["default"] = False
+        elif "default" in kwargs:
             if kwargs["default"] is None or kwargs["default"] == "":
                 del kwargs["default"]
             elif kwargs["default"] in (sys.stdin, sys.stdout):
@@ -178,8 +180,10 @@ class ArgumentCollector:
                 kwargs["default"] = "<MAX>"
             elif isinstance(kwargs["default"], list):
                 kwargs["default"] = " ".join(kwargs["default"])
-        if "action" in kwargs and kwargs["action"] == "store_true":
+        elif "action" in kwargs and kwargs["action"] == "store_true":
             kwargs["default"] = False
+        elif "action" in kwargs and kwargs["action"] == "store_false":
+            kwargs["default"] = True
         self.arglists[tool].append((name, kwargs))
     #add_argument
 
@@ -268,23 +272,38 @@ def get_argv(toolname, arg_defs, config):
             if parse_bool_arg(toolname, arg[0], value):
                 arglist[0].append(arg[1]["optname"])
             continue
+        if "action" in arg[1] and arg[1]["action"] == "store_false":
+            if not parse_bool_arg(toolname, arg[0], value):
+                arglist[0].append(arg[1]["optname"])
+            continue
         if "default" in arg[1] and arg[1]["default"] == value:
             if "optname" in arg[1]:
                 continue
-            if "default" in arg[1] and arg[1]["default"] == "<MAX>":
+            if value == "<MAX>":
                 value = str(sys.maxsize)
         if "nargs" in arg[1] and arg[1]["nargs"] not in (1, "?"):
             value = split_quoted_string(value)
+        elif "optname" in arg[1] and "nargs" in arg[1] and arg[1]["nargs"] == "?":
+            # Value can be False (option unspecified), True (option specified),
+            # or an actual value (option specified with argument).
+            try:
+                value = parse_bool_arg(toolname, arg[0], value)
+                if not value:
+                    continue  # Value was False, don't specify option.
+                value = None  # Value was True, specify option without argument.
+            except ValueError:
+                value = [value]  # Specify option with given argument.
         else:
             value = [value]
         if "optname" in arg[1]:
-            if len(value) == 1 and value[0].startswith("-"):
+            if value is not None and len(value) == 1 and value[0].startswith("-"):
                 # Fix Argparse's "looks like an option" oddity.
                 arglist[0].append("%s=%s" % (arg[1]["optname"], value[0]))
             else:
                 arglist[0].append(arg[1]["optname"])
-                arglist[0].extend(value)
-        else:
+                if value is not None:
+                    arglist[0].extend(value)
+        elif value is not None:
             arglist[1].extend(value)
     print_db(("%r" % (arglist[0]+arglist[1]))[:200], debug)
     return arglist[0] + arglist[1]

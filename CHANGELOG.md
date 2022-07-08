@@ -1,5 +1,9 @@
 FDSTools Changelog
 ==================
+### Version 2.0.2
+- Includes [Pipeline v1.1.1](#Pipeline-111)
+
+
 ### Version 2.0.1
 - Added support for microhaplotype targets. For markers configured as such,
   the 'allelename' sequence format will look like "MH_AGGTC".
@@ -536,6 +540,12 @@ Library
 
 Pipeline
 --------
+### Pipeline 1.1.1
+- Fixed issues with handling of TSSV's aggregate-filtered option.
+- Fixed issues with handling of the max-alleles option of Samplestats.
+- Removed access to the uncall-alleles option of Samplestats.
+
+
 ### Pipeline 1.1.0
 - Added the -C/--combine-strands option, to analyse noise for the total number of
   reads instead of separately for either strand.
@@ -629,6 +639,10 @@ Samplestats
 
 Seqconvert
 ----------
+### Seqconvert 1.1.0
+- STRNaming is now used as the back-end for generating allele names.
+
+
 ### Seqconvert 1.0.2
 - Shut down cleanly when the output pipe is closed.
 

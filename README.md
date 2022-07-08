@@ -29,6 +29,10 @@ Alternatively, FDSTools can be installed by running:
 
 Release Notes
 -------------
+### Version 2.0.2 (TBD)
+Fixed some issues that could cause crashes in the Pipeline tool.
+
+
 ### Version 2.0.1 (2022-05-12)
 Added support for microhaplotype targets. For markers configured as such,
 the 'allelename' sequence format will look like "MH_AGGTC".

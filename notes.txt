@@ -1,4 +1,5 @@
 To-do:
+* [BUG] On Py3.10, TSSV crashes because it does not define PY_SSIZE_T_CLEAN.
 * [BUG] Vis can't write to stdout (UnicodeError) on Windows.
 * Homologation:
   * All tools should check the number of columns at each line (like Stuttermark does).
