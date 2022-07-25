@@ -166,7 +166,8 @@ class ArgumentCollector:
 
         # Replace special default values.
         if "optname" in kwargs and "nargs" in kwargs and kwargs["nargs"] == "?":
-            # Value can be False (option unspecified), True (option specified),
+            # Value can be False (option unspecified),
+            # True (option specified),
             # or an actual value (option specified with argument).
             kwargs["default"] = False
         elif "default" in kwargs:
@@ -284,15 +285,25 @@ def get_argv(toolname, arg_defs, config):
         if "nargs" in arg[1] and arg[1]["nargs"] not in (1, "?"):
             value = split_quoted_string(value)
         elif "optname" in arg[1] and "nargs" in arg[1] and arg[1]["nargs"] == "?":
-            # Value can be False (option unspecified), True (option specified),
+            # Value can be False (option unspecified),
+            # True (option specified),
             # or an actual value (option specified with argument).
             try:
-                value = parse_bool_arg(toolname, arg[0], value)
-                if not value:
-                    continue  # Value was False, don't specify option.
-                value = None  # Value was True, specify option without argument.
-            except ValueError:
-                value = [value]  # Specify option with given argument.
+                if value in ("0", "1"):
+                    # Check if 0 or 1 is a valid argument value.
+                    arg[1]["type"](value)
+                    value = [value]  # Specify with given argument.
+                else:
+                    raise ValueError  # Proceed to next check.
+            except:
+                try:
+                    # Try to parse the value as a boolean (no argument).
+                    value = parse_bool_arg(toolname, arg[0], value)
+                    if not value:
+                        continue  # Value False, don't specify option.
+                    value = None  # Value True, specify without arg.
+                except ValueError:
+                    value = [value]  # Specify with given argument.
         else:
             value = [value]
         if "optname" in arg[1]:
