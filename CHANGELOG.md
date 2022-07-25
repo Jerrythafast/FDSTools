@@ -1,6 +1,9 @@
 FDSTools Changelog
 ==================
 ### Version 2.0.2
+- Fixed a compatibility issue with Python 3.10, that caused TSSV to crash.
+- Corrected AmelogeninY range (starting position +1) in ForenSeqA and ForenSeqB
+  built-in libraries. Range is now identical to the UAS Flanking Region Report.
 - Includes [Pipeline v1.1.1](#Pipeline-111)
 
 

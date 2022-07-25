@@ -29,8 +29,17 @@ Alternatively, FDSTools can be installed by running:
 
 Release Notes
 -------------
-### Version 2.0.2 (TBD)
+### Version 2.0.2 (2022-07-25)
+Fixed a compatibility issue with Python 3.10, that caused TSSV to crash.
 Fixed some issues that could cause crashes in the Pipeline tool.
+
+Corrected the reported range of AmelongeninY in the ForenSeq-A and  ForenSeq-B
+library files which were introduced in v2.0.1, by adding 1 to the starting
+position. The range is now identical to the UAS Flanking Region Report range.
+If still you need to work with data previously generated using the ForenSeq-A
+or ForenSeq-B library as shipped with v2.0.1, use the Library tool to obtain a
+copy of the built-in library file and make sure the range of AmelongeninY
+starts at 6869870.
 
 
 ### Version 2.0.1 (2022-05-12)
