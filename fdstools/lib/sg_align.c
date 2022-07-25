@@ -333,7 +333,7 @@ Oprates on an alignment matrix as created with _sse2_make_matrix().
 static PyObject *_sse2_find_min(unsigned char *mem, const size_t seq1len, const size_t seq2len, const unsigned char global_align) {
     const size_t width = (seq2len+31) & ~0x0F;
     unsigned char *matrix = (unsigned char*)(((Py_uintptr_t)mem + 15) & ~(Py_uintptr_t)0x0F);
-    unsigned char distance = (seq2len > 255? 255 : seq2len);
+    unsigned char distance = (unsigned char)(seq2len > 255? 255 : seq2len);
     size_t position = 0;
     size_t i;
 
@@ -493,7 +493,7 @@ Oprates on an alignment matrix as created with _make_matrix().
 __attribute__ ((__target__ ("no-sse")))
 #endif
 static PyObject *_find_min(unsigned char *matrix, const size_t rows, const size_t columns, const unsigned char global_align) {
-    unsigned char distance = (columns > 255? 255 : columns - 1);
+    unsigned char distance = (unsigned char)(columns > 255? 255 : columns - 1);
     size_t position = 0;
     size_t r;
 
