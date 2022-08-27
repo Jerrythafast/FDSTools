@@ -1,5 +1,10 @@
 FDSTools Changelog
 ==================
+### Version 2.0.3
+- Added NimaGen IDseek OmniSTR built-in library file (ID-OmniSTR).
+- Updated dependency requirement (strnaming~=1.1.3).
+
+
 ### Version 2.0.2
 - Fixed a compatibility issue with Python 3.10, that caused TSSV to crash.
 - Corrected AmelogeninY range (starting position +1) in ForenSeqA and ForenSeqB

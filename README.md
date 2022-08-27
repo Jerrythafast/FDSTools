@@ -29,6 +29,10 @@ Alternatively, FDSTools can be installed by running:
 
 Release Notes
 -------------
+### Version 2.0.3 (2022-08-27)
+Added NimaGen IDseek OmniSTR built-in library file (ID-OmniSTR).
+
+
 ### Version 2.0.2 (2022-07-25)
 Fixed a compatibility issue with Python 3.10, that caused TSSV to crash.
 Fixed some issues that could cause crashes in the Pipeline tool.

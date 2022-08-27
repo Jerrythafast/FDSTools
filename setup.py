@@ -68,7 +68,7 @@ setuptools.setup(
     package_data={
         "fdstools": ["vis/*.*", "vis/*/*", "data/libraries/*.ini"]
     },
-    install_requires=["numpy>=1.17", "strnaming~=1.1.2"],
+    install_requires=["numpy>=1.17", "strnaming~=1.1.3"],
     python_requires=">=3.5",
     entry_points={
         "console_scripts": [
