@@ -29,6 +29,10 @@ Alternatively, FDSTools can be installed by running:
 
 Release Notes
 -------------
+### Version 2.0.4 (TBD)
+Greatly improved loading speed for large library files.
+
+
 ### Version 2.0.3 (2022-08-27)
 Added NimaGen IDseek OmniSTR built-in library file (ID-OmniSTR).
 

@@ -1,5 +1,10 @@
 FDSTools Changelog
 ==================
+### Version 2.0.4
+- Greatly improved loading speed for large library files.
+- Updated dependency requirement (strnaming~=1.1.4).
+
+
 ### Version 2.0.3
 - Added NimaGen IDseek OmniSTR built-in library file (ID-OmniSTR).
 - Updated dependency requirement (strnaming~=1.1.3).
