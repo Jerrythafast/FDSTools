@@ -44,7 +44,8 @@ PAT_SEQ_ALLELENAME_MH = re.compile(
 PAT_SEQ_ALLELENAME_MT = re.compile(
     "^REF$|^(?:(?:(?<=^)|(?<!^) )"  # 'REF' or space-separated variants.
     "(?:-?\d+\.\d+[ACGT]|(?P<a>[ACGT])?\d+(?(a)(?!(?P=a)))(?:[ACGT-]|DEL)))+$")
-PAT_VARIANT_MH = re.compile("^(\d+)(N+)>([ACGT-]+)$")
+PAT_VARIANT_MH = re.compile("^(\d+)([ACGTN]*N[ACGTN]*)>([ACGT-]+)$")
+PAT_SEQ_OR_N = re.compile("[ACGT]+|N")
 
 # Special values that may appear in the place of a sequence.
 SEQ_SPECIAL_VALUES = ("No data", "Other sequences")
@@ -124,9 +125,22 @@ def name_microhaplotype(seq, positions):
         match = PAT_VARIANT_MH.match(variant)
         if match and len(match.group(2)) == len(match.group(3)):
             # For now, disallowing most length-changing variants.
-            # Only 'N>-' is allowed (since base can be '-').
-            for pos, base in enumerate(match.group(3), int(match.group(1))):
-                microhaplotype[pos] = base
+            # Only 'N>-' is allowed (since bases_to can be '-').
+            offset = int(match.group(1))
+            bases_from = match.group(2)
+            bases_to = match.group(3)
+            for part in PAT_SEQ_OR_N.finditer(bases_from):
+                # The part_from is either [ACGT]+ or a single N.
+                pos = part.start() + offset
+                part_slice = slice(*part.span())
+                part_from = bases_from[part_slice]
+                part_to = bases_to[part_slice]
+                if part_from == "N":
+                    # This is one of the defined microhaplotype positions.
+                    microhaplotype[pos] = part_to
+                else:
+                    # Variants adjacent to the microhaplotype positions.
+                    variants.append("%i%s>%s" % (pos, part_from, part_to))
         else:
             variants.append(variant)
     return "_".join(
@@ -142,7 +156,8 @@ def microhaplotype_to_variants(seq, positions):
     microhaplotype = {
         position: base for position, base in zip(sorted(positions), microhaplotype) if base != "N"}
 
-    # Merge consecutive positions.
+    # Merge consecutive microhaplotype positions.
+    # Note: adjacent non-microhaplotype SNPs are currently not merged.
     for position in list(sorted(microhaplotype, reverse=True)):
         if position - 1 in microhaplotype and "-" not in (
                 microhaplotype[x] for x in (position, position - 1)):
