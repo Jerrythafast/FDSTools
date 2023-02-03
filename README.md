@@ -30,6 +30,10 @@ Alternatively, FDSTools can be installed by running:
 Release Notes
 -------------
 ### Version 2.0.4 (TBD)
+Microhaplotype alleles with SNPs adjacent to any of the microhaplotype
+positions are now recognised. For example, an allele previously named
+"MH_N_123NC>GA" will now be named "MH_G_124C>A" instead.
+
 Greatly improved loading speed for large library files.
 
 
@@ -41,7 +45,7 @@ Added NimaGen IDseek OmniSTR built-in library file (ID-OmniSTR).
 Fixed a compatibility issue with Python 3.10, that caused TSSV to crash.
 Fixed some issues that could cause crashes in the Pipeline tool.
 
-Corrected the reported range of AmelongeninY in the ForenSeq-A and  ForenSeq-B
+Corrected the reported range of AmelongeninY in the ForenSeq-A and ForenSeq-B
 library files which were introduced in v2.0.1, by adding 1 to the starting
 position. The range is now identical to the UAS Flanking Region Report range.
 If still you need to work with data previously generated using the ForenSeq-A
