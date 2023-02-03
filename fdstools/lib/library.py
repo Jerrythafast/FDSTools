@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 
 #
-# Copyright (C) 2022 Jerry Hoogenboom
+# Copyright (C) 2023 Jerry Hoogenboom
 #
 # This file is part of FDSTools, data analysis tools for Massively
 # Parallel Sequencing of forensic DNA markers.
@@ -284,6 +284,9 @@ def parse_library(handle):
         "explicit STR": ("prefix", "suffix", "repeat", "length_adjust", "block_length"),
         "explicit non-STR": ("no_repeat",),
         "STRNaming-specific": tuple()}  # NOTE: No STRNaming-specific settings now...
+
+    # Get a list of ranges, so that we can load the STR structures in one call.
+    ranges = {}
     for marker, settings in markers.items():
         groups = [mutex_group for mutex_group, sections in MUTEX_GROUPS.items()
             if any(section in settings for section in sections)]
@@ -293,6 +296,32 @@ def parse_library(handle):
                     "%s sections (%s)" % (group, ", ".join(
                         section for section in MUTEX_GROUPS[group] if section in settings))
                     for group in groups)))
+        if "explicit STR" not in groups and "explicit non-STR" not in groups:
+            try:
+                genome_position = settings["genome_position"]
+            except KeyError:
+                raise ValueError("No genome_position or explicit repeat or no_repeat "
+                                 "configuration provided for marker %s" % marker)
+            if not len(genome_position) % 2:
+                raise ValueError(
+                    "Invalid genomic position given for marker %s: need an odd number of values "
+                    "(chromosome, start position, end position[, start2, end2, ...])" % marker)
+            if len(genome_position) == 3:
+                chromosome, start, end = genome_position
+                if chromosome not in ranges:
+                    ranges[chromosome] = [(start, end + 1)]
+                else:
+                    ranges[chromosome].append((start, end + 1))
+
+    # Load the STR structures on the given ranges.
+    structure_store = reported_range_store.get_structure_store()
+    for chromosome, ranges_here in ranges.items():
+        structure_store.load_within_ranges(chromosome, sorted(ranges_here))
+
+    # Now add all markers to the ReportedRangeStore.
+    for marker, settings in markers.items():
+        groups = [mutex_group for mutex_group, sections in MUTEX_GROUPS.items()
+            if any(section in settings for section in sections)]
         options = {option: settings[option] for option in {"flanks", "max_expected_copies",
                 "expected_allele_length", "microhaplotype_positions"} & settings.keys()}
         if "explicit STR" in groups:
@@ -337,20 +366,12 @@ def parse_library(handle):
             add_legacy_range(reported_range_store, marker, refseq, "", [], options, pos)
         else:
             # Use STRNaming for this marker.
-            try:
-                genome_position = settings["genome_position"]
-            except KeyError:
-                raise ValueError("No genome_position or explicit repeat or no_repeat "
-                                 "configuration provided for marker %s" % marker)
-            if not len(genome_position) % 2:
-                raise ValueError(
-                    "Invalid genomic position given for marker %s: need an odd number of values "
-                    "(chromosome, start position, end position[, start2, end2, ...])" % marker)
             # TODO: Alias of STR markers was defined as excluding the prefix/suffix!
+            genome_position = settings["genome_position"]
             if len(genome_position) == 3:
                 chromosome, start, end = genome_position
                 reported_range_store.add_range(
-                    marker, chromosome, start, end + 1, load_structures=True, options=options)
+                    marker, chromosome, start, end + 1, options=options)
             else:
                 reported_range_store.add_complex_range(marker, genome_position, options=options)
 

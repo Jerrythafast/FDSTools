@@ -3,6 +3,8 @@ FDSTools Changelog
 ### Version 2.0.4
 - Microhaplotype alleles with SNPs adjacent to any of the microhaplotype
   positions are now recognised.
+- Greatly improved loading speed for large library files.
+- Updated dependency requirement (strnaming~=1.1.4).
 
 
 ### Version 2.0.3

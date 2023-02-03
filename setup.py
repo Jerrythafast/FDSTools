@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 
 #
-# Copyright (C) 2022 Jerry Hoogenboom
+# Copyright (C) 2023 Jerry Hoogenboom
 #
 # This file is part of FDSTools, data analysis tools for Massively
 # Parallel Sequencing of forensic DNA markers.
@@ -68,7 +68,7 @@ setuptools.setup(
     package_data={
         "fdstools": ["vis/*.*", "vis/*/*", "data/libraries/*.ini"]
     },
-    install_requires=["numpy>=1.17", "strnaming~=1.1.3"],
+    install_requires=["numpy>=1.17", "strnaming~=1.1.4"],
     python_requires=">=3.5",
     entry_points={
         "console_scripts": [

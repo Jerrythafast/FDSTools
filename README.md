@@ -34,6 +34,8 @@ Microhaplotype alleles with SNPs adjacent to any of the microhaplotype
 positions are now recognised. For example, an allele previously named
 "MH_N_123NC>GA" will now be named "MH_G_124C>A" instead.
 
+Greatly improved loading speed for large library files.
+
 
 ### Version 2.0.3 (2022-08-27)
 Added NimaGen IDseek OmniSTR built-in library file (ID-OmniSTR).
