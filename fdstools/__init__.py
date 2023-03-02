@@ -1,5 +1,5 @@
 #
-# Copyright (C) 2022 Jerry Hoogenboom
+# Copyright (C) 2023 Jerry Hoogenboom
 #
 # This file is part of FDSTools, data analysis tools for Massively
 # Parallel Sequencing of forensic DNA markers.
@@ -24,7 +24,7 @@ including tools for characterisation and filtering of PCR stutter artefacts and
 other systemic noise, and for automatic detection of the alleles in a sample.
 """
 
-__version__ = "2.0.3"
+__version__ = "2.0.4"
 usage = __doc__.split("\n\n\n")
 
 

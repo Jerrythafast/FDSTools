@@ -29,7 +29,7 @@ Alternatively, FDSTools can be installed by running:
 
 Release Notes
 -------------
-### Version 2.0.4 (TBD)
+### Version 2.0.4 (2023-03-02)
 Microhaplotype alleles with SNPs adjacent to any of the microhaplotype
 positions are now recognised. For example, an allele previously named
 "MH_N_123NC>GA" will now be named "MH_G_124C>A" instead.
