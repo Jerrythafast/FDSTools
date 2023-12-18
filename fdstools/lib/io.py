@@ -74,9 +74,16 @@ def parse_allelelist(allelelist, *, convert=None, library=None):
 def read_sample_data_file(infile, data, annotation_column=None, seqformat=None, library=None,
                           default_marker=None, drop_special_seq=False, after_correction=False,
                           combine_strands=False, extra_columns=None):
-    """Add data from infile to data dict as [marker, sequence]=reads."""
+    """
+    Add data from infile to data dict as [marker, sequence]=reads.
+
+    extra_columns = {column_name_string: optional_boolean}
+    return {(marker, sequence): (reads, {column_name_string1: value1,
+    column_name_string2: value2})}
+    """
     # TODO: require keywords
     # Get column numbers.
+
     column_names = infile.readline().rstrip("\r\n").split("\t")
     if column_names == [""]:
         return []  # Empty file.

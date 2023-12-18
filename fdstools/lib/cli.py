@@ -87,14 +87,19 @@ def comma_separated_arg(list_type, element_type):
 #comma_separated_arg
 
 
-def add_sequence_format_args(parser, *, default_format=None, force=False, require_library=False):
+def add_sequence_format_args(parser, *, default_format=None, force=False,
+                             require_library=False, ce_format=False):
     """Add arguments for sequence formatting to the given parser."""
     group = parser.add_argument_group("sequence format options")
     if force:
         group.set_defaults(sequence_format=default_format)
     else:
+        if ce_format:
+            choices = ("raw", "tssv", "allelename", "ce")
+        else:
+            choices = ("raw", "tssv", "allelename")
         group.add_argument("-F", "--sequence-format", metavar="FORMAT",
-            choices=("raw", "tssv", "allelename"), default=default_format,
+            choices=choices, default=default_format,
             help="convert sequences to the specified format: one of %(choices)s (default: " + (
                  "no conversion" if default_format is None else default_format)
                  + ")")

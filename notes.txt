@@ -99,13 +99,14 @@ DROP    blame               Common alleles
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 Argument group order*:
-input file options          bgcorrect,findnewalleles,samplestats,seqconvert,stuttermark
-output file options         allelefinder,bganalyse,bgcorrect,bgestimate,bghomraw,bghomstats,bgmerge,findnewalleles,samplestats,seqconvert,stuttermark,stuttermodel,tssv
-sample tag parsing options  allelefinder,bganalyse,bgcorrect,bgestimate,bghomraw,bghomstats,findnewalleles,pipeline,samplestats,seqconvert,stuttermark,stuttermodel
+input file options          bgcorrect,findnewalleles,mps2ce,samplestats,seqconvert,stuttermark
+output file options         allelefinder,bganalyse,bgcorrect,bgestimate,bghomraw,bghomstats,bgmerge,findnewalleles,mps2ce,samplestats,seqconvert,stuttermark,stuttermodel,tssv
+sample tag parsing options  allelefinder,bganalyse,bgcorrect,bgestimate,bghomraw,bghomstats,findnewalleles,mps2ce,pipeline,samplestats,seqconvert,stuttermark,stuttermodel
+output file format options  mps2ce
 allele detection options    bganalyse,bgestimate,bghomraw,bghomstats,stuttermodel
 interpretation options      samplestats
-filtering options           allelefinder,bgcorrect,bgestimate,bghomraw,bghomstats,bgpredict,findnewalleles,samplestats,stuttermark,stuttermodel,tssv
-sequence format options     allelefinder,bganalyse,bgcorrect,bgestimate,bghomraw,bghomstats,bgmerge,bgpredict,findnewalleles,stuttermark,stuttermodel,tssv
+filtering options           allelefinder,bgcorrect,bgestimate,bghomraw,bghomstats,bgpredict,findnewalleles,mps2ce,samplestats,stuttermark,stuttermodel,tssv
+sequence format options     allelefinder,bganalyse,bgcorrect,bgestimate,bghomraw,bghomstats,bgmerge,bgpredict,findnewalleles,mps2ce,stuttermark,stuttermodel,tssv
 visualisation options       vis
 *tssv has sequence format options before output file options
 
@@ -119,6 +120,7 @@ bghomstats      list of sample files        single output
 bgmerge^        list of bg files            single output
 bgpredict^      model + seqfile             single output
 findnewalleles  seqfile + single sample (b) single sample (batches supported)
+mps2ce          single sample file (batch)  single sample (batches supported) or merged output
 libconvert^     single input library        single output
 library^        (none)                      single output
 pipeline^       single ini file             single ini file
@@ -163,6 +165,7 @@ bghomstats      a   cCd e fF  h       l mMn o       sS    v
 bgmerge               d       h       l     o             v
 bgpredict        A    d       h       l  Mn           t   v
 findnewalleles        d e f   h i     l  M  o             v
+mps2ce          a     d e fF  h i     l     o p   r s     v
 library         a     d       h                       t   v
 samplestats     aAbBcCdDe fF  h i       mMnNo pP          v     yY
 seqconvert      a   c d e f   h i     lLmM  o     r       v
@@ -185,6 +188,7 @@ bghomstats      Ignored                     Ignored
 bgmerge         Transparent                 Transparent
 bgpredict       Ignored                     Ignored
 findnewalleles  Marked as 'new'             Marked as 'new'
+mps2ce          Removed                     Removed
 samplestats     Transparent                 Transparent; may remove or add more
 seqconvert      Transparent                 Transparent
 stuttermark     Marked as 'UNKNOWN'         Marked as 'UNKNOWN'
@@ -202,6 +206,7 @@ bghomstats      (as output) (as input)      yes
 bgmerge         raw         raw             no
 bgpredict       raw         raw             no
 findnewalleles  raw         (as input)      no
+mps2ce          (as output) ce              yes
 samplestats     (as input)  (as input)      no
 stuttermark     tssv        tssv            no
 stuttermodel    raw         not applicable  not applicable
