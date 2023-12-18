@@ -31,14 +31,14 @@ from strnaming import classes, libstrnaming, libsequence
 from .seq import PAT_SEQ_RAW, PAT_SEQ_IUPAC
 
 # Patterns that match (parts of) an STR definition.
-PAT_STR_DEF = re.compile("^(?:(?:(?<=^)|(?<!^)\s+)[ACGT]+\s+\d+\s+\d+)*$")
-PAT_STR_DEF_BLOCK = re.compile("([ACGT]+)\s+(\d+)\s+(\d+)")
+PAT_STR_DEF = re.compile(r"^(?:(?:(?<=^)|(?<!^)\s+)[ACGT]+\s+\d+\s+\d+)*$")
+PAT_STR_DEF_BLOCK = re.compile(r"([ACGT]+)\s+(\d+)\s+(\d+)")
 
 # Pattern that matches a chromosome name/number.
-PAT_CHROMOSOME = re.compile("^(?:[Cc][Hh][Rr](?:[Oo][Mm])?)?([1-9XYM]|1\d|2[0-2])$")
+PAT_CHROMOSOME = re.compile(r"^(?:[Cc][Hh][Rr](?:[Oo][Mm])?)?([1-9XYM]|1\d|2[0-2])$")
 
 # Pattern to split a comma-, tab- or space-separated list.
-PAT_SPLIT = re.compile("\s*[, \t]\s*")
+PAT_SPLIT = re.compile(r"\s*[, \t]\s*")
 
 # TextWrapper object for formatting help texts in generated INI files.
 INI_COMMENT = textwrap.TextWrapper(width=79, initial_indent="; ",
