@@ -66,7 +66,7 @@ from ..lib.io import print_db
 from ..lib.library import INI_COMMENT
 
 
-__version__ = "1.1.2"
+__version__ = "1.1.3"
 
 
 # Pattern to split a quoted string.
@@ -237,7 +237,7 @@ def get_arguments(tools):
 def read_ini(infile):
     config = RawConfigParser()
     config.optionxform = str
-    config.readfp(infile)
+    config.read_file(infile)
     return config
 #read_ini
 

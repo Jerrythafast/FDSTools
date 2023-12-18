@@ -168,7 +168,7 @@ def parse_library(handle):
     markers = {}
     ini = RawConfigParser()
     ini.optionxform = str
-    ini.readfp(handle)
+    ini.read_file(handle)
     for section in ini.sections():
         for marker in ini.options(section):
             value = ini.get(section, marker).split(";", 1)[0].strip()
