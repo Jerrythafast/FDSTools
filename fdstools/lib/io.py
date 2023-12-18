@@ -132,6 +132,9 @@ def read_sample_data_file(infile, data, annotation_column=None, seqformat=None, 
 
     found_alleles = []
     for line in infile:
+        if line.startswith("info_") or line.isspace():
+            continue
+
         line = line.rstrip("\r\n").split("\t")
         if drop_special_seq and line[colid_sequence] in SEQ_SPECIAL_VALUES:
             continue
