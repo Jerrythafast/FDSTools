@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 
 #
-# Copyright (C) 2021 Jerry Hoogenboom
+# Copyright (C) 2023 Jerry Hoogenboom
 #
 # This file is part of FDSTools, data analysis tools for Massively
 # Parallel Sequencing of forensic DNA markers.
@@ -21,12 +21,14 @@
 #
 
 import argparse
-import os.path
+import importlib
 import pkgutil
 import re
 import sys
 import textwrap
 #import cProfile  # Imported only if the -d/--debug option is specified
+
+from pathlib import Path
 
 from . import tools, usage, version
 
@@ -101,7 +103,7 @@ def main():
     """
     Main entry point.
     """
-    prog = os.path.splitext(os.path.basename(__file__))[0]
+    prog = Path(__file__).stem
     parser = argparse.ArgumentParser(formatter_class=_HelpFormatter, prog=prog,
                                      add_help=False, description=usage[0])
     parser.version = version(prog)
@@ -119,12 +121,9 @@ def main():
     subparsers.required = True
 
     prefix = tools.__name__ + "."
-    for importer, name, ispkg in pkgutil.iter_modules(
-            path=[os.path.join(
-                os.path.dirname(os.path.abspath(__file__)),
-                "tools")]):
+    for importer, name, ispkg in pkgutil.iter_modules(tools.__path__):
         try:
-            module = importer.find_module(prefix + name).load_module(prefix + name)
+            module = importlib.import_module(prefix + name)
         except Exception as error:
             sys.stderr.write("FDSTools failed to load '%s': %s\n" % (name, error))
             continue

@@ -55,7 +55,7 @@ from errno import EPIPE
 
 from ..lib.cli import pos_int_arg
 
-__version__ = "1.1.0"
+__version__ = "1.1.1"
 
 
 # Default values for parameters are specified below.
@@ -147,10 +147,10 @@ _DEF_UNIT = ""
 _DEF_DATA_FILENAME = "data.csv"
 
 
-_PAT_LIBRARIES = re.compile("<!--\s*BEGIN_LIBRARIES\s*-->\s*(.*?)\s*"
-                            "<!--\s*END_LIBRARIES\s*-->", flags=re.DOTALL)
-_PAT_LOAD_SCRIPT = re.compile("<!--\s*BEGIN_LOAD_SCRIPT\s*-->\s*(.*?)\s*"
-                              "<!--\s*END_LOAD_SCRIPT\s*-->", flags=re.DOTALL)
+_PAT_LIBRARIES = re.compile(r"<!--\s*BEGIN_LIBRARIES\s*-->\s*(.*?)\s*"
+                            r"<!--\s*END_LIBRARIES\s*-->", flags=re.DOTALL)
+_PAT_LOAD_SCRIPT = re.compile(r"<!--\s*BEGIN_LOAD_SCRIPT\s*-->\s*(.*?)\s*"
+                              r"<!--\s*END_LOAD_SCRIPT\s*-->", flags=re.DOTALL)
 
 _SCRIPT_BEGIN = '<script type="text/javascript">'
 _SCRIPT_END = "</script>"

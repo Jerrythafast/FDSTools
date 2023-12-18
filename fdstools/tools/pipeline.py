@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 
 #
-# Copyright (C) 2021 Jerry Hoogenboom
+# Copyright (C) 2023 Jerry Hoogenboom
 #
 # This file is part of FDSTools, data analysis tools for Massively
 # Parallel Sequencing of forensic DNA markers.
@@ -47,6 +47,7 @@ tools in FDSTools.  Please refer to the tool-specific help for a full
 description of each tool.  Type 'fdstools -h TOOL' to get help with the
 given TOOL.
 """
+import importlib
 import os
 import pkgutil
 import re
@@ -65,7 +66,7 @@ from ..lib.io import print_db
 from ..lib.library import INI_COMMENT
 
 
-__version__ = "1.1.1"
+__version__ = "1.1.3"
 
 
 # Pattern to split a quoted string.
@@ -213,13 +214,11 @@ def format_help(text, format_args={}):
 
 def get_tools(hide_pipeline):
     tools = {}
-    for importer, name, ispkg in pkgutil.iter_modules(
-            path=fdstools.tools.__path__):
+    for importer, name, ispkg in pkgutil.iter_modules(fdstools.tools.__path__):
         if hide_pipeline and name == NAME:
             continue
         try:
-            tools[name] = importer.find_module(PACKAGE_PREFIX + name).load_module(
-                PACKAGE_PREFIX + name)
+            tools[name] = importlib.import_module(PACKAGE_PREFIX + name)
         except Exception as error:
             sys.stderr.write("FDSTools failed to load '%s': %s\n" % (name, error))
             continue
@@ -238,7 +237,7 @@ def get_arguments(tools):
 def read_ini(infile):
     config = RawConfigParser()
     config.optionxform = str
-    config.readfp(infile)
+    config.read_file(infile)
     return config
 #read_ini
 
