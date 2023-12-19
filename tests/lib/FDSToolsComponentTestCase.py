@@ -59,7 +59,7 @@ def _smart_open(file: Path or StringIO, mode="rt", encoding="UTF-8"):
 # _smart_open
 
 
-class FDSToolsIntegrationTestCase(FDSToolsTestCase):
+class FDSToolsComponentTestCase(FDSToolsTestCase):
     data_dir = Path(__file__).parent.parent / "data"
     original_working_directory = os.getcwd()
 
