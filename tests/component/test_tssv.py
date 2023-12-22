@@ -80,7 +80,7 @@ class Test(FDSToolsComponentTestCase):
                                          outfile_names)
     # test_advanced2_param
 
-    @skipUnless(run_long_tests(), "Test takes longer than 30 seconds.")
+    @skipUnless(run_long_tests(), "Test takes longer than 1 minute.")
     def test_advanced3_param(self):
         library = "ID-OmniSTR"
         infile = self.data_dir / "fasta" / "OmniSTR_Mixture_R1_4lt2.fasta.gz"
