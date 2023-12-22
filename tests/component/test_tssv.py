@@ -3,7 +3,7 @@ from pathlib import Path
 from unittest import skipUnless
 from unittest.mock import patch
 
-from tests.lib.FDSToolsIntegrationTestCase import FDSToolsIntegrationTestCase
+from tests.lib.FDSToolsComponentTestCase import FDSToolsComponentTestCase
 from tests.lib.FDSToolsTestCase import run_long_tests
 
 
@@ -22,7 +22,7 @@ def get_outfile_names(outfile, report, outdir):
             dir_file4_expected: dir_file4_generated}
 
 
-class Test(FDSToolsIntegrationTestCase):
+class Test(FDSToolsComponentTestCase):
     def test_default_param(self):
         library = "ForenSeqA"
         infile = self.data_dir / "fasta" / "ForenseqAMixture_R1.fasta.gz"
@@ -42,7 +42,7 @@ class Test(FDSToolsIntegrationTestCase):
     # test_default_param
 
     def test_advanced1_param(self):
-        """Output is used as input for integration tests of other tools."""
+        """Output is used as input for component tests of other tools."""
         library = "ForenSeqA"
         infile = self.data_dir / "fasta" / "ForenseqAMixture_R1.fasta.gz"
 
