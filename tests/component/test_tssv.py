@@ -31,14 +31,15 @@ class Test(FDSToolsComponentTestCase):
         outfile = "ForenseqAMixture_R1_tssv_default.txt"
         report = "ForenseqAMixture_R1_tssv_default-report.txt"
 
-        with open(infile) as infile:
-            with patch("sys.stdin", infile):
-                with patch("sys.stdout", StringIO()) as outfile_generated:
-                    with patch("sys.stderr", StringIO()) as report_generated:
-                        outfile_names = {outfile: outfile_generated,
-                                         report: report_generated}
-                        fdstools_args = [library]
-                        self.subTestToolWorksMultiOutput("tssv", fdstools_args, outdir_expected, outfile_names, True)
+        with open(infile) as infile,\
+                patch("sys.stdin", infile), \
+                patch("sys.stdout", StringIO()) as outfile_generated, \
+                patch("sys.stderr", StringIO()) as report_generated:
+            outfile_names = {outfile: outfile_generated,
+                             report: report_generated}
+            fdstools_args = [library]
+            self.subTestToolWorksMultiOutput("tssv", fdstools_args, outdir_expected,
+                                             outfile_names, True)
     # test_default_param
 
     def test_advanced1_param(self):
