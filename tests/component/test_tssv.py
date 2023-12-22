@@ -52,8 +52,8 @@ class Test(FDSToolsComponentTestCase):
         outdir = "dir_advanced1"
         outfile_names = get_outfile_names(outfile, report, outdir)
 
-        fdstools_args = [library, str(infile), outfile, "-R", report, "-D", outdir, "-T", "2",
-                         "-a", "10"]
+        fdstools_args = [library, str(infile), outfile, "--report", report, "--dir", outdir,
+                         "--num-threads", "2", "--minimum", "10"]
         self.subTestToolWorksMultiOutput("tssv", fdstools_args, outdir_expected,
                                          outfile_names)
 
@@ -70,8 +70,10 @@ class Test(FDSToolsComponentTestCase):
         outdir = "dir_advanced2"
         outfile_names = get_outfile_names(outfile, report, outdir)
 
-        fdstools_args = [library, str(infile), outfile, "-D", outdir, "-R", report, "-L", "10", "-T", "2",
-                         "-F", "allelename", "-n", "3", "-a", "3", "-M", "exclude"]
+        fdstools_args = [library, str(infile), outfile, "--dir", outdir, "--report", report,
+                         "--flank-length", "10", "--num-threads", "2",
+                         "--sequence-format", "allelename", "--indel-score", "3", "--minimum", "3",
+                         "--missing-marker-action", "exclude"]
 
         self.subTestToolWorksMultiOutput("tssv", fdstools_args, outdir_expected,
                                          outfile_names)
@@ -89,8 +91,9 @@ class Test(FDSToolsComponentTestCase):
 
         outfile_names = get_outfile_names(outfile, report, outdir)
 
-        fdstools_args = [library, str(infile), outfile, "-D", outdir, "-R", report, "-T", "2", "-X",
-                         "-m", "4", "-n", "1", "-a", "5", "-B"]
+        fdstools_args = [library, str(infile), outfile, "--dir", outdir, "--report", report,
+                         "--num-threads", "2", "--no-deduplicate", "--mismatches", "4",
+                         "--indel-score", "1", "--minimum", "5", "--no-aggregate-filtered"]
 
         self.subTestToolWorksMultiOutput("tssv", fdstools_args, outdir_expected,
                                          outfile_names)
@@ -100,7 +103,8 @@ class Test(FDSToolsComponentTestCase):
         library = "ForenSeqA"
         infile = self.data_dir / "fasta" / "ForenseqAMixture_R1.fasta.gz"
 
-        fdstools_args = [library, str(infile), "-M", "halt", "-a", "10", "-B"]
+        fdstools_args = [library, str(infile), "--missing-marker-action", "halt", "--minimum", "10",
+                         "--no-aggregate-filtered"]
 
         self.subTestToolRaisesException("tssv", fdstools_args, SystemExit,
                                         2, msg="Marker DXS10103 was not detected!")
@@ -110,7 +114,7 @@ class Test(FDSToolsComponentTestCase):
         library = "ForenSeqA"
         infile = self.data_dir / "fasta" / "ForenseqAMixture_R1.fasta.gz"
 
-        fdstools_args = [library, str(infile), "-M", "halt"]
+        fdstools_args = [library, str(infile), "--missing-marker-action", "halt"]
 
         self.subTestToolRaisesException("tssv", fdstools_args, None,
                                         2, msg="No halt exception")
