@@ -1,10 +1,10 @@
 from io import StringIO
 from unittest.mock import patch
 
-from tests.lib.FDSToolsIntegrationTestCase import FDSToolsIntegrationTestCase
+from tests.lib.FDSToolsComponentTestCase import FDSToolsComponentTestCase
 
 
-class Test(FDSToolsIntegrationTestCase):
+class Test(FDSToolsComponentTestCase):
     # todo: test update allele name with -L
     # todo: test reverse complement with -r and -L
     # todo: test error -r without -L
