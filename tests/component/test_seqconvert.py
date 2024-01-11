@@ -5,9 +5,9 @@ from tests.lib.FDSToolsComponentTestCase import FDSToolsComponentTestCase
 
 
 class Test(FDSToolsComponentTestCase):
-    # todo: test update allele name with -L
-    # todo: test reverse complement with -r and -L
-    # todo: test error -r without -L
+    # todo: test update allele name with --library2
+    # todo: test reverse complement with --reverse-complement and --library2
+    # todo: test error --reverse-complement without --library2
 
     def setUp(self):
         super().setUp()
@@ -33,7 +33,7 @@ class Test(FDSToolsComponentTestCase):
         fdstools_args = ["tssv", str(self.raw), self.tssv.name]
         self.subTestToolRaisesException("seqconvert", fdstools_args, SystemExit, 2, msg=msg)
 
-        fdstools_args += ["-l", self.library]
+        fdstools_args += ["--library", self.library]
         self.subTestToolWorks("seqconvert", fdstools_args, outfile_expected=self.tssv)
     # test_raw_to_tssv
 
@@ -42,7 +42,7 @@ class Test(FDSToolsComponentTestCase):
         fdstools_args = ["allelename", str(self.raw), self.allelename.name]
         self.subTestToolRaisesException("seqconvert", fdstools_args, SystemExit, 2, msg=msg)
 
-        fdstools_args += ["-l", self.library]
+        fdstools_args += ["--library", self.library]
         self.subTestToolWorks("seqconvert", fdstools_args, outfile_expected=self.allelename)
     # test_raw_to_allelename
 
@@ -51,7 +51,7 @@ class Test(FDSToolsComponentTestCase):
         fdstools_args = ["raw", str(self.tssv), self.raw.name]
         self.subTestToolRaisesException("seqconvert", fdstools_args, SystemExit, 2, msg=msg)
 
-        fdstools_args += ["-l", self.library]
+        fdstools_args += ["--library", self.library]
         self.subTestToolWorks("seqconvert", fdstools_args, outfile_expected=self.raw)
     # test_tssv_to_raw
 
@@ -65,7 +65,7 @@ class Test(FDSToolsComponentTestCase):
         fdstools_args = ["allelename", str(self.tssv), self.allelename.name]
         self.subTestToolRaisesException("seqconvert", fdstools_args, SystemExit, 2, msg=msg)
 
-        fdstools_args += ["-l", self.library]
+        fdstools_args += ["--library", self.library]
         self.subTestToolWorks("seqconvert", fdstools_args, outfile_expected=self.allelename)
     # test_tssv_to_allelename
 
@@ -74,7 +74,7 @@ class Test(FDSToolsComponentTestCase):
         fdstools_args = ["raw", str(self.allelename), self.raw.name]
         self.subTestToolRaisesException("seqconvert", fdstools_args, SystemExit, 2, msg=msg)
 
-        fdstools_args += ["-l", self.library]
+        fdstools_args += ["--library", self.library]
         self.subTestToolWorks("seqconvert", fdstools_args, outfile_expected=self.raw)
     # test_allelename_to_raw
 
@@ -83,7 +83,7 @@ class Test(FDSToolsComponentTestCase):
         fdstools_args = ["tssv", str(self.allelename), self.tssv.name]
         self.subTestToolRaisesException("seqconvert", fdstools_args, SystemExit, 2, msg=msg)
 
-        fdstools_args += ["-l", self.library]
+        fdstools_args += ["--library", self.library]
         self.subTestToolWorks("seqconvert", fdstools_args, outfile_expected=self.tssv)
     # test_allelename_to_tssv
 
@@ -100,18 +100,18 @@ class Test(FDSToolsComponentTestCase):
         a_a = sc_dir / "ForenseqAMixture_R1_seqconvert-allele-column_allelename+allelename.txt"
         r_a = sc_dir / "ForenseqAMixture_R1_seqconvert-allele-column_raw+allelename.txt"
 
-        fdstools_args_a = ["tssv", str(a), a_t.name, "-c", "custom"]
-        fdstools_args_c = ["allelename", str(a_t), a_a.name, "-a", "custom"]
-        fdstools_args_a_c = ["raw", str(a_a), r_a.name, "-a", "custom", "-c", "sequence"]
+        fdstools_args_a = ["tssv", str(a), a_t.name, "--output-column", "custom"]
+        fdstools_args_c = ["allelename", str(a_t), a_a.name, "--allele-column", "custom"]
+        fdstools_args_a_c = ["raw", str(a_a), r_a.name, "--allele-column", "custom", "--output-column", "sequence"]
 
         msg = "ValueError: missing library"
         self.subTestToolRaisesException("seqconvert", fdstools_args_a, SystemExit, 2, msg=msg)
         self.subTestToolRaisesException("seqconvert", fdstools_args_c, SystemExit, 2, msg=msg)
         self.subTestToolRaisesException("seqconvert", fdstools_args_a_c, SystemExit, 2, msg=msg)
 
-        fdstools_args_a += ["-l", self.library]
-        fdstools_args_c += ["-l", self.library]
-        fdstools_args_a_c += ["-l", self.library]
+        fdstools_args_a += ["--library", self.library]
+        fdstools_args_c += ["--library", self.library]
+        fdstools_args_a_c += ["--library", self.library]
 
         self.subTestToolWorks("seqconvert", fdstools_args_a, outfile_expected=a_t)
         self.subTestToolWorks("seqconvert", fdstools_args_c, outfile_expected=a_a)
@@ -131,13 +131,13 @@ class Test(FDSToolsComponentTestCase):
         fdstools_args = ["allelename", str(file), file.name]
         self.subTestToolWorks("seqconvert", fdstools_args, outfile_expected=file)
 
-        # Error thrown when including -l command, even when no conversion is required.
+        # Error thrown when including --library command, even when no conversion is required.
         msg = "ValueError: Column not found in input file: marker"
-        fdstools_args += ["-l", self.library]
+        fdstools_args += ["--library", self.library]
         self.subTestToolRaisesException("seqconvert", fdstools_args, SystemExit, 2, msg=msg)
 
         # Error disappears when marker column is clarified.
-        fdstools_args += ["-m", "custom"]
+        fdstools_args += ["--marker-column", "custom"]
         self.subTestToolWorks("seqconvert", fdstools_args, outfile_expected=file)
     # test_marker_column
 
@@ -149,28 +149,28 @@ class Test(FDSToolsComponentTestCase):
         a_str = sc_dir / "ForenseqAMixture_R1_seqconvert-marker_allelename_STR.txt"
         a_nonstr = sc_dir / "ForenseqAMixture_R1_seqconvert-marker_allelename_NonSTR.txt"
 
-        fdstools_args = ["tssv", str(self.raw), t_str.name, "-l", self.library, "-M", "D13S317"]
+        fdstools_args = ["tssv", str(self.raw), t_str.name, "--library", self.library, "-M", "D13S317"]
         self.subTestToolWorks("seqconvert", fdstools_args, outfile_expected=t_str)
 
-        fdstools_args = ["tssv", str(self.raw), t_nonstr.name, "-l", self.library,
-                         "-M", "rs10776839"]
+        fdstools_args = ["tssv", str(self.raw), t_nonstr.name, "--library", self.library,
+                         "--marker", "rs10776839"]
         self.subTestToolWorks("seqconvert", fdstools_args, outfile_expected=t_nonstr)
 
-        fdstools_args = ["allelename", str(self.tssv), a_str.name, "-l", self.library,
-                         "-M", "D13S317"]
+        fdstools_args = ["allelename", str(self.tssv), a_str.name, "--library", self.library,
+                         "--marker", "D13S317"]
         self.subTestToolWorks("seqconvert", fdstools_args, outfile_expected=a_str)
 
-        fdstools_args = ["allelename", str(self.tssv), a_nonstr.name, "-l", self.library,
-                         "-M", "rs10776839"]
+        fdstools_args = ["allelename", str(self.tssv), a_nonstr.name, "--library", self.library,
+                         "--marker", "rs10776839"]
         self.subTestToolWorks("seqconvert", fdstools_args, outfile_expected=a_nonstr)
 
         # Test below would also break on any non-STR allelename
         msg = "error: Invalid allele name 'REF' encountered!"
-        fdstools_args = ["raw", str(self.allelename), "-l", self.library, "-M", "D13S317"]
+        fdstools_args = ["raw", str(self.allelename), "--library", self.library, "--marker", "D13S317"]
         self.subTestToolRaisesException("seqconvert", fdstools_args, SystemExit, 2, msg=msg)
 
         # Test below would also break on out of range non-STR (as e.g. SNP naming contains location)
         msg = "error: Unrecognised variant 'CE10_TCTA[10]ATCT[3]'"
-        fdstools_args = ["raw", str(self.allelename), "-l", self.library, "-M", "rs10776839"]
+        fdstools_args = ["raw", str(self.allelename), "--library", self.library, "--marker", "rs10776839"]
         self.subTestToolRaisesException("seqconvert", fdstools_args, SystemExit, 2, msg=msg)
     # test_marker
