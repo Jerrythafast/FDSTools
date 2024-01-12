@@ -1,0 +1,5 @@
+custom	sequence	total	forward	reverse
+AmelogeninX	REF	369	369	0
+CSF1PO	CE11_TCTA[11]ATCT[3]TCTA[2]	338	338	0
+D10S1248	CE15_GGAA[15]	260	260	0
+AmelogeninY	6869892G>A	2	0	2
