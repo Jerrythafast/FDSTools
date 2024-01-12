@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 
 #
-# Copyright (C) 2023 Jerry Hoogenboom
+# Copyright (C) 2024 Jerry Hoogenboom
 #
 # This file is part of FDSTools, data analysis tools for Massively
 # Parallel Sequencing of forensic DNA markers.
@@ -206,7 +206,7 @@ def parse_library(handle):
                         raise ValueError(
                             "Position '%s' of marker %s is not a valid integer"
                             % (value[i], marker))
-                    if not i % 2 and pos[-2] >= pos[-1]:
+                    if not i % 2 and pos[-2] > pos[-1]:
                         raise ValueError(
                             "End position %i of marker %s must be higher than "
                             "corresponding start position %i" % (pos[-1], marker, pos[-2]))
@@ -368,7 +368,7 @@ def parse_library(handle):
             # Use STRNaming for this marker.
             # TODO: Alias of STR markers was defined as excluding the prefix/suffix!
             genome_position = settings["genome_position"]
-            if len(genome_position) == 3:
+            if len(genome_position) == 3 and "microhaplotype_positions" not in settings:
                 chromosome, start, end = genome_position
                 reported_range_store.add_range(
                     marker, chromosome, start, end + 1, options=options)
@@ -378,7 +378,7 @@ def parse_library(handle):
         if "microhaplotype_positions" in settings:
             # Put Ns in reporting range refseq for microhaplotype markers.
             reported_range = reported_range_store.get_range(marker)
-            if reported_range.library:
+            if getattr(reported_range, "library", False):
                 raise ValueError(
                     "Cannot define microhaplotype positions for STR marker %s" % marker)
             refseq = list(reported_range.refseq)
