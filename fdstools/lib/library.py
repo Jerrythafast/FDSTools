@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 
 #
-# Copyright (C) 2023 Jerry Hoogenboom
+# Copyright (C) 2024 Jerry Hoogenboom
 #
 # This file is part of FDSTools, data analysis tools for Massively
 # Parallel Sequencing of forensic DNA markers.
@@ -86,7 +86,7 @@ def add_legacy_range(reported_range_store, marker, prefix, suffix, blocks, optio
     units = {}
     for unit, min_repeats, max_repeats in blocks:
         if max_repeats == 1:
-            if len(unit) > max(libstrnaming.NAMING_OPTIONS["max_gap"], len(overlong_gap)):
+            if len(unit) > max(libstrnaming.MAX_GAP_LENGTH, len(overlong_gap)):
                 overlong_gap = unit
         else:
             units[unit] = units.get(unit, 0) + max_repeats
@@ -131,7 +131,7 @@ def add_legacy_range(reported_range_store, marker, prefix, suffix, blocks, optio
 
     if stretches:
         # Make sure the structure is long enough to be accepted by STRNaming.
-        while end - stretches[0][0] < libstrnaming.NAMING_OPTIONS["min_structure_length"]:
+        while end - stretches[0][0] < libstrnaming.MIN_STRUCTURE_LENGTH:
             stretches[-1][1] += len(stretches[-1][2])
             end += len(stretches[-1][2])
             refseq[-1] += stretches[-1][2]
