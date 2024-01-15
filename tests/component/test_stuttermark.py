@@ -5,10 +5,10 @@ from shutil import copytree
 from unittest import skipIf
 from unittest.mock import patch
 
-from tests.lib.FDSToolsIntegrationTestCase import FDSToolsIntegrationTestCase
+from tests.lib.FDSToolsComponentTestCase import FDSToolsComponentTestCase
 
 
-class Test(FDSToolsIntegrationTestCase):
+class Test(FDSToolsComponentTestCase):
     @skipIf(sys.version_info.minor < 8,
             "Skip because shutil.copytree does not support dirs_exist_ok=True in Python < 3.8")
     def test_default_param(self):
