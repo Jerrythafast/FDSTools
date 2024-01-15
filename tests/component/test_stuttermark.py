@@ -51,7 +51,7 @@ class Test(FDSToolsComponentTestCase):
                          "F0808-stuttermark.out",
                          "F0809-stuttermark.out"]
 
-        fdstools_args = ["-i", "F*.txt"]
+        fdstools_args = ["--input", "F*.txt"]
         self.subTestToolWorksMultiOutput("stuttermark", fdstools_args, outdir_expected,
                                          outfile_names)
     # test_default_param
@@ -68,8 +68,8 @@ class Test(FDSToolsComponentTestCase):
         outfile_names = ["F0107-stuttermark.out",
                          "F0809-stuttermark.out"]
 
-        fdstools_args = ["-i", "F0107.txt", "F0809.txt", "-o", outfile_names[0], outfile_names[1],
-                         "-s=-1:10,+1:8", "-m", "1", "-n", "2", "-r", "2"]
+        fdstools_args = ["--input", "F0107.txt", "F0809.txt", "--output", outfile_names[0], outfile_names[1],
+                         "--stutter=-1:10,+1:8", "--min-reads", "1", "--min-repeats", "2", "--min-report", "2"]
         self.subTestToolWorksMultiOutput("stuttermark", fdstools_args, outdir_expected,
                                          outfile_names)
     # test_advanced1_param
@@ -85,7 +85,7 @@ class Test(FDSToolsComponentTestCase):
         with open(infile) as infile:
             with patch("sys.stdin", infile):
                 with patch("sys.stdout", StringIO()) as outfile_generated:
-                    fdstools_args = ["-l", library]
+                    fdstools_args = ["--library", library]
                     self.assertToolWorks("stuttermark", fdstools_args, outfile_expected,
                                          outfile_generated)
     # test_library_required
