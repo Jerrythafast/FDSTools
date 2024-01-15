@@ -82,20 +82,20 @@ class Test(FDSToolsComponentTestCase):
 
         outfile_expected = self.data_dir / "stuttermark" / "stuttermark_default.txt"
 
-        with open(infile) as infile:
-            with patch("sys.stdin", infile):
-                with patch("sys.stdout", StringIO()) as outfile_generated:
-                    fdstools_args = ["--library", library]
-                    self.assertToolWorks("stuttermark", fdstools_args, outfile_expected,
-                                         outfile_generated)
+        with open(infile) as infile,\
+                patch("sys.stdin", infile),\
+                patch("sys.stdout", StringIO()) as outfile_generated:
+            fdstools_args = ["--library", library]
+            self.assertToolWorks("stuttermark", fdstools_args, outfile_expected,
+                                 outfile_generated)
     # test_library_required
 
     def test_library_required_error(self):
         """library is required because the input contains raw sequences and stuttermark requires tssv format."""
         infile = self.data_dir / "tssv" / "ForenseqAMixture_R1_tssv_advanced1.txt"
 
-        with open(infile) as infile:
-            with patch("sys.stdin", infile):
-                self.subTestToolRaisesException("stuttermark", [], SystemExit, 2, msg="ValueError: Sequence needs to be "
-                                                "converted from raw to tssv, this conversion requires a library file")
+        with open(infile) as infile,\
+                patch("sys.stdin", infile):
+            self.subTestToolRaisesException("stuttermark", [], SystemExit, 2, msg="ValueError: Sequence needs to be "
+                                            "converted from raw to tssv, this conversion requires a library file")
     # test_library_required_error
