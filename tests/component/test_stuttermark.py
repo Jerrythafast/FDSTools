@@ -15,7 +15,7 @@ class Test(FDSToolsComponentTestCase):
         """Also tests multi in-/output using regex.
            Output is used as input for integration tests of other tools."""
 
-        indir = str(self.data_dir / "tssv" / "exercise2")
+        indir = str(self.data_dir / "_references")
         copytree(indir, os.getcwd(), dirs_exist_ok=True)  # input>tempdir, because output is written to input location
 
         outdir_expected = self.data_dir / "stuttermark" / "default"
@@ -61,7 +61,7 @@ class Test(FDSToolsComponentTestCase):
     def test_advanced1_param(self):
         """Also tests multi in-/output naming specific files."""
 
-        indir = str(self.data_dir / "tssv" / "exercise2")
+        indir = str(self.data_dir / "_references")
         copytree(indir, os.getcwd(), dirs_exist_ok=True)  # input>tempdir, because output is written to input location
 
         outdir_expected = self.data_dir / "stuttermark" / "advanced1"
@@ -77,10 +77,10 @@ class Test(FDSToolsComponentTestCase):
     def test_library_required(self):
         """Also tests single in-/output using stdin and stdout.
            library is required because the input contains raw sequences and stuttermark requires tssv format."""
-        library = "ForenSeqA"
-        infile = self.data_dir / "tssv" / "ForenseqAMixture_R1_tssv_advanced1.txt"
+        library = "ID-OmniSTR"
+        infile = self.data_dir / "tssv" / "OmniSTR_Mixture_R1_4lt2_tssv_advanced1.txt"
 
-        outfile_expected = self.data_dir / "stuttermark" / "stuttermark_default.txt"
+        outfile_expected = self.data_dir / "stuttermark" / "stuttermark_library_required.txt"
 
         with open(infile) as infile,\
                 patch("sys.stdin", infile),\
@@ -92,7 +92,7 @@ class Test(FDSToolsComponentTestCase):
 
     def test_library_required_error(self):
         """library is required because the input contains raw sequences and stuttermark requires tssv format."""
-        infile = self.data_dir / "tssv" / "ForenseqAMixture_R1_tssv_advanced1.txt"
+        infile = self.data_dir / "tssv" / "OmniSTR_Mixture_R1_4lt2_tssv_advanced1.txt"
 
         with open(infile) as infile,\
                 patch("sys.stdin", infile):
