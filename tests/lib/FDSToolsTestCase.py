@@ -7,7 +7,7 @@ from unittest import TestCase
 
 
 def run_long_tests():
-    """Intended usage: @skipUnless(run_long_tests(), "Test takes longer than 1 minute.")"""
+    """Intended usage: @skipUnless(run_long_tests(), "Test takes longer than # seconds/minute(s).")"""
     try:
         return os.environ['RUN_LONG_TESTS'].lower() in ("true", "t", "1", "yes", "y", "ok", "okay", "yes, please")
     except KeyError:
