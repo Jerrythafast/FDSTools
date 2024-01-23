@@ -1,10 +1,8 @@
 from io import StringIO
 from pathlib import Path
-from unittest import skipUnless
 from unittest.mock import patch
 
 from tests.lib.FDSToolsComponentTestCase import FDSToolsComponentTestCase
-from tests.lib.FDSToolsTestCase import run_long_tests
 
 
 def get_outfile_names(outfile, report, outdir):
@@ -80,7 +78,6 @@ class Test(FDSToolsComponentTestCase):
                                          outfile_names)
     # test_advanced2_param
 
-    @skipUnless(run_long_tests(), "Test takes longer than 1 minute.")
     def test_advanced3_param(self):
         library = "ID-OmniSTR"
         infile = self.data_dir / "fasta" / "OmniSTR_Mixture_R1_4lt2.fasta.gz"
@@ -92,10 +89,9 @@ class Test(FDSToolsComponentTestCase):
 
         outfile_names = get_outfile_names(outfile, report, outdir)
 
-        fdstools_args = [library, str(infile), outfile, "--dir", outdir, "--report", report,
-                         "--num-threads", "2", "--no-deduplicate", "--mismatches", "4",
-                         "--indel-score", "1", "--minimum", "5", "--no-aggregate-filtered"]
-
+        fdstools_args = [library, str(infile), outfile, "--dir", outdir, "--report", report, "--no-deduplicate",
+                         "--flank-length", "20", "--num-threads", "2", "--mismatches", "4", "--indel-score", "1",
+                         "--minimum", "5", "--no-aggregate-filtered"]
         self.subTestToolWorksMultiOutput("tssv", fdstools_args, outdir_expected,
                                          outfile_names)
     # test_advanced3_param
