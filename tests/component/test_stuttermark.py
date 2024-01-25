@@ -9,7 +9,7 @@ from tests.lib.FDSToolsComponentTestCase import FDSToolsComponentTestCase
 
 
 class Test(FDSToolsComponentTestCase):
-    @skipIf(sys.version_info.minor < 8,
+    @skipIf(sys.version_info < (3, 8),
             "Skip because shutil.copytree does not support dirs_exist_ok=True in Python < 3.8")
     def test_default_param(self):
         """Also tests multi in-/output using regex.
