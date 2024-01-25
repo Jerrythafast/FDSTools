@@ -42,6 +42,7 @@ class Test(FDSToolsComponentTestCase):
     # test_default_param
 
     def test_advanced1_param(self):
+        """Output is used as input for component tests of stuttermark."""
         library = "ID-OmniSTR"
         infile = self.data_dir / "fasta" / "OmniSTR_Mixture_R1_4lt2.fasta.gz"
 
