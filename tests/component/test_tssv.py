@@ -22,6 +22,7 @@ def get_outfile_names(outfile, report, outdir):
 
 class Test(FDSToolsComponentTestCase):
     def test_default_param(self):
+        """Output is used as input for component tests of seqconvert."""
         library = "ID-OmniSTR"
         infile = self.data_dir / "fasta" / "OmniSTR_Mixture_R1_4lt2.fasta.gz"
 
@@ -41,7 +42,6 @@ class Test(FDSToolsComponentTestCase):
     # test_default_param
 
     def test_advanced1_param(self):
-        """Output is used as input for component tests of other tools."""
         library = "ID-OmniSTR"
         infile = self.data_dir / "fasta" / "OmniSTR_Mixture_R1_4lt2.fasta.gz"
 
