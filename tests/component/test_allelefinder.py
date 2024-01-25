@@ -10,14 +10,14 @@ class Test(FDSToolsComponentTestCase):
         outfile = "allelefinder_"+name+".txt"
         report = "allelefinder_"+name+"-report.txt"
 
-        with open(infile) as infile:
-            with patch("sys.stdin", infile):
-                with patch("sys.stdout", StringIO()) as outfile_generated:
-                    with patch("sys.stderr", StringIO()) as report_generated:
-                        outfile_names = {outfile: outfile_generated,
-                                         report: report_generated}
-                        fdstools_args = []
-                        self.subTestToolWorksMultiOutput("allelefinder", fdstools_args, outdir_expected, outfile_names)
+        with open(infile) as infile,\
+                patch("sys.stdin", infile),\
+                patch("sys.stdout", StringIO()) as outfile_generated,\
+                patch("sys.stderr", StringIO()) as report_generated:
+            outfile_names = {outfile: outfile_generated,
+                             report: report_generated}
+            fdstools_args = []
+            self.subTestToolWorksMultiOutput("allelefinder", fdstools_args, outdir_expected, outfile_names)
     # run_default
 
     def test_default_param(self):
