@@ -102,7 +102,7 @@ class Test(FDSToolsComponentTestCase):
         sc_dir = self.data_dir / "seqconvert"
         a = self.data_dir / "_references" / "F0107.txt"
         a_t = sc_dir / "F0107_seqconvert-allele-column_tssv+allelename.txt"
-        a_a = sc_dir / "F0107_seqconvert-allele-column_tssv+tsvv.txt"
+        a_a = sc_dir / "F0107_seqconvert-allele-column_tssv+tssv.txt"
         r_a = sc_dir / "F0107_seqconvert-allele-column_raw+allelename.txt"
 
         fdstools_args_a = ["allelename", str(a), a_t.name, "--output-column", "custom"]
