@@ -1,10 +1,10 @@
 from io import StringIO
 from unittest.mock import patch
 
-from tests.lib.FDSToolsIntegrationTestCase import FDSToolsIntegrationTestCase
+from tests.lib.FDSToolsComponentTestCase import FDSToolsComponentTestCase
 
 
-class Test(FDSToolsIntegrationTestCase):
+class Test(FDSToolsComponentTestCase):
     def run_default(self, infile, name):
         outdir_expected = self.data_dir / "allelefinder"
         outfile = "allelefinder_"+name+".txt"
