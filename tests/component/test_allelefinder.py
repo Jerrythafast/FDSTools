@@ -36,7 +36,7 @@ class Test(FDSToolsComponentTestCase):
         report = "allelefinder_advanced1-report.txt"
         outfile_names = [outfile, report]
 
-        fdstools_args = [infiles, "-o", outfile, "-R", report, "-e", "(F....)", "-x", "1"]
+        fdstools_args = [infiles, "--output", outfile, "--report", report, "--tag-expr", "(F....)", "--max-noisy", "1"]
         self.subTestToolWorksMultiOutput("allelefinder", fdstools_args, outdir_expected, outfile_names)
     # test_advanced1_param
 
@@ -52,7 +52,9 @@ class Test(FDSToolsComponentTestCase):
         report = "allelefinder_advanced2-report.txt"
 
         outfile_names = [outfile, report]
-        fdstools_args = infiles + ["-o", outfile, "-R", report, "-e", "(F....)", "-l", library, "-m", "50",
-                         "-M", "5", "-n", "100", "-N", "20", "-a", "1", "-x", "5", "-F", "raw"]
+        fdstools_args = infiles + ["--output", outfile, "--report", report, "--tag-expr", "(F....)",
+                                   "--library", library, "--min-allele-pct", "50", "--max-noise-pct", "5",
+                                   "--min-reads", "100", "--min-reads-lowest", "20", "--max-alleles", "1",
+                                   "--max-noisy", "5", "--sequence-format", "raw"]
         self.subTestToolWorksMultiOutput("allelefinder", fdstools_args, outdir_expected, outfile_names)
     # test_advanced2_param
