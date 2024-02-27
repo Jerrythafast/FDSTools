@@ -306,7 +306,7 @@ def parse_library(handle):
                 raise ValueError(
                     "Invalid genomic position given for marker %s: need an odd number of values "
                     "(chromosome, start position, end position[, start2, end2, ...])" % marker)
-            if len(genome_position) == 3:
+            if len(genome_position) == 3 and "microhaplotype_positions" not in settings:
                 chromosome, start, end = genome_position
                 if chromosome not in ranges:
                     ranges[chromosome] = [(start, end + 1)]
