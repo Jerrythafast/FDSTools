@@ -1,5 +1,9 @@
 FDSTools Changelog
 ==================
+### Version 2.1.0
+- Includes [TSSV v2.1.2](#TSSV-212)
+
+
 ### Version 2.0.4
 - Microhaplotype alleles with SNPs adjacent to any of the microhaplotype
   positions are now recognised.
@@ -768,6 +772,11 @@ Stuttermodel
 
 TSSV
 ----
+### TSSV 2.1.2
+- Fixed incorrect handling of overlapping ranges in TSSV. For example, TSSV would
+  sometimes use only the DYS389I part of reads that span the full DYS389II range.
+
+
 ### TSSV 2.1.1
 - Fixed "error: too many values to unpack (expected 2)" when using the -D/--dir option.
   Thanks to @agynna for reporting!

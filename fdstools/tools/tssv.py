@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 
 #
-# Copyright (C) 2022 Jerry Hoogenboom
+# Copyright (C) 2024 Jerry Hoogenboom
 #
 # This file is part of FDSTools, data analysis tools for Massively
 # Parallel Sequencing of forensic DNA markers.
@@ -76,7 +76,7 @@ from ..lib.io import try_write_pipe
 from ..lib.seq import PAT_SEQ_RAW, reverse_complement, ensure_sequence_format
 from ..lib.sg_align import align
 
-__version__ = "2.1.1"
+__version__ = "2.1.2"
 
 
 # Default values for parameters are specified below.
@@ -414,11 +414,11 @@ def align_pair(reference, reference_rc, pair, indel_score):
 
 
 def relative_distance(reference, sequence):
-    """Return (pct_changed, -len(reference))."""
+    """Return 2 * hamming_distance(ref, seq) - len(reference)."""
     len_reference = len(reference)
     if len_reference > len(sequence):
-        return (align(reference, sequence, 1, global_align=1)[0] / len_reference, -len_reference)
-    return (align(sequence, reference, 1, global_align=1)[0] / len_reference, -len_reference)
+        return 2 * align(reference, sequence, 1, global_align=1)[0] - len_reference
+    return 2 * align(sequence, reference, 1, global_align=1)[0] - len_reference
 #relative_distance
 
 
@@ -443,8 +443,8 @@ def prune_matched_ranges(tssv_library, matched_ranges):
                 # Overlapping group; eliminate the worst fit iteratively.
                 if not group_scores:
                     group_scores = [relative_distance(tssv_library[marker][2], seq)
-                        for start, end, seq, strand, marker in matched_ranges]
-                worst_range_index = group_scores.index(max(group_scores[:i - group_start]))
+                        for start, end, seq, strand, marker in matched_ranges[group_start : i]]
+                worst_range_index = group_scores.index(max(group_scores))
                 del matched_ranges[group_start + worst_range_index]
                 del group_scores[worst_range_index]
                 i = group_start + 1
