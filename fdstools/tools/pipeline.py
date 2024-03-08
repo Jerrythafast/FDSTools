@@ -66,7 +66,7 @@ from ..lib.io import print_db
 from ..lib.library import INI_COMMENT
 
 
-__version__ = "1.1.3"
+__version__ = "1.1.2"
 
 
 # Pattern to split a quoted string.

@@ -50,7 +50,7 @@ from types import MethodType
 
 from ..lib.library import BUILTIN_LIBS, BUILTIN_NAMES, INI_COMMENT
 
-__version__ = "1.1.1"
+__version__ = "1.1.2"
 
 
 def ini_add_comment(ini, section, comment):
@@ -86,7 +86,7 @@ def make_empty_library_ini(type, microhaplotypes=False):
             "FDSTools that the marker is a concatenation of two fragments, "
             "where the first fragment ends at position 16569 and the second "
             "fragment starts at position 1. Similarly, for a fragment that "
-            "spans position 3107 in the rCRS (which is nonexistent), you may "
+            "spans position 3107 in the rCRS (which is nonexistent), you must "
             "specify \"M, (starting position), 3106, 3108, (ending "
             "position)\".")
     if microhaplotypes or type == "full":
@@ -103,19 +103,19 @@ def make_empty_library_ini(type, microhaplotypes=False):
     ini.add_comment("flanks",
         "The TSSV tool will use a pair of short anchor sequences just outside the reported range "
         "of each marker (e.g., primer sequences) to identify which input reads correspond to "
-        "which marker. %s The sequence may contain IUPAC codes for ambiguous positions to account "
-        "for degenerate bases in the primers or for bisulfite-converted targets in methylation-"
-        "based studies (e.g., Y matches either C or T)." % (
+        "which marker. The number of flanking bases used by TSSV can be controlled with the "
+        "-L/--flank-length option of that tool. %s The sequence may contain IUPAC codes for "
+        "ambiguous positions to account for degenerate bases in the primers or for bisulfite-"
+        "converted targets in methylation-based studies (e.g., Y matches either C or T)." % (
             "Specify two comma-separated values: left flank and right flank sequence, in the same "
             "sequence orientation (strand)."
                 if type in ("str", "non-str") else
-            ("The default length of the anchor sequences used can be specified as an argument to "
-            "the TSSV tool. Individual alternative lengths can be specified here for each marker. "
-            "Specify two comma-separated values: one for the left and one for the right flank. "
-            "The value can be a number (the length of sequence to use) or an explicit anchor "
-            "sequence to use.%s" % (
+            ("By default, flanking sequence is loaded from the genome reference sequence, but an "
+            "alternative sequence can be specified here. To do so, provide two comma-separated "
+            "values: one for the left and one for the right flank. Each value can be 'REF' or an "
+            "explicit anchor sequence to use.%s" % (
                 " For markers configured explicitly in this library file, the anchor sequences "
-                "must be specified explicitly as well." if type == "full" else ""))))
+                "MUST be specified explicitly as well." if type == "full" else ""))))
     ini.add_section("max_expected_copies")
     ini.add_comment("max_expected_copies",
         "By default, the Allelefinder tool will report up to 2 alleles per marker, but only a "

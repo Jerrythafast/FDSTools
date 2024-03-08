@@ -76,7 +76,7 @@ from ..lib.io import try_write_pipe
 from ..lib.seq import PAT_SEQ_RAW, reverse_complement, ensure_sequence_format
 from ..lib.sg_align import align
 
-__version__ = "2.1.2"
+__version__ = "2.2.0"
 
 
 # Default values for parameters are specified below.
@@ -118,14 +118,25 @@ class TSSV:
         self.has_iupac = False
         self.tssv_library = {}
         for marker, reported_range in library.get_ranges().items():
-            flanks = list(reported_range.get_option("flanks", (flank_length, flank_length)))
-            if not all(flanks):
-                raise ValueError("Missing flanking sequence for marker %s" % marker)
+            flanks = list(reported_range.get_option("flanks", ["", ""]))
+            autoload_reference = reported_range.get_option("autoload_refrence")
             chromosome, start, *_, end = reported_range.location
-            if isinstance(flanks[0], int):
-                flanks[0] = refseq_store.get_refseq(chromosome, start - flanks[0], start)
-            if isinstance(flanks[1], int):
-                flanks[1] = refseq_store.get_refseq(chromosome, end + 1, end + 1 + flanks[1])
+            if flank_length > len(flanks[0]):
+                # Extend left flank (to the left) with reference bases.
+                flanks[0] = refseq_store.get_refseq(
+                    chromosome, start - flank_length, start - len(flanks[0]),
+                    autoload=autoload_reference) + flanks[0]
+            elif flank_length < len(flanks[0]):
+                # Cut bases from the left end of the left flank.
+                flanks[0] = flanks[0][-flank_length:]
+            if flank_length > len(flanks[1]):
+                # Extend right flank (to the right) with reference bases.
+                flanks[1] += refseq_store.get_refseq(
+                    chromosome, end + len(flanks[1]) + 1, end + flank_length + 1,
+                    autoload=autoload_reference)
+            elif flank_length < len(flanks[1]):
+                # Cut bases from the right end of the right flank.
+                flanks[1] = flanks[1][:flank_length]
             flanks[1] = reverse_complement(flanks[1])
             translate_flank = [0 if PAT_SEQ_RAW.match(flank) else 1 for flank in flanks]
             if any(translate_flank):
