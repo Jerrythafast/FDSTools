@@ -6,8 +6,8 @@ FDSTools Changelog
 - Microhaplotype markers that include a repetitive sequence are now supported.
 - Microhaplotype markers can now consist of multiple [genome_position] ranges.
 - The [flanks] section of the library file can now contain 'REF' to indicate
-  that GRCh38 reference sequence should be used (the default). Specifying any
-  number in the [flanks] section is now equivalent to specifying 'REF'.
+  that GRCh38 reference sequence should be used (the default). Specifying a
+  number in the [flanks] section is no longer supported.
 - When reading sample data files, empty lines and lines that start with 'info_'
   are now ignored.
 - Introduced the first suite of component tests, covering Allelefinder,

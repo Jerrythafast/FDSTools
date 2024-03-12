@@ -182,10 +182,14 @@ def parse_library(handle):
                         "(note: specify 'REF' to automatically load genome reference)"
                         % (marker, len(value)))
                 for i, val in enumerate(value):
-                    if val == "REF" or val.isdigit():
-                        # Allow digits for backward compatibility.
-                        # The effect is equivalent to specifying "REF".
+                    if val == "REF":
                         value[i] = ""
+                    elif val.isdigit():
+                        raise ValueError(
+                            "Specifying a flank length (%s for marker %s) in the "
+                            "library file is no longer supported; specify 'REF' "
+                            "to automatically load genome reference"
+                            % (val, marker))
                     elif PAT_SEQ_IUPAC.match(val) is None:
                         raise ValueError(
                             "Flanking sequence '%s' of marker %s is not a valid sequence "
