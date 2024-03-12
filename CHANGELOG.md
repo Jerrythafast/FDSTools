@@ -8,6 +8,8 @@ FDSTools Changelog
 - The [flanks] section of the library file can now contain 'REF' to indicate
   that GRCh38 reference sequence should be used (the default). Specifying a
   number in the [flanks] section is no longer supported.
+- Library files can now include a [flank_length] section to specify a marker-
+  specific minimum and maximum (or exact) flanking sequence length.
 - When reading sample data files, empty lines and lines that start with 'info_'
   are now ignored.
 - Introduced the first suite of component tests, covering Allelefinder,
@@ -544,6 +546,8 @@ Library
 -------
 ### Library 1.1.2
 - Updated explanatory text in [flanks] section to include 'REF' as a possible value.
+- Added the new [flank_length] section to configure marker-specific flanking sequence
+  length limitations.
 
 
 ### Library 1.1.1
@@ -805,7 +809,8 @@ TSSV
 ----
 ### TSSV 2.2.0
 - The -L/--flank-length option is now applied to all markers, including those that
-  have an entry in the [flanks] section of the library file.
+  have an entry in the [flanks] section of the library file. If applicable, the value
+  is now clamped into the marker-specific range specified in the new [flank_length] section.
 - Fixed incorrect handling of overlapping ranges in TSSV. For example, TSSV would
   sometimes use only the DYS389I part of reads that span the full DYS389II range.
 
