@@ -1,7 +1,25 @@
 FDSTools Changelog
 ==================
 ### Version 2.1.0
-- Includes [TSSV v2.1.2](#TSSV-212)
+- Fixed compatibility issues with Python 3.12 and resolved various warnings.
+- Fixed an issue that made a single-base [genome_position] impossible.
+- Microhaplotype markers that include a repetitive sequence are now supported.
+- Microhaplotype markers can now consist of multiple [genome_position] ranges.
+- The [flanks] section of the library file can now contain 'REF' to indicate
+  that GRCh38 reference sequence should be used (the default). Specifying a
+  number in the [flanks] section is no longer supported.
+- Library files can now include a [flank_length] section to specify a marker-
+  specific minimum and maximum (or exact) flanking sequence length.
+- When reading sample data files, empty lines and lines that start with 'info_'
+  are now ignored.
+- Introduced the first suite of component tests, covering Allelefinder,
+  Seqconvert, Stuttermark and TSSV.
+- Includes [Library v1.1.2](#Library-112)
+- Includes [MPS2CE v1.0.0](#MPS2CE-100)
+- Includes [Pipeline v1.1.2](#Pipeline-112)
+- Includes [TSSV v2.2.0](#TSSV-220)
+- Includes [Vis v1.1.1](#Vis-111)
+- Updated dependency requirement (strnaming~=1.2.0).
 
 
 ### Version 2.0.4
@@ -526,6 +544,12 @@ Libconvert
 
 Library
 -------
+### Library 1.1.2
+- Updated explanatory text in [flanks] section to include 'REF' as a possible value.
+- Added the new [flank_length] section to configure marker-specific flanking sequence
+  length limitations.
+
+
 ### Library 1.1.1
 - Added the -m/--microhaplotypes option, to include the new [microhaplotype_positions]
   section in the library file.
@@ -557,8 +581,19 @@ Library
 
 
 
+MPS2CE
+--------
+### MPS2CE 1.0.0
+- Initial version.
+
+
+
 Pipeline
 --------
+### Pipeline 1.1.2
+- Updated tool import mechanism.
+
+
 ### Pipeline 1.1.1
 - Fixed issues with handling of TSSV's aggregate-filtered option.
 - Fixed issues with handling of the max-alleles option of Samplestats.
@@ -772,7 +807,10 @@ Stuttermodel
 
 TSSV
 ----
-### TSSV 2.1.2
+### TSSV 2.2.0
+- The -L/--flank-length option is now applied to all markers, including those that
+  have an entry in the [flanks] section of the library file. If applicable, the value
+  is now clamped into the marker-specific range specified in the new [flank_length] section.
 - Fixed incorrect handling of overlapping ranges in TSSV. For example, TSSV would
   sometimes use only the DYS389I part of reads that span the full DYS389II range.
 
@@ -848,6 +886,10 @@ TSSV
 
 Vis
 ---
+### Vis 1.1.1
+- Minor code change to fix warnings.
+
+
 ### Vis 1.1.0
 - Changed the default value of the -B/--bias-threshold option from 25 to 0.
 - Changed the default value of the -Z/--allele-min-per-strand option from 1 to 0.

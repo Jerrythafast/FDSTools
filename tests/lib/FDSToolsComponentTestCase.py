@@ -66,7 +66,7 @@ class FDSToolsComponentTestCase(FDSToolsTestCase):
     def setUp(self) -> None:
         self.temp_dir = TemporaryDirectory()
         os.chdir(self.temp_dir.name)
-        self.update_test_data = False
+        self.update_test_data = os.environ.get("UPDATE_TEST_DATA", "no").lower() in ("true", "t", "1", "yes", "y", "ok", "okay", "yes, please")
     # setUp
 
     def tearDown(self) -> None:

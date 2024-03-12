@@ -76,7 +76,7 @@ from ..lib.io import try_write_pipe
 from ..lib.seq import PAT_SEQ_RAW, reverse_complement, ensure_sequence_format
 from ..lib.sg_align import align
 
-__version__ = "2.1.2"
+__version__ = "2.2.0"
 
 
 # Default values for parameters are specified below.
@@ -118,14 +118,29 @@ class TSSV:
         self.has_iupac = False
         self.tssv_library = {}
         for marker, reported_range in library.get_ranges().items():
-            flanks = list(reported_range.get_option("flanks", (flank_length, flank_length)))
-            if not all(flanks):
-                raise ValueError("Missing flanking sequence for marker %s" % marker)
+            flanks = list(reported_range.get_option("flanks", ["", ""]))
+            left_min, left_max, right_min, right_max = reported_range.get_option(
+                "flank_length", [flank_length] * 4)
+            left_length = sorted((left_min, flank_length, left_max))[1]
+            right_length = sorted((right_min, flank_length, right_max))[1]
+            autoload_reference = reported_range.get_option("autoload_reference")
             chromosome, start, *_, end = reported_range.location
-            if isinstance(flanks[0], int):
-                flanks[0] = refseq_store.get_refseq(chromosome, start - flanks[0], start)
-            if isinstance(flanks[1], int):
-                flanks[1] = refseq_store.get_refseq(chromosome, end + 1, end + 1 + flanks[1])
+            if left_length > len(flanks[0]):
+                # Extend left flank (to the left) with reference bases.
+                flanks[0] = refseq_store.get_refseq(
+                    chromosome, start - left_length, start - len(flanks[0]),
+                    autoload=autoload_reference) + flanks[0]
+            elif left_length < len(flanks[0]):
+                # Cut bases from the left end of the left flank.
+                flanks[0] = flanks[0][-left_length:]
+            if right_length > len(flanks[1]):
+                # Extend right flank (to the right) with reference bases.
+                flanks[1] += refseq_store.get_refseq(
+                    chromosome, end + len(flanks[1]) + 1, end + right_length + 1,
+                    autoload=autoload_reference)
+            elif right_length < len(flanks[1]):
+                # Cut bases from the right end of the right flank.
+                flanks[1] = flanks[1][:right_length]
             flanks[1] = reverse_complement(flanks[1])
             translate_flank = [0 if PAT_SEQ_RAW.match(flank) else 1 for flank in flanks]
             if any(translate_flank):
@@ -649,8 +664,7 @@ def add_arguments(parser):
     add_input_output_args(parser, single_in=True, batch_support=False, report_out=True)
     parser.add_argument("-L", "--flank-length", metavar="N", type=pos_int_arg,
         default=_DEF_FLANK_LENGTH,
-        help="length of anchor (flanking) sequences to use, if not specified in the library file "
-             "(default: %(default)s)")
+        help="length of anchor (flanking) sequences to use (default: %(default)s)")
     parser.add_argument("-D", "--dir",
         help="output directory for verbose output; when given, a subdirectory "
              "will be created for each marker, each with a separate "

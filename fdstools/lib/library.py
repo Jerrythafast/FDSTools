@@ -157,6 +157,7 @@ def add_legacy_range(reported_range_store, marker, prefix, suffix, blocks, optio
     if stretches:
         struct_store.add_structure(genome_position[0],
             [[start, end, len(unit)] for start, end, unit in stretches])
+    options["autoload_reference"] = False
     if len(genome_position) > 3:
         return reported_range_store.add_complex_range(marker, genome_position, options=options)
     return reported_range_store.add_range(marker, genome_position[0], start, end, options=options)
@@ -177,17 +178,37 @@ def parse_library(handle):
                 value = PAT_SPLIT.split(value)
                 if len(value) != 2:
                     raise ValueError(
-                        "For marker %s, %i flanking sequences were given, "
-                        "need exactly 2" % (marker, len(value)))
+                        "For marker %s, %i flanking sequences were given, need exactly two "
+                        "(note: specify 'REF' to automatically load genome reference)"
+                        % (marker, len(value)))
                 for i, val in enumerate(value):
-                    if PAT_SEQ_IUPAC.match(val) is None:
-                        try:
-                            value[i] = int(val)
-                            if value[i] < 1:
-                                raise ValueError
-                        except:
-                            raise ValueError(
-                                "Flanking sequence '%s' of marker %s is invalid" % (val, marker))
+                    if val == "REF":
+                        value[i] = ""
+                    elif val.isdigit():
+                        raise ValueError(
+                            "Specifying a flank length (%s for marker %s) in the [flanks] "
+                            "section of the library file is no longer supported. "
+                            "Use the [flank_length] section to specify marker-specific flank "
+                            "length limitations in the library file; specify 'REF' in the "
+                            "[flanks] section to automatically load genome reference"
+                            % (val, marker))
+                    elif PAT_SEQ_IUPAC.match(val) is None:
+                        raise ValueError(
+                            "Flanking sequence '%s' of marker %s is not a valid sequence "
+                            "(note: specify 'REF' to automatically load genome reference)"
+                            % (val, marker))
+            elif section_low == "flank_length":
+                value = PAT_SPLIT.split(value)
+                if len(value) != 4:
+                    raise ValueError(
+                        "Flank length should be four numbers, but %i values were "
+                        "given for marker %s" % (len(value), marker))
+                for i, val in enumerate(value):
+                    if not val.isdigit() or not int(val):
+                        raise ValueError(
+                            "Flank length '%s' of marker %s is not a valid positive "
+                            "integer" % (val, marker))
+                    value[i] = int(val)
             elif section_low in ("prefix", "suffix"):
                 if not PAT_SEQ_RAW.match(value):
                     raise ValueError(
@@ -329,10 +350,6 @@ def parse_library(handle):
             # TODO: Alias of STR markers was defined as excluding the prefix/suffix!
             if "flanks" not in options:
                 options["flanks"] = ("", "")
-            elif any(isinstance(flank, int) for flank in options["flanks"]):
-                raise ValueError(
-                    "Please specify an explit flanking sequence, not just a length, for marker %s"
-                        % marker)
             reported_range = add_legacy_range(reported_range_store, marker,
                 settings.get("prefix", ""),
                 settings.get("suffix", ""),
@@ -348,10 +365,6 @@ def parse_library(handle):
             # Legacy FDSTools-style definition of a non-STR marker.
             if "flanks" not in options:
                 options["flanks"] = ("", "")
-            elif any(isinstance(flank, int) for flank in options["flanks"]):
-                raise ValueError(
-                    "Please specify an explit flanking sequence, not just a length, for marker %s"
-                        % marker)
             refseq = settings["no_repeat"]
             pos = None
             if "genome_position" in settings:
