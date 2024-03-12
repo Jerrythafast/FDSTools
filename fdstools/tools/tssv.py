@@ -119,7 +119,7 @@ class TSSV:
         self.tssv_library = {}
         for marker, reported_range in library.get_ranges().items():
             flanks = list(reported_range.get_option("flanks", ["", ""]))
-            autoload_reference = reported_range.get_option("autoload_refrence")
+            autoload_reference = reported_range.get_option("autoload_reference")
             chromosome, start, *_, end = reported_range.location
             if flank_length > len(flanks[0]):
                 # Extend left flank (to the left) with reference bases.
