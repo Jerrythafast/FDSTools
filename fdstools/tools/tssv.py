@@ -664,8 +664,7 @@ def add_arguments(parser):
     add_input_output_args(parser, single_in=True, batch_support=False, report_out=True)
     parser.add_argument("-L", "--flank-length", metavar="N", type=pos_int_arg,
         default=_DEF_FLANK_LENGTH,
-        help="length of anchor (flanking) sequences to use, if not specified in the library file "
-             "(default: %(default)s)")
+        help="length of anchor (flanking) sequences to use (default: %(default)s)")
     parser.add_argument("-D", "--dir",
         help="output directory for verbose output; when given, a subdirectory "
              "will be created for each marker, each with a separate "
