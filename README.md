@@ -29,6 +29,22 @@ Alternatively, FDSTools can be installed by running:
 
 Release Notes
 -------------
+### Version 2.1.0 (2024-04-30)
+Changed interpretation of the [flanks] section in the library file: it can no
+longer contain numbers, but the value 'REF' can be specified to indicate that
+GRCh38 reference sequence should be used (which was already the default).
+A new [flank_length] section is introduced to allow specifying marker-specific
+minimum and maximum (or exact) flanking sequence length; the value specified
+for TSSV's -L/--flank-length option is then clamped between these values.
+If a [flanks] section is present and contains a short sequence (possibly with
+IUPAC codes), it is implicitly extended with GRCh38 reference sequence to the
+requested length by TSSV.
+
+Greatly improved handling of microhaplotype markers, and we finally introduced
+the first suite of component tests, covering Allelefinder, Seqconvert,
+Stuttermark and TSSV. Welcome to the team, Brechtje!
+
+
 ### Version 2.0.4 (2023-03-02)
 Microhaplotype alleles with SNPs adjacent to any of the microhaplotype
 positions are now recognised. For example, an allele previously named
