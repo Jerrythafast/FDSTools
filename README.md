@@ -30,6 +30,11 @@ Alternatively, FDSTools can be installed by running:
 Release Notes
 -------------
 ### Version 2.1.0 (2024-04-30)
+Updated STRNaming nomenclature to version 1.2. Please note that this is a
+backwards incompatible update: this version of FDSTools is unable to correctly
+interpret allele names that were produced with a prior version!
+Please see https://fdstools.nl/strnaming/updates for more information.
+
 Changed interpretation of the [flanks] section in the library file: it can no
 longer contain numbers, but the value 'REF' can be specified to indicate that
 GRCh38 reference sequence should be used (which was already the default).
