@@ -82,18 +82,24 @@ def add_legacy_range(reported_range_store, marker, prefix, suffix, blocks, optio
             "Gapped or combined genomic range is not supported for STR marker %s" % marker)
 
     # Make sure that the [flanks] and [flank_length] values are compatible with each other.
-    if not options["autoload_reference"] and "flank_length" in options:
-        if not all(options["flanks"]):
-            raise ValueError(
-                "It is not possible to specify flank_length without also explicitly specifying "
-                "the flanking sequence for explicitly-defined marker %s" % marker)
-        for side, given_length, max_length in zip(
-                ("left", "right"), map(len, options["flanks"]), options["flank_length"][1::2]):
-            if max_length > given_length:
+    if not options["autoload_reference"]:
+        if "flank_length" in options:
+            if not all(options["flanks"]):
                 raise ValueError(
-                    "Maximum %s flank length of %i was specified for explicitly-defined "
-                    "marker %s, but only %i flanking bases were provided" %
-                    (side, max_length, marker, given_length))
+                    "It is not possible to specify flank_length without also explicitly "
+                    "specifying the flanking sequence for explicitly-defined marker %s" % marker)
+            for side, given_length, max_length in zip(
+                    ("left", "right"), map(len, options["flanks"]), options["flank_length"][1::2]):
+                if max_length > given_length:
+                    raise ValueError(
+                        "Maximum %s flank length of %i was specified for explicitly-defined "
+                        "marker %s, but only %i flanking bases were provided" %
+                        (side, max_length, marker, given_length))
+        else:
+            # Since autoload_reference is False, we must set a limit!
+            options["flank_length"] = [
+                1, len(options["flanks"][0]),
+                1, len(options["flanks"][1])]
 
     # Find units and overlong_gap.
     overlong_gap = ""
