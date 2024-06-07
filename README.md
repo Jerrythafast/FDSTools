@@ -29,10 +29,17 @@ Alternatively, FDSTools can be installed by running:
 
 Release Notes
 -------------
+### Version 2.1.1 (2024-05-03)
+Fixed an issue that caused the new [flank_length] section to be ignored.
+
+TSSV no longer requires [flanks] to be specified for explicitly-defined
+non-STR markers if the ending [genome_position] is provided.
+
+
 ### Version 2.1.0 (2024-04-30)
-Updated STRNaming nomenclature to version 1.2. Please note that this is a
-backwards incompatible update: this version of FDSTools is unable to correctly
-interpret allele names that were produced with a prior version!
+Updated STRNaming nomenclature to version 1.2. **Please note that this is a
+backwards incompatible update:** this version of FDSTools is unable to
+correctly interpret allele names that were produced with a prior version!
 Please see https://fdstools.nl/strnaming/updates for more information.
 
 Changed interpretation of the [flanks] section in the library file: it can no
@@ -44,6 +51,10 @@ for TSSV's -L/--flank-length option is then clamped between these values.
 If a [flanks] section is present and contains a short sequence (possibly with
 IUPAC codes), it is implicitly extended with GRCh38 reference sequence to the
 requested length by TSSV.
+
+To use TSSV with explicitly-defined markers, those markers now also require
+specifying flanks explicitly. Previously, since FDSTools v2.0.0, TSSV's
+behaviour regarding these markers was erratic.
 
 Greatly improved handling of microhaplotype markers, and we finally introduced
 the first suite of component tests, covering Allelefinder, Seqconvert,

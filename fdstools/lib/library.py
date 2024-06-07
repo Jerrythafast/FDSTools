@@ -81,6 +81,26 @@ def add_legacy_range(reported_range_store, marker, prefix, suffix, blocks, optio
         raise ValueError(
             "Gapped or combined genomic range is not supported for STR marker %s" % marker)
 
+    # Make sure that the [flanks] and [flank_length] values are compatible with each other.
+    if not options["autoload_reference"]:
+        if "flank_length" in options:
+            if not all(options["flanks"]):
+                raise ValueError(
+                    "It is not possible to specify flank_length without also explicitly "
+                    "specifying the flanking sequence for explicitly-defined marker %s" % marker)
+            for side, given_length, max_length in zip(
+                    ("left", "right"), map(len, options["flanks"]), options["flank_length"][1::2]):
+                if max_length > given_length:
+                    raise ValueError(
+                        "Maximum %s flank length of %i was specified for explicitly-defined "
+                        "marker %s, but only %i flanking bases were provided" %
+                        (side, max_length, marker, given_length))
+        else:
+            # Since autoload_reference is False, we must set a limit!
+            options["flank_length"] = [
+                1, len(options["flanks"][0]),
+                1, len(options["flanks"][1])]
+
     # Find units and overlong_gap.
     overlong_gap = ""
     units = {}
@@ -157,7 +177,6 @@ def add_legacy_range(reported_range_store, marker, prefix, suffix, blocks, optio
     if stretches:
         struct_store.add_structure(genome_position[0],
             [[start, end, len(unit)] for start, end, unit in stretches])
-    options["autoload_reference"] = False
     if len(genome_position) > 3:
         return reported_range_store.add_complex_range(marker, genome_position, options=options)
     return reported_range_store.add_range(marker, genome_position[0], start, end, options=options)
@@ -343,13 +362,14 @@ def parse_library(handle):
     for marker, settings in markers.items():
         groups = [mutex_group for mutex_group, sections in MUTEX_GROUPS.items()
             if any(section in settings for section in sections)]
-        options = {option: settings[option] for option in {"flanks", "max_expected_copies",
+        options = {option: settings[option] for option in {
+                "flanks", "flank_length", "max_expected_copies",
                 "expected_allele_length", "microhaplotype_positions"} & settings.keys()}
         if "explicit STR" in groups:
             # Legacy FDSTools-style definition of an STR marker.
-            # TODO: Alias of STR markers was defined as excluding the prefix/suffix!
             if "flanks" not in options:
                 options["flanks"] = ("", "")
+            options["autoload_reference"] = False
             reported_range = add_legacy_range(reported_range_store, marker,
                 settings.get("prefix", ""),
                 settings.get("suffix", ""),
@@ -376,10 +396,10 @@ def parse_library(handle):
                     raise ValueError(
                         "Length of reference sequence of marker %s is %i bases, but "
                         "genome positions add up to %i bases" % (marker, len(refseq), length))
+            options["autoload_reference"] = (len(pos or []) % 2) != 0  # If end pos given.
             add_legacy_range(reported_range_store, marker, refseq, "", [], options, pos)
         else:
             # Use STRNaming for this marker.
-            # TODO: Alias of STR markers was defined as excluding the prefix/suffix!
             genome_position = settings["genome_position"]
             if len(genome_position) == 3 and "microhaplotype_positions" not in settings:
                 chromosome, start, end = genome_position

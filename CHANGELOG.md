@@ -1,5 +1,10 @@
 FDSTools Changelog
 ==================
+### Version 2.1.1
+- Fixed an issue that caused the new [flank_length] section to be ignored.
+- TSSV no longer requires [flanks] to be specified for explicitly-defined
+  non-STR markers if the ending [genome_position] is provided.
+
 ### Version 2.1.0
 - Fixed compatibility issues with Python 3.12 and resolved various warnings.
 - Fixed an issue that made a single-base [genome_position] impossible.
@@ -10,6 +15,9 @@ FDSTools Changelog
   number in the [flanks] section is no longer supported.
 - Library files can now include a [flank_length] section to specify a marker-
   specific minimum and maximum (or exact) flanking sequence length.
+- To use TSSV with explicitly-defined markers, those markers now also require
+  specifying flanks explicitly. Previously, since FDSTools v2.0.0, TSSV's
+  behaviour regarding these markers was erratic.
 - When reading sample data files, empty lines and lines that start with 'info_'
   are now ignored.
 - Introduced the first suite of component tests, covering Allelefinder,
