@@ -29,7 +29,7 @@ Alternatively, FDSTools can be installed by running:
 
 Release Notes
 -------------
-### Version 2.1.1 (2024-05-03)
+### Version 2.1.1 (2024-07-02)
 Fixed an issue that caused the new [flank_length] section to be ignored.
 
 TSSV no longer requires [flanks] to be specified for explicitly-defined
