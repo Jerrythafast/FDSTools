@@ -1,0 +1,20 @@
+unit	marker	stutter	lbound	min	max	direction	r2	a	b
+AAAG	FGA	-1	9	7	55	forward	0.972	-2.321e+00	2.639e-01
+AAAG	D18S51	-1	10	7	61	forward	0.997	-2.541e+00	2.639e-01
+AAAG	D18S51	-1	0	7	61	reverse	0.846	3.181e+00	1.160e+00
+AAAG	All data	-1	9	5	61	forward	0.983	-2.093e+00	2.574e-01
+AAAG	All data	-1	9	5	61	reverse	0.643	-1.011e+01	1.178e+00
+AAAG	FGA	+1	0	7	55	forward	0.689	2.194e-02	5.568e-03
+AAAG	FGA	+1	0	7	55	reverse	0.689	2.194e-02	5.568e-03
+AAAG	All data	+1	8	5	61	forward	0.384	-3.837e-02	5.133e-03
+AAAG	All data	+1	8	5	61	reverse	0.384	-3.837e-02	5.133e-03
+AGAT	D12S391	-1	0	5	44	forward	0.699	1.699e+00	1.766e-01
+AGAT	D12S391	-1	5	5	44	reverse	0.998	-1.222e+01	2.584e+00
+AGAT	D13S317	-1	12	5	44	forward	0.581	-2.040e+00	1.766e-01
+AGAT	D13S317	-1	8	5	44	reverse	0.976	-1.829e+01	2.584e+00
+AGAT	D6S1043	-1	8	6	46	forward	0.988	-1.317e+00	1.766e-01
+AGAT	D6S1043	-1	7	6	46	reverse	1.000	-1.749e+01	2.584e+00
+AGAT	All data	-1	7	5	46	forward	0.761	-1.359e+00	2.071e-01
+AGAT	All data	-1	7	5	46	reverse	0.992	-1.738e+01	2.635e+00
+AGAT	D13S317	+1	0	5	44	forward	0.414	5.125e-02	2.348e-03
+AGAT	D13S317	+1	0	5	44	reverse	0.414	1.414e+01	6.481e-01

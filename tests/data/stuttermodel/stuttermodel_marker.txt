@@ -1,0 +1,7 @@
+unit	marker	stutter	lbound	min	max	direction	r2	a	b	c
+A	D13S317	+1	3	2	5	total	1.000	7.764e-02	-6.470e-02	1.294e-02
+A	All data	+1	3	2	5	total	1.000	7.764e-02	-6.470e-02	1.294e-02
+AGAT	D13S317	-1	12	5	44	total	1.000	1.915e-01	-5.143e-02	2.968e-03
+AGAT	All data	-1	12	5	44	total	1.000	1.915e-01	-5.143e-02	2.968e-03
+AGAT	D13S317	+1	12	5	44	total	1.000	1.888e-02	-5.071e-03	2.926e-04
+AGAT	All data	+1	12	5	44	total	1.000	1.888e-02	-5.071e-03	2.926e-04

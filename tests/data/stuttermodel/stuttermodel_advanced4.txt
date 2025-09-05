@@ -1,0 +1,2 @@
+unit	marker	stutter	lbound	min	max	direction	r2	a	b	c
+A	D13S317	+1	3	2	5	total	1.000	7.764e-02	-6.470e-02	1.294e-02

@@ -1,0 +1,3 @@
+unit	marker	stutter	lbound	min	max	direction	r2	a	b	c
+AGAT	All data	-1	41	42	46	forward	0.815	-1.545e+03	7.060e+01	-8.014e-01
+AGAT	All data	-1	42	42	46	reverse	0.606	-4.820e+04	2.200e+03	-2.500e+01

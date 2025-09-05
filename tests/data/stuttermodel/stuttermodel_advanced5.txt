@@ -1,0 +1,5 @@
+unit	marker	stutter	lbound	min	max	direction	r2	a	b	c
+AGAT	D6S1043	-1	8	6	46	total	0.992	1.742e-01	-5.393e-02	4.149e-03
+AGAT	All data	-1	7	6	46	total	0.966	-2.082e+01	3.639e+00	-6.591e-02
+AGAT	D6S1043	+1	7	6	46	total	0.992	1.481e-02	-4.585e-03	3.527e-04
+AGAT	All data	+1	43	6	46	total	0.979	1.069e+00	-1.900e-01	3.870e-03
