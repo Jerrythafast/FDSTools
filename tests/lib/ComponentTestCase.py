@@ -16,6 +16,7 @@ from tests.lib.ComponentTestData import OutputFile
 
 class Tools:
     ALLELEFINDER = 'allelefinder'
+    BAM2FDS = 'bam2fds'
     BGANALYSE = 'bganalyse'
     BGCORRECT = 'bgcorrect'
     BGESTIMATE = 'bgestimate'

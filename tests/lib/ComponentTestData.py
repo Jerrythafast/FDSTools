@@ -78,7 +78,10 @@ class OutputFile:
         else:
             raise NotImplementedError(f"{str(type(file))} was not implemented for smart_open.")
 
-        yield file.readlines()
+        if "r" in mode:
+            yield file.readlines()
+        else:
+            yield file
 
         if close_file:
             file.close()
