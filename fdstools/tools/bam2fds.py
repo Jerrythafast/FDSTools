@@ -42,8 +42,7 @@ marker are aggregated and reported as 'Other sequences'.
 import argparse
 import sys
 
-from ..lib.cli import add_sequence_format_args, add_input_output_args, pos_int_arg,\
-                      get_input_output_files
+from ..lib.cli import add_sequence_format_args, pos_int_arg
 from ..lib.seq import ensure_sequence_format
 from ..lib.tssv import filter_sequences
 

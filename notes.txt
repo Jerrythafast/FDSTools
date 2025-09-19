@@ -6,13 +6,16 @@ To-do:
   * Make better use of print_debug() in all tools and postpone string formatting.
 * Library functions:
   * Some way to specify multi-copy markers with different refseqs like Amel.
-* Group tools by function in the command line help and put Pipeline on top.
+* Group tools by function in the command line help.
 * Samplevis:
   * Add options analogous to samplestats -E -D -G.
+  * Add option to hide loci with clear separation between alleles and non-alleles.
   * Detect whether correction was performed; hide related columns if not.
   * A PctOfAlleles column in the tables would be useful for mixtures.
+  * Export table in FDSTools-readable format (i.e. manual samplestats).
   * Option to choose complete table download (all columns, not all rows).
   * Option to freely adjust the sorting (currently CE length toggle only).
+    * Or adjust current option to sort MH alphabetically when sorting CE by length.
   * Some of the media query breakpoints overlap, fix this.
   * Make Samplevis more responsive when rendering/updating graphs. To do this,
     the work should be broken up into chunks and each chunk should set off the
@@ -31,11 +34,12 @@ To-do:
   * Add columns containing the sequence of the highest/lowest noise and the
     sequence with the highest percentage recovery in every sample and marker.
 * Vis:
+  * Add custom header/footer (with title, page number, date & time and version)
+    to the print lay-out of all visualisations.
   * Add grouping, show/hide options, and target coverage for BGAnalyseVis to the
     Vis tool.
   * Add r2 filter and stutter amount for Stuttermodelvis to the Vis tool.
 * Microhap support for length-changing variants and insertions.
-* Exceptions to general mtDNA nomenclature: http://empop.online/methods
 * Reduce noise profile memory usage:
   * Use sparse matrices in BGEstimate and BGCorrect.  May save over 90% of
     memory for the profile matrix after BGMerge of BGEstimate and BGPredict.
@@ -63,41 +67,6 @@ To-do:
 
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-Inclusion of tools developed during the project into FDSTools:
-PRIO    OLD TOOL NAME       DESCRIPTION
-------- ------------------- ---------------------------------------------------
-LOW     qq-plot             Draw Q-Q plot vs normal/lognormal distributions
-LOW     stuttercheck        Sort-of stuttermodel using profiles as input
-LOW     substitutioncheck   Sort-of substitutionmodel using profiles as input
-DONE    gen-allele-names    Convert TSSV-style sequences to allelenames
-DONE    stuttermark         Mark stutter products in sample
-DONE    analyze-background  BGEstimate: generate background profiles
-DONE    profilemark         BGCorrect: find and correct for noise in samples
-DONE    gen-bg-profiles     Compute statistics on noise in homozygous samples
-DONE    allelenames-update  Convert allele names from one library to another
-DONE    polyfit-repeat-len  Stuttermodel: predict stutter from sequence
-DONE    common-background   Compute noise ratios in homozygous samples
-DROP    blame               Find dirty samples in the reference database
-DROP    alleles-convert     Convert allele names using lookup table
-DROP    block-dedup         Remove duplicate blocks in TSSV-style sequences
-DROP    graphgen            Create bar graph from a sample's data
-DROP    find-true-alleles   Check whether the true alleles are detected
-DROP    allele-graph        Create a graph of allele co-occurrence
-DROP    ambiguity           Find potentially ambiguous allele combinations
-DROP    strandbias          Find strand bias in the data
-DROP    annotate-alleles    Annotate true alleles in sample based on allelelist
-
-Visualisations:
-LOW     qqplot              Q-Q plot of normal/lognormal distribution
-DONE    samplevis           Sample data
-DONE    profiles            Background profiles
-DONE    bg                  Dotplots of noise ratios in homozygous samples
-DONE    trends              Fit repeat length vs stutter amount
-DONE    allelegraph         Homozygosity/heterozygosity
-DROP    blame               Common alleles
-
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
 Argument group order*:
 input file options          bgcorrect,findnewalleles,mps2ce,samplestats,seqconvert,stuttermark
 output file options         allelefinder,bganalyse,bgcorrect,bgestimate,bghomraw,bghomstats,bgmerge,findnewalleles,mps2ce,samplestats,seqconvert,stuttermark,stuttermodel,tssv
@@ -105,13 +74,14 @@ sample tag parsing options  allelefinder,bganalyse,bgcorrect,bgestimate,bghomraw
 output file format options  mps2ce
 allele detection options    bganalyse,bgestimate,bghomraw,bghomstats,stuttermodel
 interpretation options      samplestats
-filtering options           allelefinder,bgcorrect,bgestimate,bghomraw,bghomstats,bgpredict,findnewalleles,mps2ce,samplestats,stuttermark,stuttermodel,tssv
-sequence format options     allelefinder,bganalyse,bgcorrect,bgestimate,bghomraw,bghomstats,bgmerge,bgpredict,findnewalleles,mps2ce,stuttermark,stuttermodel,tssv
+filtering options           allelefinder,bam2fds,bgcorrect,bgestimate,bghomraw,bghomstats,bgpredict,findnewalleles,mps2ce,samplestats,stuttermark,stuttermodel,tssv
+sequence format options     allelefinder,bam2fds,bganalyse,bgcorrect,bgestimate,bghomraw,bghomstats,bgmerge,bgpredict,findnewalleles,mps2ce,stuttermark,stuttermodel,tssv
 visualisation options       vis
-*tssv has sequence format options before output file options
+*bam2fds and tssv have sequence format options before output file options
 
 Input/output of tools:      INPUT           OUTPUT
 allelefinder    list of sample files        *single output + report
+bam2fds         single sample BAM           single output
 bganalyse       list of sample files        single output
 bgcorrect       bg file + single sample (b) single sample (batches supported)
 bgestimate      list of sample files        single output + report
@@ -157,6 +127,7 @@ Reserved option letters:
 
 Options:
 allelefinder    a     d e fF  h       l mMn o      R      v   x
+bam2fds         a  B  d    F  h          M           S    v
 bganalyse       a   c d e fF  h       l m   o p           v
 bgcorrect             d e fF  h i     l  M  o             v
 bgestimate      a   cCd e f g hH      l mMn o p    RsS    v
@@ -180,6 +151,7 @@ vis             aAbBcCd       hH Ij    LmMnN  p  Q  sStT UvVw xX Y Z
 Action for special values in sequence columns:
 TOOL            'No data'                   'Other sequences'
 allelefinder    Not suitable for marker     Ignored (Not suitable for marker)
+bam2fds         May create them             May create them
 bganalyse       Ignored                     Ignored
 bgcorrect       Transparent                 Transparent
 bgestimate      Ignored                     Ignored
@@ -198,6 +170,7 @@ tssv            May create them             May create them
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 allelefinder    analysis    default output  output option
+bam2fds         raw         raw             yes
 bganalyse       (as output) raw             yes
 bgcorrect       raw         (as input)      yes
 bgestimate      raw         raw             no
