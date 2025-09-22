@@ -55,10 +55,11 @@ _DEF_MINIMUM = 2
 
 
 
-def clip_segment_to_range(segment, start, end, with_qual_and_cigar=False):
+def clip_segment_to_range(segment, start, end, with_qual=False, with_cigar=False):
     """
     Clip an aligned segment's sequence to the given coordinates and
-    return it.  If with_qual_and_cigar is True, return a tuple of
+    return it.  If with_qual and/or with_cigar is True, return a
+    two-tuple or three-tuple of the requested values in the order
     (clipped_sequence, clipped_qualities, hardclipped_cigartuples).
     """
     return clip_to_range(start, end,
@@ -66,14 +67,16 @@ def clip_segment_to_range(segment, start, end, with_qual_and_cigar=False):
         segment.reference_start,
         segment.reference_end,
         segment.cigartuples,
-        segment.query_alignment_qualities if with_qual_and_cigar else None)
+        segment.query_alignment_qualities if with_qual else None,
+        with_cigar)
 #clip_segment_to_range
 
 
-def clip_to_range(start, end, seq, orig_start, orig_end, cigar, qual=None):
+def clip_to_range(start, end, seq, orig_start, orig_end, cigar, qual=None, output_cigar=False):
     """
     Clip a sequence that aligned to [orig_start:orig_end] to the given
-    coordinates and return it.  If qual is given, return a tuple of
+    coordinates and return it.  If qual is given and/or output_cigar
+    is True, return a tuple of the requested values in the order
     (clipped_sequence, clipped_qualities, hardclipped_cigartuples).
     """
     cigar = [(5 if op == 4 else op, length) for op, length in cigar]
@@ -121,16 +124,19 @@ def clip_to_range(start, end, seq, orig_start, orig_end, cigar, qual=None):
                 break
         preexisting_clip = cigar[-1][1] if cigar[-1][0] == 5 else 0
         cigar = cigar[:len(cigar) - i + 1] + [(5, orig_end - end + preexisting_clip)]
+    result = [seq]
     if qual is not None:
-        return seq, qual, cigar
-    return seq
+        result.append(qual)
+    if output_cigar:
+        result.append(cigar)
+    return tuple(result)
 #clip_to_range
 
 
 def overlap_consensus(seq1, seq2, qual1, qual2, cigar1, cigar2):
     """
     Calculate a consensus from two sequences that aligned to the same
-    reference location, return (sequence, qualities, cigar).
+    reference location, return the two-tuple (sequence, cigar).
     """
     cigar1 = [(op, length) for op, length in cigar1 if op not in {4, 5}]
     cigar2 = [(op, length) for op, length in cigar2 if op not in {4, 5}]
@@ -142,11 +148,10 @@ def overlap_consensus(seq1, seq2, qual1, qual2, cigar1, cigar2):
         raise ValueError(
             f"Inconsistent lengths for overlap: seq1={len(seq1)}, seq2={len(seq2)}, "
             f"qual1={len(qual1)}, qual2={len(qual2)}")
-    qual = [q1 if q1 >= q2 else q2 for q1, q2 in zip(qual1, qual2)]
     if seq1 == seq2:
-        return seq1, qual, cigar1
+        return seq1, cigar1
     seq = "".join(b1 if q1 >= q2 else b2 for b1, b2, q1, q2 in zip(seq1, seq2, qual1, qual2))
-    return seq, qual, cigar1
+    return seq, cigar1
 #overlap_consensus
 
 
@@ -222,23 +227,19 @@ def process_paired_read(segment, start, end, pair_cache):
         return  # Does not fully span marker.
 
     # Make a consensus of the read pair.
-    seq, qual, cigar = clip_segment_to_range(
+    seq, cigar = clip_segment_to_range(
         segment if ref_start1 < ref_start2 else mate, ref_start_min, ref_start_max,
-        with_qual_and_cigar=True)
+        with_cigar=True)
     overlap1, o1q, o1c = clip_segment_to_range(
-        segment, ref_start_max, ref_end_min, with_qual_and_cigar=True)
+        segment, ref_start_max, ref_end_min, with_qual=True, with_cigar=True)
     overlap2, o2q, o2c = clip_segment_to_range(
-        mate, ref_start_max, ref_end_min, with_qual_and_cigar=True)
-    overlap_seq, overlap_qual, overlap_cigar = overlap_consensus(
-        overlap1, overlap2, o1q, o2q, o1c, o2c)
+        mate, ref_start_max, ref_end_min, with_qual=True, with_cigar=True)
+    overlap_seq, overlap_cigar = overlap_consensus(overlap1, overlap2, o1q, o2q, o1c, o2c)
     seq += overlap_seq
-    qual.extend(overlap_qual)
     cigar += overlap_cigar
-    seq2, qual2, cigar2 = clip_segment_to_range(
-        segment if ref_end1 > ref_end2 else mate, ref_end_min, ref_end_max,
-        with_qual_and_cigar=True)
+    seq2, cigar2 = clip_segment_to_range(
+        segment if ref_end1 > ref_end2 else mate, ref_end_min, ref_end_max, with_cigar=True)
     seq += seq2
-    qual.extend(qual2)
     cigar += cigar2
     cigar = [c for i, c in enumerate(cigar) if c[0] != 5 or i in {0, len(cigar) - 1}]
     yield clip_to_range(start, end, seq, ref_start_min, ref_end_max, cigar), segment.is_reverse
