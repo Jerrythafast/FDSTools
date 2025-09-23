@@ -124,12 +124,13 @@ def clip_to_range(start, end, seq, orig_start, orig_end, cigar, qual=None, outpu
                 break
         preexisting_clip = cigar[-1][1] if cigar[-1][0] == 5 else 0
         cigar = cigar[:len(cigar) - i + 1] + [(5, orig_end - end + preexisting_clip)]
-    result = [seq]
-    if qual is not None:
-        result.append(qual)
+    if qual is None:
+        if output_cigar:
+            return seq, cigar
+        return seq
     if output_cigar:
-        result.append(cigar)
-    return tuple(result)
+        return seq, qual, cigar
+    return seq, qual
 #clip_to_range
 
 
@@ -142,7 +143,7 @@ def overlap_consensus(seq1, seq2, qual1, qual2, cigar1, cigar2):
     cigar2 = [(op, length) for op, length in cigar2 if op not in {4, 5}]
     if cigar1 != cigar2:
         # TODO: Handle this better; perhaps also use MAPQ?
-        return seq1, qual1, cigar1
+        return seq1, cigar1
         raise ValueError(f"Different cigars for overlap: {cigar1} and {cigar2}")
     if len(set(map(len, (seq1, seq2, qual1, qual2)))) != 1:
         raise ValueError(
@@ -170,7 +171,7 @@ def process_marker_reads(bam, reported_range, include_supplementary):
             yield from process_unpaired_read(segment, start, end, include_supplementary)
     # TODO: If we want to do anything with incomplete pairs,
     #       look into pair_cache here.
-#process_reads
+#process_marker_reads
 
 
 def process_unpaired_read(segment, start, end, include_supplementary):
