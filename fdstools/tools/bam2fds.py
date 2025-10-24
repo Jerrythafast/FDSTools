@@ -301,6 +301,12 @@ def run(args):
     except ImportError:
         try:
             from bamnostic import AlignmentFile
+
+            # Patch Bamnostic to support the query_alignment_qualities property.
+            import array
+            from bamnostic.core import AlignedSegment, cigar_alignment
+            AlignedSegment.query_alignment_qualities = property(lambda self: array.array('B',
+                (x[0] for x in cigar_alignment(self.query_qualities, self.cigar, query=True))))
         except ImportError:
             raise ValueError(
                 "please install pysam (unix systems) or bamnostic to use this tool, "
