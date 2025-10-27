@@ -23,7 +23,7 @@
 """
 Convert a BAM file with aligned reads to an FDSTools table.
 
-For single-end data, this tool extracts primary and (optinally)
+For single-end data, this tool extracts primary and (optionally)
 supplementary alignments.  For paired-end data, only properly paired
 (flag 2 set) primary alignments are used.  The output is a list of
 unique sequences found for each marker including the corresponding
@@ -79,6 +79,7 @@ def clip_to_range(start, end, seq, orig_start, orig_end, cigar, qual=None, outpu
     is True, return a tuple of the requested values in the order
     (clipped_sequence, clipped_qualities, hardclipped_cigartuples).
     """
+    # There is a table with cigar opcodes and their meaning on page 8 of https://samtools.github.io/hts-specs/SAMv1.pdf.
     cigar = [(5 if op == 4 else op, length) for op, length in cigar]
     ref_start = orig_start
     ref_end = orig_end

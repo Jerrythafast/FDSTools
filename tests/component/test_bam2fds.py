@@ -18,7 +18,7 @@ except ImportError:
         skip_tests = True
 
 
-@skipIf(skip_tests, "Skip because nether pysam nor bamnostic is installed")
+@skipIf(skip_tests, "Skip because neither pysam (unix systems) nor bamnostic is installed")
 class TestBam2Fds(ComponentTestCase):
     library = "ID-OmniSTR"
 
@@ -32,7 +32,6 @@ class TestBam2Fds(ComponentTestCase):
             self.componentTest(Tools.BAM2FDS, fdstools_args, test_data)
 
     def test_advanced1_param(self):
-        """Output is used as input for component tests of stuttermark."""
         infile = self.data_dir_root / "_reads" / "OmniSTR_Mixture_Paired.bam"
         output = OutputFile(self.data_dir_root / Tools.BAM2FDS /
                             "OmniSTR_Mixture_Paired_bam2fds_advanced1.txt")
