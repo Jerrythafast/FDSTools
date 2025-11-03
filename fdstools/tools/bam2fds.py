@@ -103,7 +103,8 @@ def clip_to_range(start, end, seq, orig_start, orig_end, cigar, qual=None, outpu
                     i += 1
                 break
         preexisting_clip = cigar[0][1] if cigar[0][0] == 5 else 0
-        cigar = [(5, start - orig_start + preexisting_clip)] + cigar[i:]
+        resulting_clip = start - orig_start + preexisting_clip
+        cigar = [(5, resulting_clip)] + cigar[i:] if resulting_clip else cigar[i:]
     if ref_end > end:
         for i, (op, length) in enumerate(reversed(cigar), 1):
             if op in {0, 1, 2, 3, 7, 8}:
@@ -124,7 +125,10 @@ def clip_to_range(start, end, seq, orig_start, orig_end, cigar, qual=None, outpu
                     i += 1
                 break
         preexisting_clip = cigar[-1][1] if cigar[-1][0] == 5 else 0
-        cigar = cigar[:len(cigar) - i + 1] + [(5, orig_end - end + preexisting_clip)]
+        resulting_clip = orig_end - end + preexisting_clip
+        cigar = cigar[:len(cigar) - i + 1]
+        if resulting_clip:
+            cigar += [(5, resulting_clip)]
     if qual is None:
         if output_cigar:
             return seq, cigar
@@ -200,7 +204,7 @@ def process_paired_read(segment, start, end, pair_cache):
     pair with its mate, and overlaps the given range completely.
     """
     if segment.is_unmapped:
-        return  # TODO: This requires some further studying.
+        return  # TODO: could send to TSSV!
     if segment.is_supplementary:
         return  # TODO: This requires some further studying.
     if segment.is_secondary:
