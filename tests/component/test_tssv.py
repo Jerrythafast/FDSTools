@@ -26,7 +26,7 @@ class TestTssv(ComponentTestCase):
 
     def test_default_param(self):
         """Output is used as input for component tests of seqconvert."""
-        infile = self.data_dir_root / "fasta" / "OmniSTR_Mixture_R1_4lt2.fasta.gz"
+        infile = self.data_dir_root / "_reads" / "OmniSTR_Mixture_R1_4lt2.fasta.gz"
 
         expected_output = (self.data_dir_root / Tools.TSSV /
                            "OmniSTR_Mixture_R1_4lt2_tssv_default.txt")
@@ -47,7 +47,7 @@ class TestTssv(ComponentTestCase):
 
     def test_advanced1_param(self):
         """Output is used as input for component tests of stuttermark."""
-        infile = self.data_dir_root / "fasta" / "OmniSTR_Mixture_R1_4lt2.fasta.gz"
+        infile = self.data_dir_root / "_reads" / "OmniSTR_Mixture_R1_4lt2.fasta.gz"
 
         output = OutputFile(self.data_dir_root / Tools.TSSV /
                             "OmniSTR_Mixture_R1_4lt2_tssv_advanced1.txt")
@@ -74,7 +74,7 @@ class TestTssv(ComponentTestCase):
         )
 
     def test_advanced2_param(self):
-        infile = self.data_dir_root / "fasta" / "OmniSTR_Mixture_R1_4lt2.fasta.gz"
+        infile = self.data_dir_root / "_reads" / "OmniSTR_Mixture_R1_4lt2.fasta.gz"
 
         output = OutputFile(self.data_dir_root / Tools.TSSV /
                             "OmniSTR_Mixture_R1_4lt2_tssv_advanced2.txt")
@@ -92,15 +92,16 @@ class TestTssv(ComponentTestCase):
             "--num-threads", "2",
             "--sequence-format", "allelename",
             "--indel-score", "3",
-            "--minimum", "3",
-            "--missing-marker-action", "exclude"
+            "--minimum", "85",
+            "--missing-marker-action", "exclude",
+            "--no-aggregate-filtered"
         ]
 
         test_data = self.get_test_data(output, report, outdir)
         self.componentTest(Tools.TSSV, fdstools_args, test_data)
 
     def test_advanced3_param(self):
-        infile = self.data_dir_root / "fasta" / "OmniSTR_Mixture_R1_4lt2.fasta.gz"
+        infile = self.data_dir_root / "_reads" / "OmniSTR_Mixture_R1_4lt2.fasta.gz"
 
         output = OutputFile(self.data_dir_root / Tools.TSSV /
                             "OmniSTR_Mixture_R1_4lt2_tssv_advanced3.txt")
@@ -119,15 +120,14 @@ class TestTssv(ComponentTestCase):
             "--num-threads", "2",
             "--mismatches", "4",
             "--indel-score", "1",
-            "--minimum", "5",
-            "--no-aggregate-filtered"
+            "--minimum", "5"
         ]
 
         test_data = self.get_test_data(output, report, outdir)
         self.componentTest(Tools.TSSV, fdstools_args, test_data)
 
     def test_halt_error(self):
-        infile = self.data_dir_root / "fasta" / "OmniSTR_Mixture_R1_4lt2.fasta.gz"
+        infile = self.data_dir_root / "_reads" / "OmniSTR_Mixture_R1_4lt2.fasta.gz"
 
         fdstools_args = [
             self.library,
@@ -144,7 +144,7 @@ class TestTssv(ComponentTestCase):
         )
 
     def test_halt_no_error(self):
-        infile = self.data_dir_root / "fasta" / "OmniSTR_Mixture_R1_4lt2.fasta.gz"
+        infile = self.data_dir_root / "_reads" / "OmniSTR_Mixture_R1_4lt2.fasta.gz"
 
         fdstools_args = [
             self.library,

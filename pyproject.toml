@@ -1,0 +1,62 @@
+[build-system]
+requires = ["setuptools >= 77.0.3"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "fdstools"
+description = "Forensic DNA Sequencing Tools"
+readme = "README.md"
+authors = [
+    {name = "Jerry Hoogenboom", email = "j.hoogenboom@nfi.nl"}
+]
+dynamic = ["version"]
+requires-python = ">=3.9"
+dependencies = ["numpy", "strnaming~=1.2.0"]
+license = "GPL-3.0-or-later"
+keywords = ["bioinformatics", "forensics", "stutter", "NGS", "MPS", "DNA", "sequencing", "STR"]
+classifiers = [
+        "Programming Language :: Python :: 3",
+        "Operating System :: OS Independent",
+        "Development Status :: 5 - Production/Stable",
+        "Intended Audience :: Science/Research",
+        "Intended Audience :: Legal Industry",
+        "Topic :: Scientific/Engineering :: Bio-Informatics"
+]
+
+[project.urls]
+Homepage = "https://fdstools.nl"
+"Release Notes" = "https://github.com/Jerrythafast/FDSTools/blob/main/README.md#release-notes"
+Changelog = "https://github.com/Jerrythafast/FDSTools/blob/main/CHANGELOG.md"
+"Issue Tracker" = "https://github.com/Jerrythafast/FDSTools/issues"
+"Source Code" = "https://github.com/Jerrythafast/FDSTools"
+
+[project.optional-dependencies]
+bam2fds = [
+    "pysam; (sys_platform == 'linux' or sys_platform == 'darwin') and platform_python_implementation == 'CPython'",
+    "bamnostic; (sys_platform != 'linux' and sys_platform != 'darwin') or platform_python_implementation != 'CPython'"
+]
+
+[project.scripts]
+fdstools = "fdstools.fdstools:main"
+
+[tool.distutils.bdist_wheel]
+# NOTE: this does nothing other than changing the built wheel's file name to include
+# "cp39-abi3" instead of "cpXX-cpXX" (where XX is the CPython version used for building).
+# Specifying it in this TOML table is "experimental" and subject to change, likely it will
+# be moved to some other place in the future (without the old "distutils" name in it).
+# This will NOT break installs for people who build from the source distribution,
+# but we should continue to watch the wheel file names when uploading releases to PyPI.
+# ALSO NOTE: the version number listed here should match that of the Py_LIMITED_API below.
+py_limited_api = "cp39"
+
+[[tool.setuptools.ext-modules]]
+name = "fdstools.lib.sg_align"
+sources = ["fdstools/lib/sg_align.c"]
+extra-compile-args = ["-O3", "-DPy_LIMITED_API=0x03090000"]
+py-limited-api = true
+
+[tool.setuptools.dynamic]
+version = {attr = "fdstools.__version__"}
+
+[tool.setuptools.package-data]
+fdstools = ["vis/*.*", "vis/*/*", "data/libraries/*.ini"]

@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 
 #
-# Copyright (C) 2021 Jerry Hoogenboom
+# Copyright (C) 2025 Netherlands Forensic Institute
 #
 # This file is part of FDSTools, data analysis tools for Massively
 # Parallel Sequencing of forensic DNA markers.
@@ -29,16 +29,16 @@ from .library import parse_library, get_builtin_library, BUILTIN_NAMES
 
 # Default regular expression to capture sample tags in file names.
 # This is the default of the -e command line option.
-DEF_TAG_EXPR = "^(.*?)(?:\.[^.]+)?$"
+DEF_TAG_EXPR = r"^(.*?)(?:\.[^.]+)?$"
 
 # Default formatting template to write sample tags.
 # This is the default of the -f command line option.
-DEF_TAG_FORMAT = "\\1"
+DEF_TAG_FORMAT = r"\1"
 
 # Default formatting template to construct output file names for batch
 # processing.  \1 and \2 refer to sample tag and tool name.
 # This is the default for the -o command line option with batch support.
-DEF_OUTFILE_FORMAT = "\\1-\\2.out"
+DEF_OUTFILE_FORMAT = r"\1-\2.out"
 
 
 def pos_int_arg(value):
@@ -291,7 +291,7 @@ def get_input_output_files(args, *, single_in=False, batch_support=False):
                 outfile = DEF_OUTFILE_FORMAT
             return ((tag,
                     [infiles[i] for i in range(len(tags)) if tags[i] == tag],
-                    open(outfile.replace("\\1", tag).replace("\\2", args.tool), "wt",
+                    open(outfile.replace(r"\1", tag).replace(r"\2", args.tool), "wt",
                         encoding="UTF-8"))
                     for tag in set(tags))
 

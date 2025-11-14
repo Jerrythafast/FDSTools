@@ -1,5 +1,13 @@
 FDSTools Changelog
 ==================
+### Version 2.2.0
+- Replaced setup.py and MANIFEST.in with pyproject.toml.
+- Wheels are now built against the CPython 3.9 stable ABI (abi3), which
+  means later versions of CPython will download and install the wheel
+  that was built for version 3.9. Support for earlier versions was dropped.
+- Includes [BAM2FDS v1.0.0](#BAM2FDS-100)
+- Includes [TSSV v2.2.1](#TSSV-221)
+
 ### Version 2.1.1
 - Fixed an issue that caused the new [flank_length] section to be ignored.
 - TSSV no longer requires [flanks] to be specified for explicitly-defined
@@ -307,6 +315,13 @@ Allelefinder
 
 
 ### Allelefinder 1.0.0
+- Initial version.
+
+
+
+BAM2FDS
+------------
+### BAM2FDS 1.0.0
 - Initial version.
 
 
@@ -815,6 +830,11 @@ Stuttermodel
 
 TSSV
 ----
+### TSSV 2.2.1
+- Updated tool description.
+- Minor internal changes to share features with the new bam2fds tool.
+
+
 ### TSSV 2.2.0
 - The -L/--flank-length option is now applied to all markers, including those that
   have an entry in the [flanks] section of the library file. If applicable, the value

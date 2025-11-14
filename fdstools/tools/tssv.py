@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 
 #
-# Copyright (C) 2024 Jerry Hoogenboom
+# Copyright (C) 2025 Netherlands Forensic Institute
 #
 # This file is part of FDSTools, data analysis tools for Massively
 # Parallel Sequencing of forensic DNA markers.
@@ -25,11 +25,13 @@ Link raw reads in a FastA or FastQ file to markers and count the number
 of reads for each unique sequence.
 
 Scans a FastA or FastQ file, finding the sequences from the 'flanks'
-section in the provided library file.  Each time a pair of flanks is
-found, that sequence read is linked to the corresponding marker and the
-portion of the sequence between the flanks is extracted.  The number of
-times each such extracted sequence was encountered is counted, along
-with the orientation (strand) in which it was found in the input file.
+section in the provided library file (or, if none given, the GRCh38
+reference sequences immediately flanking either end of the provided
+'genome_position').  Each time a pair of flanks is found, that sequence
+read is linked to the corresponding marker and the portion of the
+sequence between the flanks is extracted.  The number of times each
+such extracted sequence was encountered is counted, along with the
+orientation (strand) in which it was found in the input file.
 The output is a list of unique sequences found for each marker including
 the corresponding counts.
 
@@ -75,8 +77,9 @@ from ..lib.cli import add_sequence_format_args, add_input_output_args, pos_int_a
 from ..lib.io import try_write_pipe
 from ..lib.seq import PAT_SEQ_RAW, reverse_complement, ensure_sequence_format
 from ..lib.sg_align import align
+from ..lib.tssv import filter_sequences
 
-__version__ = "2.2.0"
+__version__ = "2.2.1"
 
 
 # Default values for parameters are specified below.
@@ -292,38 +295,11 @@ class TSSV:
 
 
     def filter_sequences(self, aggregate_filtered, minimum, missing_marker_action):
-        # Aggregate the sequences that we are about to filter out.
-        if aggregate_filtered:
-            aggregates = {}
-            for marker, sequences in self.sequences.items():
-                expected_length = self.library.get_range(marker).get_option("expected_allele_length")
-                for sequence, (forward, reverse) in sequences.items():
-                    if not seq_pass_filt(sequence, forward + reverse, minimum, expected_length):
-                        if marker not in aggregates:
-                            aggregates[marker] = [0, 0]
-                        aggregates[marker][0] += forward
-                        aggregates[marker][1] += reverse
-
-        # Filter out sequences with low read counts and invalid bases.
-        for marker in tuple(self.sequences):
-            expected_length = self.library.get_range(marker).get_option("expected_allele_length")
-            self.sequences[marker] = {sequence: counts
-                for sequence, counts in self.sequences[marker].items()
-                if seq_pass_filt(sequence, sum(counts), minimum, expected_length)}
-
-        # Add aggregate rows if the user requested so.
-        if aggregate_filtered:
-            for marker in aggregates:
-                self.sequences[marker]["Other sequences"] = aggregates[marker]
-
-        # Check presence of all markers.
-        if missing_marker_action != "exclude":
-            for marker in self.tssv_library:
-                if not self.sequences[marker]:
-                    if missing_marker_action == "include":
-                        self.sequences[marker]["No data"] = [0, 0]
-                    else:
-                        raise ValueError("Marker %s was not detected!" % marker)
+        for marker, marker_sequences in self.sequences.items():
+            is_present = filter_sequences(marker_sequences, self.library.get_range(marker),
+                minimum, aggregate_filtered, missing_marker_action == "include")
+            if not is_present and missing_marker_action == "halt":
+                raise ValueError("Marker %s was not detected!" % marker)
     #filter_sequences
 
 
@@ -526,13 +502,6 @@ def process_sequence(tssv_library, indel_score, has_iupac, seq):
             reverse[0] if reverse else None))
     return results
 #process_sequence
-
-
-def seq_pass_filt(sequence, reads, threshold, explen=None):
-    """Return False if the sequence does not meet the criteria."""
-    return (reads >= threshold and PAT_SEQ_RAW.match(sequence) is not None and
-        (explen is None or explen[0] <= len(sequence) <= explen[1]))
-#seq_pass_filt
 
 
 def worker(tssv_library, indel_score, has_iupac, task_queue, done_queue):

@@ -14,7 +14,7 @@ run:
 
 Installation
 ------------
-FDSTools requires Python version 3.5 or later.
+FDSTools requires Python version 3.9 or later.
 
 The recommended way to install FDSTools is by using the `pip` package
 installer. If you have `pip` installed, you can easily install FDSTools by
@@ -22,13 +22,13 @@ running the following command:
 
     pip install -U fdstools
 
-Alternatively, FDSTools can be installed by running:
-
-    python setup.py install
-
 
 Release Notes
 -------------
+### Version 2.2.0 (in development)
+Modernized packaging and bumped the minimum supported Python version to 3.9.
+
+
 ### Version 2.1.1 (2024-07-02)
 Fixed an issue that caused the new [flank_length] section to be ignored.
 
