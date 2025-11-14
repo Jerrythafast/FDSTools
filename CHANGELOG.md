@@ -1,6 +1,10 @@
 FDSTools Changelog
 ==================
 ### Version 2.2.0
+- Replaced setup.py and MANIFEST.in with pyproject.toml.
+- Wheels are now built against the CPython 3.9 stable ABI (abi3), which
+  means later versions of CPython will download and install the wheel
+  that was built for version 3.9. Support for earlier versions was dropped.
 - Includes [BAM2FDS v1.0.0](#BAM2FDS-100)
 - Includes [TSSV v2.2.1](#TSSV-221)
 
