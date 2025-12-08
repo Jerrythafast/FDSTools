@@ -6,7 +6,7 @@ FDSTools Changelog
   means later versions of CPython will download and install the wheel
   that was built for version 3.9. Support for earlier versions was dropped.
 - Includes [BAM2FDS v1.0.0](#BAM2FDS-100)
-- Includes [TSSV v2.2.1](#TSSV-221)
+- Includes [TSSV v2.3.0](#TSSV-230)
 
 ### Version 2.1.1
 - Fixed an issue that caused the new [flank_length] section to be ignored.
@@ -830,8 +830,10 @@ Stuttermodel
 
 TSSV
 ----
-### TSSV 2.2.1
-- Updated tool description.
+### TSSV 2.3.0
+- TSSV will now attempt to resolve ambiguous bases (IUPAC codes) by finding matching
+  unambiguous sequences. When multiple options are possible, the reads are added to the
+  unambiguous sequence that has the highest total number of unambiguous reads.
 - Minor internal changes to share features with the new bam2fds tool.
 
 

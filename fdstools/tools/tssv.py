@@ -49,8 +49,9 @@ The sequences thus obtained are subsequently filtered in three ways.
 First, the 'expected_allele_length' section in the library file may be
 used to specify hard limits on the acceptable sequence length for each
 marker.  Any unexpectedly short or long sequence is removed.  Second,
-any sequence with an ambiguous base (i.e., not A, C, G, or T) is
-removed.  Finally, the -a/--minimum option can be used to filter out
+any sequence with an ambiguous base (i.e., not A, C, G, or T) that does
+not match with any of the fully unambiguous sequences is removed.
+Finally, the -a/--minimum option can be used to filter out
 sequences that have been seen only rarely.  When the
 -A/--aggregate-filtered option is given, all filtered sequences of each
 marker are aggregated and reported as 'Other sequences'.
@@ -66,8 +67,11 @@ import io
 import itertools
 import math
 import os
+import re
 import sys
 
+from bisect import insort
+from collections import defaultdict
 from errno import EPIPE
 from multiprocessing import Process, SimpleQueue
 from threading import Thread, Lock
@@ -79,7 +83,7 @@ from ..lib.seq import PAT_SEQ_RAW, reverse_complement, ensure_sequence_format
 from ..lib.sg_align import align
 from ..lib.tssv import filter_sequences
 
-__version__ = "2.2.1"
+__version__ = "2.3.0"
 
 
 # Default values for parameters are specified below.
@@ -102,7 +106,21 @@ _DEF_INDEL_SCORE = 2
 # This value can be overridden by the -a command line option.
 _DEF_MINIMUM = 2
 
-IUPAC_BITS = str.maketrans("ACGTUMRSWYKVHDBN", "ABDHHCEFIJLGKMNO")
+# N bases in the read are treated as mismatches during alignments.
+IUPAC_BITS_READ = str.maketrans("ACGTUMRSWYKVHDBN", "ABDHHCEFIJLGKMN@")
+IUPAC_BITS_FLANK = str.maketrans("ACGTUMRSWYKVHDBN", "124883569:<7;=>?")
+IUPAC_REGEX = {
+    "M": "[AC]",
+    "R": "[AG]",
+    "W": "[ATU]",
+    "S": "[CG]",
+    "Y": "[CTU]",
+    "K": "[GTU]",
+    "V": "[ACG]",
+    "H": "[ACTU]",
+    "D": "[AGTU]",
+    "B": "[CGTU]",
+    "N": "[ACGTU]"}
 
 
 
@@ -118,7 +136,6 @@ class TSSV:
 
         # Convert library.
         refseq_store = library.get_structure_store().get_refseq_store()
-        self.has_iupac = False
         self.tssv_library = {}
         for marker, reported_range in library.get_ranges().items():
             flanks = list(reported_range.get_option("flanks", ["", ""]))
@@ -145,17 +162,13 @@ class TSSV:
                 # Cut bases from the right end of the right flank.
                 flanks[1] = flanks[1][:right_length]
             flanks[1] = reverse_complement(flanks[1])
-            translate_flank = [0 if PAT_SEQ_RAW.match(flank) else 1 for flank in flanks]
-            if any(translate_flank):
-                self.has_iupac = True
-            pair = tuple((flank.translate(IUPAC_BITS) if trans else flank, trans)
-                for flank, trans in zip(flanks, translate_flank))
             self.tssv_library[marker] = (
-                pair, (
+                [flank.translate(IUPAC_BITS_FLANK) for flank in flanks], (
                     math.ceil(len(flanks[0]) * threshold if threshold < 1 else threshold),
                     math.ceil(len(flanks[1]) * threshold if threshold < 1 else threshold)),
                 "".join(refseq_store.get_refseq(chromosome, start, end + 1) for start, end in
-                    zip(reported_range.location[1::2], reported_range.location[2::2])))
+                    zip(reported_range.location[1::2], reported_range.location[2::2]))
+                    .translate(IUPAC_BITS_FLANK))
 
         if not self.tssv_library:
             raise ValueError("No markers were defined in the given library file")
@@ -170,7 +183,9 @@ class TSSV:
             self.outfiles = None
 
         # Internal state.
-        self.sequences = {marker: {} for marker in self.tssv_library}
+        self.sequences = {marker: defaultdict(lambda: [0, 0]) for marker in self.tssv_library}
+        self.ambiguous_sequences = {
+            marker: defaultdict(lambda: [0, 0]) for marker in self.tssv_library}
         self.counters = {marker: {key: 0 for key in
                 ("fPaired", "rPaired", "fLeft", "rLeft", "fRight", "rRight")}
             for marker in self.tssv_library}
@@ -214,7 +229,8 @@ class TSSV:
         recognised = 0
         for marker, matches, seq1, seq2 in results:
             recognised |= matches
-            sequences = self.sequences[marker]
+            ambiguous = [PAT_SEQ_RAW.match(seq) for seq in (seq1, seq2, "A") if seq][0] is None
+            sequences = self.ambiguous_sequences[marker] if ambiguous else self.sequences[marker]
             counters = self.counters[marker]
             if matches & 0b0001:
                 counters["fLeft"] += 1
@@ -228,10 +244,7 @@ class TSSV:
             # Search in the forward strand.
             if seq1 is not None:
                 counters["fPaired"] += 1
-                try:
-                    sequences[seq1][0] += 1
-                except KeyError:
-                    sequences[seq1] = [1, 0]
+                sequences[seq1][0] += 1
                 if self.outfiles:
                     write_sequence_record(self.outfiles["markers"][marker]["paired"], record)
             elif self.outfiles:
@@ -243,10 +256,7 @@ class TSSV:
             # Search in the reverse strand.
             if seq2 is not None:
                 counters["rPaired"] += 1
-                try:
-                    sequences[seq2][1] += 1
-                except KeyError:
-                    sequences[seq2] = [0, 1]
+                sequences[seq2][1] += 1
                 if self.outfiles:
                     write_sequence_record(self.outfiles["markers"][marker]["paired"], record)
             elif self.outfiles:
@@ -262,18 +272,39 @@ class TSSV:
     #process_results
 
 
+    def process_ambiguous_sequences(self):
+        for marker in self.tssv_library:
+            if not self.ambiguous_sequences[marker]:
+                continue
+            proper_seqs = defaultdict(list)
+            for seq, counts in self.sequences[marker].items():
+                insort(proper_seqs[len(seq)], ((-sum(counts), seq)))
+            for ambiguous_seq, ambiguous_counts in self.ambiguous_sequences[marker].items():
+                pat_match = re.compile(
+                    "".join(IUPAC_REGEX.get(base, base) for base in ambiguous_seq))
+                for _, proper_seq in proper_seqs.get(len(ambiguous_seq), []):
+                    if pat_match.fullmatch(proper_seq):
+                        proper_counts = self.sequences[marker][proper_seq]
+                        proper_counts[0] += ambiguous_counts[0]
+                        proper_counts[1] += ambiguous_counts[1]
+                        ambiguous_counts[0] = 0  # Avoid counting as 'Other sequences'
+                        ambiguous_counts[1] = 0  # Avoid counting as 'Other sequences'
+                        break
+    #process_ambiguous_sequences
+
+
     def process_file(self):
         if self.workers == 1:
             for seq in self.dedup_reads():
                 self.cache_results(seq, process_sequence(
-                    self.tssv_library, self.indel_score, self.has_iupac, seq))
+                    self.tssv_library, self.indel_score, seq))
         else:
             # Start worker processes.  The work is divided into tasks that
             # require about 1 million alignments each.
             done_queue = SimpleQueue()
             chunksize = 1000000 // (4 * len(self.tssv_library)) or 1
             thread = Thread(target=feeder, args=(self.dedup_reads(), self.tssv_library,
-                self.indel_score, self.has_iupac, self.workers, chunksize, done_queue))
+                self.indel_score, self.workers, chunksize, done_queue))
             thread.daemon = True
             thread.start()
 
@@ -287,6 +318,8 @@ class TSSV:
                 cache_results(seq, results)
                 release_lock()
             thread.join()
+
+        self.process_ambiguous_sequences()
 
         # Count number of unique sequences per marker.
         for marker in self.tssv_library:
@@ -395,21 +428,21 @@ def prepare_output_dir(dir, markers, file_format):
 #prepare_output_dir
 
 
-def align_pair(reference, reference_rc, pair, indel_score):
+def align_flanks(reference, reference_rc, flanks, indel_score):
     left_dist, left_pos = align(
-        reference[pair[0][1]], pair[0][0], indel_score, bitwise=pair[0][1])
+        reference, flanks[0], indel_score, bitwise=1)
     right_dist, right_pos = align(
-        reference_rc[pair[1][1]], pair[1][0], indel_score, bitwise=pair[1][1])
-    return (left_dist, left_pos), (right_dist, len(reference[0]) - right_pos)
-#align_pair
+        reference_rc, flanks[1], indel_score, bitwise=1)
+    return (left_dist, left_pos), (right_dist, len(reference) - right_pos)
+#align_flanks
 
 
 def relative_distance(reference, sequence):
     """Return 2 * hamming_distance(ref, seq) - len(reference)."""
     len_reference = len(reference)
     if len_reference > len(sequence):
-        return 2 * align(reference, sequence, 1, global_align=1)[0] - len_reference
-    return 2 * align(sequence, reference, 1, global_align=1)[0] - len_reference
+        return 2 * align(reference, sequence, 1, global_align=1, bitwise=1)[0] - len_reference
+    return 2 * align(sequence, reference, 1, global_align=1, bitwise=1)[0] - len_reference
 #relative_distance
 
 
@@ -433,7 +466,8 @@ def prune_matched_ranges(tssv_library, matched_ranges):
             if i - group_start > 1:
                 # Overlapping group; eliminate the worst fit iteratively.
                 if not group_scores:
-                    group_scores = [relative_distance(tssv_library[marker][2], seq)
+                    group_scores = [
+                        relative_distance(tssv_library[marker][2], seq.translate(IUPAC_BITS_READ))
                         for start, end, seq, strand, marker in matched_ranges[group_start : i]]
                 worst_range_index = group_scores.index(max(group_scores))
                 del matched_ranges[group_start + worst_range_index]
@@ -447,46 +481,46 @@ def prune_matched_ranges(tssv_library, matched_ranges):
 #prune_matched_ranges
 
 
-def process_sequence(tssv_library, indel_score, has_iupac, seq):
+def process_sequence(tssv_library, indel_score, seq):
     """Find markers in sequence."""
     seqs = (seq, reverse_complement(seq))
-    seqs_up = tuple((x, x.translate(IUPAC_BITS) if has_iupac else None)
-        for x in (seqs[0].upper(), seqs[1].upper()))
+    seqs_upper = [seq.upper() for seq in seqs]
+    seqs_bitwise =  [seq.translate(IUPAC_BITS_READ) for seq in seqs_upper]
     matched_ranges = []
     marker_matches = {}
-    for marker, (pair, thresholds, refseq) in tssv_library.items():
+    for marker, (flanks, thresholds, refseq) in tssv_library.items():
         algn = (
-            align_pair(seqs_up[0], seqs_up[1], pair, indel_score),
-            align_pair(seqs_up[1], seqs_up[0], pair, indel_score))
+            align_flanks(seqs_bitwise[0], seqs_bitwise[1], flanks, indel_score),
+            align_flanks(seqs_bitwise[1], seqs_bitwise[0], flanks, indel_score))
         matches = 0
         if algn[0][0][0] <= thresholds[0]:
             # Left marker was found in forward sequence
-            cutout = seqs[0][max(0, algn[0][0][1] - len(pair[0][0])) : algn[0][0][1]]
+            cutout = seqs[0][max(0, algn[0][0][1] - len(flanks[0])) : algn[0][0][1]]
             if cutout.lower() != cutout:
                 matches += 0b0001
         if algn[0][1][0] <= thresholds[1]:
             # Right marker was found in forward sequence.
-            cutout = seqs[0][algn[0][1][1] : algn[0][1][1] + len(pair[1][0])]
+            cutout = seqs[0][algn[0][1][1] : algn[0][1][1] + len(flanks[1])]
             if cutout.lower() != cutout:
                 matches += 0b0010
         if algn[1][0][0] <= thresholds[0]:
             # Left marker was found in reverse sequence
-            cutout = seqs[1][max(0, algn[1][0][1] - len(pair[0][0])) : algn[1][0][1]]
+            cutout = seqs[1][max(0, algn[1][0][1] - len(flanks[0])) : algn[1][0][1]]
             if cutout.lower() != cutout:
                 matches += 0b0100
         if algn[1][1][0] <= thresholds[1]:
             # Right marker was found in reverse sequence.
-            cutout = seqs[1][algn[1][1][1] : algn[1][1][1] + len(pair[1][0])]
+            cutout = seqs[1][algn[1][1][1] : algn[1][1][1] + len(flanks[1])]
             if cutout.lower() != cutout:
                 matches += 0b1000
         if (matches & 0b0011) == 0b0011 and algn[0][0][1] < algn[0][1][1]:
             # Matched pair in forward sequence.
             matched_ranges.append((algn[0][0][1], algn[0][1][1],
-                seqs[0][algn[0][0][1] : algn[0][1][1]], 0, marker))
+                seqs_upper[0][algn[0][0][1] : algn[0][1][1]], 0, marker))
         if (matches & 0b1100) == 0b1100 and algn[1][0][1] < algn[1][1][1]:
             # Matched pair in reverse sequence.
             matched_ranges.append((len(seq) - algn[1][1][1], len(seq) - algn[1][0][1],
-                seqs[1][algn[1][0][1] : algn[1][1][1]], 1, marker))
+                seqs_upper[1][algn[1][0][1] : algn[1][1][1]], 1, marker))
         marker_matches[marker] = matches
 
     # Eliminate overlapping matched pairs.
@@ -504,17 +538,17 @@ def process_sequence(tssv_library, indel_score, has_iupac, seq):
 #process_sequence
 
 
-def worker(tssv_library, indel_score, has_iupac, task_queue, done_queue):
+def worker(tssv_library, indel_score, task_queue, done_queue):
     """
     Read sequences from task_queue, write findings to done_queue.
     """
     for task in iter(task_queue.get, None):
         done_queue.put(tuple(
-            (seq, process_sequence(tssv_library, indel_score, has_iupac, seq)) for seq in task))
+            (seq, process_sequence(tssv_library, indel_score, seq)) for seq in task))
 #worker
 
 
-def feeder(input, tssv_library, indel_score, has_iupac, workers, chunksize, done_queue):
+def feeder(input, tssv_library, indel_score, workers, chunksize, done_queue):
     """
     Start worker processes, feed them sequences from input and have them
     write their results to done_queue.
@@ -523,7 +557,7 @@ def feeder(input, tssv_library, indel_score, has_iupac, workers, chunksize, done
     processes = []
     for i in range(workers):
         process = Process(target=worker,
-            args=(tssv_library, indel_score, has_iupac, task_queue, done_queue))
+            args=(tssv_library, indel_score, task_queue, done_queue))
         process.daemon = True
         process.start()
         processes.append(process)
