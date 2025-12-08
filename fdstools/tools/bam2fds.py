@@ -42,9 +42,21 @@ marker are aggregated and reported as 'Other sequences'.
 import argparse
 import sys
 
+from concurrent.futures import ProcessPoolExecutor
+
 from ..lib.cli import add_sequence_format_args, pos_int_arg
 from ..lib.seq import ensure_sequence_format
 from ..lib.tssv import filter_sequences
+
+try:
+    from itertools import batched  # Python 3.12+
+except ImportError:
+    from itertools import islice
+    def batched(iterable, n):
+        it = iter(iterable)
+        while batch := tuple(islice(it, n)):
+            yield batch
+
 
 __version__ = "1.0.0"
 
@@ -252,15 +264,23 @@ def process_paired_read(segment, start, end, pair_cache):
 #process_paired_read
 
 
-def read_bam(infile, outfile, library, seqformat, include_supplementary, minimum,
-             aggregate_filtered, missing_marker_action):
-    print("\t".join(("marker", "sequence", "total", "forward", "reverse")), file=outfile)
-    for marker, reported_range in sorted(library.get_ranges().items()):
-        sequences = {}
-        for seq, is_reverse in process_marker_reads(infile, reported_range, include_supplementary):
-            counts = sequences.get(seq, [0, 0])
-            counts[is_reverse] += 1
-            sequences[seq] = counts
+def process_batch(infile, batch, include_supplementary):
+    with AlignmentFile(infile) as alignment_file:
+        results = [None] * len(batch)
+        for i, (marker, reported_range) in enumerate(batch):
+            sequences = {}
+            for seq, is_reverse in process_marker_reads(
+                    alignment_file, reported_range, include_supplementary):
+                counts = sequences.get(seq, [0, 0])
+                counts[is_reverse] += 1
+                sequences[seq] = counts
+            results[i] = (marker, sequences)
+    return results
+#process_batch
+
+
+def print_marker_results(outfile, library, seqformat, minimum, aggregate_filtered, missing_marker_action, result):
+    for marker, sequences in result:
         is_present = filter_sequences(sequences, library.get_range(marker), minimum,
                                       aggregate_filtered, missing_marker_action == "include")
         if not is_present and missing_marker_action == "halt":
@@ -271,11 +291,25 @@ def read_bam(infile, outfile, library, seqformat, include_supplementary, minimum
                 ensure_sequence_format(seq, seqformat, from_format="raw", library=library,
                     marker=marker),
                 total] + sequences[seq])), file=outfile)
+#print_marker_results
+
+
+def read_bam(infile, outfile, library, seqformat, include_supplementary, minimum,
+             aggregate_filtered, missing_marker_action, num_threads):
+    print("\t".join(("marker", "sequence", "total", "forward", "reverse")), file=outfile)
+    with ProcessPoolExecutor(num_threads) as pool:
+        batch_size = max(1, len(library.get_ranges()) // num_threads)
+        for batch in batched(library.get_ranges().items(), batch_size):
+            pool.submit(process_batch, infile, batch, include_supplementary).add_done_callback(
+                lambda future: print_marker_results(outfile, library, seqformat, minimum,
+                aggregate_filtered, missing_marker_action, future.result()))
 #read_bam
 
 
 def add_arguments(parser):
     add_sequence_format_args(parser, default_format="raw", force=False, require_library=True)
+    parser.add_argument("-T", "--num-threads", metavar="THREADS", type=pos_int_arg, default=1,
+        help="number of worker threads to use (default: %(default)s)")
     parser.add_argument("infile", metavar="IN",
         help="the sample data file to process (must be a .bai indexed bam file)")
     parser.add_argument("outfile", nargs="?", metavar="OUT",
@@ -301,6 +335,7 @@ def add_arguments(parser):
 
 
 def run(args):
+    global AlignmentFile
     try:
         from pysam import AlignmentFile
     except ImportError:
@@ -316,8 +351,7 @@ def run(args):
             raise ValueError(
                 "please install pysam (unix systems) or bamnostic to use this tool, "
                 "by running 'pip install pysam' or 'pip install bamnostic'")
-    with AlignmentFile(args.infile) as infile:
-        read_bam(infile, args.outfile, args.library, args.sequence_format,
-                 not args.no_supplementary, args.minimum, args.aggregate_filtered,
-                 args.missing_marker_action)
+    read_bam(args.infile, args.outfile, args.library, args.sequence_format,
+             not args.no_supplementary, args.minimum, args.aggregate_filtered,
+             args.missing_marker_action, args.num_threads)
 #run
