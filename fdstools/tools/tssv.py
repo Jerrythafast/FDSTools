@@ -287,9 +287,11 @@ class TSSV:
                         proper_counts = self.sequences[marker][proper_seq]
                         proper_counts[0] += ambiguous_counts[0]
                         proper_counts[1] += ambiguous_counts[1]
-                        ambiguous_counts[0] = 0  # Avoid counting as 'Other sequences'
-                        ambiguous_counts[1] = 0  # Avoid counting as 'Other sequences'
                         break
+                else:
+                    # Failed to resolve ambiguous bases.
+                    self.sequences[marker][ambiguous_seq] = ambiguous_counts
+            self.ambiguous_sequences[marker].clear()  # Might free some memory.
     #process_ambiguous_sequences
 
 
