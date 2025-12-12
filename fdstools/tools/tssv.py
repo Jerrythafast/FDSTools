@@ -597,18 +597,26 @@ def init_sequence_file_read(rawfile):
         # GZipped input file.
         infile = gzip.open(rawfile, "rt", encoding="UTF-8")
         filetype = ".gz"
-    elif magic and magic[0] in b">@":
-        # FastA/FastQ input file.
+    elif not magic or magic[0] in b">@":
+        # Empty input file, or FastA/FastQ input file.
         infile = io.TextIOWrapper(rawfile, encoding="UTF-8")
-        filetype = ".fa" if magic[0] == b">" else ".fq"
+        filetype = ""
     else:
         raise ValueError("Input file is not a GZip, FastQ or FastA file")
 
     firstchar = infile.read(1)
-    if not firstchar or firstchar not in ">@":
+    if not firstchar:
+        try:
+            filetype = (".fa" if ".fa" in rawfile.name else ".fq") + filetype
+        except AttributeError:
+            filetype = ".fq" + filetype
+        return filetype, []
+    elif firstchar == ">":
+        filetype = ".fa" + filetype
+    elif firstchar == "@":
+        filetype = ".fq" + filetype
+    else:
         raise ValueError("Input GZip file does not contain a FastQ or FastA file")
-    if filetype == ".gz":
-        filetype = ".fa.gz" if firstchar == ">" else ".fq.gz"
 
     def genreads():
         state = 0

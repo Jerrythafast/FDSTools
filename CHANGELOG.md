@@ -834,6 +834,7 @@ TSSV
 - TSSV will now attempt to resolve ambiguous bases (IUPAC codes) by finding matching
   unambiguous sequences. When multiple options are possible, the reads are added to the
   unambiguous sequence that has the highest total number of unambiguous reads.
+- An empty input file will now produce a zeroed-out result instead of an error message.
 - Minor internal changes to share features with the new bam2fds tool.
 
 
