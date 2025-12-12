@@ -43,6 +43,7 @@ import argparse
 import sys
 
 from concurrent.futures import ProcessPoolExecutor
+from queue import Queue
 
 from ..lib.cli import add_sequence_format_args, pos_int_arg
 from ..lib.seq import ensure_sequence_format
@@ -298,11 +299,16 @@ def read_bam(infile, outfile, library, seqformat, include_supplementary, minimum
              aggregate_filtered, missing_marker_action, num_threads):
     print("\t".join(("marker", "sequence", "total", "forward", "reverse")), file=outfile)
     with ProcessPoolExecutor(num_threads) as pool:
-        batch_size = max(1, len(library.get_ranges()) // num_threads)
+        result_queue = Queue(1)
+        num_markers = len(library.get_ranges())
+        batch_size = max(1, num_markers // num_threads)
+        num_batches = min(num_markers, num_threads + (num_markers % batch_size > 0))
         for batch in batched(library.get_ranges().items(), batch_size):
-            pool.submit(process_batch, infile, batch, include_supplementary).add_done_callback(
-                lambda future: print_marker_results(outfile, library, seqformat, minimum,
-                aggregate_filtered, missing_marker_action, future.result()))
+            pool.submit(process_batch, infile, batch, include_supplementary) \
+                .add_done_callback(result_queue.put)
+        for batch in range(num_batches):
+            print_marker_results(outfile, library, seqformat, minimum,
+                aggregate_filtered, missing_marker_action, result_queue.get().result())
 #read_bam
 
 
