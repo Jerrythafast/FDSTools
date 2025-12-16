@@ -172,3 +172,23 @@ class TestTssv(ComponentTestCase):
 
         test_data = [output, report]
         self.componentTest(Tools.TSSV, fdstools_args, test_data)
+
+    def test_filter_ambiguous_bases(self):
+        infile = self.data_dir_root / "_reads" / "ambiguous.fasta"
+
+        output = OutputFile(self.data_dir_root / Tools.TSSV /
+                            "ambiguous-filtered_tssv.txt")
+        report = OutputFile(self.data_dir_root / Tools.TSSV /
+                            "ambiguous-filtered_tssv-report.txt")
+
+        fdstools_args = [
+            self.library,
+            str(infile),
+            str(output.generated_output),
+            "--report", str(report.generated_output),
+            "--minimum", "1",
+            "--filter-ambiguous"
+        ]
+
+        test_data = [output, report]
+        self.componentTest(Tools.TSSV, fdstools_args, test_data)

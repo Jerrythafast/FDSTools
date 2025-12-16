@@ -125,8 +125,8 @@ IUPAC_REGEX = {
 
 
 class TSSV:
-    def __init__(self, library, flank_length, threshold, indel_score, dirname, workers,
-                 deduplicate, infile):
+    def __init__(self, library, flank_length, threshold, resolve_ambiguous, indel_score, dirname,
+                 workers, deduplicate, infile):
         # User inputs.
         self.library = library
         self.indel_score = indel_score
@@ -184,8 +184,11 @@ class TSSV:
 
         # Internal state.
         self.sequences = {marker: defaultdict(lambda: [0, 0]) for marker in self.tssv_library}
-        self.ambiguous_sequences = {
-            marker: defaultdict(lambda: [0, 0]) for marker in self.tssv_library}
+        if resolve_ambiguous:
+            self.ambiguous_sequences = {
+                marker: defaultdict(lambda: [0, 0]) for marker in self.tssv_library}
+        else:
+            self.ambiguous_sequences = self.sequences
         self.counters = {marker: {key: 0 for key in
                 ("fPaired", "rPaired", "fLeft", "rLeft", "fRight", "rRight")}
             for marker in self.tssv_library}
@@ -295,7 +298,7 @@ class TSSV:
     #process_ambiguous_sequences
 
 
-    def process_file(self):
+    def process_file(self, resolve_ambiguous):
         if self.workers == 1:
             for seq in self.dedup_reads():
                 self.cache_results(seq, process_sequence(
@@ -321,7 +324,8 @@ class TSSV:
                 release_lock()
             thread.join()
 
-        self.process_ambiguous_sequences()
+        if resolve_ambiguous:
+            self.process_ambiguous_sequences()
 
         # Count number of unique sequences per marker.
         for marker in self.tssv_library:
@@ -650,11 +654,11 @@ def init_sequence_file_read(rawfile):
 
 
 def run_tssv_lite(infile, outfile, reportfile, library, flank_length, seqformat, threshold,
-                  minimum, aggregate_filtered, missing_marker_action, dirname, indel_score,
-                  workers, no_deduplicate):
-    tssv = TSSV(library, flank_length, threshold, indel_score, dirname, workers,
+                  minimum, resolve_ambiguous, aggregate_filtered, missing_marker_action, dirname,
+                  indel_score, workers, no_deduplicate):
+    tssv = TSSV(library, flank_length, threshold, resolve_ambiguous, indel_score, dirname, workers,
         not no_deduplicate, infile)
-    tssv.process_file()
+    tssv.process_file(resolve_ambiguous)
     tssv.filter_sequences(aggregate_filtered, minimum, missing_marker_action)
 
     try:
@@ -701,6 +705,9 @@ def add_arguments(parser):
     filtergroup.add_argument("-a", "--minimum", metavar="N", type=pos_int_arg,
         default=_DEF_MINIMUM,
         help="report only sequences with this minimum number of reads (default: %(default)s)")
+    parser.add_argument("-A", "--filter-ambiguous", dest="resolve_ambiguous", action="store_false",
+        help="don't add sequences containing ambiguous bases to the most common compatible "
+             "unambiguous sequence")
     filtergroup.add_argument("-B", "--no-aggregate-filtered", dest="aggregate_filtered",
         action="store_false",
         help="by default, sequences that have been filtered (as per the -a/--minimum option, the "
@@ -720,7 +727,7 @@ def run(args):
         raise ValueError("please specify an input file, or pipe in the output of another program")
     infile = sys.stdin.buffer if files[0] == "-" else open(files[0], "rb")
     run_tssv_lite(infile, files[1], args.report, args.library, args.flank_length,
-                  args.sequence_format, args.mismatches, args.minimum,
+                  args.sequence_format, args.mismatches, args.minimum, args.resolve_ambiguous,
                   args.aggregate_filtered, args.missing_marker_action,
                   args.dir, args.indel_score, args.num_threads, args.no_deduplicate)
     if infile != sys.stdin.buffer:
