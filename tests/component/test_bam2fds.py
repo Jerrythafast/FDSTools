@@ -39,6 +39,7 @@ class TestBam2Fds(ComponentTestCase):
             self.library,
             str(infile),
             str(output.generated_output),
+            "--num-threads", "2",
             "--minimum", "10"
         ]
         test_data = [output]
@@ -52,6 +53,7 @@ class TestBam2Fds(ComponentTestCase):
             self.library,
             str(infile),
             str(output.generated_output),
+            "--num-threads", "2",
             "--sequence-format", "allelename",
             "--minimum", "85",
             "--missing-marker-action", "exclude",
@@ -68,6 +70,7 @@ class TestBam2Fds(ComponentTestCase):
             self.library,
             str(infile),
             str(output.generated_output),
+            "--num-threads", "2",
             "--minimum", "5",
             "--no-supplementary"
         ]
