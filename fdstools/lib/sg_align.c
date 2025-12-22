@@ -48,22 +48,6 @@
 #define PY_SSIZE_T_CLEAN
 #include <Python.h>
 
-#define METHOD_DOC "align(seq1, seq2, indel_score, global_align=0, bitwise=0)\n"\
-                   "\n"\
-                   "Return the minimum number of mismatches and the corresponding position by\n"\
-                   "aligning seq2 against seq1. Return (len(seq2), 0) if len(seq1) < len(seq2).\n"\
-                   "\n"\
-                   "An insertion or deletion of one base is counted as indel_score mismatches.\n"\
-                   "If global_align is nonzero, alignment of seq2 will start at the start of\n"\
-                   "seq1 and end the end of seq1.\n"\
-                   "If bitwise is nonzero, bitwise AND will be used to determine matches. Use\n"\
-                   "str.translate(str.maketrans('ACGTUMRSWYKVHDBN', 'ABDHHCEFIJLGKMN@')) on seq1\n"\
-                   "and str.translate(str.maketrans('ACGTUMRSWYKVHDBN', '124883569:<7;=>?')) on\n"\
-                   "seq2 to perform matching based on IUPAC ambiguity coding. In general,\n"\
-                   "seq1[i] and seq2[j] will match if at least one bit is set in both."
-
-static char *argumentNames[] = {"seq1", "seq2", "indel_score", "global_align", "bitwise", NULL};
-
 
 /*
 Return the minimum of a and b.
@@ -98,21 +82,12 @@ static __inline unsigned char _sadd(const unsigned char a, const unsigned char b
 #endif
 
 
-#if defined(_MSC_VER) || defined(__SSE2__)
+#if defined(__SSE2__) || defined(_M_AMD64) || defined(_M_X64) || (defined(_M_IX86_FP) && _M_IX86_FP == 2)
 /**************************************************************************************************
   SSE2-enabled Implementation
 **************************************************************************************************/
 #include <xmmintrin.h>
 #include <emmintrin.h>
-
-#ifdef _MSC_VER
-#define _cpuid(cpuInfo, function_id) __cpuidex(cpuInfo, function_id, 0)
-#else
-#include <cpuid.h>
-static __inline void _cpuid(int cpuInfo[4], int function_id) {
-    __cpuid_count(function_id, 0, cpuInfo[0], cpuInfo[1], cpuInfo[2], cpuInfo[3]);
-}
-#endif
 
 #ifdef DEBUG
 #define capitalsonly(x) ((x>= 0x41 && x<=0x5A)? x : 0x2D)
@@ -140,8 +115,8 @@ Allocates and returns a pointer to the alignment matrix.
 The actual matrix starts at the first 16-byte aligned byte and is stored diagonally.
 The seq1len argument MUST NOT be less than the seq2len argument (this is not checked).
 */
-static unsigned char *_sse2_make_matrix(const size_t seq1len, const size_t seq2len,
-                                        const unsigned char indel_score, const unsigned char global_align) {
+static unsigned char *_make_matrix(const size_t seq1len, const size_t seq2len,
+                                   const unsigned char indel_score, const unsigned char global_align) {
     const size_t width = (seq2len+31) & ~0x0F,
                  height = seq1len + seq2len + 1;
     unsigned char *mem = malloc(width * height + 16),
@@ -191,11 +166,11 @@ static void _revseq(const char *seq, char *seqr, const size_t len){
 
 
 /*
-Fill the alignment matrix as created with _sse2_make_matrix().
+Fill the alignment matrix as created with _make_matrix().
 */
-static void _sse2_align(unsigned char *mem, const size_t seq1len, const size_t seq2len,
-                        const char *seq1, const char *seq2, const unsigned char indel_score,
-                        const unsigned char bitwise) {
+static void _align(unsigned char *mem, const size_t seq1len, const size_t seq2len,
+                   const char *seq1, const char *seq2, const unsigned char indel_score,
+                   const unsigned char bitwise) {
     // Get copy of seq2 and reverse of seq1, making sure
     // that we can read 16 bytes (of garbage) past the end.
     char *seq1r = malloc(seq1len + 16),
@@ -328,9 +303,9 @@ static void _sse2_align(unsigned char *mem, const size_t seq1len, const size_t s
 /*
 Return the smallest possible sequence distance, along with the ending position inside seq1.
 
-Oprates on an alignment matrix as created with _sse2_make_matrix().
+Oprates on an alignment matrix as created with _make_matrix().
 */
-static PyObject *_sse2_find_min(unsigned char *mem, const size_t seq1len, const size_t seq2len, const unsigned char global_align) {
+static PyObject *_find_min(unsigned char *mem, const size_t seq1len, const size_t seq2len, const unsigned char global_align) {
     const size_t width = (seq2len+31) & ~0x0F;
     unsigned char *matrix = (unsigned char*)(((Py_uintptr_t)mem + 15) & ~(Py_uintptr_t)0x0F);
     unsigned char distance = (unsigned char)(seq2len > 255? 255 : seq2len);
@@ -353,48 +328,7 @@ static PyObject *_sse2_find_min(unsigned char *mem, const size_t seq1len, const 
 }
 
 
-/*
-Align two sequences, finding one in the other.
-
-Input arguments are two Python strings and a Python integer.
-The second string will be searched inside the first.
-The integer specifies the indel penalty score.
-Optionally, a second integer may be specified. If nonzero, do global alignment.
-Optionally, a third integer may be specified. If nonzero, use bitwise AND for matching.
-
-Return two python integers: the sequence distance, and the position of the match.
-*/
-static PyObject *sse2_align(PyObject *self, PyObject *args, PyObject *kwargs) {
-    // Parse Python arguments.
-    const char *seq1, *seq2;
-    Py_ssize_t seq1len, seq2len;
-    unsigned char indel_score;
-    unsigned char global_align = 0;
-    unsigned char bitwise = 0;
-    unsigned char *matrix;
-    PyObject *result;
-    if (!PyArg_ParseTupleAndKeywords(args, kwargs, "s#s#b|bb", argumentNames,
-            &seq1, &seq1len, &seq2, &seq2len, &indel_score, &global_align, &bitwise)) {
-        return NULL;
-    }
-
-    // This algorithm is designed to find seq2 in seq1.
-    // Give the most pessimistic possible score if seq1 is shorter.
-    if (seq1len < seq2len) {
-        return Py_BuildValue("nI", seq2len, 0);
-    }
-
-    matrix = _sse2_make_matrix(seq1len, seq2len, indel_score, global_align);
-    if (seq1len > 0 && seq2len > 0) {
-        _sse2_align(matrix, seq1len, seq2len, seq1, seq2, indel_score, bitwise);
-    }
-    result = _sse2_find_min(matrix, seq1len, seq2len, global_align);
-    free(matrix);
-    return result;
-}
-
-
-#endif
+#else
 
 /**************************************************************************************************
   Plain Implementation
@@ -403,11 +337,10 @@ static PyObject *sse2_align(PyObject *self, PyObject *args, PyObject *kwargs) {
 /*
 Allocates and returns a pointer to the alignment matrix.
 */
-#ifdef __SSE2__
-__attribute__ ((__target__ ("no-sse")))
-#endif
-static unsigned char *_make_matrix(const size_t rows, const size_t columns,
+static unsigned char *_make_matrix(const size_t seq1_len, const size_t seq2_len,
                                    const unsigned char indel_score, const unsigned char global_align) {
+    size_t rows = seq1_len + 1;
+    size_t columns = seq2_len + 1;
     unsigned char *matrix = malloc(rows * columns * sizeof(char));
     unsigned char score = 0;
     size_t i;
@@ -433,33 +366,30 @@ static unsigned char *_make_matrix(const size_t rows, const size_t columns,
 /*
 Fill the alignment matrix as created with _make_matrix().
 */
-#ifdef __SSE2__
-__attribute__ ((__target__ ("no-sse")))
-#endif
-static void _align(unsigned char *matrix, const size_t rows, const size_t columns,
+static void _align(unsigned char *matrix, const size_t seq1_len, const size_t seq2_len,
                    const char *seq1, const char *seq2, const unsigned char indel_score,
                    const unsigned char bitwise) {
     size_t r, c;
     unsigned char *d = matrix,
                   *l = d + 1,
-                  *u = d + columns,
-                  *i = l + columns;
+                  *u = l + seq2_len,
+                  *i = u + 1;
     if (bitwise) {
-        // Match if any bit is set in both seq1[r - 1] and seq2[c - 1].
-        for (r = 1; r < rows; r++, d++, l++, u++, i++) {
-            for (c = 1; c < columns; c++, d++, l++, u++, i++) {
+        // Match if any bit is set in both seq1[r] and seq2[c].
+        for (r = 0; r < seq1_len; r++, d++, l++, u++, i++) {
+            for (c = 0; c < seq2_len; c++, d++, l++, u++, i++) {
                 *i = _min(
                     _sadd(_min(*l, *u), indel_score),
-                    _sadd(*d, (seq1[r - 1] & seq2[c - 1]) == 0));
+                    _sadd(*d, (seq1[r] & seq2[c]) == 0));
             }
         }
     }
     else {
-        for (r = 1; r < rows; r++, d++, l++, u++, i++) {
-            for (c = 1; c < columns; c++, d++, l++, u++, i++) {
+        for (r = 0; r < seq1_len; r++, d++, l++, u++, i++) {
+            for (c = 0; c < seq2_len; c++, d++, l++, u++, i++) {
                 *i = _min(
                     _sadd(_min(*l, *u), indel_score),
-                    _sadd(*d, seq1[r - 1] != seq2[c - 1]));
+                    _sadd(*d, seq1[r] != seq2[c]));
             }
         }
     }
@@ -467,15 +397,15 @@ static void _align(unsigned char *matrix, const size_t rows, const size_t column
 #ifdef DEBUG
     // Print matrix.
     printf("         ");
-    for (c = 0; c + 1 < columns; c++) {
+    for (c = 0; c < seq2_len; c++) {
         printf("%4c ", seq2[c]);
     }
-    for (r = 0; r < rows; r++) {
+    for (r = 0; r <= seq1_len; r++) {
         printf("\n");
         if (r == 0) printf("     ");
         else printf("%4c ", seq1[r - 1]);
-        for (c = 0; c < columns; c++) {
-            printf("%4i ", *(matrix + r*columns + c));
+        for (c = 0; c <= seq2_len; c++) {
+            printf("%4i ", *(matrix + r*(seq2_len+1) + c));
         }
     }
     printf("\n");
@@ -489,27 +419,47 @@ Return the smallest possible sequence distance, along with the ending position i
 
 Oprates on an alignment matrix as created with _make_matrix().
 */
-#ifdef __SSE2__
-__attribute__ ((__target__ ("no-sse")))
-#endif
-static PyObject *_find_min(unsigned char *matrix, const size_t rows, const size_t columns, const unsigned char global_align) {
-    unsigned char distance = (unsigned char)(columns > 255? 255 : columns - 1);
+static PyObject *_find_min(unsigned char *matrix, const size_t seq1_len, const size_t seq2_len, const unsigned char global_align) {
+    size_t columns = seq2_len + 1;
+    unsigned char distance = (unsigned char)(columns > 255? 255 : seq2_len);
+    unsigned char next_distance;
     size_t position = 0;
     size_t r;
 
     if (global_align) {
-        return Py_BuildValue("Bn", *(matrix + (rows-1)*columns + columns-1), rows - 1);
+        return Py_BuildValue("Bn", *(matrix + seq1_len*columns + seq2_len), seq1_len);
     }
 
-    for (r = 0; r < rows; r++) {
-        if (*(matrix + r*columns + columns-1) < distance) {
-            distance = *(matrix + r*columns + columns-1);
+    for (r = 0; r <= seq1_len; r++) {
+        next_distance = *(matrix + r*columns + seq2_len);
+        if (next_distance < distance) {
+            distance = next_distance;
             position = r;
         }
     }
 
     return Py_BuildValue("Bn", distance, position);
 }
+
+#endif
+
+/*************************************************************************************************/
+
+#define METHOD_DOC "align(seq1, seq2, indel_score, global_align=0, bitwise=0)\n"\
+                   "\n"\
+                   "Return the minimum number of mismatches and the corresponding position by\n"\
+                   "aligning seq2 against seq1. Return (len(seq2), 0) if len(seq1) < len(seq2).\n"\
+                   "\n"\
+                   "An insertion or deletion of one base is counted as indel_score mismatches.\n"\
+                   "If global_align is nonzero, alignment of seq2 will start at the start of\n"\
+                   "seq1 and end the end of seq1.\n"\
+                   "If bitwise is nonzero, bitwise AND will be used to determine matches. Use\n"\
+                   "str.translate(str.maketrans('ACGTUMRSWYKVHDBN', 'ABDHHCEFIJLGKMN@')) on seq1\n"\
+                   "and str.translate(str.maketrans('ACGTUMRSWYKVHDBN', '124883569:<7;=>?')) on\n"\
+                   "seq2 to perform matching based on IUPAC ambiguity coding. In general,\n"\
+                   "seq1[i] and seq2[j] will match if at least one bit is set in both."
+
+static char *argumentNames[] = {"seq1", "seq2", "indel_score", "global_align", "bitwise", NULL};
 
 
 /*
@@ -530,7 +480,6 @@ static PyObject *align(PyObject *self, PyObject *args, PyObject *kwargs) {
     unsigned char indel_score;
     unsigned char global_align = 0;
     unsigned char bitwise = 0;
-    size_t rows, columns;
     unsigned char *matrix;
     PyObject *result;
     if (!PyArg_ParseTupleAndKeywords(args, kwargs, "s#s#b|bb", argumentNames,
@@ -543,15 +492,16 @@ static PyObject *align(PyObject *self, PyObject *args, PyObject *kwargs) {
     if (seq1len < seq2len) {
         return Py_BuildValue("nI", seq2len, 0);
     }
+    if (seq2len == 0) {
+        return Py_BuildValue("nI", 0, 0);
+    }
 
     // Allocate memory for the matrix.
-    rows = seq1len + 1;
-    columns = seq2len + 1;
-    matrix = _make_matrix(rows, columns, indel_score, global_align);
+    matrix = _make_matrix(seq1len, seq2len, indel_score, global_align);
 
     // Perform the alignment.
-    _align(matrix, rows, columns, seq1, seq2, indel_score, bitwise);
-    result = _find_min(matrix, rows, columns, global_align);
+    _align(matrix, seq1len, seq2len, seq1, seq2, indel_score, bitwise);
+    result = _find_min(matrix, seq1len, seq2len, global_align);
 
     // Free the matrix memory and return the result.
     free(matrix);
@@ -559,17 +509,11 @@ static PyObject *align(PyObject *self, PyObject *args, PyObject *kwargs) {
 }
 
 
-/*************************************************************************************************/
-
-
 static PyMethodDef AlignerMethods[] = {
     {"align",         (PyCFunction)align,      METH_VARARGS | METH_KEYWORDS, METHOD_DOC},
-    {"_simple_align", (PyCFunction)align,      METH_VARARGS | METH_KEYWORDS, METHOD_DOC},
-#if defined(_MSC_VER) || defined(__SSE2__)
-    {"_sse2_align",   (PyCFunction)sse2_align, METH_VARARGS | METH_KEYWORDS, METHOD_DOC},
-#endif
     {NULL, NULL, 0, NULL}  /* Sentinel */
 };
+
 
 static struct PyModuleDef moduledef = {
     PyModuleDef_HEAD_INIT,
@@ -585,15 +529,5 @@ static struct PyModuleDef moduledef = {
 
 
 PyMODINIT_FUNC PyInit_sg_align(void) {
-#if defined(_MSC_VER) || defined(__SSE2__)
-    int cpuInfo[4];
-    _cpuid(cpuInfo, 1);
-#ifdef DEBUG
-    printf("CPUID: %02x %02x %02x %02x\n", cpuInfo[0], cpuInfo[1], cpuInfo[2], cpuInfo[3]);
-#endif
-    if (cpuInfo[3] & (1 << 26)) {
-        AlignerMethods[0].ml_meth = (PyCFunction)sse2_align;
-    }
-#endif
     return PyModule_Create(&moduledef);
 }
