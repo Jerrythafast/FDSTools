@@ -148,6 +148,10 @@ class ComponentTestCase(TestCase):
                 with self.subTest(msg=msg):
                     self.assertTrue(acceptable, msg)
 
+        if correct_output:
+            # Make sure at least one assertion is tested.
+            self.assertTrue(correct_output)
+
     @contextmanager
     def subTestExceptionWithArgs(
             self,
