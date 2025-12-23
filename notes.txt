@@ -142,7 +142,7 @@ samplestats     aAbBcCdDe fF  h i       mMnNo pP          v     yY
 seqconvert      a   c d e f   h i     lLmM  o     r       v
 stuttermark           d e f   h i     l m n o     r s     v
 stuttermodel    a   cCdDe f   h       lLmMn oO    r sSt u v       z
-tssv            aA    dD   F  h         mMn        R   T  v    X
+tssv            aA B  dD   F  h        LmMn        R   T  v    X
 vis             aAbBcCd       hH Ij    LmMnN  p  Q  sStT UvVw xX Y Z
 
 

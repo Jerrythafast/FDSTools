@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2022 Jerry Hoogenboom
+ * Copyright (C) 2025 Netherlands Forensic Institute
  *
  * This file is part of FDSTools, data analysis tools for Massively
  * Parallel Sequencing of forensic DNA markers.
@@ -57,10 +57,10 @@
                    "If global_align is nonzero, alignment of seq2 will start at the start of\n"\
                    "seq1 and end the end of seq1.\n"\
                    "If bitwise is nonzero, bitwise AND will be used to determine matches. Use\n"\
-                   "str.translate(str.maketrans('ACGTUMRSWYKVHDBN', 'ABDHHCEFIJLGKMNO')) on the\n"\
-                   "input sequences to perform matching based on IUPAC ambiguity coding. In\n"\
-                   "general, seq1[i] and seq2[j] will match if all bits set in seq1[i] are also\n"\
-                   "set in seq2[j]."
+                   "str.translate(str.maketrans('ACGTUMRSWYKVHDBN', 'ABDHHCEFIJLGKMN@')) on seq1\n"\
+                   "and str.translate(str.maketrans('ACGTUMRSWYKVHDBN', '124883569:<7;=>?')) on\n"\
+                   "seq2 to perform matching based on IUPAC ambiguity coding. In general,\n"\
+                   "seq1[i] and seq2[j] will match if at least one bit is set in both."
 
 static char *argumentNames[] = {"seq1", "seq2", "indel_score", "global_align", "bitwise", NULL};
 
@@ -236,7 +236,7 @@ static void _sse2_align(unsigned char *mem, const size_t seq1len, const size_t s
         if (bitwise) {
             mi = _mm_min_epu8(_mm_adds_epu8(_mm_min_epu8(ml, mu), indel_scores),
                  _mm_adds_epu8(md,
-                    _mm_add_epi8(_mm_cmpeq_epi8(_mm_andnot_si128(mx, my), zeros), ones)));
+                    _mm_and_si128(_mm_cmpeq_epi8(_mm_and_si128(mx, my), zeros), ones)));
         }
         else {
             mi = _mm_min_epu8(_mm_adds_epu8(_mm_min_epu8(ml, mu), indel_scores),
@@ -445,12 +445,12 @@ static void _align(unsigned char *matrix, const size_t rows, const size_t column
                   *u = d + columns,
                   *i = l + columns;
     if (bitwise) {
-        // Match if all bits set in seq1[i] are also set in seq2[j].
+        // Match if any bit is set in both seq1[r - 1] and seq2[c - 1].
         for (r = 1; r < rows; r++, d++, l++, u++, i++) {
             for (c = 1; c < columns; c++, d++, l++, u++, i++) {
                 *i = _min(
                     _sadd(_min(*l, *u), indel_score),
-                    _sadd(*d, (seq1[r - 1] & ~seq2[c - 1]) != 0));
+                    _sadd(*d, (seq1[r - 1] & seq2[c - 1]) == 0));
             }
         }
     }

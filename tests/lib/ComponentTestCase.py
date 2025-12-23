@@ -147,7 +147,10 @@ class ComponentTestCase(TestCase):
 
                 with self.subTest(msg=msg):
                     self.assertTrue(acceptable, msg)
-        self.assertTrue(correct_output)
+
+        if correct_output:
+            # Make sure at least one assertion is tested.
+            self.assertTrue(correct_output)
 
     @contextmanager
     def subTestExceptionWithArgs(
@@ -166,7 +169,7 @@ class ComponentTestCase(TestCase):
         except BaseException as e:
             if error_type is None:
                 with self.subTest("Incorrect exception"):
-                    self.fail(f"Unexpected exception was raised: {str(type(e))}")
+                    self.fail(f"Unexpected exception was raised: {e!r}")
             else:
                 with self.subTest(f"{test_msg} [Exception type]"):
                     self.assertIsInstance(e, error_type)
