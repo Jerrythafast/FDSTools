@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 
 #
-# Copyright (C) 2025 Netherlands Forensic Institute
+# Copyright (C) 2026 Netherlands Forensic Institute
 #
 # This file is part of FDSTools, data analysis tools for Massively
 # Parallel Sequencing of forensic DNA markers.
@@ -272,6 +272,10 @@ def process_batch(infile, batch, include_supplementary):
             sequences = {}
             for seq, is_reverse in process_marker_reads(
                     alignment_file, reported_range, include_supplementary):
+                if not seq:
+                    # Alignment overlapped marker, but the target
+                    # resided entirely in a deletion.
+                    continue
                 counts = sequences.get(seq, [0, 0])
                 counts[is_reverse] += 1
                 sequences[seq] = counts
@@ -302,7 +306,7 @@ def read_bam(infile, outfile, library, seqformat, include_supplementary, minimum
         result_queue = Queue(1)
         num_markers = len(library.get_ranges())
         batch_size = max(1, num_markers // num_threads)
-        num_batches = min(num_markers, num_threads + (num_markers % batch_size > 0))
+        num_batches = num_markers // batch_size + (num_markers % batch_size > 0)
         for batch in batched(library.get_ranges().items(), batch_size):
             pool.submit(process_batch, infile, batch, include_supplementary) \
                 .add_done_callback(result_queue.put)
