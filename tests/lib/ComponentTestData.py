@@ -2,7 +2,7 @@ import gzip
 import os
 from contextlib import contextmanager
 from dataclasses import dataclass, field
-from io import StringIO
+from io import TextIOWrapper, StringIO
 from pathlib import Path
 from typing import List, AnyStr, Optional, Tuple, Union, Generator
 
@@ -42,12 +42,14 @@ class OutputFile:
             raise ValueError(f"Expected and Generated output should not be the same file: "
                              f"{self.expected_output}")
 
+        self.gzip = self.expected_output.name.endswith(".gz")
+
     def load_expected_output(self) -> List[AnyStr]:
-        with self._smart_open(file=self.expected_output) as file:
+        with self._smart_open(file=self.expected_output, gzipped=self.gzip) as file:
             return file
 
     def load_generated_output(self) -> List[AnyStr]:
-        with self._smart_open(file=self.generated_output) as file:
+        with self._smart_open(file=self.generated_output, gzipped=self.gzip) as file:
             return file
 
     def update_expected_output_file(self):
@@ -63,7 +65,7 @@ class OutputFile:
 
     @staticmethod
     @contextmanager
-    def _smart_open(file: Path or StringIO, mode: str = "rt", encoding: str = "UTF-8") \
+    def _smart_open(file: Path or StringIO, mode: str = "rt", encoding: str = "UTF-8", gzipped=False) \
             -> Generator[list[bytes], None, None]:
         """So asserts and subTests for files can handle StringIO"""
         close_file = False
@@ -73,6 +75,12 @@ class OutputFile:
             else:
                 file = open(file, mode, encoding=encoding)
             close_file = True
+        elif isinstance(file, TextIOWrapper):
+            # The result of patch("sys.stdout", TextIOWrapper(BytesIO())),
+            # used for testing tools that can write GZipped data to sys.stdout.buffer.
+            file.seek(0)
+            if gzipped:
+                file = gzip.open(file.buffer, mode, encoding=encoding)
         elif isinstance(file, StringIO):
             file.seek(0)
         else:

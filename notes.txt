@@ -90,6 +90,7 @@ bghomstats      list of sample files        single output
 bgmerge^        list of bg files            single output
 bgpredict^      model + seqfile             single output
 findnewalleles  seqfile + single sample (b) single sample (batches supported)
+mergereads      single sample, two FQ/FA    single sample + report
 mps2ce          single sample file (batch)  single sample (batches supported) or merged output
 libconvert^     single input library        single output
 library^        (none)                      single output
@@ -136,6 +137,7 @@ bghomstats      a   cCd e fF  h       l mMn o       sS    v
 bgmerge               d       h       l     o             v
 bgpredict        A    d       h       l  Mn           t   v
 findnewalleles        d e f   h i     l  M  o             v
+mergereads      a     d  E    h       l m   oO     R      v   x     12
 mps2ce          a     d e fF  h i     l     o p   r s     v
 library         a     d       h                       t   v
 samplestats     aAbBcCdDe fF  h i       mMnNo pP          v     yY

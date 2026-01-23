@@ -63,7 +63,6 @@ References:
 [2] https://github.com/jfjlaros/tssv
 """
 import gzip
-import io
 import itertools
 import math
 import os
@@ -78,7 +77,7 @@ from threading import Thread, Lock
 
 from ..lib.cli import add_sequence_format_args, add_input_output_args, pos_int_arg,\
                       get_input_output_files
-from ..lib.io import try_write_pipe
+from ..lib.io import parse_reads, write_sequence_record, try_write_pipe
 from ..lib.seq import PAT_SEQ_RAW, reverse_complement, ensure_sequence_format
 from ..lib.sg_align import align
 from ..lib.tssv import filter_sequences
@@ -174,7 +173,7 @@ class TSSV:
             raise ValueError("No markers were defined in the given library file")
 
         # Open input file.
-        file_format, self.input = init_sequence_file_read(infile)
+        file_format, self.input = parse_reads(infile)
 
         # Open output directory if we have one.
         if dirname:
@@ -579,78 +578,6 @@ def feeder(input, tssv_library, indel_score, workers, chunksize, done_queue):
         process.join()
     done_queue.put(None)
 #feeder
-
-
-def write_sequence_record(outfile, record):
-    """
-    Write a tuple of (header, sequence) to a FastA stream or
-    a tuple of (header, sequence, quality) to a FastQ stream.
-    """
-    outfile.write((">%s\n%s\n" if len(record) == 2 else "@%s\n%s\n+\n%s\n") % record)
-#write_sequence_record
-
-
-def init_sequence_file_read(rawfile):
-    """
-    Return a 2-tuple with "fasta" or "fastq" and a generator that
-    generates tuples of (header, sequence) from a FastA stream or
-    tuples of (header, sequence, quality) from a FastQ stream.
-    """
-    magic = rawfile.peek(2)[:2]
-    if magic == b"\x1f\x8b":
-        # GZipped input file.
-        infile = gzip.open(rawfile, "rt", encoding="UTF-8")
-        filetype = ".gz"
-    elif not magic or magic[0] in b">@":
-        # Empty input file, or FastA/FastQ input file.
-        infile = io.TextIOWrapper(rawfile, encoding="UTF-8")
-        filetype = ""
-    else:
-        raise ValueError("Input file is not a GZip, FastQ or FastA file")
-
-    firstchar = infile.read(1)
-    if not firstchar:
-        try:
-            filetype = (".fa" if ".fa" in rawfile.name else ".fq") + filetype
-        except AttributeError:
-            filetype = ".fq" + filetype
-        return filetype, []
-    elif firstchar == ">":
-        filetype = ".fa" + filetype
-    elif firstchar == "@":
-        filetype = ".fq" + filetype
-    else:
-        raise ValueError("Input GZip file does not contain a FastQ or FastA file")
-
-    def genreads():
-        state = 0
-        for line in infile:
-            if state == 1:  # Put most common state on top.
-                if firstchar == ">" and line.startswith(">"):
-                    yield (header, seq)
-                    header = line[1:].strip()
-                    seq = ""
-                elif firstchar == "@" and line.startswith("+"):
-                    qual = ""
-                    state = 2
-                else:
-                    seq += line.strip()
-            elif state == 2:
-                if line.startswith("@") and len(qual) >= len(seq):
-                    yield (header, seq, qual)
-                    header = line[1:].strip()
-                    seq = ""
-                    state = 1
-                else:
-                    qual += line.strip()
-            elif state == 0:
-                header = line.strip()
-                seq = ""
-                state = 1
-        yield (header, seq) if state == 1 else (header, seq, qual)
-
-    return filetype, genreads()
-#init_sequence_file_read
 
 
 def run_tssv_lite(infile, outfile, reportfile, library, flank_length, seqformat, threshold,

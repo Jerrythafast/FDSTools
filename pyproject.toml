@@ -55,6 +55,12 @@ sources = ["fdstools/lib/sg_align.c"]
 extra-compile-args = ["-O3", "-DPy_LIMITED_API=0x03090000"]
 py-limited-api = true
 
+[[tool.setuptools.ext-modules]]
+name = "fdstools.lib.pair_align"
+sources = ["fdstools/lib/pair_align.c"]
+extra-compile-args = ["-O3", "-DPy_LIMITED_API=0x03090000"]
+py-limited-api = true
+
 [tool.setuptools.dynamic]
 version = {attr = "fdstools.__version__"}
 

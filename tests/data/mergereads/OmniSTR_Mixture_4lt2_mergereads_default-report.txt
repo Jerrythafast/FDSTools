@@ -1,0 +1,5 @@
+Read combination statistics:
+Total pairs:      34168
+Combined pairs:   22692
+Uncombined pairs: 11476
+Percent combined: 66.41%

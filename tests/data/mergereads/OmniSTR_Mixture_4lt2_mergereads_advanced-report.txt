@@ -1,0 +1,7 @@
+Read combination statistics:
+Total pairs:      34168
+Combined pairs:   25956
+    Innie pairs:  22270 (85.80% of combined)
+    Outie pairs:  3686 (14.20% of combined)
+Uncombined pairs: 8212
+Percent combined: 75.97%

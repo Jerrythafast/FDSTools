@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 
 #
-# Copyright (C) 2022 Jerry Hoogenboom
+# Copyright (C) 2025 Netherlands Forensic Institute
 #
 # This file is part of FDSTools, data analysis tools for Massively
 # Parallel Sequencing of forensic DNA markers.
@@ -20,9 +20,25 @@
 # along with FDSTools.  If not, see <http://www.gnu.org/licenses/>.
 #
 
+import gzip
+import io
 import sys
 
+from contextlib import contextmanager
+
 from .seq import SEQ_SPECIAL_VALUES, ensure_sequence_format
+
+
+@contextmanager
+def std_or_open(std, name, *args, **kwargs):
+    if name is None:
+        yield None
+    elif name == "-":
+        yield std
+    else:
+        with open(name, *args, **kwargs) as f:
+            yield f
+#std_or_open
 
 
 def get_column_ids(column_names, *names, optional=False):
@@ -190,6 +206,108 @@ def get_sample_data(tags_to_files, callback, allelelist=None, annotation_column=
                         del allelelist[tag][markerx]
         callback(tag, data)
 #get_sample_data
+
+
+def read_fasta(infile):
+    """Generate tuples of (header, sequence) from FastA input."""
+    header = infile.readline().lstrip(">").strip()
+    seq = infile.readline().strip()
+    for line in infile:
+        if line.startswith(">"):
+            yield (header, seq)
+            header = line[1:].strip()
+            seq = infile.readline().strip()
+        else:
+            seq += line.strip()
+    yield (header, seq)
+#read_fasta
+
+
+def read_fasta_as_fastq(infile):
+    """Generate tuples of (header, seq, "#" * len(seq)) from FastA input."""
+    header = infile.readline().lstrip(">").strip()
+    seq = infile.readline().strip()
+    for line in infile:
+        if line.startswith(">"):
+            yield (header, seq, "#" * len(seq))
+            header = line[1:].strip()
+            seq = infile.readline().strip()
+        else:
+            seq += line.strip()
+    yield (header, seq, "#" * len(seq))
+#read_fasta_as_fastq
+
+
+def read_fastq(infile):
+    """Generate tuples of (header, sequence, quality) from FastQ input."""
+    header = infile.readline().lstrip("@").strip()
+    seq = infile.readline().strip()
+    reading_seq = True
+    for line in infile:
+        if reading_seq:
+            if line.startswith("+"):
+                reading_seq = False
+                qual = infile.readline().strip()
+            else:
+                seq += line.strip()
+        else:
+            if len(qual) >= len(seq) or line.startswith("@"):
+                yield (header, seq, qual)
+                header = line[1:].strip()
+                seq = infile.readline().strip()
+                reading_seq = True
+            else:
+                qual += line.strip()
+    yield (header, seq, qual)
+#read_fasta_as_fastq
+
+
+def parse_reads(rawfile, as_fastq=False):
+    """
+    Return a 2-tuple with either ".fa", ".fa.gz", ".fq" or ".fq.gz" and
+    a generator that generates tuples of (header, sequence) from a FastA
+    stream if as_fastq is False or tuples of (header, sequence, quality)
+    otherwise (with FastQ input or if as_fastq is True).
+    """
+    magic = rawfile.peek(2)[:2]
+    if magic == b"\x1f\x8b":
+        # GZipped input file.
+        infile = gzip.open(rawfile, "rt", encoding="UTF-8")
+        filetype = ".gz"
+    elif not magic or magic[0] in b">@":
+        # Empty input file, or FastA/FastQ input file.
+        infile = io.TextIOWrapper(rawfile, encoding="UTF-8")
+        filetype = ""
+    else:
+        raise ValueError("Input file is not a GZip, FastQ or FastA file")
+
+    firstchar = infile.read(1)
+    if not firstchar:
+        try:
+            filetype = (".fa" if ".fa" in rawfile.name else ".fq") + filetype
+        except AttributeError:
+            filetype = ".fq" + filetype
+        return filetype, []
+    elif firstchar == ">":
+        filetype = ".fa" + filetype
+        if as_fastq:
+            return filetype, read_fasta_as_fastq(infile)
+        return filetype, read_fasta(infile)
+    elif firstchar == "@":
+        filetype = ".fq" + filetype
+        return filetype, read_fastq(infile)
+    else:
+        raise ValueError("Input GZip file does not contain a FastQ or FastA file")
+#parse_reads
+
+
+def write_sequence_record(outfile, record):
+    """
+    Write a tuple of (header, sequence) to a FastA stream or
+    a tuple of (header, sequence, quality) to a FastQ stream.
+    """
+    outfile.write((">%s\n%s\n" if len(record) == 2 else "@%s\n%s\n+\n%s\n") % record)
+#write_sequence_record
 
 
 def try_write_pipe(stream, *args):

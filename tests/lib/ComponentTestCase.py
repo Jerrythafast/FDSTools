@@ -27,6 +27,7 @@ class Tools:
     FINDNEWALLELES = 'findnewalleles'
     LIBCONVERT = 'libconvert'
     LIBRARY = 'library'
+    MERGEREADS = 'mergereads'
     MPS2CE = 'mps2ce'
     PIPELINE = 'pipeline'
     SAMPLESTATS = 'samplestats'
@@ -168,17 +169,13 @@ class ComponentTestCase(TestCase):
             yield
         except BaseException as e:
             if error_type is None:
-                with self.subTest("Incorrect exception"):
-                    self.fail(f"Unexpected exception was raised: {e!r}")
+                self.fail(f"Unexpected exception was raised: {e!r}")
             else:
-                with self.subTest(f"{test_msg} [Exception type]"):
-                    self.assertIsInstance(e, error_type)
-                with self.subTest(f"{test_msg} [Exception args]"):
-                    self.assertTupleEqual(e.args, error_args)
+                self.assertIsInstance(e, error_type, msg=f"{test_msg} [Exception type]")
+                self.assertTupleEqual(e.args, error_args, msg=f"{test_msg} [Exception args]")
         else:
             if error_type is not None:
-                with self.subTest("Missing exception"):
-                    self.fail(f"No exception raised, but expected: {str(error_type)}")
+                self.fail(f"No exception raised, but expected: {str(error_type)}")
 
     @classmethod
     def _count_dir_and_file_objects_in_tree(cls, dir_path: Path or str):
