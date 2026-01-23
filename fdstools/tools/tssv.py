@@ -72,8 +72,7 @@ import sys
 from bisect import insort
 from collections import defaultdict
 from errno import EPIPE
-from multiprocessing import Process, SimpleQueue
-from threading import Thread, Lock
+from threading import Lock, Semaphore
 
 from ..lib.cli import add_sequence_format_args, add_input_output_args, pos_int_arg,\
                       get_input_output_files
@@ -81,6 +80,7 @@ from ..lib.io import parse_reads, write_sequence_record, try_write_pipe
 from ..lib.seq import PAT_SEQ_RAW, reverse_complement, ensure_sequence_format
 from ..lib.sg_align import align
 from ..lib.tssv import filter_sequences
+from ..lib.util import batched, thread_safe_process_pool
 
 __version__ = "2.3.0"
 
@@ -132,6 +132,7 @@ class TSSV:
         self.workers = workers
         self.deduplicate = deduplicate
         self.lock = Lock()
+        self.semaphore = Semaphore(2 * workers)
 
         # Convert library.
         refseq_store = library.get_structure_store().get_refseq_store()
@@ -229,9 +230,8 @@ class TSSV:
     def process_results(self, record, results):
         self.total_reads += 1
         recognised = 0
-        for marker, matches, seq1, seq2 in results:
+        for marker, matches, seq1, seq2, ambiguous in results:
             recognised |= matches
-            ambiguous = [PAT_SEQ_RAW.match(seq) for seq in (seq1, seq2, "A") if seq][0] is None
             sequences = self.ambiguous_sequences[marker] if ambiguous else self.sequences[marker]
             counters = self.counters[marker]
             if matches & 0b0001:
@@ -303,25 +303,15 @@ class TSSV:
                 self.cache_results(seq, process_sequence(
                     self.tssv_library, self.indel_score, seq))
         else:
-            # Start worker processes.  The work is divided into tasks that
-            # require about 1 million alignments each.
-            done_queue = SimpleQueue()
-            chunksize = 1000000 // (4 * len(self.tssv_library)) or 1
-            thread = Thread(target=feeder, args=(self.dedup_reads(), self.tssv_library,
-                self.indel_score, self.workers, chunksize, done_queue))
-            thread.daemon = True
-            thread.start()
-
-            # Process the results as they come in.
-            # Below is speed-optimized to manage as many workers as possible.
-            acquire_lock = self.lock.acquire
-            release_lock = self.lock.release
-            cache_results = self.cache_results
-            for seq, results in itertools.chain.from_iterable(iter(done_queue.get, None)):
-                acquire_lock()
-                cache_results(seq, results)
-                release_lock()
-            thread.join()
+            with thread_safe_process_pool(self.workers) as pool:
+                # The work is divided into batches that
+                # require about 1 million alignments each.
+                # The semaphore limits the number of batches in memory.
+                batch_size = 1000000 // (4 * len(self.tssv_library)) or 1
+                for batch in batched(self.dedup_reads(), batch_size):
+                    pool.submit(process_batch, self.tssv_library, self.indel_score, batch) \
+                        .add_done_callback(self.handle_results)
+                    self.semaphore.acquire()
 
         if resolve_ambiguous:
             self.process_ambiguous_sequences()
@@ -330,6 +320,15 @@ class TSSV:
         for marker in self.tssv_library:
             self.counters[marker]["unique_seqs"] = len(self.sequences[marker])
     #process_file
+
+
+    def handle_results(self, future):
+        with self.lock:
+            self.semaphore.release()  # Allow new work to be submitted.
+            cache_results = self.cache_results
+            for seq_results in future.result():
+                cache_results(*seq_results)
+    #handle_results
 
 
     def filter_sequences(self, aggregate_filtered, minimum, missing_marker_action):
@@ -453,9 +452,6 @@ def relative_distance(reference, sequence):
 
 def prune_matched_ranges(tssv_library, matched_ranges):
     """Removes overlapping ranges from the provided list."""
-    if len(matched_ranges) < 2:
-        return
-
     matched_ranges.sort()
     group_scores = []
     group_start = 0
@@ -529,55 +525,25 @@ def process_sequence(tssv_library, indel_score, seq):
         marker_matches[marker] = matches
 
     # Eliminate overlapping matched pairs.
-    prune_matched_ranges(tssv_library, matched_ranges)
+    if len(matched_ranges) > 1:
+        prune_matched_ranges(tssv_library, matched_ranges)
 
     # Compile the results.
     results = []
     for marker, matches in marker_matches.items():
-        forward = [match[2] for match in matched_ranges if match[3] == 0 and match[4] == marker]
-        reverse = [match[2] for match in matched_ranges if match[3] == 1 and match[4] == marker]
-        results.append((marker, matches,
-            forward[0] if forward else None,
-            reverse[0] if reverse else None))
+        forward = next(
+            (seq for a, b, seq, strand, m in matched_ranges if strand == 0 and m == marker), None)
+        reverse = next(
+            (seq for a, b, seq, strand, m in matched_ranges if strand == 1 and m == marker), None)
+        results.append((marker, matches, forward, reverse,
+            PAT_SEQ_RAW.match((forward or "") + (reverse or "")) is None))
     return results
 #process_sequence
 
 
-def worker(tssv_library, indel_score, task_queue, done_queue):
-    """
-    Read sequences from task_queue, write findings to done_queue.
-    """
-    for task in iter(task_queue.get, None):
-        done_queue.put(tuple(
-            (seq, process_sequence(tssv_library, indel_score, seq)) for seq in task))
-#worker
-
-
-def feeder(input, tssv_library, indel_score, workers, chunksize, done_queue):
-    """
-    Start worker processes, feed them sequences from input and have them
-    write their results to done_queue.
-    """
-    task_queue = SimpleQueue()
-    processes = []
-    for i in range(workers):
-        process = Process(target=worker,
-            args=(tssv_library, indel_score, task_queue, done_queue))
-        process.daemon = True
-        process.start()
-        processes.append(process)
-    while True:
-        # Sending chunks of reads to the workers.
-        task = tuple(itertools.islice(input, chunksize))
-        if not task:
-            break
-        task_queue.put(task)
-    for i in range(workers):
-        task_queue.put(None)
-    for process in processes:
-        process.join()
-    done_queue.put(None)
-#feeder
+def process_batch(tssv_library, indel_score, batch):
+    return tuple((seq, process_sequence(tssv_library, indel_score, seq)) for seq in batch)
+#process_batch
 
 
 def run_tssv_lite(infile, outfile, reportfile, library, flank_length, seqformat, threshold,

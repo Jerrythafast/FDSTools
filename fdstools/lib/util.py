@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 
 #
-# Copyright (C) 2020 Jerry Hoogenboom
+# Copyright (C) 2026 Netherlands Forensic Institute
 #
 # This file is part of FDSTools, data analysis tools for Massively
 # Parallel Sequencing of forensic DNA markers.
@@ -20,8 +20,21 @@
 # along with FDSTools.  If not, see <http://www.gnu.org/licenses/>.
 #
 
+import multiprocessing
 import sys
 #import numpy as np  # Only imported when it gets used.
+
+from concurrent.futures import ProcessPoolExecutor
+
+
+try:
+    from itertools import batched  # Python 3.12+
+except ImportError:
+    from itertools import islice
+    def batched(iterable, n):
+        it = iter(iterable)
+        while batch := tuple(islice(it, n)):
+            yield batch
 
 
 def adjust_stats(value, stats=None):
@@ -90,3 +103,14 @@ def nnls(A, C, B=None, max_iter=200, min_change=0.0001, debug=False):
 
     return B
 #nnls
+
+
+def thread_safe_process_pool(max_workers=None):
+    """
+    Create a ProcessPoolExecutor with the given value for max_workers,
+    using the start method "forkserver" if available, else "spawn".
+    This mimics the default as of Python 3.14, avoiding "fork".
+    """
+    return ProcessPoolExecutor(max_workers, mp_context=multiprocessing.get_context(
+        "forkserver" if "forkserver" in multiprocessing.get_all_start_methods() else "spawn"))
+#thread_safe_process_pool

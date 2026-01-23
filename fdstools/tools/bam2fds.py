@@ -42,21 +42,13 @@ marker are aggregated and reported as 'Other sequences'.
 import argparse
 import sys
 
-from concurrent.futures import ProcessPoolExecutor
-from queue import Queue
+from concurrent.futures import as_completed
+from functools import cache
 
 from ..lib.cli import add_sequence_format_args, pos_int_arg
 from ..lib.seq import ensure_sequence_format
 from ..lib.tssv import filter_sequences
-
-try:
-    from itertools import batched  # Python 3.12+
-except ImportError:
-    from itertools import islice
-    def batched(iterable, n):
-        it = iter(iterable)
-        while batch := tuple(islice(it, n)):
-            yield batch
+from ..lib.util import batched, thread_safe_process_pool
 
 
 __version__ = "1.0.0"
@@ -66,6 +58,35 @@ __version__ = "1.0.0"
 # This value can be overridden by the -a command line option.
 _DEF_MINIMUM = 2
 
+
+@cache
+def import_alignmentfile_class():
+    """
+    Attempt to import AlignmentFile from pysam, falling back to
+    importing from bamnostic if an ImportError occurs.
+
+    The bamnostic.core.AlignedSegment class is patched as required
+    to add support for the query_alignment_qualities property.
+
+    The result of this function is cached to avoid repeated patching.
+    """
+    try:
+        from pysam import AlignmentFile
+    except ImportError:
+        try:
+            from bamnostic import AlignmentFile
+
+            # Patch Bamnostic to support the query_alignment_qualities property.
+            import array
+            from bamnostic.core import AlignedSegment, cigar_alignment
+            AlignedSegment.query_alignment_qualities = property(lambda self: array.array('B',
+                (x[0] for x in cigar_alignment(self.query_qualities, self.cigar, query=True))))
+        except ImportError:
+            raise ValueError(
+                "please install pysam (unix systems) or bamnostic to use this tool, "
+                "by running 'pip install pysam' or 'pip install bamnostic'")
+    return AlignmentFile
+#import_alignmentfile_class
 
 
 def clip_segment_to_range(segment, start, end, with_qual=False, with_cigar=False):
@@ -266,7 +287,7 @@ def process_paired_read(segment, start, end, pair_cache):
 
 
 def process_batch(infile, batch, include_supplementary):
-    with AlignmentFile(infile) as alignment_file:
+    with import_alignmentfile_class()(infile) as alignment_file:
         results = [None] * len(batch)
         for i, (marker, reported_range) in enumerate(batch):
             sequences = {}
@@ -302,17 +323,13 @@ def print_marker_results(outfile, library, seqformat, minimum, aggregate_filtere
 def read_bam(infile, outfile, library, seqformat, include_supplementary, minimum,
              aggregate_filtered, missing_marker_action, num_threads):
     print("\t".join(("marker", "sequence", "total", "forward", "reverse")), file=outfile)
-    with ProcessPoolExecutor(num_threads) as pool:
-        result_queue = Queue(1)
-        num_markers = len(library.get_ranges())
-        batch_size = max(1, num_markers // num_threads)
-        num_batches = num_markers // batch_size + (num_markers % batch_size > 0)
-        for batch in batched(library.get_ranges().items(), batch_size):
-            pool.submit(process_batch, infile, batch, include_supplementary) \
-                .add_done_callback(result_queue.put)
-        for batch in range(num_batches):
+    with thread_safe_process_pool(num_threads) as pool:
+        batch_size = max(1, len(library.get_ranges()) // num_threads)
+        for future in as_completed(
+                pool.submit(process_batch, infile, batch, include_supplementary)
+                for batch in batched(library.get_ranges().items(), batch_size)):
             print_marker_results(outfile, library, seqformat, minimum,
-                aggregate_filtered, missing_marker_action, result_queue.get().result())
+                aggregate_filtered, missing_marker_action, future.result())
 #read_bam
 
 
@@ -345,22 +362,6 @@ def add_arguments(parser):
 
 
 def run(args):
-    global AlignmentFile
-    try:
-        from pysam import AlignmentFile
-    except ImportError:
-        try:
-            from bamnostic import AlignmentFile
-
-            # Patch Bamnostic to support the query_alignment_qualities property.
-            import array
-            from bamnostic.core import AlignedSegment, cigar_alignment
-            AlignedSegment.query_alignment_qualities = property(lambda self: array.array('B',
-                (x[0] for x in cigar_alignment(self.query_qualities, self.cigar, query=True))))
-        except ImportError:
-            raise ValueError(
-                "please install pysam (unix systems) or bamnostic to use this tool, "
-                "by running 'pip install pysam' or 'pip install bamnostic'")
     read_bam(args.infile, args.outfile, args.library, args.sequence_format,
              not args.no_supplementary, args.minimum, args.aggregate_filtered,
              args.missing_marker_action, args.num_threads)

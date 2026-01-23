@@ -6,6 +6,8 @@ FDSTools Changelog
   means later versions of CPython will download and install the wheel
   that was built for version 3.9. Support for earlier versions was dropped.
 - Includes [BAM2FDS v1.0.0](#BAM2FDS-100)
+- Includes [MergeReads v1.0.0](#MergeReads-100)
+- Includes [Stuttermodel v1.2.1](#Stuttermodel-121)
 - Includes [TSSV v2.3.0](#TSSV-230)
 
 ### Version 2.1.1
@@ -604,6 +606,13 @@ Library
 
 
 
+MergeReads
+------------
+### MergeReads 1.0.0
+- Initial version.
+
+
+
 MPS2CE
 --------
 ### MPS2CE 1.0.0
@@ -793,6 +802,10 @@ Stuttermark
 
 Stuttermodel
 ------------
+### Stuttermodel 1.2.1
+- Fixed an issue that could cause Stuttermodel to lock up when using multiple threads.
+
+
 ### Stuttermodel 1.2.0
 - Changed the default value for -t/--min-r2 from 0.8 to 0.5. Stutter correction
   based on a model with an r-squared score of 0.5 is usually better than no correction.

@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 
 #
-# Copyright (C) 2021 Jerry Hoogenboom
+# Copyright (C) 2026 Netherlands Forensic Institute
 #
 # This file is part of FDSTools, data analysis tools for Massively
 # Parallel Sequencing of forensic DNA markers.
@@ -31,15 +31,15 @@ import argparse
 import re
 #import numpy as np  # Only imported when actually running this tool.
 
-from concurrent.futures import ProcessPoolExecutor
 from errno import EPIPE
 
 from ..lib.cli import add_sequence_format_args, add_input_output_args, add_allele_detection_args,\
                       pos_int_arg, get_input_output_files
 from ..lib.io import parse_allelelist, get_sample_data
 from ..lib.seq import reverse_complement, get_repeat_pattern, call_variants
+from ..lib.util import thread_safe_process_pool
 
-__version__ = "1.2.0"
+__version__ = "1.2.1"
 
 
 # Default values for parameters are specified below.
@@ -209,7 +209,7 @@ def get_variants_async(data, max_unit_length, workers):
     pat_minimal_repeat = re.compile(
         r"(.).{,%i}\1" % (max_unit_length-1) if max_unit_length > 1 else r"(.)\1")
     variants = {}
-    pool = ProcessPoolExecutor(workers)
+    pool = thread_safe_process_pool(workers)
     for marker in data["alleles"]:
         for allele in data["alleles"][marker]:
             if pat_minimal_repeat.search(allele) is not None:
