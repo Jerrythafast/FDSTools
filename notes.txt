@@ -140,7 +140,7 @@ findnewalleles        d e f   h i     l  M  o             v
 mergereads      a     d  E    h       l m   oO     R      v   x     12
 mps2ce          a     d e fF  h i     l     o p   r s     v
 library         a     d       h                       t   v
-samplestats     aAbBcCdDe fF  h i       mMnNo pP          v     yY
+samplestats     aAbBcCdDe fF  h i       mMnNo pP          v    XyY
 seqconvert      a   c d e f   h i     lLmM  o     r       v
 stuttermark           d e f   h i     l m n o     r s     v
 stuttermodel    a   cCdDe f   h       lLmMn oO    r sStTu v       z

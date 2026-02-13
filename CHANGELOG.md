@@ -7,6 +7,7 @@ FDSTools Changelog
   that was built for version 3.9. Support for earlier versions was dropped.
 - Includes [BAM2FDS v1.0.0](#BAM2FDS-100)
 - Includes [MergeReads v1.0.0](#MergeReads-100)
+- Includes [Samplestats v1.3.2](#Samplestats-132)
 - Includes [Stuttermodel v1.2.1](#Stuttermodel-121)
 - Includes [TSSV v2.3.0](#TSSV-230)
 
@@ -669,6 +670,10 @@ Pipeline
 
 Samplestats
 -----------
+### Samplestats 1.3.2
+- Added -X/--settings option, allowing to provide a file with per-marker settings.
+
+
 ### Samplestats 1.3.1
 - Fixed glitch that caused addition of an empty flag in the flags column if it was
   present but empty in the input.

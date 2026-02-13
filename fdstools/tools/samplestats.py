@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 
 #
-# Copyright (C) 2022 Jerry Hoogenboom
+# Copyright (C) 2026 Netherlands Forensic Institute
 #
 # This file is part of FDSTools, data analysis tools for Massively
 # Parallel Sequencing of forensic DNA markers.
@@ -55,9 +55,12 @@ X_added_pct: The value of X_add, as a percentage of the value of X.
 X_recovery: The value of X_add, as a percentage of the value of
 X_corrected.
 """
+import re
 import sys
 
+from collections import defaultdict, namedtuple
 from errno import EPIPE
+from functools import partial
 
 from ..lib.cli import add_input_output_args, get_input_output_files, add_sequence_format_args, \
                       pos_int_arg
@@ -65,7 +68,7 @@ from ..lib.io import get_column_ids, parse_flags
 from ..lib.library import get_max_expected_alleles
 from ..lib.seq import SEQ_SPECIAL_VALUES, ensure_sequence_format
 
-__version__ = "1.3.1"
+__version__ = "1.3.2"
 
 
 # Default values for parameters are specified below.
@@ -195,6 +198,99 @@ COLUMN_ORDER = (
 )
 
 
+MarkerSettings = namedtuple("MarkerSettings", ("pass_filters", "pass_allele", "pass_locus"))
+
+
+class SamplestatsSettings:
+    def __init__(self, args):
+        self.library = args.library
+        self.settings = settings = defaultdict(dict)
+        settings["*"]["minreads"] = args.min_reads
+        settings["*"]["minperstrand"] = args.min_per_strand
+        settings["*"]["minpctofmax"] = args.min_pct_of_max
+        settings["*"]["minpctofsum"] = args.min_pct_of_sum
+        settings["*"]["mincorrection"] = args.min_correction
+        settings["*"]["minrecovery"] = args.min_recovery
+        settings["*"]["minallelereads"] = args.min_allele_reads
+        settings["*"]["maxnonallelepct"] = args.max_nonallele_pct
+        settings["*"]["maxalleles"] = args.max_alleles
+        settings["*"]["minreadsfilt"] = args.min_reads_filt
+        settings["*"]["minperstrandfilt"] = args.min_per_strand_filt
+        settings["*"]["minpctofmaxfilt"] = args.min_pct_of_max_filt
+        settings["*"]["minpctofsumfilt"] = args.min_pct_of_sum_filt
+        settings["*"]["mincorrectionfilt"] = args.min_correction_filt
+        settings["*"]["minrecoveryfilt"] = args.min_recovery_filt
+        if args.settings:
+            with open(args.settings, "rt") as settingsfile:
+                column_names = settingsfile.readline().rstrip("\r\n").split("\t")
+                colid_marker, colid_setting, colid_value = get_column_ids(
+                    column_names, "marker", "setting", "value")
+                for line in settingsfile:
+                    row = line.rstrip("\r\n").split("\t")
+                    setting = re.sub("[^a-z]", "", row[colid_setting].lower())
+                    if setting not in settings["*"]:
+                        raise ValueError(f"Unsupported setting '{row[colid_setting]}'")
+                    type = pos_int_arg if setting == "maxalleles" else float
+                    settings[row[colid_marker]][setting] = type(row[colid_value])
+    #__init__
+
+
+    def pass_filters(self, marker, total_reads, pct_of_max, pct_of_sum, correction, recovery,
+                     strands, filter_absolute=False):
+        """Return true if the provided values pass the marker's filtering options."""
+        marker_settings = self.settings[marker]
+        fn = abs if filter_absolute else lambda x: x
+        return (
+            fn(total_reads) >= marker_settings["minreadsfilt"] and
+            fn(pct_of_max) >= marker_settings["minpctofmaxfilt"] and
+            fn(pct_of_sum) >= marker_settings["minpctofsumfilt"] and
+            (correction >= marker_settings["mincorrectionfilt"] or
+            recovery >= marker_settings["minrecoveryfilt"]) and
+            min(map(fn, strands)) >= marker_settings["minperstrandfilt"])
+    #pass_filters
+
+
+    def pass_allele(self, marker, total_reads, pct_of_max, pct_of_sum, correction, recovery,
+                    strands):
+        """Return true if the provided values pass the marker's interpretation options."""
+        marker_settings = self.settings[marker]
+        return (
+            total_reads >= marker_settings["minreads"] and
+            pct_of_max >= marker_settings["minpctofmax"] and
+            pct_of_sum >= marker_settings["minpctofsum"] and
+            (correction >= marker_settings["mincorrection"] or
+            recovery >= marker_settings["minrecovery"]) and
+            min(strands) >= marker_settings["minperstrand"])
+    #pass_allele
+
+
+    def pass_locus(self, marker, allele_reads, max_noise_reads, alleles):
+        """Return true if the provided values pass the marker's interpretation options."""
+        marker_settings = self.settings[marker]
+        if marker_settings["maxalleles"] and len(alleles) > marker_settings["maxalleles"]:
+            return False
+        if allele_reads and (allele_reads < marker_settings["minallelereads"] or
+                100 * max_noise_reads / allele_reads > marker_settings["maxnonallelepct"]):
+            return False
+        return True
+    #pass_locus
+
+
+    def get_marker_settings(self, marker):
+        """Return a MarkerSettings instance for the given marker."""
+        marker_settings = self.settings[marker]
+        for key, default_value in self.settings["*"].items():
+            marker_settings.setdefault(key, default_value)
+        marker_settings["maxalleles"] = get_max_expected_alleles(
+            marker_settings["maxalleles"], marker, self.library)
+        return MarkerSettings(
+            partial(self.pass_filters, marker),
+            partial(self.pass_allele, marker),
+            partial(self.pass_locus, marker))
+    #get_marker_settings
+#SamplestatsSettings
+
+
 def max_in_sequence(data, colid_max, colid_sequence, value_if_empty=0.):
     """
     Return the maximum data[][colid_max], where data[][colid_sequence]
@@ -304,11 +400,8 @@ def add_pct_columns(row, ci, strand, state, aggr):
 #add_pct_columns
 
 
-def compute_stats(infile, outfile, min_reads, min_per_strand, min_pct_of_max, min_pct_of_sum,
-                  min_correction, min_recovery, min_allele_reads, max_nonallele_pct, filter_action,
-                  filter_absolute, max_alleles, min_reads_filt, min_per_strand_filt,
-                  min_pct_of_max_filt, min_pct_of_sum_filt, min_correction_filt,
-                  min_recovery_filt, library, sequence_format, uncall_alleles):
+def compute_stats(infile, outfile, settings, filter_action, filter_absolute, library,
+                  sequence_format, uncall_alleles):
     # Check presence of required columns.
     column_names = infile.readline().rstrip("\r\n").split("\t")
     if column_names == [""]:
@@ -358,6 +451,7 @@ def compute_stats(infile, outfile, min_reads, min_per_strand, min_pct_of_max, mi
         allele_reads = 0
         max_noise_reads = 0
         alleles = []
+        marker_settings = settings.get_marker_settings(marker)
         for row in data[marker]:
             # Add various percentage columns to this row.
             for state in ("_corrected", "", "_noise", "_add"):
@@ -366,7 +460,6 @@ def compute_stats(infile, outfile, min_reads, min_per_strand, min_pct_of_max, mi
 
             # The 'No data' lines are fine like this.
             if row[ci["sequence"]] == "No data":
-                row[ci["flags"]] = ",".join(row[ci["flags"]])
                 continue
 
             # Get the values we will filter on.
@@ -385,27 +478,17 @@ def compute_stats(infile, outfile, min_reads, min_per_strand, min_pct_of_max, mi
 
             # Check if this sequence should be filtered out.
             # Always filter/combine existing 'Other sequences'.
-            if filter_action != "off" and (
-                    is_aggregate or (
-                    fn(total_reads) < min_reads_filt or
-                    fn(pct_of_max) < min_pct_of_max_filt or
-                    fn(pct_of_sum) < min_pct_of_sum_filt or
-                    (correction < min_correction_filt and
-                    recovery < min_recovery_filt) or
-                    min(map(fn, strands)) < min_per_strand_filt)):
+            if filter_action != "off" and (is_aggregate or not marker_settings.pass_filters(
+                    total_reads, pct_of_max, pct_of_sum, correction,
+                    recovery, strands, filter_absolute)):
                 filtered[marker].append(row)
                 continue
 
             if is_aggregate:
                 continue
 
-            pass_thresholds = (
-                    total_reads >= min_reads and
-                    pct_of_max >= min_pct_of_max and
-                    pct_of_sum >= min_pct_of_sum and
-                    (correction >= min_correction or
-                    recovery >= min_recovery) and
-                    min(strands) >= min_per_strand)
+            pass_thresholds = marker_settings.pass_allele(
+                total_reads, pct_of_max, pct_of_sum, correction, recovery, strands)
 
             # Check if this sequence is an allele.
             if (pass_thresholds and ("allele" in row[ci["flags"]] or uncall_alleles != "only")) or (
@@ -422,10 +505,7 @@ def compute_stats(infile, outfile, min_reads, min_per_strand, min_pct_of_max, mi
                 if total_reads > max_noise_reads:
                     max_noise_reads = total_reads
 
-        if (not max_alleles == 0 and len(alleles) >
-                get_max_expected_alleles(max_alleles, marker, library)) or (allele_reads and
-                (allele_reads < min_allele_reads or
-                100 * max_noise_reads / allele_reads > max_nonallele_pct)):
+        if not marker_settings.pass_locus(allele_reads, max_noise_reads, alleles):
             # Remove allele flags if there are more alleles than expected,
             # total allele coverage is too low, or noise is too high.
             for allele in alleles:
@@ -557,6 +637,11 @@ def compute_stats(infile, outfile, min_reads, min_per_strand, min_pct_of_max, mi
 
 def add_arguments(parser):
     add_input_output_args(parser, single_in=True, batch_support=True, report_out=False)
+    parser.add_argument("-X", "--settings", metavar="FILE",
+        help="file with three tab-separated columns: marker, setting, value to provide marker-"
+             "specific settings; supported settings are the numeric 'interpretation options' and "
+             "'filtering options' listed below; use '*' as the marker name to set defaults; "
+             "settings in the provided file override options specified separately")
     intergroup = parser.add_argument_group("interpretation options",
         "sequences that match the -c or -y option (or both) and all of the "
         "other settings are marked as 'allele'")
@@ -653,14 +738,9 @@ def run(args):
             raise ValueError("multiple input files for sample '%s' specified " % tag)
         try:
             infile = sys.stdin if infiles[0] == "-" else open(infiles[0], "rt", encoding="UTF-8")
-            compute_stats(infile, outfile, args.min_reads, args.min_per_strand,
-                          args.min_pct_of_max, args.min_pct_of_sum, args.min_correction,
-                          args.min_recovery, args.min_allele_reads, args.max_nonallele_pct,
-                          args.filter_action, args.filter_absolute, args.max_alleles,
-                          args.min_reads_filt, args.min_per_strand_filt, args.min_pct_of_max_filt,
-                          args.min_pct_of_sum_filt, args.min_correction_filt,
-                          args.min_recovery_filt, args.library, args.sequence_format,
-                          args.uncall_alleles)
+            settings = SamplestatsSettings(args)
+            compute_stats(infile, outfile, settings, args.filter_action, args.filter_absolute,
+                          args.library, args.sequence_format, args.uncall_alleles)
             if infile != sys.stdin:
                 infile.close()
         except IOError as e:
