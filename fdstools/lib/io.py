@@ -24,7 +24,7 @@ import gzip
 import io
 import sys
 
-from contextlib import contextmanager
+from contextlib import contextmanager, nullcontext
 
 from .seq import SEQ_SPECIAL_VALUES, ensure_sequence_format
 
@@ -259,46 +259,78 @@ def read_fastq(infile):
             else:
                 qual += line.strip()
     yield (header, seq, qual)
-#read_fasta_as_fastq
+#read_fastq
 
 
-def parse_reads(rawfile, as_fastq=False):
+@contextmanager
+def parse_reads(filename, as_fastq=False):
     """
-    Return a 2-tuple with either ".fa", ".fa.gz", ".fq" or ".fq.gz" and
-    a generator that generates tuples of (header, sequence) from a FastA
+    Context manager opening the given file for reading, then yielding
+    a 2-tuple (input_format, reads_generator).
+
+    The input_format is either ".fa", ".fa.gz", ".fq" or ".fq.gz".
+    The generator produces tuples of (header, sequence) from a FastA
     stream if as_fastq is False or tuples of (header, sequence, quality)
     otherwise (with FastQ input or if as_fastq is True).
+    If filename is "-", read from sys.stdin.
     """
-    magic = rawfile.peek(2)[:2]
-    if magic == b"\x1f\x8b":
-        # GZipped input file.
-        infile = gzip.open(rawfile, "rt", encoding="UTF-8")
-        filetype = ".gz"
-    elif not magic or magic[0] in b">@":
-        # Empty input file, or FastA/FastQ input file.
-        infile = io.TextIOWrapper(rawfile, encoding="UTF-8")
-        filetype = ""
-    else:
-        raise ValueError("Input file is not a GZip, FastQ or FastA file")
+    with std_or_open(sys.stdin.buffer, filename, "rb") as rawfile:
+        magic = rawfile.peek(2)[:2]
+        if magic == b"\x1f\x8b":
+            # GZipped input file.
+            wrapper = gzip.open(rawfile, "rt", encoding="UTF-8")
+            filetype = ".gz"
+        elif not magic or magic[0] in b">@":
+            # Empty input file, or FastA/FastQ input file.
+            wrapper = io.TextIOWrapper(rawfile, encoding="UTF-8")
+            filetype = ""
+        else:
+            raise ValueError("Input file is not a GZip, FastQ or FastA file")
 
-    firstchar = infile.read(1)
-    if not firstchar:
-        try:
-            filetype = (".fa" if ".fa" in rawfile.name else ".fq") + filetype
-        except AttributeError:
-            filetype = ".fq" + filetype
-        return filetype, []
-    elif firstchar == ">":
-        filetype = ".fa" + filetype
-        if as_fastq:
-            return filetype, read_fasta_as_fastq(infile)
-        return filetype, read_fasta(infile)
-    elif firstchar == "@":
-        filetype = ".fq" + filetype
-        return filetype, read_fastq(infile)
-    else:
-        raise ValueError("Input GZip file does not contain a FastQ or FastA file")
+        with wrapper as infile:
+            firstchar = infile.read(1)
+            if not firstchar:
+                try:
+                    filetype = (".fa" if ".fa" in rawfile.name else ".fq") + filetype
+                except AttributeError:
+                    filetype = ".fq" + filetype
+                yield filetype, []
+            elif firstchar == ">":
+                filetype = ".fa" + filetype
+                if as_fastq:
+                    yield filetype, read_fasta_as_fastq(infile)
+                yield filetype, read_fasta(infile)
+            elif firstchar == "@":
+                filetype = ".fq" + filetype
+                yield filetype, read_fastq(infile)
+            else:
+                raise ValueError("Input GZip file does not contain a FastQ or FastA file")
 #parse_reads
+
+
+@contextmanager
+def parse_read_pairs(filename1, filename2, as_fastq=False):
+    """
+    Context manager opening the given files for reading, then yielding
+    a 2-tuple (input_format, pairs_generator). The generator produces
+    two-tuples of read records, each as produced by the reads_generator
+    created by parse_reads(filename, as_fastq).
+
+    If filename2 is None, filename1 is treated as an interleaved file.
+    If filename2 is not None, it must have the same format as filename1.
+    """
+    with parse_reads(filename1, as_fastq) as (read1_format, read1_generator):
+        if filename2 is None:
+            read2_manager = nullcontext((read1_format, read1_generator))
+        else:
+            read2_manager = parse_reads(filename2, as_fastq)
+        with read2_manager as (read2_format, read2_generator):
+            if read1_format != read2_format:
+                raise ValueError("R1 and R2 files should be the same format (fasta/fastq)!")
+
+            # TODO: When we drop support for Py3.9, add strict=True.
+            yield read1_format, zip(read1_generator, read2_generator)
+#parse_read_pairs
 
 
 def write_sequence_record(outfile, record):

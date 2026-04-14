@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 
 #
-# Copyright (C) 2025 Netherlands Forensic Institute
+# Copyright (C) 2026 Netherlands Forensic Institute
 #
 # This file is part of FDSTools, data analysis tools for Massively
 # Parallel Sequencing of forensic DNA markers.
@@ -125,12 +125,14 @@ IUPAC_REGEX = {
 
 class TSSV:
     def __init__(self, library, flank_length, threshold, resolve_ambiguous, indel_score, dirname,
-                 workers, deduplicate, infile):
+                 workers, deduplicate, file_format, reads_generator):
         # User inputs.
         self.library = library
         self.indel_score = indel_score
         self.workers = workers
         self.deduplicate = deduplicate
+        self.input = reads_generator
+
         self.lock = Lock()
         self.semaphore = Semaphore(2 * workers)
 
@@ -172,9 +174,6 @@ class TSSV:
 
         if not self.tssv_library:
             raise ValueError("No markers were defined in the given library file")
-
-        # Open input file.
-        file_format, self.input = parse_reads(infile)
 
         # Open output directory if we have one.
         if dirname:
@@ -549,23 +548,24 @@ def process_batch(tssv_library, indel_score, batch):
 def run_tssv_lite(infile, outfile, reportfile, library, flank_length, seqformat, threshold,
                   minimum, resolve_ambiguous, aggregate_filtered, missing_marker_action, dirname,
                   indel_score, workers, no_deduplicate):
-    tssv = TSSV(library, flank_length, threshold, resolve_ambiguous, indel_score, dirname, workers,
-        not no_deduplicate, infile)
-    tssv.process_file(resolve_ambiguous)
-    tssv.filter_sequences(aggregate_filtered, minimum, missing_marker_action)
+    with parse_reads(infile) as (file_format, reads_generator):
+        tssv = TSSV(library, flank_length, threshold, resolve_ambiguous, indel_score, dirname,
+            workers, not no_deduplicate, file_format, reads_generator)
+        tssv.process_file(resolve_ambiguous)
+        tssv.filter_sequences(aggregate_filtered, minimum, missing_marker_action)
 
-    try:
-        tssv.write_sequence_tables(outfile, seqformat)
-        tssv.write_statistics_table(reportfile)
-        tssv.close_output_files()
-    except IOError as e:
-        if e.errno == EPIPE:
-            try:
-                try_write_pipe(reportfile, "Stopped early because the output was closed.\n")
-            except:
-                pass
-            return
-        raise
+        try:
+            tssv.write_sequence_tables(outfile, seqformat)
+            tssv.write_statistics_table(reportfile)
+            tssv.close_output_files()
+        except IOError as e:
+            if e.errno == EPIPE:
+                try:
+                    try_write_pipe(reportfile, "Stopped early because the output was closed.\n")
+                except:
+                    pass
+                return
+            raise
 #run_tssv_lite
 
 
@@ -618,11 +618,8 @@ def run(args):
     files = get_input_output_files(args, single_in=True, batch_support=False)
     if not files:
         raise ValueError("please specify an input file, or pipe in the output of another program")
-    infile = sys.stdin.buffer if files[0] == "-" else open(files[0], "rb")
-    run_tssv_lite(infile, files[1], args.report, args.library, args.flank_length,
+    run_tssv_lite(files[0], files[1], args.report, args.library, args.flank_length,
                   args.sequence_format, args.mismatches, args.minimum, args.resolve_ambiguous,
                   args.aggregate_filtered, args.missing_marker_action,
                   args.dir, args.indel_score, args.num_threads, args.no_deduplicate)
-    if infile != sys.stdin.buffer:
-        infile.close()
 #run

@@ -52,7 +52,7 @@ import io
 import sys
 
 from ..lib.cli import pos_int_arg
-from ..lib.io import parse_reads, std_or_open, write_sequence_record
+from ..lib.io import parse_read_pairs, std_or_open, write_sequence_record
 from ..lib.seq import reverse_complement
 from ..lib.pair_align import align_pair
 
@@ -155,21 +155,13 @@ def generate_combined_read(read1, read2, overlap_pos, was_outie,
 #generate_combined_read
 
 
-def merge_reads(infile1, infile2, binary_out, report_file, uncombined_r1, uncombined_r2,
+def merge_reads(format, read_generator, binary_out, report_file, uncombined_r1, uncombined_r2,
                 min_overlap, lowercase_overhang, ambiguous, qual_eq_threshold,
                 max_mismatch_density, allow_outies):
-    read1_format, read1_generator = parse_reads(infile1, as_fastq=True)
-
-    if infile2 is None:
-        read2_format, read2_generator = read1_format, read1_generator
-    else:
-        read2_format, read2_generator = parse_reads(infile2, as_fastq=True)
-
-    if read1_format != read2_format:
-        raise ValueError("R1 and R2 files should be the same format (fasta/fastq)!")
 
     # Initialize text output by wrapping binary streams in GZip or TextIOWrapper.
-    if read1_format.endswith(".gz"):
+    # TODO: Use context managers for the output wrappers to avoid ResourceWarnings.
+    if format.endswith(".gz"):
         wrap = lambda binary_stream: gzip.open(binary_stream, "wt", encoding="UTF-8")
     else:
         wrap = lambda binary_stream: io.TextIOWrapper(binary_stream, encoding="UTF-8")
@@ -186,7 +178,7 @@ def merge_reads(infile1, infile2, binary_out, report_file, uncombined_r1, uncomb
     outies = 0
     combined_pairs = 0
     uncombined_pairs = 0
-    for read1, read2 in zip(read1_generator, read2_generator):
+    for read1, read2 in read_generator:
         read2_rc = (read2[0], reverse_complement(read2[1]), read2[2][::-1])
         overlap_pos, overlap_len, was_outie = align_pair(
             read1, read2_rc, min_overlap, max_mismatch_density, allow_outies)
@@ -270,13 +262,12 @@ def add_arguments(parser):
 
 
 def run(args):
-    with std_or_open(sys.stdin.buffer, args.infile1, "rb") as infile1, \
-         std_or_open(sys.stdin.buffer, args.infile2, "rb") as infile2, \
+    with parse_read_pairs(args.infile1, args.infile2, as_fastq=True) as (format, read_generator), \
          std_or_open(sys.stdout.buffer, args.outfile, "wb") as outfile, \
          std_or_open(sys.stderr, args.report, "wt") as report_file, \
          std_or_open(outfile, args.uncombined_r1, "wb") as uncombined_r1, \
          std_or_open(outfile, args.uncombined_r2, "wb") as uncombined_r2:
-        merge_reads(infile1, infile2, outfile, report_file, uncombined_r1, uncombined_r2,
+        merge_reads(format, read_generator, outfile, report_file, uncombined_r1, uncombined_r2,
                     args.min_overlap, args.lowercase_overhang, args.ambiguous,
                     args.qual_eq_threshold, args.max_mismatch_density, args.allow_outies)
 #run

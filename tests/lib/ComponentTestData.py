@@ -59,7 +59,7 @@ class OutputFile:
         """
         if self.update_test_data:
             self.expected_output.parent.mkdir(exist_ok=True, parents=True)
-            with self._smart_open(self.expected_output, mode='w') as outfile_expected:
+            with self._smart_open(self.expected_output, mode="wt") as outfile_expected:
                 for line in self.load_generated_output():
                     outfile_expected.write(line)
 

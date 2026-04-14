@@ -24,6 +24,7 @@ class Tools:
     BGHOMSTATS = 'bghomstats'
     BGMERGE = 'bgmerge'
     BGPREDICT = 'bgpredict'
+    DEMULTIPLEX = 'demultiplex'
     FINDNEWALLELES = 'findnewalleles'
     LIBCONVERT = 'libconvert'
     LIBRARY = 'library'
