@@ -45,10 +45,10 @@ contained alleles for which no reference samples were available.
 import argparse
 import sys
 #import numpy as np  # Only imported when actually running this tool.
-
 from errno import EPIPE
-from functools import reduce
+from functools import reduce, partial
 from operator import mul
+import itertools
 
 from ..lib.cli import add_sequence_format_args
 from ..lib.io import get_column_ids
@@ -101,7 +101,7 @@ def parse_stuttermodel(stuttermodel, min_r2=0, use_all_data=False, combine_stran
         r2 = float(line[colid_r2])
         if r2 < min_r2:
             continue
-        coefs = [float(line[colid_coef]) for colid_coef in reversed(colids_coefs)]
+        coefs = [float(line[colid_coef]) for colid_coef in colids_coefs]
         if not seq or not PAT_SEQ_RAW.match(seq):
             raise ValueError(
                 "Invalid stutter model file: Encountered invalid repeat sequence '%s'!" % seq)
@@ -129,9 +129,7 @@ def parse_stuttermodel(stuttermodel, min_r2=0, use_all_data=False, combine_stran
                 "lbound": lbound,
                 "r2": r2,
                 "pat": repeat_patterns[seq],
-                "func": lambda x, lbound=lbound, coefs=coefs, degree=degree:
-                    0. if x < lbound else max(0.,
-                        sum(coefs[i] * x**(degree-i) for i in range(len(coefs))))}
+                "coefs": coefs}
 
     # Extend marker-specific models with "All data" fits where possible.
     if use_all_data and "All data" in model:
@@ -145,20 +143,83 @@ def parse_stuttermodel(stuttermodel, min_r2=0, use_all_data=False, combine_stran
     return model
 #parse_stuttermodel
 
+def iter_overlapping_repeats(allele, repeat_pattern, unit_length):
+    """Similar to repeat_pattern.finditer(allele) but allowing overlap."""
+    pos = 0
+    while True:
+        match = repeat_pattern.search(allele, pos)
+        if not match:
+            return
+        yield match
+        pos = match.end() - unit_length + 1
+#iter_overlapping_repeats
+
+def adjust_lbound(model):
+    """ Increase lower bounds of the stutter models for repeat units that
+    fits within another repeat unit (e.g. A in AAG or AG in AGAGAT) to avoid memory
+    issues in get_all_combinations. Otherwise, each AAG unit is a possible
+    A stretch and thus a location for an A stutter, resulting in:
+    N = number of 'A' stutter options (including no stutter)
+    u = number of 'AAG' units found in a particular allele
+    N^u  combinations of 'A' stutters within a particular allele.
+    Increasing the lbound above the longest match length (e.g. match length = 4 for 'A' in 'AAAAG')
+    causes the stuttermodel of that repeat unit to output a predicted stutter amount of 0,
+    which makes get_all_stutters skip it."""
+
+    for marker in model:
+        for seq, fold in model[marker]:
+            # First loop through stuttermodel of 'marker':
+            # loop through all repeat units 'seq'
+            lbound = model[marker][seq, fold]['lbound']
+            repeat_regex = model[marker][seq, fold]['pat']
+            for s, f in model[marker]:
+                # Second loop through stuttermodel of 'marker':
+                # Compare repeat unit 'seq' with all other repeat units
+                if len(s) <= len(seq):
+                    # Only if the 'other' repeat unit s is LONGER than seq,
+                    # is it possible that s can be seen as a stutter possition of seq
+                    continue
+                # seq is present in s?
+                match_lengths = [m.end() - m.begin() for m in iter_overlapping_repeats(s+s, repeat_regex, len(seq))]
+                longest_match_length = max(match_lengths, default=0)
+                if longest_match_length > 1 and longest_match_length >= lbound:
+                    # Increase the lbound if necessary (for example: seq=A, s=AAAAG,lboun <=4)
+                    model[marker][seq, fold]['lbound'] = longest_match_length + 1
+#adapt_lbound
+
+def bounded_poly(x, lbound, coefs):
+    """Nonnegative polynomial with fixed lower bound."""
+    if x < lbound:
+        return 0.
+    return max(0., sum(coef * x ** power for power, coef in enumerate(coefs)))
+#bounded_poly
+
+def make_polynomials(model):
+    for marker_models in model.values():
+        for this_model in marker_models.values():
+            this_model["func"] = partial(
+                bounded_poly, lbound=this_model["lbound"], coefs=this_model["coefs"])
+#make_polynomials
 
 def get_all_stutters(allele, model, min_pct):
     """Return a sorted list of all possible stutters."""
     stutters = []
     for seq, stutter_fold in model:
-        stutlen = len(seq) * abs(stutter_fold)
+        unit_length = len(seq)
+        stutlen = unit_length * abs(stutter_fold)
+
+        # Require at least 3 full repeats minus 2 bases, because the
+        # pattern returned by get_repeat_pattern() is not guaranteed
+        # to report all repeats shorter than this.
+        minlen = max(unit_length * 3 - 2, stutlen)
 
         # Generate all stutter variants for this sequence.
-        for m in model[seq, stutter_fold]["pat"].finditer(allele):
+        for m in iter_overlapping_repeats(allele, model[seq, stutter_fold]["pat"], unit_length):
             start = m.start()
             end = m.end()
             length = end - start
-            if length <= stutlen:
-                continue  # Not repeated.
+            if length < minlen:
+                continue  # Not repeated enough.
             amount = model[seq, stutter_fold]["func"](length)
             if amount < min_pct:
                 continue
@@ -173,25 +234,33 @@ def get_all_stutters(allele, model, min_pct):
 #get_all_stutters
 
 
-def get_all_combinations(stutters, combinations=None, appendto=None, pos=0, start=0):
-    """Return a list of all non-overlapping combinations of stutters."""
+def get_all_combinations(stutters, combinations=None, appendto=None, start=0):
+    """Return a list of all compatible combinations of stutters."""
     if combinations is None:
         combinations = []
     if appendto is None:
         appendto = []
-    for i in range(start, len(stutters)):
-        if stutters[i]["start"] < pos:
-            continue
+    for i, stutter_i in enumerate(itertools.islice(stutters, start, None), start):
+        if appendto:
+            prev_stutter = appendto[-1]
+            if stutter_i["end"] <= prev_stutter["end"]:
+                continue  # Engulfed in or same repeat stretch as previous.
+            if prev_stutter["fold"] < 0 and -prev_stutter["fold"] * len(prev_stutter["seq"]) > \
+                    stutter_i["start"] - prev_stutter["start"]:
+                continue  # Minus stutter of prev overlaps next stretch.
+            if stutter_i["fold"] < 0 and -stutter_i["fold"] * len(stutter_i["seq"]) > \
+                    stutter_i["end"] - prev_stutter["end"]:
+                continue  # Minus stutter overlaps prev stretch.
         withnewelement = [x for x in appendto]
-        withnewelement.append(stutters[i])
+        withnewelement.append(stutter_i)
         combinations.append(withnewelement)
-        get_all_combinations(stutters, combinations, withnewelement, stutters[i]["end"], i + 1)
+        get_all_combinations(stutters, combinations, withnewelement, i + 1)
     return combinations
 #get_all_combinations
 
 
 def get_relative_frequencies(stutters, combinations):
-    # Compute expected amount of each combination.
+    """Compute expected amount of each combination of stutters."""
     A = np.array([reduce(mul, (s["amount"] for s in combo)) for combo in combinations])
     C = np.array([[s in c for c in combinations] for s in stutters])
     S = np.array([stutter["amount"] for stutter in stutters])
@@ -210,12 +279,18 @@ def get_relative_frequencies(stutters, combinations):
 
 
 def predict_profiles(stuttermodel, seqsfile, outfile, default_marker, use_all_data, min_pct,
-                     min_r2, library, combine_strands):
+                     min_r2, library, combine_strands, check_lbounds):
     if min_pct <= 0:
         raise ValueError("The -n/--min-pct option cannot be negative or zero!")
 
     # Parse stutter model file.
     model = parse_stuttermodel(stuttermodel, min_r2, use_all_data, combine_strands)
+    # Optionally ncrease lower bounds of the stutter models
+    if check_lbounds:
+        adjust_lbound(model)
+    # Add the actual models to the repeat units
+    make_polynomials(model)
+
     strands = ("total",) if combine_strands else ("forward", "reverse")
 
     if combine_strands:
@@ -301,6 +376,10 @@ def add_arguments(parser):
     parser.add_argument("-A", "--use-all-data", action="store_true",
         help="if specified, the 'All data' model is used to predict stutter "
              "whenever no marker-specific model is available for a certain repeat unit")
+    parser.add_argument("-L", "--check-lbounds", action="store_true",
+        help="if set True, after parsing the stutter model, the lbound of repeats units"
+             "will be increased so that longer units cannot be seen as stutter positions "
+             "of the shorter units. This will prevent memory issues.")
     filtergroup = parser.add_argument_group("filtering options")
     filtergroup.add_argument("-n", "--min-pct", metavar="PCT", type=float,
         default=_DEF_THRESHOLD_PCT,
@@ -320,7 +399,7 @@ def run(args):
     try:
         predict_profiles(args.stuttermodel, args.seqs, args.outfile, args.marker,
                          args.use_all_data, args.min_pct, args.min_r2, args.library,
-                         args.combine_strands)
+                         args.combine_strands, args.check_lbounds)
     except IOError as e:
         if e.errno == EPIPE:
             return
