@@ -155,7 +155,7 @@ class TestTssv(ComponentTestCase):
         self.componentTest(Tools.TSSV, fdstools_args, [])
 
     def test_ambiguous_bases(self):
-        infile = self.data_dir_root / "_reads" / "ambiguous.fasta"
+        infile = self.data_dir_root / "_reads" / "ambiguous.fastq"
 
         output = OutputFile(self.data_dir_root / Tools.TSSV /
                             "ambiguous_tssv.txt")
@@ -174,7 +174,7 @@ class TestTssv(ComponentTestCase):
         self.componentTest(Tools.TSSV, fdstools_args, test_data)
 
     def test_filter_ambiguous_bases(self):
-        infile = self.data_dir_root / "_reads" / "ambiguous.fasta"
+        infile = self.data_dir_root / "_reads" / "ambiguous.fastq"
 
         output = OutputFile(self.data_dir_root / Tools.TSSV /
                             "ambiguous-filtered_tssv.txt")
@@ -188,6 +188,46 @@ class TestTssv(ComponentTestCase):
             "--report", str(report.generated_output),
             "--minimum", "1",
             "--filter-ambiguous"
+        ]
+
+        test_data = [output, report]
+        self.componentTest(Tools.TSSV, fdstools_args, test_data)
+
+    def test_distrust_base_quality_no_effect(self):
+        infile = self.data_dir_root / "_reads" / "ambiguous.fastq"
+
+        output = OutputFile(self.data_dir_root / Tools.TSSV /
+                            "ambiguous-qualities_tssv.txt")
+        report = OutputFile(self.data_dir_root / Tools.TSSV /
+                            "ambiguous_tssv-report.txt")
+
+        fdstools_args = [
+            self.library,
+            str(infile),
+            str(output.generated_output),
+            "--report", str(report.generated_output),
+            "--minimum", "1",
+            "--distrust-base-quality", "23"
+        ]
+
+        test_data = [output, report]
+        self.componentTest(Tools.TSSV, fdstools_args, test_data)
+
+    def test_distrust_base_quality(self):
+        infile = self.data_dir_root / "_reads" / "ambiguous.fastq"
+
+        output = OutputFile(self.data_dir_root / Tools.TSSV /
+                            "distrust-qualities_tssv.txt")
+        report = OutputFile(self.data_dir_root / Tools.TSSV /
+                            "distrust-qualities_tssv-report.txt")
+
+        fdstools_args = [
+            self.library,
+            str(infile),
+            str(output.generated_output),
+            "--report", str(report.generated_output),
+            "--minimum", "1",
+            "--distrust-base-quality", "24"
         ]
 
         test_data = [output, report]

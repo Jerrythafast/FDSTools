@@ -72,6 +72,7 @@ import sys
 from bisect import insort
 from collections import defaultdict
 from errno import EPIPE
+from itertools import islice
 from threading import Lock, Semaphore
 
 from ..lib.cli import add_sequence_format_args, add_input_output_args, pos_int_arg,\
@@ -122,19 +123,24 @@ IUPAC_REGEX = {
     "N": "[ACGTU]"}
 
 
-
 class TSSV:
-    def __init__(self, library, flank_length, threshold, resolve_ambiguous, indel_score, dirname,
-                 workers, deduplicate, file_format, reads_generator):
+    def __init__(self, library, flank_length, threshold, resolve_ambiguous, output_qualities,
+                 distrust_base_quality, indel_score, dirname, workers, deduplicate, file_format,
+                 reads_generator):
         # User inputs.
         self.library = library
         self.indel_score = indel_score
         self.workers = workers
         self.deduplicate = deduplicate
+        self.output_qualities = output_qualities or distrust_base_quality
         self.input = reads_generator
 
         self.lock = Lock()
         self.semaphore = Semaphore(2 * workers)
+
+        if self.output_qualities and ".fq" not in file_format:
+            raise ValueError(
+                f"Basecall quality values are not available in {file_format} input file")
 
         # Convert library.
         refseq_store = library.get_structure_store().get_refseq_store()
@@ -182,10 +188,10 @@ class TSSV:
             self.outfiles = None
 
         # Internal state.
-        self.sequences = {marker: defaultdict(lambda: [0, 0]) for marker in self.tssv_library}
+        self.sequences = {marker: defaultdict(lambda: [0, 0, []]) for marker in self.tssv_library}
         if resolve_ambiguous:
             self.ambiguous_sequences = {
-                marker: defaultdict(lambda: [0, 0]) for marker in self.tssv_library}
+                marker: defaultdict(lambda: [0, 0, []]) for marker in self.tssv_library}
         else:
             self.ambiguous_sequences = self.sequences
         self.counters = {marker: {key: 0 for key in
@@ -218,7 +224,7 @@ class TSSV:
     def cache_results(self, seq, results):
         """NOTE: In a concurrent context, caller must hold self.lock!"""
         for record in self.cache[seq][1]:
-            self.process_results(tuple([record[0], seq]) + record[1:], results)
+            self.process_results((record[0], seq) + record[1:], results)
         if self.deduplicate:
             self.cache[seq] = (True, results)
         else:
@@ -229,7 +235,7 @@ class TSSV:
     def process_results(self, record, results):
         self.total_reads += 1
         recognised = 0
-        for marker, matches, seq1, seq2, ambiguous in results:
+        for marker, matches, start_end_seq1, start_end_seq2, ambiguous in results:
             recognised |= matches
             sequences = self.ambiguous_sequences[marker] if ambiguous else self.sequences[marker]
             counters = self.counters[marker]
@@ -243,9 +249,13 @@ class TSSV:
                 counters["rRight"] += 1
 
             # Search in the forward strand.
-            if seq1 is not None:
+            if start_end_seq1 is not None:
+                start, end, seq = start_end_seq1
                 counters["fPaired"] += 1
-                sequences[seq1][0] += 1
+                sequences[seq][0] += 1
+                if self.output_qualities:
+                    qual = record[2][start : end]
+                    update_qualities(sequences[seq][2], qual)
                 if self.outfiles:
                     write_sequence_record(self.outfiles["markers"][marker]["paired"], record)
             elif self.outfiles:
@@ -255,9 +265,13 @@ class TSSV:
                     write_sequence_record(self.outfiles["markers"][marker]["nostart"], record)
 
             # Search in the reverse strand.
-            if seq2 is not None:
+            if start_end_seq2 is not None:
+                start, end, seq = start_end_seq2
                 counters["rPaired"] += 1
-                sequences[seq2][1] += 1
+                sequences[seq][1] += 1
+                if self.output_qualities:
+                    qual = record[2][start : end][::-1]
+                    update_qualities(sequences[seq][2], qual)
                 if self.outfiles:
                     write_sequence_record(self.outfiles["markers"][marker]["paired"], record)
             elif self.outfiles:
@@ -279,7 +293,7 @@ class TSSV:
                 continue
             proper_seqs = defaultdict(list)
             for seq, counts in self.sequences[marker].items():
-                insort(proper_seqs[len(seq)], ((-sum(counts), seq)))
+                insort(proper_seqs[len(seq)], (-sum(counts[:2]), seq))
             for ambiguous_seq, ambiguous_counts in self.ambiguous_sequences[marker].items():
                 pat_match = re.compile(
                     "".join(IUPAC_REGEX.get(base, base) for base in ambiguous_seq))
@@ -288,6 +302,7 @@ class TSSV:
                         proper_counts = self.sequences[marker][proper_seq]
                         proper_counts[0] += ambiguous_counts[0]
                         proper_counts[1] += ambiguous_counts[1]
+                        element_wise_add(proper_counts[2], ambiguous_counts[2])
                         break
                 else:
                     # Failed to resolve ambiguous bases.
@@ -296,7 +311,38 @@ class TSSV:
     #process_ambiguous_sequences
 
 
-    def process_file(self, resolve_ambiguous):
+    def flatten_low_quality_bases(self, quality_threshold):
+        """
+        Find bases with cubic mean quality score <= quality_threshold in
+        self.sequences, and try to find another sequence with higher
+        read count that matches all higher-quality bases. Add the reads
+        of the lower-quality sequence to it if one was found.
+        """
+        threshold = chr(quality_threshold + 33)
+        for marker, marker_seqs in self.sequences.items():
+            grouped_seqs = defaultdict(list)
+            for seq, counts in marker_seqs.items():
+                insort(grouped_seqs[len(seq)], (-sum(counts[:2]), seq, counts[2]))
+            for length, seqs in grouped_seqs.items():
+                for i in range(len(seqs) - 1, 0, -1):
+                    negative_total, seq, qual = seqs[i]
+                    qual = flatten_qualities(qual, -negative_total)
+                    if any(q <= threshold for q in qual):
+                        pat_match = re.compile(
+                            "".join("[ACGTU]" if q <= threshold else b for b, q in zip(seq, qual)))
+                        for other in islice(seqs, i):
+                            if pat_match.fullmatch(other[1]):
+                                ambiguous_counts = marker_seqs[seq]
+                                proper_counts = marker_seqs[other[1]]
+                                proper_counts[0] += ambiguous_counts[0]
+                                proper_counts[1] += ambiguous_counts[1]
+                                element_wise_add(proper_counts[2], ambiguous_counts[2])
+                                del marker_seqs[seq]
+                                break
+    #flatten_low_quality_bases
+
+
+    def process_file(self, resolve_ambiguous, distrust_base_quality):
         if self.workers == 1:
             for seq in self.dedup_reads():
                 self.cache_results(seq, process_sequence(
@@ -314,6 +360,16 @@ class TSSV:
 
         if resolve_ambiguous:
             self.process_ambiguous_sequences()
+
+        if distrust_base_quality:
+            self.flatten_low_quality_bases(distrust_base_quality)
+
+        if self.output_qualities:
+            # Flatten qualities for quality column.
+            for marker, marker_seqs in self.sequences.items():
+                for seq_values in marker_seqs.values():
+                    # The seq_values are: [forward, reverse, qualities].
+                    seq_values[2] = flatten_qualities(seq_values[2], seq_values[0] + seq_values[1])
 
         # Count number of unique sequences per marker.
         for marker in self.tssv_library:
@@ -340,7 +396,13 @@ class TSSV:
 
 
     def write_sequence_tables(self, outfile, seqformat="raw"):
-        header = "\t".join(("marker", "sequence", "total", "forward", "reverse")) + "\n"
+        if self.output_qualities:
+            header = "\t".join(
+                ("marker", "sequence", "total", "forward", "reverse", "quality")) + "\n"
+            seq_columns = 3
+        else:
+            header = "\t".join(("marker", "sequence", "total", "forward", "reverse")) + "\n"
+            seq_columns = 2
         outfile.write(header)
         if self.outfiles:
             self.outfiles["sequences"].write(header)
@@ -348,12 +410,15 @@ class TSSV:
             if self.outfiles:
                 self.outfiles["markers"][marker]["sequences"].write(header)
             sequences = self.sequences[marker]
-            for total, seq in sorted(((sum(sequences[s]), s) for s in sequences), reverse=True):
+            for total, seq in sorted(((sum(sequences[s][:2]), s) for s in sequences), reverse=True):
+                if self.output_qualities and len(sequences[seq]) == 2:
+                    # Add empty quality column to Other sequences and No data.
+                    sequences[seq].append("")
                 line = "\t".join(map(str, [
                     marker,
                     ensure_sequence_format(seq, seqformat, from_format="raw", library=self.library,
                         marker=marker),
-                    total] + sequences[seq])) + "\n"
+                    total] + sequences[seq][:seq_columns])) + "\n"
                 outfile.write(line)
                 if self.outfiles:
                     self.outfiles["sequences"].write(line)
@@ -402,6 +467,33 @@ class TSSV:
                     value.close()
     #close_output_files
 #TSSV
+
+
+def update_qualities(cubed_qualities, quality_string):
+    """
+    Update the cubed_qualities list by adding cubed values extracted
+    from quality_string. The len(cubed_qualities) should be equal to
+    len(quality_string), or zero, in which case it gets resized to match.
+    """
+    if not cubed_qualities:
+        # First quality_string, resize cubed_qualities and store values.
+        cubed_qualities[:] = ((ord(q) - 33) ** 3 for q in quality_string)
+    else:
+        element_wise_add(cubed_qualities, ((ord(q) - 33) ** 3 for q in quality_string))
+#update_qualities
+
+
+def element_wise_add(dst_list, src_iterable):
+    """Perform dst_list[i] += src_iterable[i] on equally-sized inputs."""
+    for i, value in enumerate(src_iterable):
+        dst_list[i] += value
+#element_wise_add
+
+
+def flatten_qualities(summed_cubed_qualities, num_reads):
+    """Convert the summed_cubed_qualities to an ASCII quality string."""
+    return "".join(chr(round((q / num_reads) ** (1/3)) + 33) for q in summed_cubed_qualities)
+#flatten_qualities
 
 
 def prepare_output_dir(dir, markers, file_format):
@@ -530,12 +622,12 @@ def process_sequence(tssv_library, indel_score, seq):
     # Compile the results.
     results = []
     for marker, matches in marker_matches.items():
-        forward = next(
-            (seq for a, b, seq, strand, m in matched_ranges if strand == 0 and m == marker), None)
-        reverse = next(
-            (seq for a, b, seq, strand, m in matched_ranges if strand == 1 and m == marker), None)
-        results.append((marker, matches, forward, reverse,
-            PAT_SEQ_RAW.match((forward or "") + (reverse or "")) is None))
+        forward = next(((a, b, seq) for a, b, seq, strand, m in matched_ranges
+            if strand == 0 and m == marker), None)
+        reverse = next(((a, b, seq) for a, b, seq, strand, m in matched_ranges
+            if strand == 1 and m == marker), None)
+        results.append((marker, matches, forward, reverse, any(
+            PAT_SEQ_RAW.match(seq[2]) is None for seq in (forward, reverse) if seq and seq[2])))
     return results
 #process_sequence
 
@@ -546,12 +638,14 @@ def process_batch(tssv_library, indel_score, batch):
 
 
 def run_tssv_lite(infile, outfile, reportfile, library, flank_length, seqformat, threshold,
-                  minimum, resolve_ambiguous, aggregate_filtered, missing_marker_action, dirname,
-                  indel_score, workers, no_deduplicate):
+                  minimum, resolve_ambiguous, output_qualities, distrust_base_quality,
+                  aggregate_filtered, missing_marker_action, dirname, indel_score, workers,
+                  deduplicate):
     with parse_reads(infile) as (file_format, reads_generator):
-        tssv = TSSV(library, flank_length, threshold, resolve_ambiguous, indel_score, dirname,
-            workers, not no_deduplicate, file_format, reads_generator)
-        tssv.process_file(resolve_ambiguous)
+        tssv = TSSV(library, flank_length, threshold, resolve_ambiguous, output_qualities,
+            distrust_base_quality, indel_score, dirname, workers, deduplicate, file_format,
+            reads_generator)
+        tssv.process_file(resolve_ambiguous, distrust_base_quality)
         tssv.filter_sequences(aggregate_filtered, minimum, missing_marker_action)
 
         try:
@@ -584,7 +678,7 @@ def add_arguments(parser):
              "marker (Marker/noend.fa and Marker/nostart.fa)")
     parser.add_argument("-T", "--num-threads", metavar="THREADS", type=pos_int_arg, default=1,
         help="number of worker threads to use (default: %(default)s)")
-    parser.add_argument("-X", "--no-deduplicate", action="store_true",
+    parser.add_argument("-X", "--no-deduplicate", dest="deduplicate", action="store_false",
         help="disable deduplication of reads; by setting this option, memory usage will be "
              "reduced in expense of longer running time")
     filtergroup = parser.add_argument_group("filtering options")
@@ -601,6 +695,11 @@ def add_arguments(parser):
     parser.add_argument("-A", "--filter-ambiguous", dest="resolve_ambiguous", action="store_false",
         help="don't add sequences containing ambiguous bases to the most common compatible "
              "unambiguous sequence")
+    parser.add_argument("-q", "--output-qualities", action="store_true",
+        help="output cubic mean basecall quality scores")
+    parser.add_argument("-Q", "--distrust-base-quality", metavar="N", type=pos_int_arg, default=0,
+        help="attempt to correct basecalls with cubic mean quality "
+             "below or equal to the given value; implies -q")
     filtergroup.add_argument("-B", "--no-aggregate-filtered", dest="aggregate_filtered",
         action="store_false",
         help="by default, sequences that have been filtered (as per the -a/--minimum option, the "
@@ -620,6 +719,7 @@ def run(args):
         raise ValueError("please specify an input file, or pipe in the output of another program")
     run_tssv_lite(files[0], files[1], args.report, args.library, args.flank_length,
                   args.sequence_format, args.mismatches, args.minimum, args.resolve_ambiguous,
-                  args.aggregate_filtered, args.missing_marker_action,
-                  args.dir, args.indel_score, args.num_threads, args.no_deduplicate)
+                  args.output_qualities, args.distrust_base_quality, args.aggregate_filtered,
+                  args.missing_marker_action, args.dir, args.indel_score, args.num_threads,
+                  args.deduplicate)
 #run

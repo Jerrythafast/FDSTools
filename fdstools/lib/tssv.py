@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 
 #
-# Copyright (C) 2025 Netherlands Forensic Institute
+# Copyright (C) 2026 Netherlands Forensic Institute
 #
 # This file is part of FDSTools, data analysis tools for Massively
 # Parallel Sequencing of forensic DNA markers.
@@ -41,7 +41,7 @@ def filter_sequences(sequences, reported_range, minimum, aggregate_filtered, inc
     # Filter out sequences with low read counts and invalid bases.
     aggregates = [0, 0]
     expected_length = reported_range.get_option("expected_allele_length")
-    for sequence, (forward, reverse) in tuple(sequences.items()):
+    for sequence, (forward, reverse, *quals) in tuple(sequences.items()):
         if not seq_pass_filt(sequence, forward + reverse, minimum, expected_length):
             aggregates[0] += forward
             aggregates[1] += reverse
