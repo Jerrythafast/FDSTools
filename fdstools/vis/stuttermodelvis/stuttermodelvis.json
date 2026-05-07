@@ -1,5 +1,5 @@
 {
-  "fdstools_visversion": "2.0.4",
+  "fdstools_visversion": "2.0.5",
   "width": 600,
   "height": 10,
   "signals": [
@@ -406,7 +406,7 @@
               {
                 "type": "cross",
                 "with": "points",
-                "filter": "datum.a.subgraph == datum.b.subgraph && datum.a.markerdirection == datum.b.markerdirection"
+                "filter": "datum.a.subgraph == datum.b.subgraph && (datum.a.markerdirection == datum.b.markerdirection || (show_all_data && substring(datum.a.markerdirection, 0, 8) == 'All data' && indexof(datum.b.markerdirection, substring(datum.a.markerdirection, 8)) > 0))"
               }
             ]
           },
