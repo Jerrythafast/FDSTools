@@ -58,6 +58,7 @@ SEQ_SPECIAL_VALUES = ("No data", "Other sequences")
 reverse_complement = libsequence.reverse_complement
 call_variants = libsequence.call_variants
 mutate_sequence = libsequence.mutate_sequence
+sequence_range_adjust = libsequence.sequence_range_adjust
 PAT_TSSV_BLOCK = libsequence.PAT_TSSV_BLOCK
 PAT_VARIANT_SNP = libsequence.PAT_VARIANT_SNP
 
