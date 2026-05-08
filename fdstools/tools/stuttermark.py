@@ -148,7 +148,7 @@ def load_data(infile, library=None):
                 # Split the sequence column into a list of tuples:
                 # [('ACTG', 4), ('CCTC', 12), ...]
                 columns[colid_sequence] = [[x[0], int(x[1])] for x in
-                    PAT_TSSV_BLOCK.findall(columns[colid_sequence])]
+                    PAT_TSSV_BLOCK.findall(columns[colid_sequence].upper())]
 
                 # Repeat unit deduplication (data may contain stuff like
                 # "AGAT(7)AGAT(5)" instead of "AGAT(12)").
