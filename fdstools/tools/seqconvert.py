@@ -137,7 +137,8 @@ def convert_sequences(infile, outfile, to_format, library=None, fixed_marker=Non
             if marker in revcomp_markers:
                 # Reverse-complement the sequence, no range adjustment.
                 seq = reverse_complement(seq)
-            elif can_adjust_range(library.get_range(marker), library2.get_range(marker)):
+            elif library2 != library and can_adjust_range(
+                    library.get_range(marker), library2.get_range(marker)):
                 # Modify sequence to adjust its reported range.
                 # We can efficiently convert to allele name if requested.
                 if to_format == "allelename":
