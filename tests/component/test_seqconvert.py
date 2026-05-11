@@ -260,3 +260,23 @@ class TestSeqconvert(ComponentTestCase):
             SystemExit, 2,
             test_msg="error: Position 11296932 is outside sequence range"
         )
+
+    def test_range_adjustment(self):
+        """Tests -L, --library2"""
+        omnistr = self.data_dir_root / Tools.SEQCONVERT / "RangeAdjust_OmniSTR.txt"
+        forenseq = self.data_dir_root / Tools.SEQCONVERT / "RangeAdjust_ForenSeq.txt"
+        fdstools_args = [
+            "--library", "ID-OmniSTR",
+            "--library2", "ForenSeqA",
+            SequenceFormat.ALLELENAME,
+            str(omnistr), forenseq.name]
+        test_data = [OutputFile(expected_output=forenseq)]
+        self.componentTest(Tools.SEQCONVERT, fdstools_args, test_data)
+
+        fdstools_args = [
+            "--library", "ForenSeqA",
+            "--library2", "ID-OmniSTR",
+            SequenceFormat.ALLELENAME,
+            str(forenseq), omnistr.name]
+        test_data = [OutputFile(expected_output=omnistr)]
+        self.componentTest(Tools.SEQCONVERT, fdstools_args, test_data)
