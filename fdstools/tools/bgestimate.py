@@ -567,6 +567,10 @@ def add_arguments(parser):
         help="if specified, noise profiles will be calculated for the total number of reads, "
              "instead of separately for either strand")
     filtergroup = parser.add_argument_group("filtering options")
+    filtergroup.add_argument("-P", "--min-output-pct", metavar="PCT", type=float,
+        default=_DEF_OUTPUT_PCT,
+        help="minimum amount of background to output, as a percentage "
+             "of the parent allele (default: %4.2f)" % _DEF_OUTPUT_PCT)
     filtergroup.add_argument("-m", "--min-pct", metavar="PCT", type=float,
         default=_DEF_THRESHOLD_PCT,
         help="minimum amount of background to consider, as a percentage "
@@ -594,10 +598,6 @@ def add_arguments(parser):
     filtergroup.add_argument("-M", "--marker", metavar="MARKER", help="work only on MARKER")
     filtergroup.add_argument("-H", "--homozygotes", action="store_true",
         help="if specified, only homozygous samples will be considered")
-    filtergroup.add_argument("-P", "--min-output-pct", metavar="PCT", type=float,
-        default=_DEF_OUTPUT_PCT,
-        help="minimum amount of background to output, as a percentage "
-             "of the parent allele (default: %4.2f)" % _DEF_OUTPUT_PCT)
     add_sequence_format_args(parser, default_format="raw", force=True)
 #add_arguments
 
