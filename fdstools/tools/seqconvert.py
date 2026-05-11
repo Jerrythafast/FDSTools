@@ -63,7 +63,7 @@ from functools import cache
 
 from ..lib.cli import library_arg, add_input_output_args, get_input_output_files
 from ..lib.io import get_column_ids
-from ..lib.library import BUILTIN_NAMES
+from ..lib.library import BUILTIN_NAMES, CUSTOM_REPORTEDRANGE_OPTION
 from ..lib.seq import SEQ_SPECIAL_VALUES, reverse_complement, ensure_sequence_format, \
                       sequence_range_adjust
 
@@ -83,7 +83,7 @@ _DEF_COLNAME_SEQUENCE = "sequence"
 
 @cache
 def can_adjust_range(old, new):
-    if old.get_option("__fdstools_custom__") or new.get_option("__fdstools_custom__"):
+    if old.get_option(CUSTOM_REPORTEDRANGE_OPTION) or new.get_option(CUSTOM_REPORTEDRANGE_OPTION):
         # The user specified custom configuration for this marker.
         return False
     if len(old.location) != 3 or len(new.location) != 3 or old.location == new.location:

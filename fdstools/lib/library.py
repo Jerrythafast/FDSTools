@@ -48,6 +48,10 @@ BUILTIN_LIBS = {_.stem: _
     for _ in (Path(__file__).parent.parent / "data" / "libraries").glob("*.ini")}
 BUILTIN_NAMES = tuple(sorted(BUILTIN_LIBS))
 
+# Name of a ReportedRange option which flags it as being based on
+# custom configuration provided by the user, not GRCh38.
+CUSTOM_REPORTEDRANGE_OPTION = "__fdstools_custom__"
+
 
 def add_legacy_range(reported_range_store, marker, prefix, suffix, blocks, options, genome_position=None):
     """
@@ -99,6 +103,10 @@ def add_legacy_range(reported_range_store, marker, prefix, suffix, blocks, optio
             options["flank_length"] = [
                 1, len(options["flanks"][0]),
                 1, len(options["flanks"][1])]
+
+    # Add an entry to options to flag this ReportedRange as being based on
+    # custom configuration provided by the user, not GRCh38.
+    options[CUSTOM_REPORTEDRANGE_OPTION] = True
 
     # Find units and overlong_gap.
     overlong_gap = ""
