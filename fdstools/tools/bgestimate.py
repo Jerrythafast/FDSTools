@@ -454,6 +454,11 @@ def generate_profiles(samples_in, outfile, reportfile, allelefile, annotation_co
     if reportfile:
         t0 = time.time()
 
+    # Avoid outputting zeros if the output filter is set below the
+    # smallest possible output value after rounding.
+    if min_output_pct < 0.001:
+        min_output_pct = 0.001
+
     # Parse allele list.
     allelelist = {} if allelefile is None else parse_allelelist(
         allelefile, convert="raw", library=library)
