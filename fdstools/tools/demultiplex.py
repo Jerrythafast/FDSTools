@@ -68,7 +68,7 @@ __version__ = "1.0.0"
 
 # Default barcode extraction pattern.
 # This value can be overridden by the -p command line option.
-_DEF_BARCODE_PATTERN = re.compile(r":([ACGTN]{6,})\+([ACGTN]{6,})")
+_DEF_BARCODE_PATTERN = re.compile(r":N:0:([ACGTN]{6,})\+([ACGTN]{6,})")
 
 # Default per-base log10 LR filter value.
 # This value can be overridden by the -Y command line option.
@@ -181,7 +181,6 @@ class Demultiplexer:
 
         if left_failed and right_failed:
             # Failed to read barcode at both sides.
-            #print(f"{left_barcode_read} {right_barcode_read} failed at both sides")
             score = next_score = scored_bases = 0.0
             matched_tag = None
         elif left_failed:
@@ -398,7 +397,7 @@ def add_arguments(parser):
         help="input file with sample tags and barcodes, either tab-separated (without headers) "
              "or Illumina SampleSheet.csv file with [BCLConvert_Data] section (no other features "
              "are supported); both barcodes must be specified in the same orientation as expected "
-             "in the input FastQ files")
+             "in the headers of FastQ files unless -c/--reverse-right or -X/--xleap is specified")
     parser.add_argument("infile1", metavar="R1", nargs="?", default="-",
         help="input FastQ or FastA file, possibly GZipped, either an interleaved file or R1 "
              "(default: read from stdin)")
@@ -408,6 +407,9 @@ def add_arguments(parser):
         type=re.compile, default=_DEF_BARCODE_PATTERN,
         help=f"regular expression that extracts, from read headers, the two read barcodes in two "
              f"capturing groups (default: '{_DEF_BARCODE_PATTERN.pattern}')")
+    parser.add_argument("-c", "--reverse-right", action="store_true",
+        help="if specified, the right barcodes from the TAGS file are reverse-complemented "
+             "(does not apply to sequences specified through the *-artefacts options below)")
     outputgroup = parser.add_argument_group("output file options")
     outputgroup.add_argument("-D", "--dir", default=Path(), type=Path,
         help="output directory (default: current working directory)")
@@ -426,7 +428,8 @@ def add_arguments(parser):
     filtergroup.add_argument("-P", "--filter-phix", action="store_true",
         help="if specified, recognize indexed PhiX barcodes and sort to Undetermined")
     filtergroup.add_argument("-X", "--xleap", action="store_true",
-        help="convenience option, equivalent to: -m xleap -a GGGGGG (with correct length)")
+        help="convenience option, equivalent to: -c -m xleap -a GGGGGG (with correct length); "
+             "do not use for MiSeq i100 index-first data")
     filtergroup.add_argument("-Y", "--filter-diff", metavar="DIFF",
         type=float, default=_DEF_FILTER_DIFF,
         help="drop reads with score difference below this value (default: %(default)s)")
@@ -475,11 +478,17 @@ def run(args):
         if not PAT_SEQ_RAW.match(artefact):
             raise ValueError(f"Invalid artefact sequence '{artefact}'")
 
-    # Recognise "dark read" artefact in XLEAP SBS chemistry.
+    # Recognise "dark read" artefact in XLEAP SBS chemistry
+    # and reverse-complement right barcodes.
     if args.xleap:
         left_length, right_length = map(len, next(iter(tags_barcodes.values())))
         left_artefacts.add("G" * left_length)
         right_artefacts.add("G" * right_length)
+        args.reverse_right = True
+
+    if args.reverse_right:
+        tags_barcodes = {tag: (left, reverse_complement(right))
+            for tag, (left, right) in tags_barcodes.items()}
 
     with parse_read_pairs(args.infile1, args.infile2, as_fastq=True) as (_, read_generator), \
          open_outfiles(tags_barcodes, args.dir, s0_out, args.truncate, args.zip_level) as outfiles:
