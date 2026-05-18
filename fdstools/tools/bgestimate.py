@@ -70,6 +70,11 @@ _DEF_MIN_SAMPLE_PCT = 80.
 # This value can be overridden by the -g command line option.
 _DEF_MIN_GENOTYPES = 3
 
+# Default minimum amount of background to report, as a percentage of
+# the parent allele.
+# This value can be overridden by the -P command line option.
+_DEF_OUTPUT_PCT = 0.5
+
 
 def solve_profile_mixture_single(samples, genotypes, n, starting_values={},
                                  variance=False, reportfile=None):
@@ -445,9 +450,14 @@ def preprocess_data(data, min_sample_pct, combine_strands):
 
 def generate_profiles(samples_in, outfile, reportfile, allelefile, annotation_column, min_pct,
                       min_abs, min_samples, min_sample_pct, min_genotypes, library, profiles_in,
-                      marker, homozygotes, combine_strands):
+                      marker, homozygotes, min_output_pct, combine_strands):
     if reportfile:
         t0 = time.time()
+
+    # Avoid outputting zeros if the output filter is set below the
+    # smallest possible output value after rounding.
+    if min_output_pct < 0.001:
+        min_output_pct = 0.001
 
     # Parse allele list.
     allelelist = {} if allelefile is None else parse_allelelist(
@@ -539,12 +549,12 @@ def generate_profiles(samples_in, outfile, reportfile, allelefile, annotation_co
         for i in range(p["true alleles"]):
             for j in range(len(p["alleles"])):
                 if combine_strands:
-                    if not p["profiles_total"][i][j]:
+                    if p["profiles_total"][i][j] < min_output_pct:
                         continue
                     outfile.write("\t".join((marker, p["alleles"][i], p["alleles"][j],
                         str(p["profiles_total"][i][j]), "bgestimate")) + "\n")
                 else:
-                    if not p["profiles_forward"][i][j] + p["profiles_reverse"][i][j]:
+                    if p["profiles_forward"][i][j] + p["profiles_reverse"][i][j] < min_output_pct:
                         continue
                     outfile.write("\t".join(
                         [marker, p["alleles"][i], p["alleles"][j]] +
@@ -562,6 +572,10 @@ def add_arguments(parser):
         help="if specified, noise profiles will be calculated for the total number of reads, "
              "instead of separately for either strand")
     filtergroup = parser.add_argument_group("filtering options")
+    filtergroup.add_argument("-P", "--min-output-pct", metavar="PCT", type=float,
+        default=_DEF_OUTPUT_PCT,
+        help="minimum amount of background to output, as a percentage "
+             "of the parent allele (default: %4.2f)" % _DEF_OUTPUT_PCT)
     filtergroup.add_argument("-m", "--min-pct", metavar="PCT", type=float,
         default=_DEF_THRESHOLD_PCT,
         help="minimum amount of background to consider, as a percentage "
@@ -605,7 +619,7 @@ def run(args):
         generate_profiles(files[0], files[1], args.report, args.allelelist, args.annotation_column,
                           args.min_pct, args.min_abs, args.min_samples, args.min_sample_pct,
                           args.min_genotypes, args.library, args.profiles, args.marker,
-                          args.homozygotes, args.combine_strands)
+                          args.homozygotes, args.min_output_pct, args.combine_strands)
     except IOError as e:
         if e.errno == EPIPE:
             try:
