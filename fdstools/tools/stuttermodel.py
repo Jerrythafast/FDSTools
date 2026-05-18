@@ -481,7 +481,7 @@ def fit_stutter_model(outfile, raw_outfile, data, library, seq, patterns, min_r2
                 for marker_i in range(len(this_markers)):
                     marker_rows = (markers[from_markers] == this_markers[marker_i])
                     marker_lengths = this_lengths[this_from_markers == marker_i]
-                    marker_f = fit[0][list(range(degree)) + [marker_i + degree]]
+                    marker_f = fit[list(range(degree)) + [marker_i + degree]]
                     r2, lower_bound = test_fit(marker_f, all_lengths[marker_rows],
                         all_observed_amounts[marker_rows, i])
                     if r2 < min_r2 or lower_bound >= max(marker_lengths):
