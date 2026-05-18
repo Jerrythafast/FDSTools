@@ -61,9 +61,13 @@ class TestStuttermodel(ComponentTestCase):
         output.accepted_mismatch_tuple = expected_mismatches()
         raw = OutputFile(self.data_dir_root / Tools.STUTTERMODEL / "stuttermodel_advanced1-raw.txt")
 
-        fdstools_args = [self.infiles, "--output", str(output.generated_output),
-                         "--raw-outfile", str(raw.generated_output), "--combine-strands",
-                         "--min-lengths", "3"] + self.base_args
+        fdstools_args = [
+            self.infiles,
+            "--output", str(output.generated_output),
+            "--raw-outfile", str(raw.generated_output),
+            "--combine-strands",
+            "--min-lengths", "3",
+            "--nonnegative"] + self.base_args
 
         test_data = [output, raw]
         self.componentTest(Tools.STUTTERMODEL, fdstools_args, test_data)
@@ -96,9 +100,14 @@ class TestStuttermodel(ComponentTestCase):
         output = OutputFile(self.data_dir_root / Tools.STUTTERMODEL / "stuttermodel_advanced4.txt")
         raw = OutputFile(self.data_dir_root / Tools.STUTTERMODEL / "stuttermodel_advanced4-raw.txt")
 
-        fdstools_args = [self.infiles, "--output", str(output.generated_output),
-                         "--raw-outfile", str(raw.generated_output), "--combine-strands",
-                         "--min-lengths", "3", "--max-unit-length", "3"] + self.base_args
+        fdstools_args = [
+            self.infiles,
+            "--output", str(output.generated_output),
+            "--raw-outfile", str(raw.generated_output),
+            "--combine-strands",
+            "--min-lengths", "3",
+            "--max-unit-length", "3",
+            "--min-stutter-pct", "0"] + self.base_args
 
         test_data = [output, raw]
         self.componentTest(Tools.STUTTERMODEL, fdstools_args, test_data)
@@ -119,9 +128,14 @@ class TestStuttermodel(ComponentTestCase):
         output = OutputFile(self.data_dir_root / Tools.STUTTERMODEL / "stuttermodel_marker.txt")
         raw = OutputFile(self.data_dir_root / Tools.STUTTERMODEL / "stuttermodel_marker-raw.txt")
 
-        fdstools_args = [self.infiles, "--output", str(output.generated_output), "--raw-outfile",
-                         str(raw.generated_output), "--combine-strands", "--min-lengths", "3",
-                         "--marker", "D13S317"] + self.base_args
+        fdstools_args = [
+            self.infiles,
+            "--output", str(output.generated_output),
+            "--raw-outfile", str(raw.generated_output),
+            "--combine-strands",
+            "--min-lengths", "3",
+            "--min-stutter-pct", "0",
+            "--marker", "D13S317"] + self.base_args
 
         test_data = [output, raw]
         self.componentTest(Tools.STUTTERMODEL, fdstools_args, test_data)
