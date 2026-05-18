@@ -61,7 +61,7 @@ from threading import Thread
 
 from ..lib.cli import pos_int_arg
 from ..lib.io import get_column_ids, parse_read_pairs, std_or_open, write_sequence_record
-from ..lib.seq import PAT_SEQ_RAW
+from ..lib.seq import PAT_SEQ_RAW, reverse_complement
 
 __version__ = "1.0.0"
 
