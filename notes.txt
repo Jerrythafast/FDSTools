@@ -136,6 +136,7 @@ bghomraw        a   cCd e fF  h       l mMn o       sS    v
 bghomstats      a   cCd e fF  h       l mMn o       sS    v
 bgmerge               d       h       l     o             v
 bgpredict        A    d       h       l  Mn           t   v
+demultiplex     a   c dD      h       l m     pP  r s t   v    X YzZ
 findnewalleles        d e f   h i     l  M  o             v
 mergereads      a     d  E    h       l m   oO     R      v   x     12
 mps2ce          a     d e fF  h i     l     o p   r s     v
