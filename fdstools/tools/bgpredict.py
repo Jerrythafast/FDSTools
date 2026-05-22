@@ -180,7 +180,7 @@ def adjust_lbound(model):
                     # is it possible that s can be seen as a stutter possition of seq
                     continue
                 # seq is present in s?
-                match_lengths = [m.end() - m.begin() for m in iter_overlapping_repeats(s+s, repeat_regex, len(seq))]
+                match_lengths = [m.end() - m.start() for m in iter_overlapping_repeats(s+s, repeat_regex, len(seq))]
                 longest_match_length = max(match_lengths, default=0)
                 if longest_match_length > 1 and longest_match_length >= lbound:
                     # Increase the lbound if necessary (for example: seq=A, s=AAAAG,lboun <=4)
@@ -376,10 +376,10 @@ def add_arguments(parser):
     parser.add_argument("-A", "--use-all-data", action="store_true",
         help="if specified, the 'All data' model is used to predict stutter "
              "whenever no marker-specific model is available for a certain repeat unit")
-    parser.add_argument("-L", "--check-lbounds", action="store_true",
-        help="if set True, after parsing the stutter model, the lbound of repeats units"
-             "will be increased so that longer units cannot be seen as stutter positions "
-             "of the shorter units. This will prevent memory issues.")
+    parser.add_argument("-L", "--no-check-lbounds", dest="check_lbounds", action="store_false",
+        help="by default, the lbound values of short repeat units that overlap longer units "
+             "are implicitly increased to prevent excessive memory usage; specify this option"
+             "to disable this feature")
     filtergroup = parser.add_argument_group("filtering options")
     filtergroup.add_argument("-n", "--min-pct", metavar="PCT", type=float,
         default=_DEF_THRESHOLD_PCT,
