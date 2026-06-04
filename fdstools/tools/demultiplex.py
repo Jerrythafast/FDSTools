@@ -241,7 +241,7 @@ def add_indexed_phix(tags_barcodes, outfiles):
     left_length, right_length = map(len, next(iter(tags_barcodes.values())))
     if max(left_length, right_length) > PHIX_BARCODE_LENGTH:
         raise ValueError(
-            f"The -P/--filter-phix option only supports barcodes "
+            f"The -P/--filter-idx-phix option only supports barcodes "
             f"of up to {PHIX_BARCODE_LENGTH} nucleotides")
     for tag, (left_barcode, right_barcode) in PHIX_BARCODES.items():
         tags_barcodes[tag] = [left_barcode[:left_length], right_barcode[:right_length]]
@@ -377,17 +377,19 @@ def read_score_matrix(instream):
 @contextmanager
 def open_outfiles(tags, path, s0_name, truncate, zip_level):
     path.mkdir(parents=True, exist_ok=True)
-    mode = "wt" if truncate else "at"
-    level = min(max(1, zip_level), 9)
+    open_kwargs = {
+        "mode": "wt" if truncate else "at",
+        "compresslevel": min(max(1, zip_level), 9),
+        "newline": "\n"}
     with ExitStack() as stack:
         result = {
             tag: (
-                stack.enter_context(gzip.open(path / f"{tag}_S{i}_R1_001.fastq.gz", mode, level)),
-                stack.enter_context(gzip.open(path / f"{tag}_S{i}_R2_001.fastq.gz", mode, level)))
+                stack.enter_context(gzip.open(path / f"{tag}_S{i}_R1_001.fastq.gz", **open_kwargs)),
+                stack.enter_context(gzip.open(path / f"{tag}_S{i}_R2_001.fastq.gz", **open_kwargs)))
             for i, tag in enumerate(tags, 1)}
         result[None] = (
-            stack.enter_context(gzip.open(path / f"{s0_name}_R1_001.fastq.gz", mode, level)),
-            stack.enter_context(gzip.open(path / f"{s0_name}_R2_001.fastq.gz", mode, level)))
+            stack.enter_context(gzip.open(path / f"{s0_name}_R1_001.fastq.gz", **open_kwargs)),
+            stack.enter_context(gzip.open(path / f"{s0_name}_R2_001.fastq.gz", **open_kwargs)))
         yield result
 #open_outfiles
 
@@ -425,7 +427,7 @@ def add_arguments(parser):
              "column named 'from' or 'to', the 16 scores are nonnegative real values; built-in "
              "files: 'mismatch' (the default) scores matches as 0 and mismatches as 5, 'xleap' "
              "uses empirical absolute log10 basecall probabilities for XLEAP SBS chemistry")
-    filtergroup.add_argument("-P", "--filter-phix", action="store_true",
+    filtergroup.add_argument("-P", "--filter-idx-phix", action="store_true",
         help="if specified, recognize indexed PhiX barcodes and sort to Undetermined")
     filtergroup.add_argument("-X", "--xleap", action="store_true",
         help="convenience option, equivalent to: -c -m xleap -a GGGGGG (with correct length); "
@@ -489,10 +491,14 @@ def run(args):
     if args.reverse_right:
         tags_barcodes = {tag: (left, reverse_complement(right))
             for tag, (left, right) in tags_barcodes.items()}
+    elif args.filter_idx_phix:
+        # TODO: the hardcoded PhiX indexes contain reverse-complemented i5 sequences.
+        # If reverse_right is not wanted, we will be ending up adding the wrong sequences.
+        raise ValueError("-P/--filter-idx-phix requires -c/--reverse-right")
 
     with parse_read_pairs(args.infile1, args.infile2, as_fastq=True) as (_, read_generator), \
          open_outfiles(tags_barcodes, args.dir, s0_out, args.truncate, args.zip_level) as outfiles:
         demultiplex(read_generator, outfiles, tags_barcodes, args.barcode_pattern,
-                    left_artefacts, right_artefacts, matrix, args.filter_phix, args.filter_diff,
-                    args.filter_score, args.output_scores)
+                    left_artefacts, right_artefacts, matrix, args.filter_idx_phix,
+                    args.filter_diff, args.filter_score, args.output_scores)
 #run
