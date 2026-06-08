@@ -49,7 +49,7 @@ class TestDemultiplex(ComponentTestCase):
             "--truncate",
             "--zip-level", "1",
             "--output-scores",
-            "--filter-phix",
+            "--filter-idx-phix",
             "--filter-diff", "0.1",
             "--filter-score", "0.7"]
         fdstools_args1 = fdstools_args_basis + [
@@ -74,7 +74,7 @@ class TestDemultiplex(ComponentTestCase):
         # Testing two commands in the same test method, to also test appending.
         infile1 = self.data_dir_root / Tools.DEMULTIPLEX / "Multiplexed_R1.fastq"
         infile2 = self.data_dir_root / Tools.DEMULTIPLEX / "Multiplexed_R2.fastq"
-        barcodes = self.data_dir_root / Tools.DEMULTIPLEX / "barcodes.txt"
+        barcodes = self.data_dir_root / Tools.DEMULTIPLEX / "barcodes-reversed-right.txt"
         matrix = self.data_dir_root / Tools.DEMULTIPLEX / "xleap-channels.txt"
         outdir = "advanced2"
         outfiles_first = self.get_test_data("advanced2a", outdir)
@@ -86,14 +86,15 @@ class TestDemultiplex(ComponentTestCase):
             "--output-scores",
             "--matrix", str(matrix),
             "--artefacts", "GGGGGGGGGG",
-            "--right-artefacts", "AGATCTCGGT"]
+            "--right-artefacts", "AGATCTCGGT",
+            "--reverse-right"]
 
         # In the first command, we filter PhiX reads.
         fdstools_args1 = [
             str(barcodes),
             str(infile1),
             str(infile2),
-            "--filter-phix"] + fdstools_args_shared
+            "--filter-idx-phix"] + fdstools_args_shared
 
         # The second command takes Undetermined output from the first,
         # and appends the PhiX reads to the output written by the first.
