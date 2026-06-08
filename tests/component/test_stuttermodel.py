@@ -57,6 +57,9 @@ class TestStuttermodel(ComponentTestCase):
             self.componentTest(Tools.STUTTERMODEL, fdstools_args, test_data)
 
     def test_advanced1_param(self):
+        """
+        Output is used as input for component tests of bgpredict.
+        """
         output = OutputFile(self.data_dir_root / Tools.STUTTERMODEL / "stuttermodel_advanced1.txt")
         output.accepted_mismatch_tuple = expected_mismatches()
         raw = OutputFile(self.data_dir_root / Tools.STUTTERMODEL / "stuttermodel_advanced1-raw.txt")
@@ -73,6 +76,9 @@ class TestStuttermodel(ComponentTestCase):
         self.componentTest(Tools.STUTTERMODEL, fdstools_args, test_data)
 
     def test_advanced2_param(self):
+        """
+        Output is used as input for component tests of bgpredict.
+        """
         output = OutputFile(self.data_dir_root / Tools.STUTTERMODEL / "stuttermodel_advanced2.txt")
         raw = OutputFile(self.data_dir_root / Tools.STUTTERMODEL / "stuttermodel_advanced2-raw.txt")
 

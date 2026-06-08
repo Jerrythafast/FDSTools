@@ -203,7 +203,7 @@ class ComponentTestCase(TestCase):
             -> Tuple[str, bool]:
         """use the accepted_mismatch_tuple to check if this mismatch is acceptable or
         not."""
-        if any(re.search(mismatch, line) for mismatch in accepted_mismatch_tuple):
+        if any(re.fullmatch(mismatch, line) for mismatch in accepted_mismatch_tuple):
             msg = "Acceptable mismatch:\n"
             acceptable = True
         else:

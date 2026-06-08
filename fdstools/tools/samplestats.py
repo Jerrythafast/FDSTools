@@ -672,11 +672,11 @@ def add_arguments(parser):
         help="the minimum number of reads that was recovered thanks to "
              "noise correction (by e.g., bgcorrect), as a percentage of the total number "
              "of reads after correction (total_recovery column; default: %(default)s)")
-    intergroup.add_argument('-E', '--min-allele-reads', metavar="N",
+    intergroup.add_argument("-E", "--min-allele-reads", metavar="N",
         type=float, default=_DEF_MIN_ALLELE_READS,
         help="force a minimum total number of reads for all alleles on a marker; don't call "
              "any alleles otherwise (default: %(default)s)")
-    intergroup.add_argument('-D', '--max-nonallele-pct', metavar="PCT",
+    intergroup.add_argument("-D", "--max-nonallele-pct", metavar="PCT",
         type=float, default=_DEF_MAX_NONALLELE_PCT,
         help="drop all allele markings if the highest non-allelic sequence is at least this "
              "percentage of the total number of reads for all alleles on that marker "
