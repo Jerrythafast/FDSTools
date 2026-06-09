@@ -61,14 +61,14 @@ from threading import Thread
 
 from ..lib.cli import pos_int_arg
 from ..lib.io import get_column_ids, parse_read_pairs, std_or_open, write_sequence_record
-from ..lib.seq import PAT_SEQ_RAW
+from ..lib.seq import PAT_SEQ_RAW, reverse_complement
 
 __version__ = "1.0.0"
 
 
 # Default barcode extraction pattern.
 # This value can be overridden by the -p command line option.
-_DEF_BARCODE_PATTERN = re.compile(r":([ACGTN]{6,})\+([ACGTN]{6,})")
+_DEF_BARCODE_PATTERN = re.compile(r":N:0:([ACGTN]{6,})\+([ACGTN]{6,})")
 
 # Default per-base log10 LR filter value.
 # This value can be overridden by the -Y command line option.
@@ -181,7 +181,6 @@ class Demultiplexer:
 
         if left_failed and right_failed:
             # Failed to read barcode at both sides.
-            #print(f"{left_barcode_read} {right_barcode_read} failed at both sides")
             score = next_score = scored_bases = 0.0
             matched_tag = None
         elif left_failed:
@@ -242,7 +241,7 @@ def add_indexed_phix(tags_barcodes, outfiles):
     left_length, right_length = map(len, next(iter(tags_barcodes.values())))
     if max(left_length, right_length) > PHIX_BARCODE_LENGTH:
         raise ValueError(
-            f"The -P/--filter-phix option only supports barcodes "
+            f"The -P/--filter-idx-phix option only supports barcodes "
             f"of up to {PHIX_BARCODE_LENGTH} nucleotides")
     for tag, (left_barcode, right_barcode) in PHIX_BARCODES.items():
         tags_barcodes[tag] = [left_barcode[:left_length], right_barcode[:right_length]]
@@ -378,17 +377,19 @@ def read_score_matrix(instream):
 @contextmanager
 def open_outfiles(tags, path, s0_name, truncate, zip_level):
     path.mkdir(parents=True, exist_ok=True)
-    mode = "wt" if truncate else "at"
-    level = min(max(1, zip_level), 9)
+    open_kwargs = {
+        "mode": "wt" if truncate else "at",
+        "compresslevel": min(max(1, zip_level), 9),
+        "newline": "\n"}
     with ExitStack() as stack:
         result = {
             tag: (
-                stack.enter_context(gzip.open(path / f"{tag}_S{i}_R1_001.fastq.gz", mode, level)),
-                stack.enter_context(gzip.open(path / f"{tag}_S{i}_R2_001.fastq.gz", mode, level)))
+                stack.enter_context(gzip.open(path / f"{tag}_S{i}_R1_001.fastq.gz", **open_kwargs)),
+                stack.enter_context(gzip.open(path / f"{tag}_S{i}_R2_001.fastq.gz", **open_kwargs)))
             for i, tag in enumerate(tags, 1)}
         result[None] = (
-            stack.enter_context(gzip.open(path / f"{s0_name}_R1_001.fastq.gz", mode, level)),
-            stack.enter_context(gzip.open(path / f"{s0_name}_R2_001.fastq.gz", mode, level)))
+            stack.enter_context(gzip.open(path / f"{s0_name}_R1_001.fastq.gz", **open_kwargs)),
+            stack.enter_context(gzip.open(path / f"{s0_name}_R2_001.fastq.gz", **open_kwargs)))
         yield result
 #open_outfiles
 
@@ -398,7 +399,7 @@ def add_arguments(parser):
         help="input file with sample tags and barcodes, either tab-separated (without headers) "
              "or Illumina SampleSheet.csv file with [BCLConvert_Data] section (no other features "
              "are supported); both barcodes must be specified in the same orientation as expected "
-             "in the input FastQ files")
+             "in the headers of FastQ files unless -c/--reverse-right or -X/--xleap is specified")
     parser.add_argument("infile1", metavar="R1", nargs="?", default="-",
         help="input FastQ or FastA file, possibly GZipped, either an interleaved file or R1 "
              "(default: read from stdin)")
@@ -408,6 +409,9 @@ def add_arguments(parser):
         type=re.compile, default=_DEF_BARCODE_PATTERN,
         help=f"regular expression that extracts, from read headers, the two read barcodes in two "
              f"capturing groups (default: '{_DEF_BARCODE_PATTERN.pattern}')")
+    parser.add_argument("-c", "--reverse-right", action="store_true",
+        help="if specified, the right barcodes from the TAGS file are reverse-complemented "
+             "(does not apply to sequences specified through the *-artefacts options below)")
     outputgroup = parser.add_argument_group("output file options")
     outputgroup.add_argument("-D", "--dir", default=Path(), type=Path,
         help="output directory (default: current working directory)")
@@ -423,10 +427,11 @@ def add_arguments(parser):
              "column named 'from' or 'to', the 16 scores are nonnegative real values; built-in "
              "files: 'mismatch' (the default) scores matches as 0 and mismatches as 5, 'xleap' "
              "uses empirical absolute log10 basecall probabilities for XLEAP SBS chemistry")
-    filtergroup.add_argument("-P", "--filter-phix", action="store_true",
+    filtergroup.add_argument("-P", "--filter-idx-phix", action="store_true",
         help="if specified, recognize indexed PhiX barcodes and sort to Undetermined")
     filtergroup.add_argument("-X", "--xleap", action="store_true",
-        help="convenience option, equivalent to: -m xleap -a GGGGGG (with correct length)")
+        help="convenience option, equivalent to: -c -m xleap -a GGGGGG (with correct length); "
+             "do not use for MiSeq i100 index-first data")
     filtergroup.add_argument("-Y", "--filter-diff", metavar="DIFF",
         type=float, default=_DEF_FILTER_DIFF,
         help="drop reads with score difference below this value (default: %(default)s)")
@@ -475,15 +480,25 @@ def run(args):
         if not PAT_SEQ_RAW.match(artefact):
             raise ValueError(f"Invalid artefact sequence '{artefact}'")
 
-    # Recognise "dark read" artefact in XLEAP SBS chemistry.
+    # Recognise "dark read" artefact in XLEAP SBS chemistry
+    # and reverse-complement right barcodes.
     if args.xleap:
         left_length, right_length = map(len, next(iter(tags_barcodes.values())))
         left_artefacts.add("G" * left_length)
         right_artefacts.add("G" * right_length)
+        args.reverse_right = True
+
+    if args.reverse_right:
+        tags_barcodes = {tag: (left, reverse_complement(right))
+            for tag, (left, right) in tags_barcodes.items()}
+    elif args.filter_idx_phix:
+        # TODO: the hardcoded PhiX indexes contain reverse-complemented i5 sequences.
+        # If reverse_right is not wanted, we will be ending up adding the wrong sequences.
+        raise ValueError("-P/--filter-idx-phix requires -c/--reverse-right")
 
     with parse_read_pairs(args.infile1, args.infile2, as_fastq=True) as (_, read_generator), \
          open_outfiles(tags_barcodes, args.dir, s0_out, args.truncate, args.zip_level) as outfiles:
         demultiplex(read_generator, outfiles, tags_barcodes, args.barcode_pattern,
-                    left_artefacts, right_artefacts, matrix, args.filter_phix, args.filter_diff,
-                    args.filter_score, args.output_scores)
+                    left_artefacts, right_artefacts, matrix, args.filter_idx_phix,
+                    args.filter_diff, args.filter_score, args.output_scores)
 #run

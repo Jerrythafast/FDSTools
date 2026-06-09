@@ -1,0 +1,2 @@
+marker	setting	value
+D12S391	minreads	250

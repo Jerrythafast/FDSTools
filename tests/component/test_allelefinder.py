@@ -31,7 +31,8 @@ class TestAllelefinder(ComponentTestCase):
 
     def test_advanced1_param(self):
         """Also tests multi input using regex.
-           Output is used as input for integration tests of other tools."""
+           Output is used as input for integration tests of other tools.
+           Output is used as input for component tests of findnewalleles and bgestimate."""
         infiles = str(self.data_dir_root / Tools.STUTTERMARK / "default" / "F?????stuttermark.out")
 
         output = OutputFile(self.data_dir_root / Tools.ALLELEFINDER / "allelefinder_advanced1.txt")

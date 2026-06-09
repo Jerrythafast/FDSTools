@@ -37,7 +37,7 @@ from ..lib.cli import add_sequence_format_args, add_input_output_args, add_allel
                       pos_int_arg, get_input_output_files
 from ..lib.io import parse_allelelist, get_sample_data
 from ..lib.seq import reverse_complement, get_repeat_pattern, call_variants
-from ..lib.util import thread_safe_process_pool
+from ..lib.util import nnls, thread_safe_process_pool
 
 __version__ = "1.2.1"
 
@@ -52,6 +52,10 @@ _DEF_THRESHOLD_PCT = 0
 # Default minimum number of reads to consider.
 # This value can be overridden by the -n command line option.
 _DEF_THRESHOLD_ABS = 1
+
+# Default minimum stutter percentage to fit a model through.
+# This value can be overridden by the -p command line option.
+_DEF_THRESHOLD_STUTTER_PCT = 0.5
 
 # Default minimum number of samples for each true allele.
 # This value can be overridden by the -s command line option.
@@ -112,10 +116,30 @@ def get_unique_repeats(maxlen, out=None, prefix=""):
 #get_unique_repeats
 
 
-def compute_fit(lengths, observed_amounts, degree):
-    fit = np.polyfit(lengths, observed_amounts, degree, None, True)
-    if fit[2] == degree + 1:
-        return fit[0]
+def compute_fit(lengths, observed_amounts, degree, nonnegative):
+    if nonnegative:
+        """
+        The following Least Squares setting is used:
+        The xi are the lengths of the i observations, the yi the amounts.
+        The a and b are the quadratic and linear factors of the polynomial.
+        The c is the shift amount. The example below is for degree=2.
+            --            --               --  --
+            | x1**2  x1  1 |               | y1 |
+            | x2**2  x2  1 |     -- --     | y2 |
+            | x3**2  x3  1 |     | a |     | y3 |
+            | x4**2  x4  1 |  *  | b |  =  | y4 |
+            | x5**2  x5  1 |     | c |     | y5 |
+            | x6**2  x6  1 |     -- --     | y6 |
+            | x7**2  x7  1 |               | y7 |
+            --            --               --  --
+        """
+        A = np.vander(lengths, degree + 1)
+        if np.linalg.matrix_rank(A) == degree + 1:
+            return nnls(A, observed_amounts.reshape(-1, 1)).reshape(-1)
+    else:
+        fit = np.polyfit(lengths, observed_amounts, degree, full=True)
+        if fit[2] == degree + 1:
+            return fit[0]
     return None
 #compute_fit
 
@@ -222,9 +246,10 @@ def get_variants_async(data, max_unit_length, workers):
 #get_variants_async
 
 
-def fit_stutter(samples_in, outfile, allelefile, annotation_column, min_pct, min_abs, min_lengths,
-                min_samples, library, min_r2, orphans, degree, same_shape, ignore_zeros,
-                max_unit_length, raw_outfile, marker, combine_strands, workers):
+def fit_stutter(samples_in, outfile, allelefile, annotation_column, min_pct, min_abs,
+                min_stutter_pct, min_lengths, min_samples, library, min_r2, orphans, degree,
+                same_shape, nonnegative, ignore_zeros, max_unit_length, raw_outfile, marker,
+                combine_strands, workers):
 
     # Parse allele list.
     allelelist = {} if allelefile is None else parse_allelelist(allelefile,
@@ -264,8 +289,8 @@ def fit_stutter(samples_in, outfile, allelefile, annotation_column, min_pct, min
         stutter_fold = -1
         while True:
             if fit_stutter_model(outfile, raw_outfile, data, library, seq, patterns[seq], min_r2,
-                    min_lengths, degree, same_shape, ignore_zeros, stutter_fold, orphans,
-                    combine_strands, variants):
+                    min_stutter_pct, min_lengths, degree, same_shape, nonnegative, ignore_zeros,
+                    stutter_fold, orphans, combine_strands, variants):
                 stutter_fold += 1 if stutter_fold > 0 else -1
             elif stutter_fold < 0:
                 stutter_fold = 1
@@ -274,9 +299,9 @@ def fit_stutter(samples_in, outfile, allelefile, annotation_column, min_pct, min
 #fit_stutter
 
 
-def fit_stutter_model(outfile, raw_outfile, data, library, seq, patterns, min_r2, min_lengths,
-                      degree, same_shape, ignore_zeros, stutter_fold, orphans, combine_strands,
-                      variants):
+def fit_stutter_model(outfile, raw_outfile, data, library, seq, patterns, min_r2, min_stutter_pct,
+                      min_lengths, degree, same_shape, nonnegative, ignore_zeros, stutter_fold,
+                      orphans, combine_strands, variants):
     palindromic = seq == reverse_complement(seq)
     num_amounts = 1 if combine_strands else 2
     num_fits = 1 if palindromic else num_amounts
@@ -367,8 +392,8 @@ def fit_stutter_model(outfile, raw_outfile, data, library, seq, patterns, min_r2
             continue
         lengths = np.array(lengths)
         for i in range(num_fits):
-            if not observed_amounts[:, i].any():
-                # All zero.
+            if not (observed_amounts[:, i] > min_stutter_pct).any():
+                # All below the threshold.
                 continue
             if ignore_zeros:
                 this_lengths = lengths[observed_amounts[:, i] > 0]
@@ -378,7 +403,7 @@ def fit_stutter_model(outfile, raw_outfile, data, library, seq, patterns, min_r2
             else:
                 this_lengths = lengths
                 this_amounts = observed_amounts[:, i]
-            fit = compute_fit(this_lengths, this_amounts, degree)
+            fit = compute_fit(this_lengths, this_amounts, degree, nonnegative)
             if fit is not None:
                 r2, lower_bound = test_fit(fit, lengths, observed_amounts[:, i])
                 if r2 < min_r2 or lower_bound >= this_lengths.max():
@@ -414,8 +439,8 @@ def fit_stutter_model(outfile, raw_outfile, data, library, seq, patterns, min_r2
         markers = np.array(markers)
         from_markers = np.array(from_markers)
     for i in range(num_fits):
-        if not all_observed_amounts[:, i].any():
-            # All zero.
+        if not (all_observed_amounts[:, i] > min_stutter_pct).any():
+            # All below the threshold.
             continue
         if ignore_zeros:
             this_lengths = all_lengths[all_observed_amounts[:, i] > 0]
@@ -442,12 +467,21 @@ def fit_stutter_model(outfile, raw_outfile, data, library, seq, patterns, min_r2
                     np.zeros([len(this_lengths), len(this_markers)])])
             for j in range(len(this_from_markers)):
                 A[j, this_from_markers[j] + degree] = 1
-            fit = np.linalg.lstsq(A, this_amounts)
-            if A.shape[1] == fit[2]:
+
+            if nonnegative:
+                if A.shape[1] == np.linalg.matrix_rank(A):
+                    fit = nnls(A, this_amounts).reshape(-1)
+                else:
+                    fit = None
+            else:
+                fit = np.linalg.lstsq(A, this_amounts)
+                fit = fit[0] if A.shape[1] == fit[2] else None
+
+            if fit is not None:
                 for marker_i in range(len(this_markers)):
                     marker_rows = (markers[from_markers] == this_markers[marker_i])
                     marker_lengths = this_lengths[this_from_markers == marker_i]
-                    marker_f = fit[0][list(range(degree)) + [marker_i + degree]]
+                    marker_f = fit[list(range(degree)) + [marker_i + degree]]
                     r2, lower_bound = test_fit(marker_f, all_lengths[marker_rows],
                         all_observed_amounts[marker_rows, i])
                     if r2 < min_r2 or lower_bound >= max(marker_lengths):
@@ -458,7 +492,7 @@ def fit_stutter_model(outfile, raw_outfile, data, library, seq, patterns, min_r2
                         marker_lengths, lower_bound, r2)
 
         # Fit a polynomial to all data at once as well.
-        fit = compute_fit(this_lengths, this_amounts, degree)
+        fit = compute_fit(this_lengths, this_amounts, degree, nonnegative)
         if fit is not None:
             r2, lower_bound = test_fit(fit, all_lengths, all_observed_amounts[:, i])
             if r2 < min_r2 or lower_bound >= this_lengths.max():
@@ -492,12 +526,16 @@ def add_arguments(parser):
     filtergroup = parser.add_argument_group("filtering options")
     filtergroup.add_argument("-m", "--min-pct", metavar="PCT", type=float,
         default=_DEF_THRESHOLD_PCT,
-        help="minimum amount of background to consider, as a percentage "
+        help="minimum amount of background to treat as nonzero, as a percentage "
              "of the highest allele (default: %4.2f)" % _DEF_THRESHOLD_PCT)
     filtergroup.add_argument("-n", "--min-abs", metavar="N", type=pos_int_arg,
         default=_DEF_THRESHOLD_ABS,
-        help="minimum amount of background to consider, as an absolute "
+        help="minimum amount of background to treat as nonzero, as an absolute "
              "number of reads (default: %(default)s)")
+    filtergroup.add_argument("-p", "--min-stutter-pct", metavar="PCT", type=float,
+        default=_DEF_THRESHOLD_STUTTER_PCT,
+        help="only fit stutter models where the highest observation has at least this stutter "
+             "percentage (default: %4.2f)" % _DEF_THRESHOLD_STUTTER_PCT)
     filtergroup.add_argument("-L", "--min-lengths", metavar="N",
         type=pos_int_arg, default=_DEF_MIN_LENGTHS,
         help="require this minimum number of unique repeat lengths (default: %(default)s)")
@@ -515,6 +553,8 @@ def add_arguments(parser):
     parser.add_argument("-S", "--same-shape", action="store_true",
         help="if specified, the polynomials of all markers will have equal "
              "coefficients, except for a vertical shift")
+    parser.add_argument("-N", "--nonnegative", action="store_true",
+        help="if specified, force coefficients to be nonnegative (best used with degree 1 or 2)")
     parser.add_argument("-z", "--ignore-zeros", action="store_true",
         help="if specified, samples exhibiting no stutter are ignored")
     parser.add_argument("-u", "--max-unit-length", type=pos_int_arg,
@@ -540,10 +580,10 @@ def run(args):
         raise ValueError("please specify an input file, or pipe in the output of another program")
     try:
         fit_stutter(files[0], files[1], args.allelelist, args.annotation_column, args.min_pct,
-                    args.min_abs, args.min_lengths, args.min_samples, args.library, args.min_r2,
-                    args.orphans, args.degree, args.same_shape, args.ignore_zeros,
-                    args.max_unit_length, args.raw_outfile, args.marker, args.combine_strands,
-                    args.num_threads)
+                    args.min_abs, args.min_stutter_pct, args.min_lengths, args.min_samples,
+                    args.library, args.min_r2, args.orphans, args.degree, args.same_shape,
+                    args.nonnegative, args.ignore_zeros, args.max_unit_length, args.raw_outfile,
+                    args.marker, args.combine_strands, args.num_threads)
     except IOError as e:
         if e.errno == EPIPE:
             return
