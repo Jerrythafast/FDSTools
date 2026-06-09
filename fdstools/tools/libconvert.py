@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 
 #
-# Copyright (C) 2021 Jerry Hoogenboom
+# Copyright (C) 2026 Netherlands Forensic Institute
 #
 # This file is part of FDSTools, data analysis tools for Massively
 # Parallel Sequencing of forensic DNA markers.
@@ -39,13 +39,12 @@ can be used to convert old library files to the new format.
 Please refer to the help of the 'library' tool for more information
 about FDSTools library files.
 """
-import argparse
-import io
-import os.path
 import sys
 
-from errno import EPIPE
+from io import StringIO
+from pathlib import Path
 
+from ..lib.io import std_or_open
 from ..lib.library import PAT_STR_DEF, INI_COMMENT
 from ..lib.seq import PAT_SEQ_RAW
 from .library import make_empty_library_ini
@@ -88,33 +87,26 @@ def convert_library(infile, outfile):
 
 
 def add_arguments(parser):
-    parser.add_argument("infile", nargs="?", metavar="IN", default=sys.stdin,
+    parser.add_argument("infile", nargs="?", metavar="IN", default="-",
         help="input library in the legacy TSSV format (default: read from stdin)")
     parser.add_argument("outfile", nargs="?", metavar="OUT",
-        default=sys.stdout, type=argparse.FileType("tw", encoding="UTF-8"),
         help="the file to write the FDSTools library to (default: write to stdout)")
 #add_arguments
 
 
 def run(args):
-    if args.infile == "-":
-        args.infile = sys.stdin
-    if args.infile != sys.stdin and args.outfile == sys.stdout and not os.path.exists(args.infile):
+    if args.infile != "-" and args.outfile is None and not Path(args.infile).exists():
         # One filename given, and it does not exist.  Assume outfile.
-        args.outfile = open(args.infile, "wt", encoding="UTF-8")
-        args.infile = sys.stdin
+        args.outfile = args.infile
+        args.infile = "-"
+    elif args.outfile is None:
+        args.outfile = "-"
 
-    if args.infile != sys.stdin:
-        # Open the specified input file.
-        args.infile = open(args.infile, "rt", encoding="UTF-8")
-    elif args.infile.isatty():
+    if args.infile == "-" and sys.stdin.isatty():
         # No input given.  Produce a default FDSTools library.
-        args.infile = io.StringIO("")
+        args.infile = StringIO("")
 
-    try:
-        convert_library(args.infile, args.outfile)
-    except IOError as e:
-        if e.errno == EPIPE:
-            return
-        raise
+    with std_or_open(args.infile) as infile, \
+         std_or_open(args.outfile, "wt") as outfile:
+        convert_library(infile, outfile)
 #run

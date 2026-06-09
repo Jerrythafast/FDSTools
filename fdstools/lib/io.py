@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 
 #
-# Copyright (C) 2025 Netherlands Forensic Institute
+# Copyright (C) 2026 Netherlands Forensic Institute
 #
 # This file is part of FDSTools, data analysis tools for Massively
 # Parallel Sequencing of forensic DNA markers.
@@ -19,25 +19,57 @@
 # You should have received a copy of the GNU General Public License
 # along with FDSTools.  If not, see <http://www.gnu.org/licenses/>.
 #
-
 import gzip
-import io
 import sys
 
 from contextlib import contextmanager, nullcontext
+from functools import partial
+from io import TextIOWrapper
 
 from .seq import SEQ_SPECIAL_VALUES, ensure_sequence_format
 
 
 @contextmanager
-def std_or_open(std, name, *args, **kwargs):
+def std_or_open(name, mode="rt", *, zip_level=0):
+    """
+    Open the named file with the given mode.
+    Use sys.stdin or sys.stdout if name is "-".
+
+    Files are opened in text mode with UTF-8 encoding
+    unless mode includes "b".
+
+    If zip_level is nonzero, the file is opened through gzip.open()
+    with the given compression level. The compression level only
+    affects GZip output.
+    """
     if name is None:
         yield None
-    elif name == "-":
-        yield std
-    else:
-        with open(name, *args, **kwargs) as f:
-            yield f
+        return
+
+    if name == "-":
+        # Read from sys.stdin, write to sys.stdout.
+        name = sys.stdout if any(m in mode for m in "wxa") else sys.stdin
+
+        if name is sys.stdin and sys.stdin.isatty():
+            # Avoid attempting to read input from an interactive shell.
+            raise ValueError(
+                "Please specify an input file, or redirect output from another program")
+
+        # Switch to binary I/O as needed.
+        name = name.buffer if "b" in mode or zip_level else name
+
+        # If we don't need a GZip wrapper, we're done here.
+        # Else, we fall through to open a GZip wrapper below.
+        if not zip_level:
+            yield name
+            return
+
+    # Open the output file with GZip.open() if zip_level is nonzero.
+    encoding = None if "b" in mode else "utf-8"
+    open_func = partial(
+        gzip.open, compresslevel=min(max(1, zip_level), 9)) if zip_level else open
+    with open_func(name, mode, encoding=encoding) as f:
+        yield f
 #std_or_open
 
 
@@ -63,53 +95,72 @@ def parse_flags(flags):
     return [flag for flag in map(str.strip, flags.split(",")) if flag]
 
 
-def parse_allelelist(allelelist, *, convert=None, library=None):
-    """Read allele list from open file handle."""
-    column_names = allelelist.readline().rstrip("\r\n").split("\t")
-    if column_names == [""]:
-        return {}  # Empty file.
-    colid_sample, colid_marker, colid_allele = get_column_ids(column_names,
-        "sample", "marker", "allele")
-    alleles = {}
-    for line in allelelist:
-        line = line.rstrip("\r\n").split("\t")
-        sample = line[colid_sample]
-        marker = line[colid_marker]
-        allele = line[colid_allele]
-        if convert is not None:
-            allele = ensure_sequence_format(allele, convert, library=library, marker=marker)
-        if sample not in alleles:
-            alleles[sample] = {}
-        if marker not in alleles[sample]:
-            alleles[sample][marker] = set()
-        alleles[sample][marker].add(allele)
+def parse_allelelist(allelefile, *, convert=None, library=None):
+    """Read allele list from allelefile."""
+    with std_or_open(allelefile) as allelelist:
+        column_names = allelelist.readline().rstrip("\r\n").split("\t")
+        if column_names == [""]:
+            return {}  # Empty file.
+        colid_sample, colid_marker, colid_allele = get_column_ids(column_names,
+            "sample", "marker", "allele")
+        alleles = {}
+        for line in allelelist:
+            line = line.rstrip("\r\n").split("\t")
+            sample = line[colid_sample]
+            marker = line[colid_marker]
+            allele = line[colid_allele]
+            if convert is not None:
+                allele = ensure_sequence_format(allele, convert, library=library, marker=marker)
+            alleles.setdefault(sample, {}).setdefault(marker, set()).add(allele)
     return alleles
 #parse_allelelist
 
 
-def read_sample_data_file(infile, data, annotation_column=None, seqformat=None, library=None,
-                          default_marker=None, drop_special_seq=False, after_correction=False,
-                          combine_strands=False, extra_columns=None):
-    """
-    Add data from infile to data dict as [marker, sequence]=reads.
+def prune_allelelist(allelelist, retained_tags, *, homozygotes_only=False, only_marker=None):
+    """Delete unused and unwanted entries from the given allelelist."""
+    for tag in tuple(allelelist):
+        if tag not in retained_tags:
+            del allelelist[tag]
+            continue
+        allelelist[tag] = {
+            marker: alleles
+            for marker, alleles in allelelist[tag].items()
+            if (only_marker is None or marker == only_marker)
+            and (not homozygotes_only or len(alleles) == 1)}
+#prune_allelelist
 
-    extra_columns = {column_name_string: optional_boolean}
-    return {(marker, sequence): (reads, {column_name_string1: value1,
-    column_name_string2: value2})}
-    """
-    # TODO: require keywords
-    # Get column numbers.
 
+def read_sample_data_file(infile, seqformat=None, library=None, *, drop_special_seq=False,
+                          after_correction=False, combine_strands=False, extra_columns=None,
+                          only_marker=None, alleles_out=None):
+    """
+    Read sample data from infile and return {(marker, sequence): [total]}
+    if combine_strands is True, else {(marker, sequence): [forward, reverse]}.
+
+    If seqformat is specified, convert sequences to this format.
+
+    If drop_special_seq is True, ignore the SEQ_SPECIAL_VALUES.
+
+    If after_correction is True, use '*_corrected' columns if present.
+
+    The extra_columns can be a mapping of {column_name: is_optional},
+    if not None append a dict to the output lists with this data.
+
+    If only_marker is not None, retain only the specified marker.
+
+    If alleles_out is given, require the flags column to be present and
+    call alleles_out.setdefault(marker, set()).add(sequence) for all
+    sequences that have the "allele" flag set.
+    """
     column_names = infile.readline().rstrip("\r\n").split("\t")
     if column_names == [""]:
-        return []  # Empty file.
-    colid_sequence = get_column_ids(column_names, "sequence")
+        return {}  # Empty file.
+    colid_marker, colid_sequence = get_column_ids(column_names, "marker", "sequence")
     if combine_strands:
         colid_total = None
         numtype = int
         if after_correction:
-            colid_total = get_column_ids(column_names, "total_corrected",
-                optional=(after_correction != "require"))
+            colid_total = get_column_ids(column_names, "total_corrected", optional=True)
         if colid_total is None:
             colid_total = get_column_ids(column_names, "total")
         else:
@@ -120,8 +171,7 @@ def read_sample_data_file(infile, data, annotation_column=None, seqformat=None, 
         numtype = int
         if after_correction:
             colid_forward, colid_reverse = get_column_ids(column_names,
-                "forward_corrected", "reverse_corrected",
-                optional=(after_correction != "require"))
+                "forward_corrected", "reverse_corrected", optional=True)
         if colid_forward is None:
             colid_forward = get_column_ids(column_names, "forward")
         else:
@@ -131,22 +181,15 @@ def read_sample_data_file(infile, data, annotation_column=None, seqformat=None, 
         else:
             numtype = float
     if extra_columns is not None:
-        extra_colids = {c: i for c, i in
-            ((c, get_column_ids(column_names, c, optional=extra_columns[c]))
-                for c in extra_columns)
+        extra_colids = {name: i for name, i in
+            ((name, get_column_ids(column_names, name, optional=optional))
+                for name, optional in extra_columns.items())
             if i is not None}
 
-    # Get marker name column if it exists.
-    colid_marker = get_column_ids(column_names, "marker", optional=True)
+    # Require flags column if we are supposed to fill alleles_out.
+    colid_flags = None if alleles_out is None else get_column_ids(column_names, "flags")
 
-    # Also try to get annotation column if we have one.
-    if annotation_column is not None:
-        try:
-            colid_annotation = get_column_ids(column_names, annotation_column)
-        except:
-            annotation_column = None
-
-    found_alleles = []
+    data = {}
     for line in infile:
         if line.startswith("info_") or line.isspace():
             continue
@@ -154,58 +197,21 @@ def read_sample_data_file(infile, data, annotation_column=None, seqformat=None, 
         line = line.rstrip("\r\n").split("\t")
         if drop_special_seq and line[colid_sequence] in SEQ_SPECIAL_VALUES:
             continue
-        marker = line[colid_marker] if colid_marker is not None else default_marker
+        marker = line[colid_marker]
+        if only_marker is not None and marker != only_marker:
+            continue
         sequence = line[colid_sequence] if seqformat is None else ensure_sequence_format(
             line[colid_sequence], seqformat, library=library, marker=marker)
-        if annotation_column is not None and line[colid_annotation].startswith("ALLELE"):
-            found_alleles.append((marker, sequence))
+        if colid_flags is not None and "allele" in parse_flags(line[colid_flags]):
+            alleles_out.setdefault(marker, set()).add(sequence)
         if combine_strands:
             data[marker, sequence] = [numtype(line[colid_total])]
         else:
             data[marker, sequence] = list(map(numtype, (line[colid_forward], line[colid_reverse])))
         if extra_columns is not None:
-            data[marker, sequence].append({c: line[extra_colids[c]] for c in extra_colids})
-
-    return found_alleles
+            data[marker, sequence].append({name: line[i] for name, i in extra_colids.items()})
+    return data
 #read_sample_data_file
-
-
-def get_sample_data(tags_to_files, callback, allelelist=None, annotation_column=None,
-                    seqformat=None, library=None, marker=None, homozygotes=False,
-                    drop_special_seq=False, after_correction=False, combine_strands=False,
-                    extra_columns=None):
-    """
-    Parse sample data.
-    TODO: write full doc, and require keywords...
-    """
-    for tag in tags_to_files:
-        data = {}
-        alleles = set()
-        for infile in tags_to_files[tag]:
-            infile = sys.stdin if infile == "-" else open(infile, "rt", encoding="UTF-8")
-            alleles.update(read_sample_data_file(
-                infile, data, annotation_column, seqformat, library, marker,
-                drop_special_seq, after_correction, combine_strands, extra_columns))
-            if infile != sys.stdin:
-                infile.close()
-        if allelelist is not None:
-            if tag not in allelelist:
-                allelelist[tag] = {}
-            for markerx, allele in alleles:
-                if markerx not in allelelist[tag]:
-                    allelelist[tag][markerx] = set()
-                allelelist[tag][markerx].add(allele)
-            if marker:
-                if marker in allelelist[tag]:
-                    allelelist[tag] = {marker: allelelist[tag][marker]}
-                else:
-                    allelelist[tag] = {}
-            if homozygotes:
-                for markerx in tuple(allelelist[tag]):
-                    if len(allelelist[tag][markerx]) > 1:
-                        del allelelist[tag][markerx]
-        callback(tag, data)
-#get_sample_data
 
 
 def read_fasta(infile):
@@ -274,15 +280,15 @@ def parse_reads(filename, as_fastq=False):
     otherwise (with FastQ input or if as_fastq is True).
     If filename is "-", read from sys.stdin.
     """
-    with std_or_open(sys.stdin.buffer, filename, "rb") as rawfile:
+    with std_or_open(filename, "rb") as rawfile:
         magic = rawfile.peek(2)[:2]
         if magic == b"\x1f\x8b":
             # GZipped input file.
-            wrapper = gzip.open(rawfile, "rt", encoding="UTF-8")
+            wrapper = gzip.open(rawfile, "rt", encoding="utf-8")
             filetype = ".gz"
         elif not magic or magic[0] in b">@":
             # Empty input file, or FastA/FastQ input file.
-            wrapper = io.TextIOWrapper(rawfile, encoding="UTF-8")
+            wrapper = TextIOWrapper(rawfile, encoding="utf-8")
             filetype = ""
         else:
             raise ValueError("Input file is not a GZip, FastQ or FastA file")
@@ -311,10 +317,9 @@ def parse_reads(filename, as_fastq=False):
 @contextmanager
 def parse_read_pairs(filename1, filename2, as_fastq=False):
     """
-    Context manager opening the given files for reading, then yielding
-    a 2-tuple (input_format, pairs_generator). The generator produces
-    two-tuples of read records, each as produced by the reads_generator
-    created by parse_reads(filename, as_fastq).
+    Context manager opening the given files for reading, then yielding a
+    generator that produces two-tuples of read records, each as produced
+    by the reads_generator created by parse_reads(filename, as_fastq).
 
     If filename2 is None, filename1 is treated as an interleaved file.
     If filename2 is not None, it must have the same format as filename1.
@@ -325,11 +330,11 @@ def parse_read_pairs(filename1, filename2, as_fastq=False):
         else:
             read2_manager = parse_reads(filename2, as_fastq)
         with read2_manager as (read2_format, read2_generator):
-            if read1_format != read2_format:
-                raise ValueError("R1 and R2 files should be the same format (fasta/fastq)!")
+            if read1_format.removesuffix(".gz") != read2_format.removesuffix(".gz"):
+                raise ValueError("R1 and R2 files should be the same format (FastA/FastQ)!")
 
             # TODO: When we drop support for Py3.9, add strict=True.
-            yield read1_format, zip(read1_generator, read2_generator)
+            yield zip(read1_generator, read2_generator)
 #parse_read_pairs
 
 
@@ -340,21 +345,3 @@ def write_sequence_record(outfile, record):
     """
     outfile.write((">%s\n%s\n" if len(record) == 2 else "@%s\n%s\n+\n%s\n") % record)
 #write_sequence_record
-
-
-def try_write_pipe(stream, *args):
-    """Call stream.write(*args), ignore EPIPE errors."""
-    try:
-        stream.write(*args)
-    except IOError as e:
-        if e.errno == EPIPE:
-            return
-        raise
-#try_write_pipe
-
-
-def print_db(text, debug):
-    """Print text if debug is True."""
-    if debug:
-        print(text)
-#print_db

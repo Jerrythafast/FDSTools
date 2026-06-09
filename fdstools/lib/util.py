@@ -19,12 +19,15 @@
 # You should have received a copy of the GNU General Public License
 # along with FDSTools.  If not, see <http://www.gnu.org/licenses/>.
 #
-
+import logging
 import multiprocessing
 import sys
 #import numpy as np  # Only imported when it gets used.
 
 from concurrent.futures import ProcessPoolExecutor
+
+
+LOG = logging.getLogger(__name__)
 
 
 try:
@@ -59,20 +62,19 @@ def adjust_stats(value, stats=None):
 #adjust_stats
 
 
-def nnls(A, C, B=None, max_iter=200, min_change=0.0001, debug=False):
+def nnls(A, C, B=None, max_iter=200, min_change=0.0001):
     """
     Solve for B in A * B = C in the least squares sense, s.t. B >= 0.
 
     Hint: call nnls(B.T, C.T).T to solve for A.
 
     Algorithm has converged if the sum of squared error has decreased
-    by less than a factor of min_change in one iteration.  If debug is
-    True, print the sum of squared error to sys.stdout after each
-    iteration.
+    by less than a factor of min_change in one iteration.
 
     This code was partially adopted from nimfa.methods.factorization.bd.
     """
     import numpy as np
+    debug = LOG.isEnabledFor(logging.DEBUG)
     if B is None:
         B = np.zeros((A.shape[1], C.shape[1]))
     E = A.T @ A
@@ -92,10 +94,10 @@ def nnls(A, C, B=None, max_iter=200, min_change=0.0001, debug=False):
 
         if debug:
             if i:
-                print("%4i %15.6f %15.6f %6.2f" % (i, cur_score,
-                    prev_score - cur_score, 100 * score_change))
+                LOG.debug("%4i %15.6f %15.6f %6.2f",
+                    i, cur_score, prev_score - cur_score, 100 * score_change)
             else:
-                print("%4i %15.6f" % (i, cur_score))
+                LOG.debug("%4i %15.6f", i, cur_score)
 
         if not cur_score or score_change < min_change:
             # We have converged.

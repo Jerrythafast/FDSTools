@@ -47,9 +47,9 @@ This tool is an adaptation of the original FLASH program [1].
 References:
 [1] https://doi.org/10.1093/bioinformatics/btr507
 """
-import gzip
-import io
-import sys
+import logging
+
+from contextlib import contextmanager
 
 from ..lib.cli import pos_int_arg
 from ..lib.io import parse_read_pairs, std_or_open, write_sequence_record
@@ -57,6 +57,8 @@ from ..lib.seq import reverse_complement
 from ..lib.pair_align import align_pair
 
 __version__ = "1.0.0"
+
+LOG = logging.getLogger(__name__)
 
 
 # Default values for parameters are specified below.
@@ -69,6 +71,10 @@ _DEF_MIN_OVERLAP = 10
 # This value can be overridden by the -x command line option.
 _DEF_MAX_MISMATCH_DENSITY = 0.25
 
+# Sentinel value to indicate uncombined reads go to combined outfile.
+COMBINED_OUTFILE = object()
+
+# Lookup table to find the IUPAC code for a pair of nucleotides.
 IUPAC_CODE = {
     "AC": "M",
     "AG": "R",
@@ -155,26 +161,9 @@ def generate_combined_read(read1, read2, overlap_pos, was_outie,
 #generate_combined_read
 
 
-def merge_reads(format, read_generator, binary_out, report_file, uncombined_r1, uncombined_r2,
+def merge_reads(read_generator, combined_out, uncombined_r1, uncombined_r2,
                 min_overlap, lowercase_overhang, ambiguous, qual_eq_threshold,
                 max_mismatch_density, allow_outies):
-
-    # Initialize text output by wrapping binary streams in GZip or TextIOWrapper.
-    # TODO: Use context managers for the output wrappers to avoid ResourceWarnings.
-    if format.endswith(".gz"):
-        wrap = lambda binary_stream: gzip.open(binary_stream, "wt", encoding="UTF-8")
-    else:
-        wrap = lambda binary_stream: io.TextIOWrapper(binary_stream, encoding="UTF-8")
-    text_out = wrap(binary_out)
-    if uncombined_r1 == binary_out:
-        uncombined_r1 = text_out
-    elif uncombined_r1 is not None:
-        uncombined_r1 = wrap(uncombined_r1)
-    if uncombined_r2 == binary_out:
-        uncombined_r2 = text_out
-    elif uncombined_r2 is not None:
-        uncombined_r2 = wrap(uncombined_r2)
-
     outies = 0
     combined_pairs = 0
     uncombined_pairs = 0
@@ -192,7 +181,7 @@ def merge_reads(format, read_generator, binary_out, report_file, uncombined_r1, 
             combined_read = generate_combined_read(
                 read1, read2_rc, overlap_pos, was_outie,
                 lowercase_overhang, ambiguous, qual_eq_threshold)
-            write_sequence_record(text_out, combined_read)
+            write_sequence_record(combined_out, combined_read)
         else:
             uncombined_pairs += 1
             if uncombined_r1:
@@ -201,21 +190,28 @@ def merge_reads(format, read_generator, binary_out, report_file, uncombined_r1, 
                 write_sequence_record(uncombined_r2, read2)
 
     total_pairs = combined_pairs + uncombined_pairs
-    innies = combined_pairs - outies
-    report_file.write(
-        "Read combination statistics:\n"
-        f"Total pairs:      {total_pairs}\n"
-        f"Combined pairs:   {combined_pairs}\n")
+    LOG.info("Read combination statistics:")
+    LOG.info(f"Total pairs:      {total_pairs}")
+    LOG.info(f"Combined pairs:   {combined_pairs}")
     if allow_outies:
-        report_file.write(
-            f"    Innie pairs:  {innies} "
-            f"({(innies / combined_pairs) * 100:.2f}% of combined)\n"
-            f"    Outie pairs:  {outies} "
-            f"({(outies / combined_pairs) * 100:.2f}% of combined)\n")
-    report_file.write(
-        f"Uncombined pairs: {uncombined_pairs}\n"
-        f"Percent combined: {(combined_pairs / total_pairs) * 100:.2f}%\n")
+        innies = combined_pairs - outies
+        LOG.info(f"    Innie pairs:  {innies} ({(innies / combined_pairs) * 100:.2f}% of combined)")
+        LOG.info(f"    Outie pairs:  {outies} ({(outies / combined_pairs) * 100:.2f}% of combined)")
+    LOG.info(f"Uncombined pairs: {uncombined_pairs}")
+    LOG.info(f"Percent combined: {(combined_pairs / total_pairs) * 100:.2f}%")
 #merge_reads
+
+
+@contextmanager
+def open_uncombined(name, combined_outfile, zip_level):
+    if name is None:
+        yield None
+    elif name == COMBINED_OUTFILE:
+        yield combined_outfile
+    else:
+        with std_or_open(name, "wt", zip_level=zip_level) as f:
+            yield f
+#open_uncombined
 
 
 def add_arguments(parser):
@@ -239,16 +235,17 @@ def add_arguments(parser):
     outputgroup = parser.add_argument_group("output file options")
     outputgroup.add_argument("-o", "--output", dest="outfile", metavar="FILE", default="-",
         help="file to write output to (default: write to stdout)")
-    outputgroup.add_argument("-R", "--report", metavar="FILE", default="-",
-        help="file to write a report to (default: write to stderr)")
-    outputgroup.add_argument("-1", "--uncombined-r1", metavar="FILE", nargs="?", const="-",
-        default=None,
+    outputgroup.add_argument("-1", "--uncombined-r1", metavar="FILE", nargs="?",
+        const=COMBINED_OUTFILE, default=None,
         help="if specified, output R1 from uncombined pairs (to the given FILE if given, "
              "otherwise together with the combined reads)")
-    outputgroup.add_argument("-2", "--uncombined-r2", metavar="FILE", nargs="?", const="-",
-        default=None,
+    outputgroup.add_argument("-2", "--uncombined-r2", metavar="FILE", nargs="?",
+        const=COMBINED_OUTFILE, default=None,
         help="if specified, output R2 from uncombined pairs (to the given FILE if given, "
              "otherwise together with the combined reads)")
+    outputgroup.add_argument("-z", "--zip-level", metavar="LEVEL", type=pos_int_arg, default=0,
+        help="GZip compression level to use for FastQ output files "
+             "(1 is fastest, 9 is best, default: no GZip compression)")
     filtergroup = parser.add_argument_group("filtering options")
     filtergroup.add_argument("-x", "--max-mismatch-density", metavar="X", type=float,
         default=_DEF_MAX_MISMATCH_DENSITY,
@@ -262,12 +259,11 @@ def add_arguments(parser):
 
 
 def run(args):
-    with parse_read_pairs(args.infile1, args.infile2, as_fastq=True) as (format, read_generator), \
-         std_or_open(sys.stdout.buffer, args.outfile, "wb") as outfile, \
-         std_or_open(sys.stderr, args.report, "wt") as report_file, \
-         std_or_open(outfile, args.uncombined_r1, "wb") as uncombined_r1, \
-         std_or_open(outfile, args.uncombined_r2, "wb") as uncombined_r2:
-        merge_reads(format, read_generator, outfile, report_file, uncombined_r1, uncombined_r2,
+    with parse_read_pairs(args.infile1, args.infile2, as_fastq=True) as read_generator, \
+         std_or_open(args.outfile, "wt", zip_level=args.zip_level) as outfile, \
+         open_uncombined(args.uncombined_r1, outfile, args.zip_level) as uncombined_r1, \
+         open_uncombined(args.uncombined_r2, outfile, args.zip_level) as uncombined_r2:
+        merge_reads(read_generator, outfile, uncombined_r1, uncombined_r2,
                     args.min_overlap, args.lowercase_overhang, args.ambiguous,
                     args.qual_eq_threshold, args.max_mismatch_density, args.allow_outies)
 #run

@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 
 #
-# Copyright (C) 2021 Jerry Hoogenboom
+# Copyright (C) 2026 Netherlands Forensic Institute
 #
 # This file is part of FDSTools, data analysis tools for Massively
 # Parallel Sequencing of forensic DNA markers.
@@ -42,16 +42,15 @@ profiles thus obtained are combined with those obtained from bgestimate,
 bgcorrect may subsequently produce 'cleaner' results if the sample
 contained alleles for which no reference samples were available.
 """
-import argparse
 import sys
 #import numpy as np  # Only imported when actually running this tool.
-from errno import EPIPE
+
 from functools import reduce, partial
+from itertools import islice
 from operator import mul
-import itertools
 
 from ..lib.cli import add_sequence_format_args
-from ..lib.io import get_column_ids
+from ..lib.io import get_column_ids, std_or_open
 from ..lib.seq import PAT_SEQ_RAW, SEQ_SPECIAL_VALUES, ensure_sequence_format, reverse_complement,\
                       mutate_sequence, get_repeat_pattern
 
@@ -240,7 +239,7 @@ def get_all_combinations(stutters, combinations=None, appendto=None, start=0):
         combinations = []
     if appendto is None:
         appendto = []
-    for i, stutter_i in enumerate(itertools.islice(stutters, start, None), start):
+    for i, stutter_i in enumerate(islice(stutters, start, None), start):
         if appendto:
             prev_stutter = appendto[-1]
             if stutter_i["end"] <= prev_stutter["end"]:
@@ -361,12 +360,10 @@ def predict_profiles(stuttermodel, seqsfile, outfile, default_marker, use_all_da
 
 def add_arguments(parser):
     parser.add_argument("stuttermodel", metavar="STUT",
-        type=argparse.FileType("tr", encoding="UTF-8"),
         help="file containing a trained stutter model")
-    parser.add_argument("seqs", metavar="SEQS", type=argparse.FileType("tr", encoding="UTF-8"),
+    parser.add_argument("seqs", metavar="SEQS",
         help="file containing the sequences for which a profile should be predicted")
-    parser.add_argument("outfile", metavar="OUT", nargs="?", default=sys.stdout,
-        type=argparse.FileType("tw", encoding="UTF-8"),
+    parser.add_argument("outfile", metavar="OUT", nargs="?", default="-",
         help="the file to write the output to (default: write to stdout)")
     parser.add_argument("-C", "--combine-strands", action="store_true",
         help="if specified, stutter will be modeled for the total number of reads, "
@@ -396,12 +393,10 @@ def run(args):
     global np
     import numpy as np
 
-    try:
-        predict_profiles(args.stuttermodel, args.seqs, args.outfile, args.marker,
+    with std_or_open(args.stuttermodel) as stuttermodel, \
+         std_or_open(args.seqs) as seqs, \
+         std_or_open(args.outfile, "wt") as outfile:
+        predict_profiles(stuttermodel, seqs, outfile, args.marker,
                          args.use_all_data, args.min_pct, args.min_r2, args.library,
                          args.combine_strands, args.check_lbounds)
-    except IOError as e:
-        if e.errno == EPIPE:
-            return
-        raise
 #run

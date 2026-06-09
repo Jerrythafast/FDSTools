@@ -14,14 +14,13 @@ class TestAllelefinder(ComponentTestCase):
 
         with open(infile) as infile,\
                 patch("sys.stdin", infile),\
-                patch("sys.stdout", StringIO()) as generated_output,\
-                patch("sys.stderr", StringIO()) as generated_report:
+                patch("sys.stdout", StringIO()) as generated_output:
             test_data = [OutputFile(expected_output, generated_output),
-                         OutputFile(expected_report, generated_report)]
+                         OutputFile(expected_report, self.log)]
             self.componentTest(Tools.ALLELEFINDER, [], test_data)
 
     def test_default_param(self):
-        """Also tests single in-/output using stdin, stdout and stderr."""
+        """Also tests single in-/output using stdin, stdout and brief output on stderr."""
         self.run_default(
             str(self.data_dir_root / Tools.STUTTERMARK / "default" / "F0310-stuttermark.out"),
             "default_accepted")

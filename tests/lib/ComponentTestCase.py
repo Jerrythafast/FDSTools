@@ -1,8 +1,11 @@
 #!/usr/bin/env python3
 import difflib
+import logging
 import os
 import re
+
 from contextlib import contextmanager
+from io import StringIO
 from tempfile import TemporaryDirectory
 from typing import Optional, Type, Tuple, List
 from unittest import TestCase
@@ -42,6 +45,8 @@ class ComponentTestCase(TestCase):
     data_dir_root = Path(__file__).parent.parent / "data"
 
     def setUp(self) -> None:
+        self.log = StringIO()
+        logging.getLogger().handlers[0].setStream(self.log)
         self.original_working_directory = os.getcwd()
         self.temp_dir = TemporaryDirectory()
         os.chdir(self.temp_dir.name)

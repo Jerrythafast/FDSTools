@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 
 #
-# Copyright (C) 2021 Jerry Hoogenboom
+# Copyright (C) 2026 Netherlands Forensic Institute
 #
 # This file is part of FDSTools, data analysis tools for Massively
 # Parallel Sequencing of forensic DNA markers.
@@ -45,14 +45,10 @@ profile was based on direct observations.
 Finally, the weight column gives the number of times that the noise
 profile of that allele fitted in the sample.
 """
-import argparse
-import sys
 #import numpy as np  # Only imported when actually running this tool.
 
-from errno import EPIPE
-
-from ..lib.cli import add_sequence_format_args, add_input_output_args, get_input_output_files
-from ..lib.io import get_column_ids
+from ..lib.cli import add_batch_input_output_args, add_sequence_format_args, iterate_samples
+from ..lib.io import get_column_ids, std_or_open
 from ..lib.noise import load_profiles
 from ..lib.seq import SEQ_SPECIAL_VALUES, ensure_sequence_format
 from ..lib.util import nnls
@@ -295,12 +291,11 @@ def match_profiles(infile, outfile, profiles, library, seqformat, combine_strand
 
 def add_arguments(parser):
     parser.add_argument("profiles", metavar="PROFILES",
-        type=argparse.FileType("tr", encoding="UTF-8"),
         help="file containing background noise profiles to match")
-    add_input_output_args(parser, single_in=True, batch_support=True, report_out=False)
     parser.add_argument("-C", "--combine-strands", action="store_true",
         help="if specified, stutter noise correction will be done on the total number of reads, "
              "instead of separately for either strand")
+    add_batch_input_output_args(parser)
     filtergroup = parser.add_argument_group("filtering options")
     filtergroup.add_argument("-M", "--marker", metavar="MARKER", help="work only on MARKER")
     add_sequence_format_args(parser)
@@ -312,27 +307,14 @@ def run(args):
     global np
     import numpy as np
 
-    gen = get_input_output_files(args, single_in=True, batch_support=True)
-    if not gen:
-        raise ValueError("please specify an input file, or pipe in the output of another program")
+    # Read profiles.
+    with std_or_open(args.profiles) as profiles:
+        profiles = load_profiles(profiles, args.library)
 
-    # Read profiles once.
-    profiles = load_profiles(args.profiles, args.library)
     if args.marker:
         profiles = {args.marker: profiles[args.marker]} if args.marker in profiles else {}
 
-    for tag, infiles, outfile in gen:
-        # TODO: Aggregate data from all infiles of each sample.
-        if len(infiles) > 1:
-            raise ValueError("multiple input files for sample '%s' specified " % tag)
-        try:
-            infile = sys.stdin if infiles[0] == "-" else open(infiles[0], "rt", encoding="UTF-8")
-            match_profiles(infile, outfile, profiles, args.library, args.sequence_format,
-                args.combine_strands)
-            if infile != sys.stdin:
-                infile.close()
-        except IOError as e:
-            if e.errno == EPIPE:
-                continue
-            raise
+    for tag, infile, outfile in iterate_samples(args):
+        match_profiles(infile, outfile, profiles, args.library, args.sequence_format,
+            args.combine_strands)
 #run

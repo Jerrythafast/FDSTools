@@ -10,19 +10,18 @@ class TestMergeReads(ComponentTestCase):
         infile = self.data_dir_root / "_reads" / "OmniSTR_Mixture_interleaved_4lt2.fastq.gz"
 
         expected_output = (self.data_dir_root / Tools.MERGEREADS /
-                           "OmniSTR_Mixture_4lt2_mergereads_default.fastq.gz")
+                           "OmniSTR_Mixture_4lt2_mergereads_default.fastq")
         expected_report = (self.data_dir_root / Tools.MERGEREADS /
                            "OmniSTR_Mixture_4lt2_mergereads_default-report.txt")
 
         fdstools_args = []
 
-        with open(infile, "rb") as infile,\
-                patch("sys.stdin", TextIOWrapper(infile)), \
-                patch("sys.stdout", TextIOWrapper(BytesIO())) as generated_output, \
-                patch("sys.stderr", StringIO()) as generated_report:
+        with open(infile) as infile,\
+                patch("sys.stdin", infile), \
+                patch("sys.stdout", TextIOWrapper(BytesIO())) as generated_output:
 
             test_data = [OutputFile(expected_output, generated_output),
-                         OutputFile(expected_report, generated_report)]
+                         OutputFile(expected_report, self.log)]
 
             self.componentTest(Tools.MERGEREADS, fdstools_args, test_data)
 
@@ -33,7 +32,7 @@ class TestMergeReads(ComponentTestCase):
         output = OutputFile(self.data_dir_root / Tools.MERGEREADS /
                             "OmniSTR_Mixture_4lt2_mergereads_advanced.fastq.gz")
         report = OutputFile(self.data_dir_root / Tools.MERGEREADS /
-                           "OmniSTR_Mixture_4lt2_mergereads_advanced-report.txt")
+                            "OmniSTR_Mixture_4lt2_mergereads_advanced-report.txt", self.log)
         out_r1 = OutputFile(self.data_dir_root / Tools.MERGEREADS /
                             "OmniSTR_Mixture_4lt2_mergereads_advanced-R1.fastq.gz")
         out_r2 = OutputFile(self.data_dir_root / Tools.MERGEREADS /
@@ -46,8 +45,8 @@ class TestMergeReads(ComponentTestCase):
             "--lowercase-overhang",
             "--ambiguous",
             "--qual-eq-threshold", "10",
+            "--zip-level", "1",
             "--output", str(output.generated_output),
-            "--report", str(report.generated_output),
             "--uncombined-r1", str(out_r1.generated_output),
             "--uncombined-r2", str(out_r2.generated_output),
             "--max-mismatch-density", "0.33",

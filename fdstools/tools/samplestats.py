@@ -56,15 +56,13 @@ X_recovery: The value of X_add, as a percentage of the value of
 X_corrected.
 """
 import re
-import sys
 
 from collections import defaultdict, namedtuple
-from errno import EPIPE
 from functools import partial
 
-from ..lib.cli import add_input_output_args, get_input_output_files, add_sequence_format_args, \
+from ..lib.cli import add_batch_input_output_args, add_sequence_format_args, iterate_samples, \
                       pos_int_arg
-from ..lib.io import get_column_ids, parse_flags
+from ..lib.io import get_column_ids, parse_flags, std_or_open
 from ..lib.library import get_max_expected_alleles
 from ..lib.seq import SEQ_SPECIAL_VALUES, ensure_sequence_format
 
@@ -221,7 +219,7 @@ class SamplestatsSettings:
         settings["*"]["mincorrectionfilt"] = args.min_correction_filt
         settings["*"]["minrecoveryfilt"] = args.min_recovery_filt
         if args.settings:
-            with open(args.settings, "rt") as settingsfile:
+            with std_or_open(args.settings) as settingsfile:
                 column_names = settingsfile.readline().rstrip("\r\n").split("\t")
                 colid_marker, colid_setting, colid_value = get_column_ids(
                     column_names, "marker", "setting", "value")
@@ -636,12 +634,13 @@ def compute_stats(infile, outfile, settings, filter_action, filter_absolute, lib
 
 
 def add_arguments(parser):
-    add_input_output_args(parser, single_in=True, batch_support=True, report_out=False)
+    add_batch_input_output_args(parser)
     parser.add_argument("-X", "--settings", metavar="FILE",
         help="file with three tab-separated columns: marker, setting, value to provide marker-"
              "specific settings; supported settings are the numeric 'interpretation options' and "
              "'filtering options' listed below; use '*' as the marker name to set defaults; "
              "settings in the provided file override options specified separately")
+
     intergroup = parser.add_argument_group("interpretation options",
         "sequences that match the -c or -y option (or both) and all of the "
         "other settings are marked as 'allele'")
@@ -687,6 +686,7 @@ def add_arguments(parser):
              "criteria; without N, the amounts given in the library file are used, which have a "
              "default value of 1 for markers on the mitochondrial genome and Y chromosome, or 2 "
              "otherwise (Note: don't forget to provide -l/--library!)")
+
     filtergroup = parser.add_argument_group("filtering options",
         "sequences that match the -C or -Y option (or both) and all of the "
         "other settings are retained, all others are filtered")
@@ -723,28 +723,14 @@ def add_arguments(parser):
         help="the minimum number of reads that was recovered thanks to "
              "noise correction (by e.g., bgcorrect), as a percentage of the "
              "total number of reads after correction (total_recovery column; default: %(default)s)")
+
     add_sequence_format_args(parser)
 #add_arguments
 
 
 def run(args):
-    gen = get_input_output_files(args, single_in=True, batch_support=True)
-    if not gen:
-        raise ValueError("please specify an input file, or pipe in the output of another program")
-
-    for tag, infiles, outfile in gen:
-        # TODO: Aggregate data from all infiles of each sample.
-        if len(infiles) > 1:
-            raise ValueError("multiple input files for sample '%s' specified " % tag)
-        try:
-            infile = sys.stdin if infiles[0] == "-" else open(infiles[0], "rt", encoding="UTF-8")
-            settings = SamplestatsSettings(args)
-            compute_stats(infile, outfile, settings, args.filter_action, args.filter_absolute,
-                          args.library, args.sequence_format, args.uncall_alleles)
-            if infile != sys.stdin:
-                infile.close()
-        except IOError as e:
-            if e.errno == EPIPE:
-                continue
-            raise
+    settings = SamplestatsSettings(args)
+    for tag, infile, outfile in iterate_samples(args):
+        compute_stats(infile, outfile, settings, args.filter_action, args.filter_absolute,
+                      args.library, args.sequence_format, args.uncall_alleles)
 #run

@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 
 #
-# Copyright (C) 2022 Jerry Hoogenboom
+# Copyright (C) 2026 Netherlands Forensic Institute
 #
 # This file is part of FDSTools, data analysis tools for Massively
 # Parallel Sequencing of forensic DNA markers.
@@ -26,13 +26,8 @@ Mark all sequences that are not in another list of sequences.
 If not present, a new column 'flags' is added to the output.  Any sequence that
 does not occur in the provided list of known sequences is flagged 'novel'.
 """
-import argparse
-import sys
-
-from errno import EPIPE
-
-from ..lib.cli import add_sequence_format_args, add_input_output_args, get_input_output_files
-from ..lib.io import get_column_ids, parse_flags
+from ..lib.cli import add_batch_input_output_args, add_sequence_format_args, iterate_samples
+from ..lib.io import get_column_ids, parse_flags, std_or_open
 from ..lib.seq import SEQ_SPECIAL_VALUES, ensure_sequence_format
 
 __version__ = "1.1.1"
@@ -93,34 +88,20 @@ def find_new(infile, outfile, known, library, remove_allele_flags):
 
 
 def add_arguments(parser):
-    parser.add_argument("known", metavar="KNOWN", type=argparse.FileType("rt", encoding="UTF-8"),
+    parser.add_argument("known", metavar="KNOWN",
         help="file containing a list of known allelic sequences")
     parser.add_argument("-r", "--remove-allele-flags", action="store_true",
         help="remove the 'allele' flag from the alleles that are marked 'novel'")
-    add_input_output_args(parser, single_in=True, batch_support=True, report_out=False)
+    add_batch_input_output_args(parser)
     add_sequence_format_args(parser, default_format="raw", force=True)
 #add_arguments
 
 
 def run(args):
-    gen = get_input_output_files(args, single_in=True, batch_support=True)
-    if not gen:
-        raise ValueError("please specify an input file, or pipe in the output of another program")
-
     # Read list of known sequences once.
-    known = read_known(args.known, args.library)
+    with std_or_open(args.known) as known:
+        known = read_known(known, args.library)
 
-    for tag, infiles, outfile in gen:
-        # TODO: Aggregate data from all infiles of each sample.
-        if len(infiles) > 1:
-            raise ValueError("multiple input files for sample '%s' specified " % tag)
-        try:
-            infile = sys.stdin if infiles[0] == "-" else open(infiles[0], "rt", encoding="UTF-8")
-            find_new(infile, outfile, known, args.library, args.remove_allele_flags)
-            if infile != sys.stdin:
-                infile.close()
-        except IOError as e:
-            if e.errno == EPIPE:
-                continue
-            raise
+    for tag, infile, outfile in iterate_samples(args):
+        find_new(infile, outfile, known, args.library, args.remove_allele_flags)
 #run

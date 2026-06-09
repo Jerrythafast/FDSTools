@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 
 #
-# Copyright (C) 2023 Jerry Hoogenboom
+# Copyright (C) 2026 Netherlands Forensic Institute
 #
 # This file is part of FDSTools, data analysis tools for Massively
 # Parallel Sequencing of forensic DNA markers.
@@ -48,6 +48,7 @@ description of each tool.  Type 'fdstools -h TOOL' to get help with the
 given TOOL.
 """
 import importlib
+import logging
 import os
 import pkgutil
 import re
@@ -62,11 +63,12 @@ from configparser import RawConfigParser, NoSectionError, NoOptionError
 from functools import reduce
 
 from ..lib.cli import DEF_TAG_EXPR, DEF_TAG_FORMAT, get_tag, regex_arg, glob_path
-from ..lib.io import print_db
 from ..lib.library import INI_COMMENT
 
 
 __version__ = "1.1.2"
+
+LOG = logging.getLogger(__name__)
 
 
 # Pattern to split a quoted string.
@@ -88,7 +90,7 @@ NAME = __name__[len(PACKAGE_PREFIX):]
 HIDDEN_ARGS = ("infile", "infile2", "infiles", "outfile", "outfiles", "raw-outfile",
     "library", "library2", "allelelist", "report", "tag-expr", "tag-format", "uncall-alleles",
     "sequence-format", "type", "title", "stuttermodel", "seqs", "profiles", "combine-strands",
-    "annotation-column", "marker-column", "allele-column", "output-column", "reverse-complement")
+    "marker-column", "allele-column", "output-column", "reverse-complement")
 
 # Tools that are run for each type of analysis pipeline.
 ANALYSIS_TOOLS = {
@@ -174,10 +176,6 @@ class ArgumentCollector:
         elif "default" in kwargs:
             if kwargs["default"] is None or kwargs["default"] == "":
                 del kwargs["default"]
-            elif kwargs["default"] in (sys.stdin, sys.stdout):
-                kwargs["default"] = "-"
-            elif kwargs["default"] is sys.stderr:
-                kwargs["default"] = "/dev/stderr"
             elif kwargs["default"] is sys.maxsize:
                 kwargs["default"] = "<MAX>"
             elif isinstance(kwargs["default"], list):
@@ -220,7 +218,7 @@ def get_tools(hide_pipeline):
         try:
             tools[name] = importlib.import_module(PACKAGE_PREFIX + name)
         except Exception as error:
-            sys.stderr.write("FDSTools failed to load '%s': %s\n" % (name, error))
+            LOG.error("FDSTools failed to load '%s': %s", name, error)
             continue
     return tools
 #get_tools
@@ -256,7 +254,7 @@ def parse_bool_arg(section, option, value):
 def get_argv(toolname, arg_defs, config):
     """Get argument list for the given tool."""
     arglist = (["fdstools", toolname], [])
-    if debug:
+    if LOG.isEnabledFor(logging.DEBUG):
         arglist[0].append("-d")
     for arg in arg_defs[toolname]:
         try:
@@ -315,7 +313,7 @@ def get_argv(toolname, arg_defs, config):
                     arglist[0].extend(value)
         elif value is not None:
             arglist[1].extend(value)
-    print_db(("%r" % (arglist[0]+arglist[1]))[:200], debug)
+    LOG.debug("%r", (arglist[0] + arglist[1])[:200])
     return arglist[0] + arglist[1]
 #get_argv
 
@@ -481,8 +479,6 @@ def run_ref_database_analysis(arg_defs, config):
         config.set("allelefinder", "library", in_library)
         config.set("allelefinder", "tag-expr", tag_expr)
         config.set("allelefinder", "tag-format", tag_format)
-        if not config.has_option("allelefinder", "stuttermark-column"):
-            config.set("allelefinder", "stuttermark-column", "annotation")
     if not config.has_section("bgestimate"):
         config.add_section("bgestimate")
     config.set("bgestimate", "allelelist", allelefile)
@@ -945,28 +941,23 @@ def add_arguments(parser):
 
 
 def run(args):
-    # Export debug flag to the global scope.
-    global debug
-    debug = args.debug
-
     if args.config == "-":
         raise ValueError("The pipeline configuration file cannot be named '-'")
     if os.path.exists(args.config):
         # Run analysis pipeline using configuration file.
-        args.config = open(args.config, "rt", encoding="UTF-8")
-        run_ini(get_config(args))
-        args.config.close()
+        with open(args.config, "rt", encoding="utf-8") as config:
+            args.config = config
+            run_ini(get_config(args))
     elif args.analysis is not None:
         # Create default configuration file for pipeline.
-        print("Configuration file '%s' does not exist, creating default "
-              "configuration file for %s analysis..." %
-              (args.config, args.analysis))
-        args.config = open(args.config, "wt", encoding="UTF-8")
-        write_ini(args)
-        args.config.close()
+        print(f"Configuration file '{args.config}' does not exist, creating default "
+              f"configuration file for {args.analysis} analysis...")
+        with open(args.config, "wt", encoding="utf-8") as config:
+            args.config = config
+            write_ini(args)
     else:
         raise ValueError(
-            "Configuration file '%s' does not exist; if you wish to create a "
-            "default configuration file, please specify the type of analysis "
-            "pipeline using the -a/--analysis option" % args.config)
+            f"Configuration file '{args.config}' does not exist; if you wish to create a "
+            f"default configuration file, please specify the type of analysis "
+            f"pipeline using the -a/--analysis option")
 #run

@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 
 #
-# Copyright (C) 2021 Jerry Hoogenboom
+# Copyright (C) 2026 Netherlands Forensic Institute
 #
 # This file is part of FDSTools, data analysis tools for Massively
 # Parallel Sequencing of forensic DNA markers.
@@ -28,21 +28,22 @@ Compute a profile of recurring background noise for each unique allele
 in the database of reference samples.  The profiles obtained can be used
 by bgcorrect to filter background noise from samples.
 """
-import argparse
-import math
+import logging
 import sys
 import time
 #import numpy as np  # Only imported when actually running this tool.
 
-from errno import EPIPE
+from math import ceil
 
-from ..lib.cli import add_sequence_format_args, add_input_output_args, get_input_output_files,\
-                      add_allele_detection_args, pos_int_arg
-from ..lib.io import get_sample_data, parse_allelelist, try_write_pipe
+from ..lib.cli import add_bulk_input_output_args, add_sequence_format_args, \
+                      iterate_input_samples, pos_int_arg
+from ..lib.io import parse_allelelist, prune_allelelist, read_sample_data_file, std_or_open
 from ..lib.noise import load_profiles
 from ..lib.util import nnls
 
-__version__ = "1.2.0"
+__version__ = "1.2.1"
+
+LOG = logging.getLogger(__name__)
 
 
 # Default values for parameters are specified below.
@@ -76,8 +77,8 @@ _DEF_MIN_GENOTYPES = 3
 _DEF_OUTPUT_PCT = 0.5
 
 
-def solve_profile_mixture_single(samples, genotypes, n, starting_values={},
-                                 variance=False, reportfile=None):
+
+def solve_profile_mixture_single(samples, genotypes, n, starting_values={}, variance=False):
     """
     Solve the single-allele profiles of n true alleles:
       Profile of A:  [100,   5,  50, 25, ...]
@@ -94,9 +95,6 @@ def solve_profile_mixture_single(samples, genotypes, n, starting_values={},
     This is an experimental feature and currently does not calculate the
     actual variance but rather a non-standard measure of variation
     inspired on variance.
-
-    If reportfile is a writable handle, diagnostic/progress information
-    is written to it.
     """
     num_samples = len(samples)
     profile_size = len(samples[0])
@@ -122,8 +120,7 @@ def solve_profile_mixture_single(samples, genotypes, n, starting_values={},
                 # twice' w.r.t. homozygotes.
                 scale_factor = 100 / samples[i][j] / len(genotypes[i])
             except ZeroDivisionError:
-                if reportfile:
-                    try_write_pipe(reportfile, "Sample %i does not have allele %i\n" % (i, j))
+                LOG.warning("Sample %i does not have allele %i", i, j)
                 continue
             C[j, :] += [x * scale_factor for x in samples[i]]
 
@@ -160,9 +157,7 @@ def solve_profile_mixture_single(samples, genotypes, n, starting_values={},
             for p in range(n):
                 if not E[p, p]:
                     # This would be an utter failure, but let's be safe.
-                    if reportfile:
-                        try_write_pipe(reportfile,
-                            "%4i - No samples appear to have allele %i\n" % (v, p))
+                    LOG.warning("%4i - No samples appear to have allele %i", v, p)
                     P[p, :p] = 0
                     P[p, p+1:] = 0
                     continue
@@ -180,11 +175,11 @@ def solve_profile_mixture_single(samples, genotypes, n, starting_values={},
         prev_score = cur_score
         cur_score = np.square(C - A @ P).sum()
         score_change = (prev_score - cur_score) / prev_score
-        if v and reportfile:
-            try_write_pipe(reportfile, "%4i %15.6f %15.6f %6.2f\n" %
-                (v, cur_score, prev_score - cur_score, 100 * score_change))
-        elif reportfile:
-            try_write_pipe(reportfile, "%4i %15.6f\n" % (v, cur_score))
+        if v:
+            LOG.info("%4i %15.6f %15.6f %6.2f",
+                v, cur_score, prev_score - cur_score, 100 * score_change)
+        else:
+            LOG.info("%4i %15.6f", v, cur_score)
         if not cur_score or score_change < 0.0001:
             break
 
@@ -193,22 +188,20 @@ def solve_profile_mixture_single(samples, genotypes, n, starting_values={},
         # Going to solve A * V = C for V.  This time with C the
         # piecewise squared deviations of the samples from P.
         # We will include one row in A and C per allele per sample.
-        if reportfile:
-            if sum(map(len, genotypes)) - len(genotypes):
-                try_write_pipe(reportfile,
-                    "Computing variances...\n"
-                    "EXPERIMENAL feature! The values produced may give a "
-                    "sense of the amount of variation,\nbut should not be "
-                    "used in further computations that expect true variances!")
-            else:
-                # With only homozygotes, the variances thus computed are
-                # population variances.  It is more appropriate to
-                # compute the sample variance, but how?
-                try_write_pipe(reportfile,
-                    "Computing variances...\n"
-                    "EXPERIMENAL feature! The values produced are population "
-                    "variances.\nThis may (or may not) change to sample "
-                    "variance in a future version. Use with care.")
+        LOG.info("Computing variances...")
+        if sum(map(len, genotypes)) - len(genotypes):
+            LOG.warning(
+                "EXPERIMENAL feature! "
+                "The values produced may give a sense of the amount of variation, "
+                "but should not be used in further computations that expect true variances!")
+        else:
+            # With only homozygotes, the variances thus computed are
+            # population variances.  It is more appropriate to
+            # compute the sample variance, but how?
+            LOG.warning(
+                "EXPERIMENAL feature! "
+                "The values produced are population variances. This may (or may not) change to "
+                "sample variance in a future version. Use with care.")
 
         # Fill in A and C.
         A = []
@@ -376,7 +369,7 @@ def add_sample_data(data, sample_data, sample_alleles, min_pct, min_abs, tag, co
                 data[marker]["allele_counts"][i] = [0] * len(p["alleles"])
                 p["true alleles"] += 1
             data[marker]["genotypes"][-1].append(i)
-            thresholds[marker][i] = [math.ceil(x * min_pct / 100) for x in
+            thresholds[marker][i] = [ceil(x * min_pct / 100) for x in
                                      sample_data[marker, allele]]
 
     # Now enter the read counts into data and check the thresholds.
@@ -448,11 +441,10 @@ def preprocess_data(data, min_sample_pct, combine_strands):
 #preprocess_data
 
 
-def generate_profiles(samples_in, outfile, reportfile, allelefile, annotation_column, min_pct,
-                      min_abs, min_samples, min_sample_pct, min_genotypes, library, profiles_in,
-                      marker, homozygotes, min_output_pct, combine_strands):
-    if reportfile:
-        t0 = time.time()
+def generate_profiles(samples_in, outfile, allelefile, min_pct,
+                      min_abs, min_samples, min_sample_pct, min_genotypes, library, start_profiles,
+                      only_marker, homozygotes_only, min_output_pct, combine_strands):
+    t0 = time.monotonic()
 
     # Avoid outputting zeros if the output filter is set below the
     # smallest possible output value after rounding.
@@ -465,12 +457,17 @@ def generate_profiles(samples_in, outfile, reportfile, allelefile, annotation_co
 
     # Read sample data.
     sample_data = {}
-    get_sample_data(samples_in, lambda tag, data: sample_data.update({tag: data}),
-                    allelelist, annotation_column, "raw", library, marker, homozygotes,
-                    drop_special_seq=True, combine_strands=combine_strands)
+    for tag, infile in samples_in:
+        # Fill allelelist using "allele" flag if no allelelist file was given.
+        alleles_out = allelelist.setdefault(tag, {}) if allelefile is None else None
+        if tag not in allelelist:
+            continue  # No need to read this sample.
+        sample_data[tag] = read_sample_data_file(infile, "raw", library, drop_special_seq=True,
+            combine_strands=combine_strands, only_marker=only_marker, alleles_out=alleles_out)
 
     # Ensure minimum number of samples and genotypes per allele.
-    allelelist = {tag: allelelist[tag] for tag in sample_data}
+    prune_allelelist(allelelist, sample_data.keys(),
+        homozygotes_only=homozygotes_only, only_marker=only_marker)
     filter_data(allelelist, min_samples, min_genotypes)
 
     # Combine data from all samples.  This takes most time.
@@ -483,12 +480,7 @@ def generate_profiles(samples_in, outfile, reportfile, allelefile, annotation_co
     # Filter insignificant background products.
     preprocess_data(data, min_sample_pct, combine_strands)
 
-    # Load starting profiles.
-    start_profiles = {} if profiles_in is None else load_profiles(profiles_in, library)
-
-    if reportfile:
-        t1 = time.time()
-        try_write_pipe(reportfile, "Data loading and filtering took %f seconds\n" % (t1 - t0))
+    LOG.info("Data loading and filtering took %f seconds", time.monotonic() - t0)
 
     if combine_strands:
         outfile.write("\t".join(("marker", "allele", "sequence", "tmean", "tools")) + "\n")
@@ -510,27 +502,23 @@ def generate_profiles(samples_in, outfile, reportfile, allelefile, annotation_co
         } if marker in start_profiles else {}
 
         # Solve for the profiles of the true alleles.
-        if reportfile:
-            try_write_pipe(reportfile, "Solving marker %s with n=%i, m=%i, k=%i\n" % (
-                marker, p["true alleles"], profile_size,
-                len(p["profiles_total" if combine_strands else "profiles_forward"])))
-            t0 = time.time()
+        LOG.info("Solving marker %s with n=%i, m=%i, k=%i\n",
+            marker, p["true alleles"], profile_size,
+            len(p["profiles_total" if combine_strands else "profiles_forward"]))
+        t0 = time.monotonic()
 
         if combine_strands:
             p["profiles_total"] = solve_profile_mixture_single(
                 p["profiles_total"], data[marker]["genotypes"], p["true alleles"],
-                starting_values=init, reportfile=reportfile)
+                starting_values=init)
         else:
             for i, direction in enumerate(("forward", "reverse")):
-                if reportfile:
-                    try_write_pipe(reportfile, "Solving %s read profiles\n" % direction)
+                LOG.info("Solving %s read profiles", direction)
                 p["profiles_" + direction] = solve_profile_mixture_single(
                     p["profiles_" + direction], data[marker]["genotypes"], p["true alleles"],
-                    starting_values={x: init[x][i] for x in init}, reportfile=reportfile)
+                    starting_values={x: init[x][i] for x in init})
 
-        if reportfile:
-            t1 = time.time()
-            try_write_pipe(reportfile, "Solved marker %s in %f seconds\n" % (marker, t1 - t0))
+        LOG.info("Solved marker %s in %f seconds", marker, time.monotonic() - t0)
 
         # Round to 3 digits to get rid of funny rounding effects.
         # This method is not that precise anyway.
@@ -566,8 +554,10 @@ def generate_profiles(samples_in, outfile, reportfile, allelefile, annotation_co
 
 
 def add_arguments(parser):
-    add_input_output_args(parser, single_in=False, batch_support=False, report_out=True)
-    add_allele_detection_args(parser)
+    add_bulk_input_output_args(parser)
+    parser.add_argument("-a", "--allelelist", metavar="ALLELEFILE",
+        help="file containing a list of the true alleles of each sample (e.g., obtained from "
+             "allelefinder); if not given, the 'allele' flag from the 'flags' column is used")
     parser.add_argument("-C", "--combine-strands", action="store_true",
         help="if specified, noise profiles will be calculated for the total number of reads, "
              "instead of separately for either strand")
@@ -598,7 +588,6 @@ def add_arguments(parser):
              "for each allele for which no homozygous samples are available "
              "(default: %(default)s)")
     filtergroup.add_argument("-p", "--profiles", metavar="FILE",
-        type=argparse.FileType("tr", encoding="UTF-8"),
         help="use the given noise profiles file as a starting point")
     filtergroup.add_argument("-M", "--marker", metavar="MARKER", help="work only on MARKER")
     filtergroup.add_argument("-H", "--homozygotes", action="store_true",
@@ -612,20 +601,13 @@ def run(args):
     global np
     import numpy as np
 
-    files = get_input_output_files(args)
-    if not files:
-        raise ValueError("please specify an input file, or pipe in the output of another program")
-    try:
-        generate_profiles(files[0], files[1], args.report, args.allelelist, args.annotation_column,
+    with std_or_open(args.profiles) as profiles_in:
+        start_profiles = {} if profiles_in is None else load_profiles(profiles_in, args.library)
+
+    samples_in = iterate_input_samples(args.infiles, args.tag_expr, args.tag_format)
+    with std_or_open(args.outfile, "wt") as outfile:
+        generate_profiles(samples_in, outfile, args.allelelist,
                           args.min_pct, args.min_abs, args.min_samples, args.min_sample_pct,
-                          args.min_genotypes, args.library, args.profiles, args.marker,
+                          args.min_genotypes, args.library, start_profiles, args.marker,
                           args.homozygotes, args.min_output_pct, args.combine_strands)
-    except IOError as e:
-        if e.errno == EPIPE:
-            try:
-                try_write_pipe(args.report, "Stopped early because the output was closed.\n")
-            except:
-                pass
-            return
-        raise
 #run

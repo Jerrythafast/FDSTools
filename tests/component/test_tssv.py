@@ -30,18 +30,14 @@ class TestTssv(ComponentTestCase):
 
         expected_output = (self.data_dir_root / Tools.TSSV /
                            "OmniSTR_Mixture_R1_4lt2_tssv_default.txt")
-        expected_report = (self.data_dir_root / Tools.TSSV /
-                           "OmniSTR_Mixture_R1_4lt2_tssv_default-report.txt")
 
         fdstools_args = [self.library]
 
         with open(infile) as infile,\
                 patch("sys.stdin", infile), \
-                patch("sys.stdout", StringIO()) as generated_output, \
-                patch("sys.stderr", StringIO()) as generated_report:
+                patch("sys.stdout", StringIO()) as generated_output:
 
-            test_data = [OutputFile(expected_output, generated_output),
-                         OutputFile(expected_report, generated_report)]
+            test_data = [OutputFile(expected_output, generated_output)]
 
             self.componentTest(Tools.TSSV, fdstools_args, test_data)
 
@@ -61,6 +57,7 @@ class TestTssv(ComponentTestCase):
             str(output.generated_output),
             "--report", str(report.generated_output),
             "--dir", outdir,
+            "--zip-level", "1",
             "--num-threads", "2",
             "--minimum", "10"
         ]
@@ -87,6 +84,7 @@ class TestTssv(ComponentTestCase):
             str(infile),
             str(output.generated_output),
             "--dir", outdir,
+            "--zip-level", "1",
             "--report", str(report.generated_output),
             "--flank-length", "10",
             "--num-threads", "2",
@@ -114,6 +112,7 @@ class TestTssv(ComponentTestCase):
             str(infile),
             str(output.generated_output),
             "--dir", outdir,
+            "--zip-level", "1",
             "--report", str(report.generated_output),
             "--no-deduplicate",
             "--flank-length", "20",

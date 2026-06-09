@@ -27,15 +27,12 @@ The model obtained from this tool can be used by bgpredict to predict
 background noise profiles of alleles for which no reference samples are
 available.
 """
-import argparse
 import re
 #import numpy as np  # Only imported when actually running this tool.
 
-from errno import EPIPE
-
-from ..lib.cli import add_sequence_format_args, add_input_output_args, add_allele_detection_args,\
-                      pos_int_arg, get_input_output_files
-from ..lib.io import parse_allelelist, get_sample_data
+from ..lib.cli import add_bulk_input_output_args, add_sequence_format_args, \
+                      iterate_input_samples, pos_int_arg
+from ..lib.io import parse_allelelist, read_sample_data_file, std_or_open
 from ..lib.seq import reverse_complement, get_repeat_pattern, call_variants
 from ..lib.util import nnls, thread_safe_process_pool
 
@@ -246,25 +243,29 @@ def get_variants_async(data, max_unit_length, workers):
 #get_variants_async
 
 
-def fit_stutter(samples_in, outfile, allelefile, annotation_column, min_pct, min_abs,
+def fit_stutter(samples_in, outfile, allelefile, min_pct, min_abs,
                 min_stutter_pct, min_lengths, min_samples, library, min_r2, orphans, degree,
-                same_shape, nonnegative, ignore_zeros, max_unit_length, raw_outfile, marker,
+                same_shape, nonnegative, ignore_zeros, max_unit_length, raw_outfile, only_marker,
                 combine_strands, workers):
-
     # Parse allele list.
-    allelelist = {} if allelefile is None else parse_allelelist(allelefile,
-        convert="raw", library=library)
+    allelelist = {} if allelefile is None else parse_allelelist(
+        allelefile, convert="raw", library=library)
 
     # Read sample data.
     data = {"alleles": {}, "samples": {}}
-    get_sample_data(
-        samples_in,
-        lambda tag, sample_data: add_sample_data(
-            data, sample_data,
-            {m: allelelist[tag][m].pop() for m in allelelist[tag]},
-            tag, min_pct, min_abs),
-        allelelist, annotation_column, "raw", library, marker,
-        homozygotes=True, drop_special_seq=True, combine_strands=combine_strands)
+    for tag, infile in samples_in:
+        # Fill allelelist using "allele" flag if no allelelist file was given.
+        alleles_out = allelelist.setdefault(tag, {}) if allelefile is None else None
+        if tag not in allelelist:
+            continue  # No need to read this sample.
+        sample_data = read_sample_data_file(infile, "raw", library, drop_special_seq=True,
+            combine_strands=combine_strands, only_marker=only_marker, alleles_out=alleles_out)
+        sample_alleles = {
+            marker: alleles.pop()
+            for marker, alleles in allelelist[tag].items()
+            if len(alleles) == 1
+            and (only_marker is None or marker == only_marker)}
+        add_sample_data(data, sample_data, sample_alleles, tag, min_pct, min_abs)
 
     # Ensure minimum number of samples per allele.
     filter_data(data, min_samples)
@@ -516,13 +517,34 @@ def fit_stutter_model(outfile, raw_outfile, data, library, seq, patterns, min_r2
 
 
 def add_arguments(parser):
-    add_input_output_args(parser)
-    add_allele_detection_args(parser)
+    outputgroup = add_bulk_input_output_args(parser, output_group=True)
+    outputgroup.add_argument("-r", "--raw-outfile", metavar="RAWFILE",
+        help="write raw data points to this file, for use in stuttermodel "
+             "visualisations (specify '-' to write to stdout; normal output on "
+             "stdout is then suppressed)")
+
+    parser.add_argument("-a", "--allelelist", metavar="ALLELEFILE",
+        help="file containing a list of the true alleles of each sample (e.g., obtained from "
+             "allelefinder); if not given, the 'allele' flag from the 'flags' column is used")
     parser.add_argument("-C", "--combine-strands", action="store_true",
         help="if specified, stutter will be modeled for the total number of reads, "
              "instead of separately for either strand")
     parser.add_argument("-T", "--num-threads", metavar="THREADS", type=pos_int_arg, default=1,
         help="number of worker threads to use (default: %(default)s)")
+    parser.add_argument("-D", "--degree", type=pos_int_arg, default=_DEF_DEGREE, metavar="N",
+        help="degree of polynomials to fit (default: %(default)s)")
+    parser.add_argument("-S", "--same-shape", action="store_true",
+        help="if specified, the polynomials of all markers will have equal "
+             "coefficients, except for a vertical shift")
+    parser.add_argument("-N", "--nonnegative", action="store_true",
+        help="if specified, force coefficients to be nonnegative (best used with degree 1 or 2)")
+    parser.add_argument("-z", "--ignore-zeros", action="store_true",
+        help="if specified, samples exhibiting no stutter are ignored")
+    parser.add_argument("-u", "--max-unit-length", type=pos_int_arg,
+        default=_DEF_MAX_UNIT_LENGTH, metavar="N",
+        help="investigate stutter of repeats of units of up to this number of "
+             "nucleotides in length (default: %(default)s)")
+
     filtergroup = parser.add_argument_group("filtering options")
     filtergroup.add_argument("-m", "--min-pct", metavar="PCT", type=float,
         default=_DEF_THRESHOLD_PCT,
@@ -548,24 +570,7 @@ def add_arguments(parser):
     filtergroup.add_argument("-O", "--orphans", action="store_true",
         help="if specified, a fit on one strand is reported even if no fit "
              "was obtained on the other strand for the same marker, unit, and stutter depth")
-    parser.add_argument("-D", "--degree", type=pos_int_arg, default=_DEF_DEGREE, metavar="N",
-        help="degree of polynomials to fit (default: %(default)s)")
-    parser.add_argument("-S", "--same-shape", action="store_true",
-        help="if specified, the polynomials of all markers will have equal "
-             "coefficients, except for a vertical shift")
-    parser.add_argument("-N", "--nonnegative", action="store_true",
-        help="if specified, force coefficients to be nonnegative (best used with degree 1 or 2)")
-    parser.add_argument("-z", "--ignore-zeros", action="store_true",
-        help="if specified, samples exhibiting no stutter are ignored")
-    parser.add_argument("-u", "--max-unit-length", type=pos_int_arg,
-        default=_DEF_MAX_UNIT_LENGTH, metavar="N",
-        help="investigate stutter of repeats of units of up to this number of "
-             "nucleotides in length (default: %(default)s)")
-    parser.add_argument("-r", "--raw-outfile", type=argparse.FileType("tw", encoding="UTF-8"),
-        metavar="RAWFILE",
-        help="write raw data points to this file, for use in stuttermodel "
-             "visualisations (specify '-' to write to stdout; normal output on "
-             "stdout is then suppressed)")
+
     add_sequence_format_args(parser, default_format="raw", force=True)
 #add_arguments
 
@@ -575,17 +580,12 @@ def run(args):
     global np
     import numpy as np
 
-    files = get_input_output_files(args)
-    if not files:
-        raise ValueError("please specify an input file, or pipe in the output of another program")
-    try:
-        fit_stutter(files[0], files[1], args.allelelist, args.annotation_column, args.min_pct,
+    samples_in = iterate_input_samples(args.infiles, args.tag_expr, args.tag_format)
+    with std_or_open(args.outfile, "wt") as outfile, \
+         std_or_open(args.raw_outfile, "wt") as raw_outfile:
+        fit_stutter(samples_in, outfile, args.allelelist, args.min_pct,
                     args.min_abs, args.min_stutter_pct, args.min_lengths, args.min_samples,
                     args.library, args.min_r2, args.orphans, args.degree, args.same_shape,
-                    args.nonnegative, args.ignore_zeros, args.max_unit_length, args.raw_outfile,
+                    args.nonnegative, args.ignore_zeros, args.max_unit_length, raw_outfile,
                     args.marker, args.combine_strands, args.num_threads)
-    except IOError as e:
-        if e.errno == EPIPE:
-            return
-        raise
 #run

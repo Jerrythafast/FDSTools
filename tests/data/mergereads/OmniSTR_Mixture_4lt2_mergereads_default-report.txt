@@ -1,5 +1,5 @@
-Read combination statistics:
-Total pairs:      34168
-Combined pairs:   22692
-Uncombined pairs: 11476
-Percent combined: 66.41%
+[fdstools.tools.mergereads][INFO] Read combination statistics:
+[fdstools.tools.mergereads][INFO] Total pairs:      34168
+[fdstools.tools.mergereads][INFO] Combined pairs:   22692
+[fdstools.tools.mergereads][INFO] Uncombined pairs: 11476
+[fdstools.tools.mergereads][INFO] Percent combined: 66.41%

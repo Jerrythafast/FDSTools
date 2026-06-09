@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 
 #
-# Copyright (C) 2022 Jerry Hoogenboom
+# Copyright (C) 2026 Netherlands Forensic Institute
 #
 # This file is part of FDSTools, data analysis tools for Massively
 # Parallel Sequencing of forensic DNA markers.
@@ -41,13 +41,10 @@ currently required when the analysed markers are non-human.
 Users migrating from the standalone 'TSSV' programme may use the
 libconvert tool to convert their TSSV library file to FDSTools format.
 """
-import argparse
-import sys
-
 from configparser import RawConfigParser
-from errno import EPIPE
 from types import MethodType
 
+from ..lib.io import std_or_open
 from ..lib.library import BUILTIN_LIBS, BUILTIN_NAMES, INI_COMMENT
 
 __version__ = "1.1.2"
@@ -181,15 +178,14 @@ def create_library(outfile, type, microhaplotypes=False, builtin=None):
         "Lines beginning with a semicolon (;) are ignored by FDSTools.") + "\n\n")
     library = make_empty_library_ini(type, microhaplotypes)
     if builtin is not None:
-        with BUILTIN_LIBS[builtin].open("rt", encoding="UTF-8") as handle:
+        with BUILTIN_LIBS[builtin].open("rt", encoding="utf-8") as handle:
             library.read_file(handle, source=builtin)
     library.write(outfile)
 #create_library
 
 
 def add_arguments(parser):
-    parser.add_argument("outfile", nargs="?", metavar="OUT",
-        default=sys.stdout, type=argparse.FileType("tw", encoding="UTF-8"),
+    parser.add_argument("outfile", nargs="?", metavar="OUT", default="-",
         help="the file to write the output to (default: write to stdout)")
     parser.add_argument("-t", "--type", metavar="TYPE", default="smart",
         choices=("smart", "full", "str", "non-str"),
@@ -209,10 +205,6 @@ def add_arguments(parser):
 
 
 def run(args):
-    try:
-        create_library(args.outfile, args.type, args.microhaplotypes, args.builtin)
-    except IOError as e:
-        if e.errno == EPIPE:
-            return
-        raise
+    with std_or_open(args.outfile, "wt") as outfile:
+        create_library(outfile, args.type, args.microhaplotypes, args.builtin)
 #run

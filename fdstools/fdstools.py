@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 
 #
-# Copyright (C) 2023 Jerry Hoogenboom
+# Copyright (C) 2026 Netherlands Forensic Institute
 #
 # This file is part of FDSTools, data analysis tools for Massively
 # Parallel Sequencing of forensic DNA markers.
@@ -22,30 +22,36 @@
 
 import argparse
 import importlib
+import logging
 import pkgutil
 import re
 import sys
 import textwrap
-#import cProfile  # Imported only if the -d/--debug option is specified
 
 from pathlib import Path
 
 from . import tools, usage, version
 
 
+logging.basicConfig(
+    format="[%(name)s][%(levelname)s] %(message)s",
+    level=logging.DEBUG if "-d" in sys.argv or "--debug" in sys.argv else logging.INFO)
+logging.captureWarnings(True)
+LOG = logging.getLogger(__name__)
+
+
 # Map tool names to argument parsers.
-tool_subparsers = {}
+TOOL_SUBPARSERS = {}
 
 
 class _HelpAction(argparse.Action):
     def __call__(self, parser, namespace, values, option_string=None):
         # If valid 'tool' argument is given, call that tool's help.
-        if values and values[0] in tool_subparsers:
-            tool_subparsers[values[0]].print_help()
-            tool_subparsers[values[0]].exit()
+        if values and values[0] in TOOL_SUBPARSERS:
+            TOOL_SUBPARSERS[values[0]].print_help()
         else:
             parser.print_help()
-            parser.exit()
+        sys.exit()
     #__call__
 #_HelpAction
 
@@ -53,8 +59,8 @@ class _HelpAction(argparse.Action):
 class _VersionAction(argparse.Action):
     def __call__(self, parser, namespace, values, option_string=None):
         # If valid 'tool' argument is given, print that tool's version.
-        if values and values[0] in tool_subparsers:
-            parser = tool_subparsers[values[0]]
+        if values and values[0] in TOOL_SUBPARSERS:
+            parser = TOOL_SUBPARSERS[values[0]]
         formatter = parser._get_formatter()
         formatter.add_text(parser.version)
         parser.exit(message=formatter.format_help())
@@ -87,27 +93,14 @@ class _HelpFormatter(argparse.HelpFormatter):
 #_HelpFormatter
 
 
-def make_error_interceptor(parser):
-    parser.fdstools_print_error_and_exit = parser.error
-    def custom_error_function(*args, **kwargs):
-        if "-d" in sys.argv or "--debug" in sys.argv:
-            exception, traceback = sys.exc_info()[1:]
-            if exception is not None:
-                raise exception.with_traceback(traceback)
-        parser.fdstools_print_error_and_exit(*args, **kwargs)
-    parser.error = custom_error_function
-#make_error_interceptor
-
-
 def main():
     """
     Main entry point.
     """
     prog = Path(__file__).stem
-    parser = argparse.ArgumentParser(formatter_class=_HelpFormatter, prog=prog,
-                                     add_help=False, description=usage[0])
+    parser = argparse.ArgumentParser(formatter_class=_HelpFormatter, prog=prog, add_help=False,
+        description=usage[0], exit_on_error=LOG.getEffectiveLevel()>=logging.INFO)
     parser.version = version(prog)
-    make_error_interceptor(parser)
     parser.add_argument("-h", "--help", action=_HelpAction,
         default=argparse.SUPPRESS, nargs=argparse.REMAINDER,
         help="show this help message, or help for the specified TOOL, and exit")
@@ -117,23 +110,22 @@ def main():
     parser.add_argument("-d", "--debug", action="store_true",
         help="if specified, additional debug output is given")
     subparsers = parser.add_subparsers(title="available tools", dest="tool", metavar="TOOL",
-        help="specify which tool to run")
-    subparsers.required = True
+        required=True, help="specify which tool to run")
 
+    # Import each tool and add its arguments to a subparser.
     prefix = tools.__name__ + "."
     for importer, name, ispkg in pkgutil.iter_modules(tools.__path__):
         try:
             module = importlib.import_module(prefix + name)
         except Exception as error:
-            sys.stderr.write("FDSTools failed to load '%s': %s\n" % (name, error))
+            LOG.error("FDSTools failed to load '%s': %s", name, error)
             continue
         subparser = subparsers.add_parser(
             name,
             formatter_class=_HelpFormatter,
             help=module.__doc__.split("\n\n", 1)[0],
             description=module.__doc__)
-        tool_subparsers[name] = subparser
-        make_error_interceptor(subparser)
+        TOOL_SUBPARSERS[name] = subparser
         subparser.add_argument("-v", "--version", action=_VersionAction, default=argparse.SUPPRESS,
             nargs=0, help="show version number and exit")
         subparser.add_argument("-d", "--debug", action="store_true", default=argparse.SUPPRESS,
@@ -143,36 +135,52 @@ def main():
             module.add_arguments(subparser)
             subparser.set_defaults(func=module.run)
         except Exception as error:
-            sys.stderr.write("FDSTools failed to configure '%s': %s\n" % (name, error))
+            LOG.error("FDSTools failed to configure '%s': %s", name, error)
             error_to_reraise = error
             def reraise_error(args):
                 raise error_to_reraise
             subparser.set_defaults(func=reraise_error)
-            continue
 
     # Assume the user wants help if they just type 'fdstools'.
     if len(sys.argv) == 1:
         sys.argv.append("-h")
 
+    LOG.debug("FDSTools version %s", parser.version)
+    LOG.debug("sys.argv=%r", sys.argv)
+
+    # Parse the arguments.
+    args, unknowns = parser.parse_known_args()
+    if unknowns:
+        # Politely inform the user about unknown arguments, then exit.
+        TOOL_SUBPARSERS[args.tool].error(
+            "The following arguments are not known. Please check spelling "
+            "and argument order: '%s'." % "', '".join(unknowns))
+
+    if args.debug and LOG.getEffectiveLevel() > logging.DEBUG:
+        # User included "d" with more options in a single argument.
+        logging.getLogger().setLevel(logging.DEBUG)
+        LOG.debug("FDSTools version %s", parser.version)
+        LOG.debug("sys.argv=%r", sys.argv)
+        LOG.debug("LOG.level was lowered to DEBUG after parsing arguments")
+
+    if LOG.isEnabledFor(logging.DEBUG):
+        import warnings
+        warnings.simplefilter("default")
+
+    # Run the tool.
     try:
-        args, unknowns = parser.parse_known_args()
-    except Exception as error:
-        parser.error(error)  # Either re-raises or exits.
-    try:
-        if unknowns:
-            # Politely inform the user about unknown arguments.
-            tool_subparsers[args.tool].fdstools_print_error_and_exit(
-                "The following arguments are not known. Please check spelling "
-                "and argument order: '%s'." % "', '".join(unknowns))
-        if args.debug:
-            import cProfile
-            cProfile.runctx("args.func(args)", globals(), locals(), sort="tottime")
-        else:
-            args.func(args)
+        args.func(args)
     except Exception as error:
         if args.debug:
             raise
-        tool_subparsers[args.tool].fdstools_print_error_and_exit(error)
+        if isinstance(error, BrokenPipeError):
+            # This is usually caused by piping through 'head'.
+            try:
+                LOG.warning("Stopped early because the output was closed.")
+            except:
+                pass
+        else:
+            TOOL_SUBPARSERS[args.tool].error(error)
 #main
 
 

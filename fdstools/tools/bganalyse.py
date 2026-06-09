@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 
 #
-# Copyright (C) 2020 Jerry Hoogenboom
+# Copyright (C) 2026 Netherlands Forensic Institute
 #
 # This file is part of FDSTools, data analysis tools for Massively
 # Parallel Sequencing of forensic DNA markers.
@@ -41,13 +41,11 @@ each marker is given at selected percentiles of the samples.  I.e., it
 gives the highest and total remaining noise considering only the
 cleanest x% of samples, for different values of x.
 """
-import math
+from math import ceil
 
-from errno import EPIPE
-
-from ..lib.cli import add_sequence_format_args, add_input_output_args, get_input_output_files, \
-                      add_allele_detection_args, comma_separated_arg
-from ..lib.io import get_sample_data, parse_allelelist
+from ..lib.cli import add_sequence_format_args, add_bulk_input_output_args, \
+                      iterate_input_samples, comma_separated_arg
+from ..lib.io import parse_allelelist, read_sample_data_file
 
 __version__ = "1.1.0"
 
@@ -69,7 +67,7 @@ def get_total_recovery(values):
 #get_total_recovery
 
 
-def process_sample(sample_data, sample_alleles, tag, library):
+def process_sample(sample_data, sample_alleles, tag):
     # Get read counts of the true alleles.
     allele_reads = {}
     for marker in sample_alleles:
@@ -172,7 +170,7 @@ def write_percentiles_table(outfile, data, percentiles):
         per_marker[marker] = tuple(map(sorted, per_marker[marker]))
         n = len(per_marker[marker][0])
         for percentile in percentiles:
-            i = math.ceil(percentile * 0.01 * n) - 1
+            i = ceil(percentile * 0.01 * n) - 1
             outfile.write("\t".join([
                 marker, "%g" % percentile] + [
                 "%.5g" % x if abs(x) >= 10000 else
@@ -185,26 +183,25 @@ def write_percentiles_table(outfile, data, percentiles):
 #write_percentiles_table
 
 
-def analyse_background(samples_in, outfile, allelefile, annotation_column, seqformat, library,
-                       mode, percentiles):
-
+def analyse_background(samples_in, outfile, allelefile, seqformat, library, mode, percentiles):
     # Parse allele list.
     allelelist = {} if allelefile is None else parse_allelelist(
         allelefile, convert=seqformat, library=library)
 
     # TODO: Should we consider forward and reverse reads separately?
     data = {}
-    get_sample_data(
-        samples_in,
-        lambda tag, sample_data: data.__setitem__(tag, process_sample(
-            sample_data, allelelist[tag], tag, library)),
-        allelelist, annotation_column, seqformat, library,
-        drop_special_seq=True, after_correction=True, combine_strands=True,
-        extra_columns={
-            "total_recovery": True,
-            "total_add": True,
-            "total_corrected": True
-        })
+    for tag, infile in samples_in:
+        # Fill allelelist using "allele" flag if no allelelist file was given.
+        alleles_out = allelelist.setdefault(tag, {}) if allelefile is None else None
+        if tag not in allelelist:
+            continue  # No need to read this sample.
+        sample_data = read_sample_data_file(infile, seqformat, library,
+            drop_special_seq=True,
+            after_correction=True,
+            combine_strands=True,
+            extra_columns={"total_recovery": True, "total_add": True, "total_corrected": True},
+            alleles_out=alleles_out)
+        data[tag] = process_sample(sample_data, allelelist[tag], tag)
 
     if mode == "full":
         write_full_table(outfile, data)
@@ -214,6 +211,7 @@ def analyse_background(samples_in, outfile, allelefile, annotation_column, seqfo
 
 
 def add_arguments(parser):
+    add_bulk_input_output_args(parser)
     parser.add_argument("-m", "--mode", metavar="MODE", default="full",
         choices=("full", "percentiles"),
         help="controls what kind of information is printed; 'full' (the "
@@ -227,21 +225,16 @@ def add_arguments(parser):
         type=comma_separated_arg(tuple, float),
         help="comma-separated list of percentiles to report when -m/--mode is "
              "set to 'percentiles' (default: %(default)s)")
-    add_input_output_args(parser)
-    add_allele_detection_args(parser)
+    parser.add_argument("-a", "--allelelist", metavar="ALLELEFILE",
+        help="file containing a list of the true alleles of each sample (e.g., obtained from "
+             "allelefinder); if not given, the 'allele' flag from the 'flags' column is used")
     add_sequence_format_args(parser, default_format="raw")
 #add_arguments
 
 
 def run(args):
-    files = get_input_output_files(args)
-    if not files:
-        raise ValueError("please specify an input file, or pipe in the output of another program")
-    try:
-        analyse_background(files[0], files[1], args.allelelist, args.annotation_column,
-                           args.sequence_format, args.library, args.mode, args.percentiles)
-    except IOError as e:
-        if e.errno == EPIPE:
-            return
-        raise
+    samples_in = iterate_input_samples(args.infiles, args.tag_expr, args.tag_format)
+    with std_or_open(args.outfile, "wt") as outfile:
+        analyse_background(samples_in, args.outfile, args.allelelist, args.sequence_format,
+                           args.library, args.mode, args.percentiles)
 #run

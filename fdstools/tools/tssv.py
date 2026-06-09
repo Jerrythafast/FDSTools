@@ -63,21 +63,19 @@ References:
 [2] https://github.com/jfjlaros/tssv
 """
 import gzip
-import itertools
-import math
-import os
 import re
-import sys
 
 from bisect import insort
 from collections import defaultdict
-from errno import EPIPE
+from contextlib import ExitStack, contextmanager
+from functools import partial
 from itertools import islice
+from math import ceil
+from pathlib import Path
 from threading import Lock, Semaphore
 
-from ..lib.cli import add_sequence_format_args, add_input_output_args, pos_int_arg,\
-                      get_input_output_files
-from ..lib.io import parse_reads, write_sequence_record, try_write_pipe
+from ..lib.cli import add_sequence_format_args, pos_int_arg
+from ..lib.io import parse_reads, std_or_open, write_sequence_record
 from ..lib.seq import PAT_SEQ_RAW, reverse_complement, ensure_sequence_format
 from ..lib.sg_align import align
 from ..lib.tssv import filter_sequences
@@ -123,24 +121,23 @@ IUPAC_REGEX = {
     "N": "[ACGTU]"}
 
 
+
 class TSSV:
-    def __init__(self, library, flank_length, threshold, resolve_ambiguous, output_qualities,
-                 distrust_base_quality, indel_score, dirname, workers, deduplicate, file_format,
-                 reads_generator):
+    def __init__(self, reads_generator, library, flank_length, threshold, resolve_ambiguous,
+                 output_qualities, distrust_base_quality, indel_score, outdir, workers,
+                 deduplicate):
         # User inputs.
         self.library = library
         self.indel_score = indel_score
+        self.outfiles = outdir
         self.workers = workers
         self.deduplicate = deduplicate
         self.output_qualities = output_qualities or distrust_base_quality
+        self.distrust_base_quality = distrust_base_quality
         self.input = reads_generator
 
         self.lock = Lock()
         self.semaphore = Semaphore(2 * workers)
-
-        if self.output_qualities and ".fq" not in file_format:
-            raise ValueError(
-                f"Basecall quality values are not available in {file_format} input file")
 
         # Convert library.
         refseq_store = library.get_structure_store().get_refseq_store()
@@ -172,20 +169,14 @@ class TSSV:
             flanks[1] = reverse_complement(flanks[1])
             self.tssv_library[marker] = (
                 [flank.translate(IUPAC_BITS_FLANK) for flank in flanks], (
-                    math.ceil(len(flanks[0]) * threshold if threshold < 1 else threshold),
-                    math.ceil(len(flanks[1]) * threshold if threshold < 1 else threshold)),
+                    ceil(len(flanks[0]) * threshold if threshold < 1 else threshold),
+                    ceil(len(flanks[1]) * threshold if threshold < 1 else threshold)),
                 "".join(refseq_store.get_refseq(chromosome, start, end + 1) for start, end in
                     zip(reported_range.location[1::2], reported_range.location[2::2]))
                     .translate(IUPAC_BITS_FLANK))
 
         if not self.tssv_library:
             raise ValueError("No markers were defined in the given library file")
-
-        # Open output directory if we have one.
-        if dirname:
-            self.outfiles = prepare_output_dir(dirname, self.tssv_library, file_format)
-        else:
-            self.outfiles = None
 
         # Internal state.
         self.sequences = {marker: defaultdict(lambda: [0, 0, []]) for marker in self.tssv_library}
@@ -311,14 +302,14 @@ class TSSV:
     #process_ambiguous_sequences
 
 
-    def flatten_low_quality_bases(self, quality_threshold):
+    def flatten_low_quality_bases(self):
         """
-        Find bases with cubic mean quality score <= quality_threshold in
-        self.sequences, and try to find another sequence with higher
+        Find bases with cubic mean quality score <= self.distrust_base_quality
+        in self.sequences, and try to find another sequence with higher
         read count that matches all higher-quality bases. Add the reads
         of the lower-quality sequence to it if one was found.
         """
-        threshold = chr(quality_threshold + 33)
+        threshold = chr(self.distrust_base_quality + 33)
         for marker, marker_seqs in self.sequences.items():
             grouped_seqs = defaultdict(list)
             for seq, counts in marker_seqs.items():
@@ -342,7 +333,7 @@ class TSSV:
     #flatten_low_quality_bases
 
 
-    def process_file(self, resolve_ambiguous, distrust_base_quality):
+    def process_file(self, resolve_ambiguous):
         if self.workers == 1:
             for seq in self.dedup_reads():
                 self.cache_results(seq, process_sequence(
@@ -361,8 +352,8 @@ class TSSV:
         if resolve_ambiguous:
             self.process_ambiguous_sequences()
 
-        if distrust_base_quality:
-            self.flatten_low_quality_bases(distrust_base_quality)
+        if self.distrust_base_quality:
+            self.flatten_low_quality_bases()
 
         if self.output_qualities:
             # Flatten qualities for quality column.
@@ -427,11 +418,14 @@ class TSSV:
 
 
     def write_statistics_table(self, outfile):
+        if not self.outfiles and not outfile:
+            return
         header = "\t".join(("marker", "unique_seqs", "tPaired", "fPaired", "rPaired",
                             "tLeft", "fLeft", "rLeft", "tRight", "fRight", "rRight")) + "\n"
         if self.outfiles:
             self.outfiles["statistics"].write(header)
-        try_write_pipe(outfile, header)
+        if outfile:
+            outfile.write(header)
         for marker in sorted(self.counters):
             line = "\t".join(map(str, (
                 marker,
@@ -447,25 +441,15 @@ class TSSV:
                 self.counters[marker]["rRight"]))) + "\n"
             if self.outfiles:
                 self.outfiles["statistics"].write(line)
-            try_write_pipe(outfile, line)
+            if outfile:
+                outfile.write(line)
 
         line = "\ntotal reads\t%i\nunrecognised reads\t%i\n" % (self.total_reads,self.unrecognised)
         if self.outfiles:
             self.outfiles["statistics"].write(line)
-        try_write_pipe(outfile, line)
+        if outfile:
+            outfile.write(line)
     #write_statistics_table
-
-
-    def close_output_files(self):
-        if self.outfiles:
-            for key, value in self.outfiles.items():
-                if key == "markers":
-                    for markerfiles in value.values():
-                        for markerfile in markerfiles.values():
-                            markerfile.close()
-                else:
-                    value.close()
-    #close_output_files
 #TSSV
 
 
@@ -496,31 +480,43 @@ def flatten_qualities(summed_cubed_qualities, num_reads):
 #flatten_qualities
 
 
-def prepare_output_dir(dir, markers, file_format):
+@contextmanager
+def open_outdir(path, markers, file_format, zip_level):
+    if path is None:
+        yield None
+        return
+
     # Create output directories.
     for marker in markers:
-        os.makedirs(os.path.join(dir, marker), exist_ok=True)
+        (path / marker).mkdir(parents=True, exist_ok=True)
 
-    # Open output files.
-    open_seq_out = gzip.open if file_format.endswith(".gz") else open
-    return {
-        "sequences": open(os.path.join(dir, "sequences.csv"), "wt", encoding="UTF-8"),
-        "statistics": open(os.path.join(dir, "statistics.csv"), "wt", encoding="UTF-8"),
-        "unknown": open_seq_out(os.path.join(dir, "unknown" + file_format), "wt", encoding="UTF-8"),
-        "markers": {
-            marker: {
-                "sequences": open(os.path.join(dir, marker, "sequences.csv"), "wt",
-                    encoding="UTF-8"),
-                "paired": open_seq_out(os.path.join(dir, marker, "paired" + file_format), "wt",
-                    encoding="UTF-8"),
-                "noend": open_seq_out(os.path.join(dir, marker, "noend" + file_format), "wt",
-                    encoding="UTF-8"),
-                "nostart": open_seq_out(os.path.join(dir, marker, "nostart" + file_format), "wt",
-                    encoding="UTF-8"),
-            } for marker in markers
+    if zip_level:
+        # Write .fa.gz or .fq.gz files with the given compression level.
+        output_format = file_format.removesuffix(".gz") + ".gz"
+        open_seq_out = partial(gzip.open, compresslevel=min(max(1, zip_level), 9))
+    else:
+        # Write .fa or .fq files without compression.
+        output_format = file_format.removesuffix(".gz")
+        open_seq_out = open
+
+    with ExitStack() as stack:
+        yield {
+            "sequences": stack.enter_context(open(path / "sequences.csv", "wt")),
+            "statistics": stack.enter_context(open(path / "statistics.csv", "wt")),
+            "unknown": stack.enter_context(open_seq_out(path / f"unknown{output_format}", "wt")),
+            "markers": {
+                marker: {
+                    "sequences": stack.enter_context(open(path / marker / "sequences.csv", "wt")),
+                    "paired": stack.enter_context(
+                        open_seq_out(path / marker / f"paired{output_format}", "wt")),
+                    "noend": stack.enter_context(
+                        open_seq_out(path / marker / f"noend{output_format}", "wt")),
+                    "nostart": stack.enter_context(
+                        open_seq_out(path / marker / f"nostart{output_format}", "wt"))
+                } for marker in markers
+            }
         }
-    }
-#prepare_output_dir
+#open_outdir
 
 
 def align_flanks(reference, reference_rc, flanks, indel_score):
@@ -637,50 +633,55 @@ def process_batch(tssv_library, indel_score, batch):
 #process_batch
 
 
-def run_tssv_lite(infile, outfile, reportfile, library, flank_length, seqformat, threshold,
+def run_tssv_lite(reads_generator, outfile, reportfile, library, flank_length, seqformat, threshold,
                   minimum, resolve_ambiguous, output_qualities, distrust_base_quality,
-                  aggregate_filtered, missing_marker_action, dirname, indel_score, workers,
+                  aggregate_filtered, missing_marker_action, outdir, indel_score, workers,
                   deduplicate):
-    with parse_reads(infile) as (file_format, reads_generator):
-        tssv = TSSV(library, flank_length, threshold, resolve_ambiguous, output_qualities,
-            distrust_base_quality, indel_score, dirname, workers, deduplicate, file_format,
-            reads_generator)
-        tssv.process_file(resolve_ambiguous, distrust_base_quality)
-        tssv.filter_sequences(aggregate_filtered, minimum, missing_marker_action)
-
-        try:
-            tssv.write_sequence_tables(outfile, seqformat)
-            tssv.write_statistics_table(reportfile)
-            tssv.close_output_files()
-        except IOError as e:
-            if e.errno == EPIPE:
-                try:
-                    try_write_pipe(reportfile, "Stopped early because the output was closed.\n")
-                except:
-                    pass
-                return
-            raise
+    tssv = TSSV(reads_generator, library, flank_length, threshold, resolve_ambiguous,
+                output_qualities, distrust_base_quality, indel_score, outdir, workers, deduplicate)
+    tssv.process_file(resolve_ambiguous)
+    tssv.filter_sequences(aggregate_filtered, minimum, missing_marker_action)
+    tssv.write_sequence_tables(outfile, seqformat)
+    tssv.write_statistics_table(reportfile)
 #run_tssv_lite
 
 
 def add_arguments(parser):
     add_sequence_format_args(parser, default_format="raw", force=False, require_library=True)
-    add_input_output_args(parser, single_in=True, batch_support=False, report_out=True)
-    parser.add_argument("-L", "--flank-length", metavar="N", type=pos_int_arg,
-        default=_DEF_FLANK_LENGTH,
-        help="length of anchor (flanking) sequences to use (default: %(default)s)")
-    parser.add_argument("-D", "--dir",
+
+    parser.add_argument("infile", nargs="?", metavar="IN", default="-",
+        help="the sample data file to process (default: read from stdin)")
+    parser.add_argument("outfile", nargs="?", metavar="OUT", default="-",
+        help="the file to write the output to (default: write to stdout)")
+
+    outputgroup = parser.add_argument_group("output file options")
+    outputgroup.add_argument("-R", "--report", metavar="FILE",
+        help="file to write a statistical report to")
+    outputgroup.add_argument("-D", "--dir", type=Path,
         help="output directory for verbose output; when given, a subdirectory "
              "will be created for each marker, each with a separate "
-             "sequences.csv file and a number of FASTA/FASTQ files containing "
+             "sequences.csv file and a number of FastA/FastQ files containing "
              "unrecognised reads (unknown.fa), recognised reads "
              "(Marker/paired.fa), and reads that lack one of the flanks of a "
              "marker (Marker/noend.fa and Marker/nostart.fa)")
+    outputgroup.add_argument("-z", "--zip-level", metavar="LEVEL", type=pos_int_arg, default=0,
+        help="GZip compression level to use for FastA/FastQ output when -D/--dir is specified "
+             "(1 is fastest, 9 is best, default: no GZip compression)")
+
+    parser.add_argument("-L", "--flank-length", metavar="N", type=pos_int_arg,
+        default=_DEF_FLANK_LENGTH,
+        help="length of anchor (flanking) sequences to use (default: %(default)s)")
     parser.add_argument("-T", "--num-threads", metavar="THREADS", type=pos_int_arg, default=1,
         help="number of worker threads to use (default: %(default)s)")
     parser.add_argument("-X", "--no-deduplicate", dest="deduplicate", action="store_false",
         help="disable deduplication of reads; by setting this option, memory usage will be "
              "reduced in expense of longer running time")
+    parser.add_argument("-q", "--output-qualities", action="store_true",
+        help="output cubic mean basecall quality scores")
+    parser.add_argument("-Q", "--distrust-base-quality", metavar="N", type=pos_int_arg, default=0,
+        help="attempt to correct basecalls with cubic mean quality "
+             "below or equal to the given value; implies -q")
+
     filtergroup = parser.add_argument_group("filtering options")
     filtergroup.add_argument("-m", "--mismatches", type=float, default=_DEF_MISMATCHES,
         help="number of mismatches (per nucleotide of flanking sequence if less than 1, else "
@@ -692,14 +693,10 @@ def add_arguments(parser):
     filtergroup.add_argument("-a", "--minimum", metavar="N", type=pos_int_arg,
         default=_DEF_MINIMUM,
         help="report only sequences with this minimum number of reads (default: %(default)s)")
-    parser.add_argument("-A", "--filter-ambiguous", dest="resolve_ambiguous", action="store_false",
+    filtergroup.add_argument("-A", "--filter-ambiguous", dest="resolve_ambiguous",
+        action="store_false",
         help="don't add sequences containing ambiguous bases to the most common compatible "
              "unambiguous sequence")
-    parser.add_argument("-q", "--output-qualities", action="store_true",
-        help="output cubic mean basecall quality scores")
-    parser.add_argument("-Q", "--distrust-base-quality", metavar="N", type=pos_int_arg, default=0,
-        help="attempt to correct basecalls with cubic mean quality "
-             "below or equal to the given value; implies -q")
     filtergroup.add_argument("-B", "--no-aggregate-filtered", dest="aggregate_filtered",
         action="store_false",
         help="by default, sequences that have been filtered (as per the -a/--minimum option, the "
@@ -714,12 +711,18 @@ def add_arguments(parser):
 
 
 def run(args):
-    files = get_input_output_files(args, single_in=True, batch_support=False)
-    if not files:
-        raise ValueError("please specify an input file, or pipe in the output of another program")
-    run_tssv_lite(files[0], files[1], args.report, args.library, args.flank_length,
-                  args.sequence_format, args.mismatches, args.minimum, args.resolve_ambiguous,
-                  args.output_qualities, args.distrust_base_quality, args.aggregate_filtered,
-                  args.missing_marker_action, args.dir, args.indel_score, args.num_threads,
-                  args.deduplicate)
+    with parse_reads(args.infile) as (file_format, reads_generator), \
+         std_or_open(args.outfile, "wt") as outfile, \
+         std_or_open(args.report, "wt") as reportfile, \
+         open_outdir(args.dir, args.library.get_ranges(), file_format, args.zip_level) as outdir:
+
+        if args.output_qualities or args.distrust_base_quality and ".fq" not in file_format:
+            raise ValueError(
+                f"Basecall quality values are not available in {file_format} input file")
+
+        run_tssv_lite(reads_generator, outfile, reportfile, args.library, args.flank_length,
+                      args.sequence_format, args.mismatches, args.minimum, args.resolve_ambiguous,
+                      args.output_qualities, args.distrust_base_quality, args.aggregate_filtered,
+                      args.missing_marker_action, outdir, args.indel_score, args.num_threads,
+                      args.deduplicate)
 #run

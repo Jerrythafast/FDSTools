@@ -1,7 +1,7 @@
-Read combination statistics:
-Total pairs:      34168
-Combined pairs:   25956
-    Innie pairs:  22270 (85.80% of combined)
-    Outie pairs:  3686 (14.20% of combined)
-Uncombined pairs: 8212
-Percent combined: 75.97%
+[fdstools.tools.mergereads][INFO] Read combination statistics:
+[fdstools.tools.mergereads][INFO] Total pairs:      34168
+[fdstools.tools.mergereads][INFO] Combined pairs:   25956
+[fdstools.tools.mergereads][INFO]     Innie pairs:  22270 (85.80% of combined)
+[fdstools.tools.mergereads][INFO]     Outie pairs:  3686 (14.20% of combined)
+[fdstools.tools.mergereads][INFO] Uncombined pairs: 8212
+[fdstools.tools.mergereads][INFO] Percent combined: 75.97%

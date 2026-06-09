@@ -39,13 +39,11 @@ sequences that have been seen only rarely.  When the
 -A/--aggregate-filtered option is given, all filtered sequences of each
 marker are aggregated and reported as 'Other sequences'.
 """
-import argparse
-import sys
-
 from concurrent.futures import as_completed
 from functools import cache
 
 from ..lib.cli import add_sequence_format_args, pos_int_arg
+from ..lib.io import std_or_open
 from ..lib.seq import ensure_sequence_format
 from ..lib.tssv import filter_sequences
 from ..lib.util import batched, thread_safe_process_pool
@@ -339,9 +337,8 @@ def add_arguments(parser):
         help="number of worker threads to use (default: %(default)s)")
     parser.add_argument("infile", metavar="IN",
         help="the sample data file to process (must be a .bai indexed bam file)")
-    parser.add_argument("outfile", nargs="?", metavar="OUT",
-        type=argparse.FileType("tw", encoding="UTF-8"),
-        default=sys.stdout, help="the file to write the output to (default: write to stdout)")
+    parser.add_argument("outfile", nargs="?", metavar="OUT", default="-",
+        help="the file to write the output to (default: write to stdout)")
     filtergroup = parser.add_argument_group("filtering options")
     filtergroup.add_argument("-S", "--no-supplementary", action="store_true",
         help="ignore supplementary alignments")
@@ -362,7 +359,8 @@ def add_arguments(parser):
 
 
 def run(args):
-    read_bam(args.infile, args.outfile, args.library, args.sequence_format,
-             not args.no_supplementary, args.minimum, args.aggregate_filtered,
-             args.missing_marker_action, args.num_threads)
+    with std_or_open(args.outfile, "wt") as outfile:
+        read_bam(args.infile, outfile, args.library, args.sequence_format,
+                 not args.no_supplementary, args.minimum, args.aggregate_filtered,
+                 args.missing_marker_action, args.num_threads)
 #run

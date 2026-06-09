@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 
 #
-# Copyright (C) 2021 Jerry Hoogenboom
+# Copyright (C) 2026 Netherlands Forensic Institute
 #
 # This file is part of FDSTools, data analysis tools for Massively
 # Parallel Sequencing of forensic DNA markers.
@@ -42,15 +42,17 @@ this file to do their job.  One may use the allelefinder report
 (-R/--report output argument) and the bganalyse tool to get a quick
 overview of what might be wrong.
 """
-from errno import EPIPE
+import logging
 
-from ..lib.cli import add_sequence_format_args, add_input_output_args, get_input_output_files, \
-                      pos_int_arg
-from ..lib.io import get_sample_data, try_write_pipe
+from ..lib.cli import add_bulk_input_output_args, add_sequence_format_args, \
+                      iterate_input_samples, pos_int_arg
+from ..lib.io import parse_flags, read_sample_data_file, std_or_open
 from ..lib.library import get_max_expected_alleles
-from ..lib.seq import SEQ_SPECIAL_VALUES, ensure_sequence_format
+from ..lib.seq import ensure_sequence_format
 
-__version__ = "1.1.0"
+__version__ = "1.1.1"
+
+LOG = logging.getLogger(__name__)
 
 
 # Default values for parameters are specified below.
@@ -80,16 +82,25 @@ _DEF_MAX_NOISE_PCT = 10.0
 _DEF_MAX_NOISY = 0.1
 
 
+def report_or_log(reportfile, message):
+    """Write message to reportfile, or to LOG.warning if reportfile is None."""
+    if reportfile:
+        reportfile.write(message)
+    else:
+        LOG.warning(message.strip().replace("\n", " "))
+#report_or_log
+
+
 def find_alleles(samples_in, outfile, reportfile, min_reads, min_reads_lowest, min_allele_pct,
                  max_noise_pct, max_alleles, max_noisy, seqformat, library):
     outfile.write("\t".join(["sample", "marker", "total", "allele"]) + "\n")
-    get_sample_data(
-        samples_in,
-        lambda tag, data: find_alleles_sample(
+    for tag, infile in samples_in:
+        data = read_sample_data_file(
+            infile, drop_special_seq=True, after_correction=True, combine_strands=True,
+            extra_columns={"flags": True})
+        find_alleles_sample(
             data, outfile, reportfile, tag, min_reads, min_reads_lowest, min_allele_pct,
-            max_noise_pct, max_alleles, max_noisy, seqformat, library),
-        drop_special_seq=True, after_correction=True, combine_strands=True,
-        extra_columns={"flags": True})
+            max_noise_pct, max_alleles, max_noisy, seqformat, library)
 #find_alleles
 
 
@@ -101,7 +112,7 @@ def find_alleles_sample(data, outfile, reportfile, tag, min_reads, min_reads_low
     for marker, sequence in data:
         # Skip lines that have been marked as stutter artefacts.
         try:
-            flags = set(map(str.strip, data[marker, sequence].pop()["flags"].split(",")))
+            flags = parse_flags(data[marker, sequence].pop()["flags"])
             if any(flag.startswith("STUTTER") for flag in flags):
                 continue
         except KeyError:
@@ -135,16 +146,16 @@ def find_alleles_sample(data, outfile, reportfile, tag, min_reads, min_reads_low
     noisy_markers = 0
     for marker in alleles:
         if top_allele[marker] < min_reads:
-            try_write_pipe(reportfile,
-                "Sample %s is not suitable for marker %s:\n"
-                "highest allele has only %i reads\n\n" % (tag, marker, top_allele[marker]))
+            report_or_log(reportfile,
+                f"Sample {tag} is not suitable for marker {marker}:\n"
+                f"highest allele has only {top_allele[marker]} reads\n\n")
             alleles[marker] = {}
             continue
         lowest_allele_reads = min(alleles[marker].values())
         if lowest_allele_reads < min_reads_lowest:
-            try_write_pipe(reportfile,
-                "Sample %s is not suitable for marker %s:\n"
-                "lowest allele has only %i reads\n\n" % (tag, marker, lowest_allele_reads))
+            report_or_log(reportfile,
+                f"Sample {tag} is not suitable for marker {marker}:\n"
+                f"lowest allele has only {lowest_allele_reads} reads\n\n")
             alleles[marker] = {}
             continue
         expect = get_max_expected_alleles(max_alleles, marker, library)
@@ -153,23 +164,24 @@ def find_alleles_sample(data, outfile, reportfile, tag, min_reads, min_reads_low
             top_noise[marker] = [allele_order[expect], alleles[marker][allele_order[expect]]]
             alleles[marker] = {x: alleles[marker][x] for x in allele_order[:expect]}
         if top_noise[marker][1] > top_allele[marker] * (max_noise_pct / 100):
-            try_write_pipe(reportfile,
-                "Sample %s is not suitable for marker %s:\n"
-                "highest non-allele is %.1f%% of the highest allele\n" %
-                (tag, marker, 100 * top_noise[marker][1] / top_allele[marker]))
-            for allele in sorted(alleles[marker], key=lambda x: -alleles[marker][x]):
-                seq = allele if seqformat is None else ensure_sequence_format(
-                        allele, seqformat, library=library, marker=marker)
-                try_write_pipe(reportfile, "%i\tALLELE\t%s\n" % (alleles[marker][allele], seq))
-            seq = top_noise[marker][0] if seqformat is None else ensure_sequence_format(
-                    top_noise[marker][0], seqformat, library=library, marker=marker)
-            try_write_pipe(reportfile, "%i\tNOISE\t%s\n\n" % (top_noise[marker][1], seq))
+            highest_nonallele_pct = 100 * top_noise[marker][1] / top_allele[marker]
+            report_or_log(reportfile,
+                f"Sample {tag} is not suitable for marker {marker}:\n"
+                f"highest non-allele is {highest_nonallele_pct:.1f}% of the highest allele\n")
+            if reportfile:
+                for allele in sorted(alleles[marker], key=lambda x: -alleles[marker][x]):
+                    seq = allele if seqformat is None else ensure_sequence_format(
+                            allele, seqformat, library=library, marker=marker)
+                    reportfile.write(f"{alleles[marker][allele]}\tALLELE\t{seq}\n")
+                seq = top_noise[marker][0] if seqformat is None else ensure_sequence_format(
+                        top_noise[marker][0], seqformat, library=library, marker=marker)
+                reportfile.write(f"{top_noise[marker][1]}\tNOISE\t{seq}\n")
             noisy_markers += 1
             alleles[marker] = {}
 
     # Drop this sample completely if it has too many noisy markers.
     if noisy_markers > (len(alleles) * max_noisy if max_noisy < 1 else max_noisy):
-        try_write_pipe(reportfile, "Sample %s appears to be contaminated!\n\n" % tag)
+        report_or_log(reportfile, f"Sample {tag} appears to be contaminated!\n\n")
         return
 
     # The sample is OK, write out its alleles.
@@ -182,7 +194,10 @@ def find_alleles_sample(data, outfile, reportfile, tag, min_reads, min_reads_low
 
 
 def add_arguments(parser):
-    add_input_output_args(parser, single_in=False, batch_support=False, report_out=True)
+    outputgroup = add_bulk_input_output_args(parser, output_group=True)
+    outputgroup.add_argument("-R", "--report", metavar="FILE",
+        help="file to write a detailed report to (default: log briefly on stderr)")
+
     filtergroup = parser.add_argument_group("filtering options")
     filtergroup.add_argument("-m", "--min-allele-pct", metavar="PCT",
         type=float, default=_DEF_MIN_ALLELE_PCT,
@@ -215,20 +230,10 @@ def add_arguments(parser):
 
 
 def run(args):
-    files = get_input_output_files(args)
-    if not files:
-        raise ValueError("please specify an input file, or pipe in the output of another program")
-
-    try:
-        find_alleles(files[0], files[1], args.report, args.min_reads, args.min_reads_lowest,
+    samples_in = iterate_input_samples(args.infiles, args.tag_expr, args.tag_format)
+    with std_or_open(args.outfile, "wt") as outfile, \
+         std_or_open(args.report, "wt") as reportfile:
+        find_alleles(samples_in, outfile, reportfile, args.min_reads, args.min_reads_lowest,
                      args.min_allele_pct, args.max_noise_pct, args.max_alleles, args.max_noisy,
                      args.sequence_format, args.library)
-    except IOError as e:
-        if e.errno == EPIPE:
-            try:
-                try_write_pipe(args.report, "Stopped early because the output was closed.\n")
-            except:
-                pass
-            return
-        raise
 #run

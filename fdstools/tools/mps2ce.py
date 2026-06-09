@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 
 #
-# Copyright (C) 2023, Netherlands Forensic Institute
+# Copyright (C) 2026 Netherlands Forensic Institute
 #
 # This file is part of FDSTools, data analysis tools for Massively
 # Parallel Sequencing of forensic DNA markers.
@@ -24,15 +24,8 @@
 Convert sample data file to GeneMapper/GeneMarker format,
 so that MPS data can be used with tools developed for CE data.
 """
-
-import sys
-
-from errno import EPIPE
-
-from ..lib.cli import add_input_output_args, \
-                      get_input_output_files, \
-                      add_sequence_format_args
-from ..lib.io import read_sample_data_file, parse_flags
+from ..lib.cli import add_batch_input_output_args, add_sequence_format_args, iterate_samples
+from ..lib.io import parse_flags, read_sample_data_file, std_or_open
 
 __version__ = "1.0.0"
 
@@ -105,28 +98,16 @@ def is_ce_format(seqformat):
 
 
 def read_tssv(library, seqformat, tag, infile):
-    if len(infile) > 1:
-        raise ValueError("multiple input files for sample '%s' specified"
-                         % tag)
-    try:
-        infile = sys.stdin if infile[0] == "-" \
-                           else open(infile[0], "rt", encoding="UTF-8")
-
-        data = {}
-        read_sample_data_file(infile, data, seqformat=seqformat,
-                              library=library,
-                              drop_special_seq=True,
-                              after_correction=True,
-                              combine_strands=True,
-                              extra_columns={"flags": True})
-        return data
-    except IOError as e:
-        if e.errno != EPIPE:
-            raise
-    finally:
-        if type(infile) is not list:
-            infile.close()
-# read_file
+    with std_or_open(infile) as infile:
+        return read_sample_data_file(
+            infile,
+            seqformat=seqformat,
+            library=library,
+            drop_special_seq=True,
+            after_correction=True,
+            combine_strands=True,
+            extra_columns={"flags": True})
+# read_tssv
 
 
 def reformat_data(library, data, ce_format, remove_non_str_markers, alleles_only):
@@ -171,12 +152,12 @@ def reformat_data(library, data, ce_format, remove_non_str_markers, alleles_only
 
 def write_ce_file(data, outfile, sep, max_alleles,
                   pair_columns_by_allele):
-    write_header(outfile, sep, max_alleles, pair_columns_by_allele)
-
-    for tag in data:
-        for marker in data[tag]:
-            write_line(outfile, sep, tag, marker, pair_columns_by_allele,
-                       data[tag][marker], max_alleles)
+    with std_or_open(outfile, "wt") as outfile:
+        write_header(outfile, sep, max_alleles, pair_columns_by_allele)
+        for tag in data:
+            for marker in data[tag]:
+                write_line(outfile, sep, tag, marker, pair_columns_by_allele,
+                           data[tag][marker], max_alleles)
 # write_ce_file
 
 
@@ -208,8 +189,8 @@ def mps2ce_tool(samples, library, sep, alleles_only,
 
 
 def add_arguments(parser):
-    add_input_output_args(parser, single_in=True,
-                          batch_support=True, report_out=False)
+    add_batch_input_output_args(parser)
+
     output_group = parser.add_argument_group("output file format options")
     output_group.add_argument("-s", "--separator", metavar="SEPARATOR",
                               default=_DEF_SEPARATOR,
@@ -230,18 +211,12 @@ def add_arguments(parser):
                               help="if specified, non-STR markers are excluded from "
                                    "the output")
 
-    add_sequence_format_args(parser, default_format=_DEF_SEQ_FORMAT,
-                             ce_format=True)
+    add_sequence_format_args(parser, default_format=_DEF_SEQ_FORMAT, ce_format=True)
 # add_arguments
 
 
 def run(args):
-    samples = list(get_input_output_files(args, single_in=True, batch_support=True))
-
-    if not samples:
-        raise ValueError("please specify an input file, "
-                         "or pipe in the output of another program")
-
+    samples = list(iterate_samples(args, open_files=False))
     mps2ce_tool(samples, args.library, args.separator, args.alleles_only,
                 args.remove_non_str_markers, args.sequence_format,
                 args.pair_columns_by_allele)

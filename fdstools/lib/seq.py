@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 
 #
-# Copyright (C) 2022 Jerry Hoogenboom
+# Copyright (C) 2026 Netherlands Forensic Institute
 #
 # This file is part of FDSTools, data analysis tools for Massively
 # Parallel Sequencing of forensic DNA markers.
@@ -19,7 +19,6 @@
 # You should have received a copy of the GNU General Public License
 # along with FDSTools.  If not, see <http://www.gnu.org/licenses/>.
 #
-
 import re
 
 from strnaming import libsequence
@@ -77,7 +76,7 @@ def detect_sequence_format(seq):
     if PAT_SEQ_ALLELENAME_STR.match(seq) or PAT_SEQ_ALLELENAME_MT.match(seq) \
             or PAT_SEQ_ALLELENAME_SNP.match(seq) or PAT_SEQ_ALLELENAME_MH.match(seq):
         return "allelename"
-    raise ValueError("Unrecognised sequence format")
+    raise ValueError(f"Unrecognised sequence format for '{seq}'")
 #detect_sequence_format
 
 

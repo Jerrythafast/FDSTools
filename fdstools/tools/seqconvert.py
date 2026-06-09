@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 
 #
-# Copyright (C) 2021 Jerry Hoogenboom
+# Copyright (C) 2026 Netherlands Forensic Institute
 #
 # This file is part of FDSTools, data analysis tools for Massively
 # Parallel Sequencing of forensic DNA markers.
@@ -56,18 +56,19 @@ input files; instead it automatically performs any required conversions
 while running any tool.  Explicitly running seqconvert is never a
 necessity; use this tool for your own convenience.
 """
-import sys
+import logging
 
-from errno import EPIPE
 from functools import cache
 
-from ..lib.cli import library_arg, add_input_output_args, get_input_output_files
+from ..lib.cli import add_batch_input_output_args, iterate_samples, library_arg
 from ..lib.io import get_column_ids
 from ..lib.library import BUILTIN_NAMES, CUSTOM_REPORTEDRANGE_OPTION
 from ..lib.seq import SEQ_SPECIAL_VALUES, reverse_complement, ensure_sequence_format, \
                       sequence_range_adjust
 
 __version__ = "1.1.0"
+
+LOG = logging.getLogger(__name__)
 
 
 # Default values for parameters are specified below.
@@ -82,21 +83,33 @@ _DEF_COLNAME_SEQUENCE = "sequence"
 
 
 @cache
-def can_adjust_range(old, new):
+def should_adjust_range(marker, old, new):
     if old.get_option(CUSTOM_REPORTEDRANGE_OPTION) or new.get_option(CUSTOM_REPORTEDRANGE_OPTION):
         # The user specified custom configuration for this marker.
+        LOG.debug("Not adjusting reported range for marker %s because it is based on customized "
+                  "configuration", marker)
         return False
-    if len(old.location) != 3 or len(new.location) != 3 or old.location == new.location:
-        # The marker must be mapped to one consecutive piece of
-        # reference sequence and get remapped to another one.
+    if len(old.location) != 3 or len(new.location) != 3:
+        # The marker must be and remain mapped to one consecutive piece
+        # of reference sequence.
+        LOG.debug("Not adjusting reported range for marker %s because it is not mapped to one "
+                  "contiguous region of the GRCh38 reference sequence", marker)
+        return False
+    if old.location == new.location:
+        # No adjustment is necessary.
         return False
     chr, orig_start, orig_end = old.location
     new_chr, new_start, new_end = new.location
     if new_chr != chr or min(orig_end, new_end) < max(orig_start, new_start):
         # The old and new range should overlap.
+        LOG.debug("Not adjusting reported range for marker %s because it gets remapped to a "
+                  "non-overlapping region of the GRCh38 reference sequence", marker)
         return False
+    if orig_end < new_end or orig_start > new_start:
+        LOG.warning("Sequences for marker %s will be extended with nucleotides from the GRCh38 "
+                    "reference sequence", marker)
     return True
-#can_adjust_range
+#should_adjust_range
 
 
 def convert_sequences(infile, outfile, to_format, library=None, fixed_marker=None,
@@ -137,8 +150,8 @@ def convert_sequences(infile, outfile, to_format, library=None, fixed_marker=Non
             if marker in revcomp_markers:
                 # Reverse-complement the sequence, no range adjustment.
                 seq = reverse_complement(seq)
-            elif library2 != library and can_adjust_range(
-                    library.get_range(marker), library2.get_range(marker)):
+            elif library2 != library and should_adjust_range(
+                    marker, library.get_range(marker), library2.get_range(marker)):
                 # Modify sequence to adjust its reported range.
                 # We can efficiently convert to allele name if requested.
                 if to_format == "allelename":
@@ -160,7 +173,7 @@ def convert_sequences(infile, outfile, to_format, library=None, fixed_marker=Non
 def add_arguments(parser):
     parser.add_argument("sequence-format", metavar="FORMAT", choices=("raw", "tssv", "allelename"),
         help="the format to convert to: one of %(choices)s")
-    add_input_output_args(parser, single_in=True, batch_support=True, report_out=False)
+    add_batch_input_output_args(parser)
     parser.add_argument("-m", "--marker-column", metavar="COLNAME", default=_DEF_COLNAME_MARKER,
         help="name of the column that contains the marker name (default: '%(default)s')")
     parser.add_argument("-a", "--allele-column", metavar="COLNAME", default=_DEF_COLNAME_SEQUENCE,
@@ -182,24 +195,11 @@ def add_arguments(parser):
 
 
 def run(args):
-    gen = get_input_output_files(args, single_in=True, batch_support=True)
-    if not gen:
-        raise ValueError("please specify an input file, or pipe in the output of another program")
-
     library = args.library if args.library is not None else args.library2
     library2 = args.library2 if args.library2 is not None else library
 
-    for tag, infiles, outfile in gen:
-        for infile in infiles:  # Should be just one, but whatever.
-            try:
-                infile = sys.stdin if infile == "-" else open(infile, "rt", encoding="UTF-8")
-                convert_sequences(infile, outfile, getattr(args, "sequence-format"), library,
-                                  args.marker, args.marker_column, args.allele_column,
-                                  args.output_column, library2, args.reverse_complement)
-                if infile != sys.stdin:
-                    infile.close()
-            except IOError as e:
-                if e.errno == EPIPE:
-                    continue
-                raise
+    for tag, infile, outfile in iterate_samples(args):
+        convert_sequences(infile, outfile, getattr(args, "sequence-format"), library,
+                          args.marker, args.marker_column, args.allele_column,
+                          args.output_column, library2, args.reverse_complement)
 #run

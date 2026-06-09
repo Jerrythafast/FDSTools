@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 
 #
-# Copyright (C) 2020 Jerry Hoogenboom
+# Copyright (C) 2026 Netherlands Forensic Institute
 #
 # This file is part of FDSTools, data analysis tools for Massively
 # Parallel Sequencing of forensic DNA markers.
@@ -28,11 +28,9 @@ With this tool, separate data points are produced for each sample, which
 can be visualised using 'fdstools vis bgraw'.  Use bghomstats or
 bgestimate to compute aggregate statistics on noise instead.
 """
-from errno import EPIPE
-
-from ..lib.cli import add_sequence_format_args, add_input_output_args, get_input_output_files, \
-                      add_allele_detection_args, pos_int_arg
-from ..lib.io import get_sample_data, parse_allelelist
+from ..lib.cli import add_bulk_input_output_args, add_sequence_format_args, \
+                      iterate_input_samples, pos_int_arg
+from ..lib.io import parse_allelelist, read_sample_data_file
 
 __version__ = "1.1.0"
 
@@ -135,23 +133,27 @@ def filter_data(data, min_samples, min_sample_pct):
 #filter_data
 
 
-def compute_ratios(samples_in, outfile, allelefile, annotation_column, min_pct, min_abs,
-                   min_samples, min_sample_pct, seqformat, library, marker, combine_strands):
-
+def compute_ratios(samples_in, outfile, allelefile, min_pct, min_abs,
+                   min_samples, min_sample_pct, seqformat, library, only_marker, combine_strands):
     # Parse allele list.
-    allelelist = {} if allelefile is None else parse_allelelist(allelefile,
-        convert=seqformat, library=library)
+    allelelist = {} if allelefile is None else parse_allelelist(
+        allelefile, convert=seqformat, library=library)
 
     # Read sample data.
     data = {}
-    get_sample_data(
-        samples_in,
-        lambda tag, sample_data: add_sample_data(
-            data, sample_data,
-            {m: allelelist[tag][m].pop() for m in allelelist[tag]},
-            min_pct, min_abs, tag, combine_strands),
-        allelelist, annotation_column, seqformat, library, marker, True,
-        drop_special_seq=True)
+    for tag, infile in samples_in:
+        # Fill allelelist using "allele" flag if no allelelist file was given.
+        alleles_out = allelelist.setdefault(tag, {}) if allelefile is None else None
+        if tag not in allelelist:
+            continue  # No need to read this sample.
+        sample_data = read_sample_data_file(infile, seqformat, library, drop_special_seq=True,
+            only_marker=only_marker, alleles_out=alleles_out)
+        sample_alleles = {
+            marker: alleles.pop()
+            for marker, alleles in allelelist[tag].items()
+            if len(alleles) == 1
+            and (only_marker is None or marker == only_marker)}
+        add_sample_data(data, sample_data, sample_alleles, min_pct, min_abs, tag, combine_strands)
 
     # Ensure minimum number of samples per allele and filter
     # insignificant background products.
@@ -184,8 +186,10 @@ def compute_ratios(samples_in, outfile, allelefile, annotation_column, min_pct, 
 
 
 def add_arguments(parser):
-    add_input_output_args(parser)
-    add_allele_detection_args(parser)
+    add_bulk_input_output_args(parser)
+    parser.add_argument("-a", "--allelelist", metavar="ALLELEFILE",
+        help="file containing a list of the true alleles of each sample (e.g., obtained from "
+             "allelefinder); if not given, the 'allele' flag from the 'flags' column is used")
     parser.add_argument("-C", "--combine-strands", action="store_true",
         help="if specified, noise ratios will be calculated for the total number of reads, "
              "instead of separately for either strand")
@@ -213,15 +217,9 @@ def add_arguments(parser):
 
 
 def run(args):
-    files = get_input_output_files(args)
-    if not files:
-        raise ValueError("please specify an input file, or pipe in the output of another program")
-    try:
-        compute_ratios(files[0], files[1], args.allelelist, args.annotation_column, args.min_pct,
+    samples_in = iterate_input_samples(args.infiles, args.tag_expr, args.tag_format)
+    with std_or_open(args.outfile, "wt") as outfile:
+        compute_ratios(samples_in, args.outfile, args.allelelist, args.min_pct,
                        args.min_abs, args.min_samples, args.min_sample_pct,
                        args.sequence_format, args.library, args.marker, args.combine_strands)
-    except IOError as e:
-        if e.errno == EPIPE:
-            return
-        raise
 #run

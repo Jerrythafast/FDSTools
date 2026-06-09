@@ -1,4 +1,3 @@
-from io import TextIOWrapper
 from pathlib import Path
 from unittest.mock import patch
 
@@ -29,8 +28,8 @@ class TestDemultiplex(ComponentTestCase):
         outdir_expected = self.data_dir_root / Tools.DEMULTIPLEX / "default"
         test_data = self.get_test_data("default", ".")
         fdstools_args = [str(barcodes)]
-        with open(infile, "rb") as infile, \
-                patch("sys.stdin", TextIOWrapper(infile)):
+        with open(infile) as infile, \
+                patch("sys.stdin", infile):
             self.componentTest(Tools.DEMULTIPLEX, fdstools_args, test_data)
 
     def test_advanced1_param(self):

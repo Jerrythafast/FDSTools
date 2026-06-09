@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 
 #
-# Copyright (C) 2022 Jerry Hoogenboom
+# Copyright (C) 2026 Netherlands Forensic Institute
 #
 # This file is part of FDSTools, data analysis tools for Massively
 # Parallel Sequencing of forensic DNA markers.
@@ -48,18 +48,19 @@ of one repeat in the second block and one repeat in the ninth block
 ('2-1x9-1').  (If this sequence would have more than 157 reads, it would
 not have been marked.)
 """
-import argparse
+import logging
 import re
-import sys
 
-from errno import EPIPE
+from argparse import ArgumentTypeError
 
-from ..lib.cli import add_sequence_format_args, add_input_output_args, pos_int_arg,\
-                      get_input_output_files
-from ..lib.io import get_column_ids, parse_flags, print_db
+from ..lib.cli import add_batch_input_output_args, add_sequence_format_args, iterate_samples, \
+                      pos_int_arg
+from ..lib.io import get_column_ids, parse_flags
 from ..lib.seq import SEQ_SPECIAL_VALUES, PAT_TSSV_BLOCK, ensure_sequence_format
 
 __version__ = "1.6.1"
+
+LOG = logging.getLogger(__name__)
 
 
 # Default values for parameters are specified below.
@@ -188,8 +189,7 @@ def load_data(infile, library=None):
 
 
 def annotate_alleles(infile, outfile, stutter, min_reads=_DEF_MIN_READS,
-                     min_repeats=_DEF_MIN_REPEATS, min_report=_DEF_MIN_REPORT,
-                     library=None, debug=False):
+                     min_repeats=_DEF_MIN_REPEATS, min_report=_DEF_MIN_REPORT, library=None):
     """
     Read data from the file handle infile and write annotated data to
     file handle outfile.
@@ -244,9 +244,6 @@ def annotate_alleles(infile, outfile, stutter, min_reads=_DEF_MIN_READS,
 
     :arg library: A parsed library file for sequence format conversion
     :type library: dict
-
-    :arg debug: If True, print debug output to stdout.
-    :type debug: bool
     """
     column_names, allelelist = load_data(infile, library)
     if column_names is None:
@@ -289,11 +286,11 @@ def annotate_alleles(infile, outfile, stutter, min_reads=_DEF_MIN_READS,
             if other[colid_sequence] in SEQ_SPECIAL_VALUES:
                 continue
 
-            print_db("%i vs %i" % (i_current + 1, i_other + 1), debug)
+            LOG.debug("%i vs %i", i_current + 1, i_other + 1)
 
             # Must be same number of blocks.
             if len(current[colid_sequence]) != len(other[colid_sequence]):
-                print_db("Different number of blocks", debug)
+                LOG.debug("Different number of blocks")
                 continue
 
             max_occurrence_expected_for_this_other = 1.0
@@ -306,7 +303,7 @@ def annotate_alleles(infile, outfile, stutter, min_reads=_DEF_MIN_READS,
                 # If mutations are needed to get from other to
                 # current, current can't be a stutter of other.
                 if current[colid_sequence][block][0] != other[colid_sequence][block][0]:
-                    print_db("Block %i has different sequence" % (block + 1), debug)
+                    LOG.debug("Block %i has different sequence", block + 1)
                     break
 
                 # See how many times the current block appears more or
@@ -326,9 +323,9 @@ def annotate_alleles(infile, outfile, stutter, min_reads=_DEF_MIN_READS,
                 # bit too low now.
                 if min(current[colid_sequence][block][1],
                      other[colid_sequence][block][1]) < min_repeats:
-                    print_db("Block %i has low-count difference: %i and %i" %
-                        (block + 1, current[colid_sequence][block][1],
-                         other[colid_sequence][block][1]), debug)
+                    LOG.debug("Block %i has low-count difference: %i and %i",
+                        block + 1, current[colid_sequence][block][1],
+                         other[colid_sequence][block][1])
                     break
 
                 # Depending on the repeat count difference, current
@@ -339,8 +336,8 @@ def annotate_alleles(infile, outfile, stutter, min_reads=_DEF_MIN_READS,
                 # If the repeat count difference is highly improbable,
                 # this can't be a stutter.
                 elif delta_repeats not in stutter:
-                    print_db("Improbable difference in number of repeats of "
-                             "block %i: %i" % (block + 1, delta_repeats), debug)
+                    LOG.debug("Improbable difference in number of repeats of block %i: %i",
+                        block + 1, delta_repeats)
                     break
 
                 # Based on this block only, the current sequence could
@@ -349,8 +346,8 @@ def annotate_alleles(infile, outfile, stutter, min_reads=_DEF_MIN_READS,
                 else:
                     differing_blocks[block] = delta_repeats
                     max_occurrence_expected_for_this_other *= stutter[delta_repeats] / 100
-                    print_db("Occurence percentage now %d" %
-                             max_occurrence_expected_for_this_other, debug)
+                    LOG.debug("Occurence percentage now %d",
+                             max_occurrence_expected_for_this_other)
 
             else:
                 # If we end up here, current could very well be a
@@ -359,18 +356,17 @@ def annotate_alleles(infile, outfile, stutter, min_reads=_DEF_MIN_READS,
                 this_expected_stutter_amount = \
                     (max_occurrence_expected_for_this_other * other[colid_total])
                 if this_expected_stutter_amount < min_report:
-                    print_db("Expected occurrence of stutter from %i to %i is only %d" %
-                             (i_other + 1, i_current + 1, this_expected_stutter_amount), debug)
+                    LOG.debug("Expected occurrence of stutter from %i to %i is only %d",
+                             i_other + 1, i_current + 1, this_expected_stutter_amount)
                 else:
                     is_stutter_of[i_other] = (differing_blocks, this_expected_stutter_amount)
                     max_occurrence_expected += this_expected_stutter_amount
-                    print_db("Expected occurence now %d" % max_occurrence_expected, debug)
+                    LOG.debug("Expected occurence now %d", max_occurrence_expected)
 
         # Now we'll just need to check whether it does not appear
         # unrealistically often.
         if current[colid_total] > max_occurrence_expected:
-            print_db("Occurs too often (%i > %d)" %
-                     (current[colid_total], max_occurrence_expected), debug)
+            LOG.debug("Occurs too often (%i > %d)", current[colid_total], max_occurrence_expected)
         else:
             # Stutter peak detected.
             current[colid_flags].append("STUTTER:%s" % ":".join(
@@ -383,9 +379,8 @@ def annotate_alleles(infile, outfile, stutter, min_reads=_DEF_MIN_READS,
                             is_stutter_of[i_other][0][block])
                         for block in is_stutter_of[i_other][0]))
                 for i_other in is_stutter_of))
-            print_db("%2i is a stutter peak of %s; occur=%i, maxOccur=%s" %
-                (i_current + 1, is_stutter_of, current[colid_total],
-                max_occurrence_expected), debug)
+            LOG.debug("%2i is a stutter peak of %s; occur=%i, maxOccur=%s",
+                i_current + 1, is_stutter_of, current[colid_total], max_occurrence_expected)
 
     # Reconstruct the sequence and write out the findings.
     for allele in allelelist:
@@ -422,13 +417,13 @@ def stutter_def_arg(value):
         return {int(y[0]): float(y[1])
                 for y in (x.split(":") for x in value.split(","))}
     except ValueError as e:
-        raise argparse.ArgumentTypeError(
+        raise ArgumentTypeError(
             "invalid stutter definition value: '%s' (%s)" % (value, e))
 #stutter_def_arg
 
 
 def add_arguments(parser):
-    add_input_output_args(parser, single_in=True, batch_support=True, report_out=False)
+    add_batch_input_output_args(parser)
     parser.add_argument("-s", "--stutter", metavar="DEF", type=stutter_def_arg,
         default=_DEF_STUTTERDEF,
         help="Define maximum expected stutter percentages.  The default value "
@@ -456,23 +451,7 @@ def add_arguments(parser):
 
 
 def run(args):
-    gen = get_input_output_files(args, single_in=True, batch_support=True)
-    if not gen:
-        raise ValueError("please specify an input file, or pipe in the output of another program")
-
-    for tag, infiles, outfile in gen:
-        # TODO: Aggregate data from all infiles of each sample.
-        # This tool now only works properly with one infile per sample!
-        if len(infiles) > 1:
-            raise ValueError("multiple input files for sample '%s' specified" % tag)
-        try:
-            infile = sys.stdin if infiles[0] == "-" else open(infiles[0], "rt", encoding="UTF-8")
-            annotate_alleles(infile, outfile, args.stutter, args.min_reads, args.min_repeats,
-                             args.min_report, args.library, args.debug)
-            if infile != sys.stdin:
-                infile.close()
-        except IOError as e:
-            if e.errno == EPIPE:
-                continue
-            raise
+    for tag, infile, outfile in iterate_samples(args):
+        annotate_alleles(infile, outfile, args.stutter, args.min_reads, args.min_repeats,
+                         args.min_report, args.library)
 #run

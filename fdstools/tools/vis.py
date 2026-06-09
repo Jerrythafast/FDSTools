@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 
 #
-# Copyright (C) 2021 Jerry Hoogenboom
+# Copyright (C) 2026 Netherlands Forensic Institute
 #
 # This file is part of FDSTools, data analysis tools for Massively
 # Parallel Sequencing of forensic DNA markers.
@@ -44,16 +44,15 @@ If an input file is specified, the visualisation will be set up
 specifically to visualise the contents of this file.  To this end, the
 entire file contents are embedded in the generated visualisation.
 """
-import argparse
 import json
-import os.path
 import pkgutil
 import re
 import sys
 
-from errno import EPIPE
+from pathlib import Path
 
 from ..lib.cli import pos_int_arg
+from ..lib.io import std_or_open
 
 __version__ = "1.1.1"
 
@@ -252,7 +251,7 @@ def create_visualisation(vistype, infile, infile2, outfile, vega, tidy, min_abs,
     # Add title if available.
     if title is None and infile is not None and infile != sys.stdin:
         try:
-            title = os.path.splitext(os.path.basename(infile.name))[0]
+            title = Path(infile.name).stem
         except AttributeError:
             pass
     if title:
@@ -311,13 +310,12 @@ def add_arguments(parser):
              "stuttermodel; 'bganalyse' to visualise data obtained from "
              "bganalyse; use 'allele' to visualise the allele list obtained "
              "from allelefinder")
-    parser.add_argument("infile", metavar="IN", nargs="?", default=sys.stdin,
+    parser.add_argument("infile", metavar="IN", nargs="?", default="-",
         help="file containing the data to embed in the visualisation file; if "
              "not specified, HTML visualisation files will contain a file "
              "selection control, and Vega visualisation files will load data "
              "from a file called '%s'" % _DEF_DATA_FILENAME)
     parser.add_argument("outfile", metavar="OUT", nargs="?",
-        type=argparse.FileType("tw", encoding="UTF-8"), default=sys.stdout,
         help="file to write output to (default: write to stdout)")
     parser.add_argument("-V", "--vega", action="store_true",
         help="by default, a full-featured HTML file offering an interactive "
@@ -370,7 +368,6 @@ def add_arguments(parser):
         help="[sample] if specified, do not replace filtered sequences with a "
              "per-marker aggregate 'Other sequences' entry")
     visgroup.add_argument("-I", "--input2", dest="infile2", metavar="FILE",
-        type=argparse.FileType("tr", encoding="UTF-8"),
         help="[profile, stuttermodel] raw data points file to overlay on the "
              "background noise profiles or stutter model graphs (as obtained "
              "from bghomraw or the -r/--raw-outfile option of stuttermodel); "
@@ -432,25 +429,26 @@ def add_arguments(parser):
 
 
 def run(args):
-    if args.infile == "-":
-        args.infile = sys.stdin
-    if args.infile != sys.stdin and args.outfile == sys.stdout and not os.path.exists(args.infile):
+    if args.infile != "-" and args.outfile is None and not Path(args.infile).exists():
         # One filename given, and it does not exist.  Assume outfile.
-        args.outfile = open(args.infile, "wt", encoding="UTF-8")
-        args.infile = sys.stdin
-    elif args.outfile.isatty():
-        raise ValueError("Please specify a file name to write the %s to." %
-            ("Vega graph specification (JSON format)" if args.vega else "HTML document"))
+        args.outfile = args.infile
+        args.infile = "-"
+    elif args.outfile is None:
+        args.outfile = "-"
 
-    if args.infile != sys.stdin:
-        # Open the specified input file.
-        args.infile = open(args.infile, "rt", encoding="UTF-8")
-    elif args.infile.isatty():
+    if args.infile == "-" and sys.stdin.isatty():
         # No input given.  Produce an empty visualisation.
         args.infile = None
 
-    try:
-        create_visualisation(args.type, args.infile, args.infile2, args.outfile, args.vega,
+    if args.outfile == "-" and sys.stdout.isatty():
+        # Avoid dumping HTML or JSON on the terminal.
+        raise ValueError("Please specify a file name to write the %s to." %
+            ("Vega graph specification (JSON format)" if args.vega else "HTML document"))
+
+    with std_or_open(args.infile) as infile, \
+         std_or_open(args.infile2) as infile2, \
+         std_or_open(args.outfile, "wt") as outfile:
+        create_visualisation(args.type, infile, infile2, outfile, args.vega,
                              args.tidy, args.min_abs, args.min_pct_of_max, args.min_pct_of_sum,
                              args.min_per_strand, args.bias_threshold, args.bar_width,
                              args.padding, args.marker, args.width, args.height, args.log_scale,
@@ -459,8 +457,4 @@ def run(args):
                              args.allele_min_abs, args.allele_min_pct_of_max,
                              args.allele_min_pct_of_sum, args.allele_min_correction,
                              args.allele_min_recovery, args.allele_min_per_strand)
-    except IOError as e:
-        if e.errno == EPIPE:
-            return
-        raise
 #run

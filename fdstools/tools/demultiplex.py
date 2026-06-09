@@ -49,7 +49,6 @@ log10 likelihood ratio.
 """
 import gzip
 import re
-import sys
 
 from collections import defaultdict
 from contextlib import ExitStack, contextmanager
@@ -59,7 +58,7 @@ from pathlib import Path
 from queue import Queue
 from threading import Thread
 
-from ..lib.cli import pos_int_arg
+from ..lib.cli import pos_int_arg, regex_arg
 from ..lib.io import get_column_ids, parse_read_pairs, std_or_open, write_sequence_record
 from ..lib.seq import PAT_SEQ_RAW, reverse_complement
 
@@ -406,21 +405,23 @@ def add_arguments(parser):
     parser.add_argument("infile2", metavar="R2", nargs="?",
         help="input FastQ or FastA file, possibly GZipped, R2")
     parser.add_argument("-p", "--barcode-pattern", metavar="PATTERN",
-        type=re.compile, default=_DEF_BARCODE_PATTERN,
+        type=regex_arg, default=_DEF_BARCODE_PATTERN,
         help=f"regular expression that extracts, from read headers, the two read barcodes in two "
              f"capturing groups (default: '{_DEF_BARCODE_PATTERN.pattern}')")
     parser.add_argument("-c", "--reverse-right", action="store_true",
         help="if specified, the right barcodes from the TAGS file are reverse-complemented "
              "(does not apply to sequences specified through the *-artefacts options below)")
+
     outputgroup = parser.add_argument_group("output file options")
     outputgroup.add_argument("-D", "--dir", default=Path(), type=Path,
         help="output directory (default: current working directory)")
     outputgroup.add_argument("-t", "--truncate", action="store_true",
         help="if specified, preexisting output files are truncated (default: append output)")
     outputgroup.add_argument("-z", "--zip-level", metavar="LEVEL", type=pos_int_arg, default=6,
-        help="gzip compression level (1 is fastest, 9 is best, default: 6)")
+        help="GZip compression level (1 is fastest, 9 is best, default: 6)")
     outputgroup.add_argument("-s", "--output-scores", action="store_true",
         help="if specified, append scores to output read headers")
+
     filtergroup = parser.add_argument_group("filtering options")
     filtergroup.add_argument("-m", "--matrix", metavar="MATRIX",
         help="scoring matrix to use: a 5x5 (including headers) tab-separated file with first "
@@ -454,11 +455,11 @@ def run(args):
     elif args.matrix in SCORE_MATRICES:
         matrix = SCORE_MATRICES[args.matrix]
     else:
-        with std_or_open(sys.stdin, args.matrix, "rt") as matrixfile:
+        with std_or_open(args.matrix) as matrixfile:
             matrix = read_score_matrix(matrixfile)
 
     # Read barcodes.
-    with std_or_open(sys.stdin, args.barcodefile, "rt") as barcodefile:
+    with std_or_open(args.barcodefile) as barcodefile:
         tags_barcodes = read_barcodes(barcodefile)
 
     # Make it possible to use preexisting Undetermined_S0_*.fastq.gz in
@@ -496,7 +497,7 @@ def run(args):
         # If reverse_right is not wanted, we will be ending up adding the wrong sequences.
         raise ValueError("-P/--filter-idx-phix requires -c/--reverse-right")
 
-    with parse_read_pairs(args.infile1, args.infile2, as_fastq=True) as (_, read_generator), \
+    with parse_read_pairs(args.infile1, args.infile2, as_fastq=True) as read_generator, \
          open_outfiles(tags_barcodes, args.dir, s0_out, args.truncate, args.zip_level) as outfiles:
         demultiplex(read_generator, outfiles, tags_barcodes, args.barcode_pattern,
                     left_artefacts, right_artefacts, matrix, args.filter_idx_phix,
