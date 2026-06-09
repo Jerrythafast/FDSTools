@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 
 #
-# Copyright (C) 2024 Jerry Hoogenboom
+# Copyright (C) 2026 Netherlands Forensic Institute
 #
 # This file is part of FDSTools, data analysis tools for Massively
 # Parallel Sequencing of forensic DNA markers.
@@ -19,14 +19,13 @@
 # You should have received a copy of the GNU General Public License
 # along with FDSTools.  If not, see <http://www.gnu.org/licenses/>.
 #
-
 import re
 import sys
-import textwrap
 
 from configparser import RawConfigParser, MissingSectionHeaderError
 from pathlib import Path
 from strnaming import classes, libstrnaming, libsequence
+from textwrap import TextWrapper
 
 from .seq import PAT_SEQ_RAW, PAT_SEQ_IUPAC
 
@@ -41,13 +40,17 @@ PAT_CHROMOSOME = re.compile(r"^(?:[Cc][Hh][Rr](?:[Oo][Mm])?)?([1-9XYM]|1\d|2[0-2
 PAT_SPLIT = re.compile(r"\s*[, \t]\s*")
 
 # TextWrapper object for formatting help texts in generated INI files.
-INI_COMMENT = textwrap.TextWrapper(width=79, initial_indent="; ",
+INI_COMMENT = TextWrapper(width=79, initial_indent="; ",
     subsequent_indent="; ", break_on_hyphens=False)
 
 # Dict of built-in library files.
 BUILTIN_LIBS = {_.stem: _
     for _ in (Path(__file__).parent.parent / "data" / "libraries").glob("*.ini")}
 BUILTIN_NAMES = tuple(sorted(BUILTIN_LIBS))
+
+# Name of a ReportedRange option which flags it as being based on
+# custom configuration provided by the user, not GRCh38.
+CUSTOM_REPORTEDRANGE_OPTION = "__fdstools_custom__"
 
 
 def add_legacy_range(reported_range_store, marker, prefix, suffix, blocks, options, genome_position=None):
@@ -100,6 +103,10 @@ def add_legacy_range(reported_range_store, marker, prefix, suffix, blocks, optio
             options["flank_length"] = [
                 1, len(options["flanks"][0]),
                 1, len(options["flanks"][1])]
+
+    # Add an entry to options to flag this ReportedRange as being based on
+    # custom configuration provided by the user, not GRCh38.
+    options[CUSTOM_REPORTEDRANGE_OPTION] = True
 
     # Find units and overlong_gap.
     overlong_gap = ""
@@ -319,7 +326,7 @@ def parse_library(handle):
             markers[marker][section_low] = value
 
     # Create a ReportedRangeStore to store data about each marker.
-    reported_range_store = classes.ReportedRangeStore()
+    reported_range_store = classes.ReportedRangeStore(lowercase_inserts=True)
     MUTEX_GROUPS = {
         "explicit STR": ("prefix", "suffix", "repeat", "length_adjust", "block_length"),
         "explicit non-STR": ("no_repeat",),
@@ -425,7 +432,7 @@ def parse_library(handle):
 
 def get_builtin_library(name):
     try:
-        with BUILTIN_LIBS[name].open("rt", encoding="UTF-8") as handle:
+        with BUILTIN_LIBS[name].open("rt", encoding="utf-8") as handle:
             return parse_library(handle)
     except KeyError:
         return None

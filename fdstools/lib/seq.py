@@ -27,10 +27,13 @@ from strnaming import libsequence
 # Patterns that match entire sequences.
 PAT_SEQ_RAW = re.compile("^[ACGT]*$")
 PAT_SEQ_IUPAC = re.compile("^[ACGTUWSMKRYBDHVN]*$")
-PAT_SEQ_TSSV = re.compile(r"^(?:[ACGT]+\(\d+\))*$")
+PAT_SEQ_TSSV = re.compile(
+    r"^(?:[acgt]+[ACGT]*\(\d+\))?(?:[ACGT]+\(\d+\))*(?:[ACGT]*[acgt]+\(\d+\))?$")
 PAT_SEQ_ALLELENAME_STR = re.compile(
-    r"^(?:CE)?-?\d+(?:\.\d+)?_"  # Second line: ACG[n][qA>C]GT[m]
+    r"^(?:CE)?-?\d+(?:\.\d+)?_"
+    r"(?:[acgt]+[ACGT]*\[\d+\])?"  # Next line: ACG[n][qA>C]GT[m]
     r"(?:[ACGT]+\[\d+\]|\[(?: ?\d+(?:\.1)?[ACGT-]+>[ACGT-]+)*\])*"
+    r"(?:[ACGT]*[acgt]+\[\d+\])?"
     r"(?:_[-+]\d+(?:\.1)?(?P<a>(?:(?<=\.1)-)|(?<!\.1)[ACGT]+)>"  # _+3A>
     "(?!(?P=a))(?:[ACGT]+|-))*$")  # Portion of variants after '>'.
 PAT_SEQ_ALLELENAME_SNP = re.compile(
@@ -55,6 +58,7 @@ SEQ_SPECIAL_VALUES = ("No data", "Other sequences")
 reverse_complement = libsequence.reverse_complement
 call_variants = libsequence.call_variants
 mutate_sequence = libsequence.mutate_sequence
+sequence_range_adjust = libsequence.sequence_range_adjust
 PAT_TSSV_BLOCK = libsequence.PAT_TSSV_BLOCK
 PAT_VARIANT_SNP = libsequence.PAT_VARIANT_SNP
 

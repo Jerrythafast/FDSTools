@@ -11,7 +11,7 @@ authors = [
 ]
 dynamic = ["version"]
 requires-python = ">=3.9"
-dependencies = ["numpy", "strnaming~=1.2.0"]
+dependencies = ["numpy", "strnaming~=1.2.1"]
 license = "GPL-3.0-or-later"
 keywords = ["bioinformatics", "forensics", "stutter", "NGS", "MPS", "DNA", "sequencing", "STR"]
 classifiers = [

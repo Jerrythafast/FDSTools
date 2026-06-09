@@ -49,6 +49,7 @@ of one repeat in the second block and one repeat in the ninth block
 not have been marked.)
 """
 import argparse
+import re
 import sys
 
 from errno import EPIPE
@@ -86,6 +87,11 @@ _DEF_MIN_REPEATS = 3
 # this value.
 # This value can be overridden by the -r command line option.
 _DEF_MIN_REPORT = 0.1
+
+# Patterns for capturing lowercase bases at the beginning and end
+# of a TSSV-style allelename.
+PAT_LOWERCASE_BEGIN = re.compile(r"^([acgt]*)")
+PAT_LOWERCASE_END = re.compile(r"([acgt]*)\(\d+\)$")
 
 
 def load_data(infile, library=None):
@@ -145,10 +151,14 @@ def load_data(infile, library=None):
                 columns[colid_sequence], "tssv", marker=marker, library=library)
 
             if columns[colid_sequence] not in SEQ_SPECIAL_VALUES:
+                # Find lowercase bases so we can restore them later.
+                lower_before = PAT_LOWERCASE_BEGIN.search(columns[colid_sequence]).group(1)
+                lower_after = PAT_LOWERCASE_END.search(columns[colid_sequence]).group(1)
+
                 # Split the sequence column into a list of tuples:
                 # [('ACTG', 4), ('CCTC', 12), ...]
                 columns[colid_sequence] = [[x[0], int(x[1])] for x in
-                    PAT_TSSV_BLOCK.findall(columns[colid_sequence])]
+                    PAT_TSSV_BLOCK.findall(columns[colid_sequence].upper())]
 
                 # Repeat unit deduplication (data may contain stuff like
                 # "AGAT(7)AGAT(5)" instead of "AGAT(12)").
@@ -158,6 +168,13 @@ def load_data(infile, library=None):
                         dedup[-1][1] += block[1]
                     else:
                         dedup.append(block)
+
+                # Restore lowercase bases.
+                if lower_before:
+                    dedup[0][0] = lower_before + dedup[0][0][len(lower_before):]
+                if lower_after:
+                    dedup[-1][0] = dedup[-1][0][:-len(lower_after)] + lower_after
+
                 columns[colid_sequence] = dedup
 
         # Add the sequence to the list, including our new column.

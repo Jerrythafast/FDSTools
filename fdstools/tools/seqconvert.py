@@ -59,11 +59,13 @@ necessity; use this tool for your own convenience.
 import sys
 
 from errno import EPIPE
+from functools import cache
 
 from ..lib.cli import library_arg, add_input_output_args, get_input_output_files
 from ..lib.io import get_column_ids
-from ..lib.library import BUILTIN_NAMES
-from ..lib.seq import SEQ_SPECIAL_VALUES, reverse_complement, ensure_sequence_format
+from ..lib.library import BUILTIN_NAMES, CUSTOM_REPORTEDRANGE_OPTION
+from ..lib.seq import SEQ_SPECIAL_VALUES, reverse_complement, ensure_sequence_format, \
+                      sequence_range_adjust
 
 __version__ = "1.1.0"
 
@@ -77,6 +79,24 @@ _DEF_COLNAME_MARKER = "marker"
 # Default name of the column that contains the sequence.
 # This value can be overridden by the -a command line option.
 _DEF_COLNAME_SEQUENCE = "sequence"
+
+
+@cache
+def can_adjust_range(old, new):
+    if old.get_option(CUSTOM_REPORTEDRANGE_OPTION) or new.get_option(CUSTOM_REPORTEDRANGE_OPTION):
+        # The user specified custom configuration for this marker.
+        return False
+    if len(old.location) != 3 or len(new.location) != 3 or old.location == new.location:
+        # The marker must be mapped to one consecutive piece of
+        # reference sequence and get remapped to another one.
+        return False
+    chr, orig_start, orig_end = old.location
+    new_chr, new_start, new_end = new.location
+    if new_chr != chr or min(orig_end, new_end) < max(orig_start, new_start):
+        # The old and new range should overlap.
+        return False
+    return True
+#can_adjust_range
 
 
 def convert_sequences(infile, outfile, to_format, library=None, fixed_marker=None,
@@ -104,17 +124,34 @@ def convert_sequences(infile, outfile, to_format, library=None, fixed_marker=Non
         if colid_sequence_out == -1:
             line.append("")
         marker = line[colid_marker] if fixed_marker is None else fixed_marker
-
         seq = line[colid_sequence]
-        if library2 != library and seq not in SEQ_SPECIAL_VALUES:
-            seq = ensure_sequence_format(seq, "raw", marker=marker, library=library)
-            if marker in revcomp_markers:
-                seq = reverse_complement(seq)
-            # TODO: The current implementation assumes identical
-            # flanking sequences.  Introduce means to shift flanking
-            # sequence in/out of prefix and/or suffix.
 
-        seq = ensure_sequence_format(seq, to_format, marker=marker, library=library2)
+        if seq not in SEQ_SPECIAL_VALUES:
+            from_format = None
+
+            if marker in revcomp_markers or library2 != library:
+                # Need to convert input to raw sequences first.
+                seq = ensure_sequence_format(seq, "raw", marker=marker, library=library)
+                from_format = "raw"
+
+            if marker in revcomp_markers:
+                # Reverse-complement the sequence, no range adjustment.
+                seq = reverse_complement(seq)
+            elif library2 != library and can_adjust_range(
+                    library.get_range(marker), library2.get_range(marker)):
+                # Modify sequence to adjust its reported range.
+                # We can efficiently convert to allele name if requested.
+                if to_format == "allelename":
+                    output_name = True
+                    from_format = "allelename"
+                else:
+                    output_name = False
+                seq = sequence_range_adjust(seq, library.get_range(marker),
+                    library2.get_range(marker), library2, output_name=output_name)
+
+            seq = ensure_sequence_format(
+                seq, to_format, from_format=from_format, marker=marker, library=library2)
+
         line[colid_sequence_out] = seq
         outfile.write("\t".join(line) + "\n")
 #convert_sequences
