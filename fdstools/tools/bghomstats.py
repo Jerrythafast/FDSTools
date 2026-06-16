@@ -32,7 +32,7 @@ markers), it is preferable to use bgestimate instead, since it can
 handle heterozygous samples as well.
 """
 from ..lib.cli import add_bulk_input_output_args, add_sequence_format_args, \
-                      iterate_input_samples, pos_int_arg
+                      iterate_input_samples, pos_int_arg, std_or_open
 from ..lib.io import parse_allelelist, read_sample_data_file
 from ..lib.util import adjust_stats
 
@@ -200,7 +200,7 @@ def add_arguments(parser):
 def run(args):
     samples_in = iterate_input_samples(args.infiles, args.tag_expr, args.tag_format)
     with std_or_open(args.outfile, "wt") as outfile:
-        compute_stats(samples_in, args.outfile, args.allelelist, args.min_pct,
+        compute_stats(samples_in, outfile, args.allelelist, args.min_pct,
                       args.min_abs, args.min_samples, args.min_sample_pct,
                       args.sequence_format, args.library, args.marker, args.combine_strands)
 #run

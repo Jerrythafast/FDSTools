@@ -502,7 +502,7 @@ def generate_profiles(samples_in, outfile, allelefile, min_pct,
         } if marker in start_profiles else {}
 
         # Solve for the profiles of the true alleles.
-        LOG.info("Solving marker %s with n=%i, m=%i, k=%i\n",
+        LOG.info("Solving marker %s with n=%i, m=%i, k=%i",
             marker, p["true alleles"], profile_size,
             len(p["profiles_total" if combine_strands else "profiles_forward"]))
         t0 = time.monotonic()

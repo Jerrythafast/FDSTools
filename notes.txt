@@ -132,7 +132,7 @@ bam2fds         a  B  d    F  h          M           S T  v
 bganalyse       a   c d e fF  h       l m   o p           v
 bgcorrect             d e fF  h i     l  M  o             v
 bgestimate      a   cCd e f g hH      l mMn o pP    sS    v
-bghomraw        a   cCd e fF  h       l mMn o       sS    v
+bghomraw        aA  cCd e fF  h       l mMn o       sS    v
 bghomstats      a   cCd e fF  h       l mMn o       sS    v
 bgmerge               d       h       l     o             v
 bgpredict        A    d       h       lL Mn           t   v

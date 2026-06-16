@@ -29,7 +29,7 @@ can be visualised using 'fdstools vis bgraw'.  Use bghomstats or
 bgestimate to compute aggregate statistics on noise instead.
 """
 from ..lib.cli import add_bulk_input_output_args, add_sequence_format_args, \
-                      iterate_input_samples, pos_int_arg
+                      iterate_input_samples, pos_int_arg, std_or_open
 from ..lib.io import parse_allelelist, read_sample_data_file
 
 __version__ = "1.1.0"
@@ -133,8 +133,8 @@ def filter_data(data, min_samples, min_sample_pct):
 #filter_data
 
 
-def compute_ratios(samples_in, outfile, allelefile, min_pct, min_abs,
-                   min_samples, min_sample_pct, seqformat, library, only_marker, combine_strands):
+def compute_ratios(samples_in, outfile, allelefile, min_pct, min_abs, min_samples, min_sample_pct,
+                   no_alleles, seqformat, library, only_marker, combine_strands):
     # Parse allele list.
     allelelist = {} if allelefile is None else parse_allelelist(
         allelefile, convert=seqformat, library=library)
@@ -167,6 +167,8 @@ def compute_ratios(samples_in, outfile, allelefile, min_pct, min_abs,
             "forward", "reverse", "total", "fnoise", "rnoise", "tnoise")) + "\n")
     for marker, allele in data:
         for sequence in data[marker, allele]:
+            if no_alleles and sequence == allele:
+                continue
             for i, tag in enumerate(data[marker, allele][sequence]["tag"]):
                 if combine_strands:
                     noise = data[marker, allele][sequence]["tnoise"][i]
@@ -211,6 +213,8 @@ def add_arguments(parser):
         help="require this minimum number of samples for each background "
              "product, as a percentage of the number of samples with a "
              "particular true allele (default: %(default)s)")
+    filtergroup.add_argument("-A", "--no-alleles", action="store_true",
+        help="if specified, lines corresponding to the alleles are omitted from the output")
     filtergroup.add_argument("-M", "--marker", metavar="MARKER", help="work only on MARKER")
     add_sequence_format_args(parser, default_format="raw")
 #add_arguments
@@ -219,7 +223,7 @@ def add_arguments(parser):
 def run(args):
     samples_in = iterate_input_samples(args.infiles, args.tag_expr, args.tag_format)
     with std_or_open(args.outfile, "wt") as outfile:
-        compute_ratios(samples_in, args.outfile, args.allelelist, args.min_pct,
-                       args.min_abs, args.min_samples, args.min_sample_pct,
+        compute_ratios(samples_in, outfile, args.allelelist, args.min_pct,
+                       args.min_abs, args.min_samples, args.min_sample_pct, args.no_alleles,
                        args.sequence_format, args.library, args.marker, args.combine_strands)
 #run

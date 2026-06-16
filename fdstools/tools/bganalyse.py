@@ -44,7 +44,7 @@ cleanest x% of samples, for different values of x.
 from math import ceil
 
 from ..lib.cli import add_sequence_format_args, add_bulk_input_output_args, \
-                      iterate_input_samples, comma_separated_arg
+                      comma_separated_arg, iterate_input_samples, std_or_open
 from ..lib.io import parse_allelelist, read_sample_data_file
 
 __version__ = "1.1.0"
@@ -235,6 +235,6 @@ def add_arguments(parser):
 def run(args):
     samples_in = iterate_input_samples(args.infiles, args.tag_expr, args.tag_format)
     with std_or_open(args.outfile, "wt") as outfile:
-        analyse_background(samples_in, args.outfile, args.allelelist, args.sequence_format,
+        analyse_background(samples_in, outfile, args.allelelist, args.sequence_format,
                            args.library, args.mode, args.percentiles)
 #run
