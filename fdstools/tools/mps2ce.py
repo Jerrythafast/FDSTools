@@ -83,7 +83,7 @@ def write_line(outfile, sep, sample, marker,
 
 def is_merge_output(samples):
     if len(samples) > 1:
-        if samples[0][2].name == samples[1][2].name:
+        if samples[0][2] == samples[1][2]:
             return samples[0][2]
     return None
 # is_merge_output
