@@ -11,7 +11,7 @@ class SampleStats(ComponentTestCase):
 
         self.indir = self.data_dir_root / "_references"
         self.infiles = str(self.data_dir_root / "_references" / "F010?.txt")
-
+        self.library = "ForenSeqA"
 
     def test_default_param(self):
         """
@@ -23,6 +23,7 @@ class SampleStats(ComponentTestCase):
         expected_outfile =  self.data_dir_root / Tools.SAMPLESTATS / "samplestats_default_F0107.txt"
 
         fdstools_args = [
+            "--library", self.library
         ]
 
         with open(infile) as infile,\
@@ -41,7 +42,8 @@ class SampleStats(ComponentTestCase):
 
         fdstools_args = [
          str(infile),
-         str(outfile.generated_output)
+         str(outfile.generated_output),
+         "--library", self.library
         ]
 
         test_data = [outfile]
@@ -65,6 +67,7 @@ class SampleStats(ComponentTestCase):
         "--input", str(infile_1), str(infile_2), str(infile_3),
         "--output", str(outfile_F0107.generated_output), str(outfile_F0108.generated_output),
             str(outfile_F0109.generated_output),
+        "--library", self.library
         ]
 
         test_data = [outfile_F0107, outfile_F0108, outfile_F0109]
@@ -83,7 +86,8 @@ class SampleStats(ComponentTestCase):
         "--input", str(infiles),
         "--output", str(outfile_F0107.generated_output), str(outfile_F0108.generated_output),
             str(outfile_F0109.generated_output),
-        "--tag-expr", "(F010.)"
+        "--tag-expr", "(F010.)",
+        "--library", self.library
         ]
 
         test_data = [outfile_F0107, outfile_F0108, outfile_F0109]
@@ -114,7 +118,8 @@ class SampleStats(ComponentTestCase):
             "--min-recovery", "0",
             "--min-allele-reads", "1",
             "--max-nonallele-pct", "90",
-            "--max-alleles", "3"
+            "--max-alleles", "3",
+            "--library", self.library
         ]
 
         test_data = [outfile]
@@ -141,7 +146,8 @@ class SampleStats(ComponentTestCase):
             "--min-recovery", "0",
             "--min-allele-reads", "1",
             "--max-nonallele-pct", "95",
-            "--max-alleles", "3"
+            "--max-alleles", "3",
+            "--library", self.library
         ]
 
         test_data = [outfile]
@@ -167,7 +173,8 @@ class SampleStats(ComponentTestCase):
             "--min-recovery", "0",
             "--min-allele-reads", "1",
             "--max-nonallele-pct", "95",
-            "--max-alleles", "3"
+            "--max-alleles", "3",
+            "--library", self.library
         ]
 
         test_data = [outfile]
@@ -191,7 +198,8 @@ class SampleStats(ComponentTestCase):
             "--min-pct-of-max-filt", "1",
             "--min-pct-of-sum-filt", "1",
             "--min-correction-filt", "0",
-            "--min-recovery-filt", "0"
+            "--min-recovery-filt", "0",
+            "--library", self.library
         ]
 
         test_data = [outfile]
@@ -214,7 +222,44 @@ class SampleStats(ComponentTestCase):
             "--min-pct-of-max-filt", "1",
             "--min-pct-of-sum-filt", "1",
             "--min-correction-filt", "0",
-            "--min-recovery-filt", "0"
+            "--min-recovery-filt", "0",
+            "--library", self.library
+        ]
+
+        test_data = [outfile]
+        self.componentTest(Tools.SAMPLESTATS, fdstools_args, test_data)
+
+    def test_advanced9_param(self):
+        """
+        Input file from findnewalleles with novel tags
+        """
+        infile = self.data_dir_root / Tools.FINDNEWALLELES / "newalleles_default.txt"
+        outfile =  OutputFile(self.data_dir_root / Tools.SAMPLESTATS / "samplestats_adv9.txt")
+
+        fdstools_args = [
+         str(infile),
+         str(outfile.generated_output),
+         "--library", self.library,
+        ]
+
+        test_data = [outfile]
+        self.componentTest(Tools.SAMPLESTATS, fdstools_args, test_data)
+
+
+    def test_advanced10_param(self):
+        """
+        > Input file from findnewalleles with novel tags
+        > --min-pct-of-max-same-size-novel increased from default
+        """
+        infile = self.data_dir_root / Tools.SAMPLESTATS / "newalleles_default_adapted_for_adv-10.txt"
+        outfile =  OutputFile(self.data_dir_root / Tools.SAMPLESTATS / "samplestats_adv10.txt")
+
+        fdstools_args = [
+         str(infile),
+         str(outfile.generated_output),
+         "--library", self.library,
+         "--min-pct-of-max-same-size-novel", '20',
+         "--uncall-alleles"
         ]
 
         test_data = [outfile]

@@ -30,6 +30,7 @@ from ..lib.cli import add_batch_input_output_args, add_sequence_format_args, ite
 from ..lib.io import get_column_ids, parse_flags, std_or_open
 from ..lib.seq import SEQ_SPECIAL_VALUES, ensure_sequence_format
 
+
 __version__ = "1.1.1"
 
 
@@ -64,25 +65,32 @@ def find_new(infile, outfile, known, library, remove_allele_flags):
         return  # Empty file.
     colid_marker, colid_sequence = get_column_ids(column_names, "marker", "sequence")
     colid_flags = get_column_ids(column_names, "flags", optional=True)
+
     if colid_flags is None:
         column_names.append("flags")
-        colid_flags = -1
+
+    colid_flags_line = column_names.index("flags")
 
     outfile.write("\t".join(column_names) + "\n")
     for line in infile:
         line = line.rstrip("\r\n").split("\t")
-        if colid_flags == -1:
-            line.append([])
+        if colid_flags is None:
+            line.insert(colid_flags_line, [])
         else:
-            line[colid_flags] = parse_flags(line[colid_flags])
+            line[colid_flags_line] = parse_flags(line[colid_flags_line])
+
         if line[colid_sequence] not in SEQ_SPECIAL_VALUES:
             marker = line[colid_marker]
-            if marker in known and ensure_sequence_format(line[colid_sequence], "raw",
-                    library=library, marker=marker) not in known[marker]:
-                line[colid_flags].append("novel")
-                if remove_allele_flags and "allele" in line[colid_flags]:
-                    line[colid_flags].remove("allele")
-        line[colid_flags] = ",".join(line[colid_flags])
+            # raw sequence in current line
+            seq = ensure_sequence_format(line[colid_sequence], "raw",
+                                         library=library, marker=marker)
+
+            if marker in known and seq not in known[marker]:
+                line[colid_flags_line].append("novel")
+                if remove_allele_flags and "allele" in line[colid_flags_line]:
+                    line[colid_flags_line].remove("allele")
+
+        line[colid_flags] = ",".join(line[colid_flags_line])
         outfile.write("\t".join(line) + "\n")
 #find_new
 

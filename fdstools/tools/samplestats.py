@@ -84,6 +84,11 @@ _DEF_MIN_PER_STRAND = 0
 # This value can be overridden by the -m command line option.
 _DEF_MIN_PCT_OF_MAX = 2.
 
+# Default minimum percentage of same sized novel reads w.r.t. the highest allele of the
+# marker to mark as allele.
+# This value can be overridden by the -s command line option.
+_DEF_MIN_PCT_OF_MAX_SAME_SIZE_NOVEL = 0.
+
 # Default minimum percentage of reads w.r.t. the marker's total number
 # of reads to mark as allele.
 # This value can be overridden by the -p command line option.
@@ -206,6 +211,7 @@ class SamplestatsSettings:
         settings["*"]["minreads"] = args.min_reads
         settings["*"]["minperstrand"] = args.min_per_strand
         settings["*"]["minpctofmax"] = args.min_pct_of_max
+        settings["*"]["minpctofmaxsamesizenovel"] = args.min_pct_of_max_same_size_novel
         settings["*"]["minpctofsum"] = args.min_pct_of_sum
         settings["*"]["mincorrection"] = args.min_correction
         settings["*"]["minrecovery"] = args.min_recovery
@@ -249,7 +255,7 @@ class SamplestatsSettings:
 
 
     def pass_allele(self, marker, total_reads, pct_of_max, pct_of_sum, correction, recovery,
-                    strands):
+                    strands, flags):
         """Return true if the provided values pass the marker's interpretation options."""
         marker_settings = self.settings[marker]
         return (
@@ -258,7 +264,9 @@ class SamplestatsSettings:
             pct_of_sum >= marker_settings["minpctofsum"] and
             (correction >= marker_settings["mincorrection"] or
             recovery >= marker_settings["minrecovery"]) and
-            min(strands) >= marker_settings["minperstrand"])
+            min(strands) >= marker_settings["minperstrand"] and
+            ("same_size" not in flags or pct_of_max >
+             marker_settings["minpctofmaxsamesizenovel"]))
     #pass_allele
 
 
@@ -400,6 +408,7 @@ def add_pct_columns(row, ci, strand, state, aggr):
 
 def compute_stats(infile, outfile, settings, filter_action, filter_absolute, library,
                   sequence_format, uncall_alleles):
+
     # Check presence of required columns.
     column_names = infile.readline().rstrip("\r\n").split("\t")
     if column_names == [""]:
@@ -450,6 +459,7 @@ def compute_stats(infile, outfile, settings, filter_action, filter_absolute, lib
         max_noise_reads = 0
         alleles = []
         marker_settings = settings.get_marker_settings(marker)
+        known_lengths = set()
         for row in data[marker]:
             # Add various percentage columns to this row.
             for state in ("_corrected", "", "_noise", "_add"):
@@ -485,8 +495,13 @@ def compute_stats(infile, outfile, settings, filter_action, filter_absolute, lib
             if is_aggregate:
                 continue
 
+            seq_raw_length = len(ensure_sequence_format(seq=row[ci["sequence"]], to_format="raw",
+                                                 library=library, marker=marker))
+            if 'novel' in row[ci["flags"]] and seq_raw_length in known_lengths:
+                row[ci["flags"]].append("same_size")
+
             pass_thresholds = marker_settings.pass_allele(
-                total_reads, pct_of_max, pct_of_sum, correction, recovery, strands)
+                total_reads, pct_of_max, pct_of_sum, correction, recovery, strands, row[ci["flags"]])
 
             # Check if this sequence is an allele.
             if (pass_thresholds and ("allele" in row[ci["flags"]] or uncall_alleles != "only")) or (
@@ -502,6 +517,9 @@ def compute_stats(infile, outfile, settings, filter_action, filter_absolute, lib
                 # Check if this sequence is the highest noise.
                 if total_reads > max_noise_reads:
                     max_noise_reads = total_reads
+
+            if "allele" in row[ci["flags"]]:
+                    known_lengths.add(seq_raw_length)
 
         if not marker_settings.pass_locus(allele_reads, max_noise_reads, alleles):
             # Remove allele flags if there are more alleles than expected,
@@ -658,6 +676,10 @@ def add_arguments(parser):
         type=float, default=_DEF_MIN_PCT_OF_MAX,
         help="the minimum percentage of reads w.r.t. the highest allele of "
              "the marker (default: %(default)s)")
+    intergroup.add_argument("-s", "--min-pct-of-max-same-size-novel", metavar="PCT",
+        type=float, default=_DEF_MIN_PCT_OF_MAX_SAME_SIZE_NOVEL,
+        help="the minimum percentage of same sized novel reads w.r.t. the highest allele of the "
+             "marker (default: %(default)s)")
     intergroup.add_argument("-p", "--min-pct-of-sum", metavar="PCT",
         type=float, default=_DEF_MIN_PCT_OF_SUM,
         help="the minimum percentage of reads w.r.t. the marker's total "

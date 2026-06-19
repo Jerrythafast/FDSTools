@@ -4,7 +4,6 @@ from unittest.mock import patch
 from os import listdir
 
 from tests.lib.ComponentTestCase import ComponentTestCase, Tools
-
 from tests.lib.ComponentTestData import OutputFile
 
 

@@ -14,7 +14,8 @@ class TestFindNewAlleles(ComponentTestCase):
 
     def test_default_param(self):
         """
-        Single infile and outfile from standard streams
+        > Single infile and outfile from standard streams
+        -> Output is used as input for component tests of samplestats.
         """
 
         infile = self.data_dir_root / Tools.SAMPLESTATS  / "samplestats_default_F0107.txt"
