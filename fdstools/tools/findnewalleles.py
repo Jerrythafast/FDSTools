@@ -90,7 +90,7 @@ def find_new(infile, outfile, known, library, remove_allele_flags):
                 if remove_allele_flags and "allele" in line[colid_flags_line]:
                     line[colid_flags_line].remove("allele")
 
-        line[colid_flags] = ",".join(line[colid_flags_line])
+        line[colid_flags_line] = ",".join(line[colid_flags_line])
         outfile.write("\t".join(line) + "\n")
 #find_new
 

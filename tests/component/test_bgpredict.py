@@ -126,7 +126,7 @@ class TestBGPredict(ComponentTestCase):
         """
         -> Only in this test the absense of --no-check-lbounds matters!!
         """
-        infile_stuttermodel = self.data_dir_root / Tools.BGPREDICT / "stuttermodel_advanced1_adapted_adv5.txt"
+        infile_stuttermodel = self.data_dir_root / Tools.BGPREDICT / "stuttermodel_adapted_adv5.txt" # adapted from an old version of stuttermodel-adv1
         output = OutputFile(self.data_dir_root / Tools.BGPREDICT / "bgpredict-adv5.txt")
         output.accepted_mismatch_tuple = expected_mismatches()
 

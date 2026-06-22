@@ -25,7 +25,7 @@ class TestBGMerge(ComponentTestCase):
     def test_default_param(self):
         """
         -> Standard streams
-        -> Output is used as input for component tests of seqconvert and bgcorrect.
+        -> Output is used as input for component tests of bgcorrect.
         """
         infile = self.data_dir_root / Tools.BGESTIMATE / "bgestimate_adv2.txt"
         infile_2 = self.data_dir_root / Tools.BGPREDICT / "bgpredict-adv2.txt"

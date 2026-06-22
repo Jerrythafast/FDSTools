@@ -3,7 +3,6 @@ from unittest.mock import patch
 from tests.lib.ComponentTestCase import ComponentTestCase, Tools
 from tests.lib.ComponentTestData import OutputFile
 
-
 class TestFindNewAlleles(ComponentTestCase):
 
     def setUp(self) -> None:
@@ -108,6 +107,23 @@ class TestFindNewAlleles(ComponentTestCase):
             str(outfile.generated_output),
             "--library", self.library,
             "--remove-allele-flags"
+        ]
+
+        test_data = [outfile]
+        self.componentTest(Tools.FINDNEWALLELES, fdstools_args, test_data)
+
+    def test_advanced6_param(self):
+        """
+        no flags column in infile
+        """
+        infile = self.data_dir_root / "_references" / "F0107.txt"
+        outfile = OutputFile(self.data_dir_root / Tools.FINDNEWALLELES / "newalleles_adv6_F0107.txt")
+
+        fdstools_args = [
+            self.known,
+            str(infile),
+            str(outfile.generated_output),
+            "--library", self.library
         ]
 
         test_data = [outfile]

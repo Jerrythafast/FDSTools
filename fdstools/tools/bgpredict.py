@@ -42,19 +42,19 @@ profiles thus obtained are combined with those obtained from bgestimate,
 bgcorrect may subsequently produce 'cleaner' results if the sample
 contained alleles for which no reference samples were available.
 """
+
 import sys
 #import numpy as np  # Only imported when actually running this tool.
 
 from functools import reduce, partial
-from itertools import islice
 from operator import mul
 
 from ..lib.cli import add_sequence_format_args
 from ..lib.io import get_column_ids, std_or_open
-from ..lib.seq import PAT_SEQ_RAW, SEQ_SPECIAL_VALUES, ensure_sequence_format, reverse_complement,\
-                      mutate_sequence, get_repeat_pattern
+from ..lib.seq import PAT_SEQ_RAW, SEQ_SPECIAL_VALUES, ensure_sequence_format, reverse_complement, get_repeat_pattern
+from ..lib.noise import iter_overlapping_repeats, get_all_combinations, get_stutter_sequence
 
-__version__ = "1.1.0"
+__version__ = "1.2.0"
 
 
 # Default values for parameters are specified below.
@@ -69,8 +69,9 @@ _DEF_THRESHOLD_PCT = 0.5
 _DEF_MIN_R2 = 0.
 
 
-def parse_stuttermodel(stuttermodel, min_r2=0, use_all_data=False, combine_strands=False):
-    column_names = stuttermodel.readline().rstrip("\r\n").split("\t")
+def parse_stuttermodel(instream, min_r2=0, use_all_data=False, combine_strands=False):
+    """Read stutter models from the given input stream."""
+    column_names = instream.readline().rstrip("\r\n").split("\t")
     if column_names == [""]:
         return {}  # Empty file.
     (colid_unit, colid_marker, colid_stutter, colid_lbound, colid_direction,
@@ -90,7 +91,7 @@ def parse_stuttermodel(stuttermodel, min_r2=0, use_all_data=False, combine_stran
 
     repeat_patterns = {}
     model = {}
-    for line in stuttermodel:
+    for line in instream:
         line = line.rstrip("\r\n").split("\t")
         marker = line[colid_marker]
         seq = line[colid_unit]
@@ -142,16 +143,6 @@ def parse_stuttermodel(stuttermodel, min_r2=0, use_all_data=False, combine_stran
     return model
 #parse_stuttermodel
 
-def iter_overlapping_repeats(allele, repeat_pattern, unit_length):
-    """Similar to repeat_pattern.finditer(allele) but allowing overlap."""
-    pos = 0
-    while True:
-        match = repeat_pattern.search(allele, pos)
-        if not match:
-            return
-        yield match
-        pos = match.end() - unit_length + 1
-#iter_overlapping_repeats
 
 def adjust_lbound(model):
     """ Increase lower bounds of the stutter models for repeat units that
@@ -233,31 +224,6 @@ def get_all_stutters(allele, model, min_pct):
 #get_all_stutters
 
 
-def get_all_combinations(stutters, combinations=None, appendto=None, start=0):
-    """Return a list of all compatible combinations of stutters."""
-    if combinations is None:
-        combinations = []
-    if appendto is None:
-        appendto = []
-    for i, stutter_i in enumerate(islice(stutters, start, None), start):
-        if appendto:
-            prev_stutter = appendto[-1]
-            if stutter_i["end"] <= prev_stutter["end"]:
-                continue  # Engulfed in or same repeat stretch as previous.
-            if prev_stutter["fold"] < 0 and -prev_stutter["fold"] * len(prev_stutter["seq"]) > \
-                    stutter_i["start"] - prev_stutter["start"]:
-                continue  # Minus stutter of prev overlaps next stretch.
-            if stutter_i["fold"] < 0 and -stutter_i["fold"] * len(stutter_i["seq"]) > \
-                    stutter_i["end"] - prev_stutter["end"]:
-                continue  # Minus stutter overlaps prev stretch.
-        withnewelement = [x for x in appendto]
-        withnewelement.append(stutter_i)
-        combinations.append(withnewelement)
-        get_all_combinations(stutters, combinations, withnewelement, i + 1)
-    return combinations
-#get_all_combinations
-
-
 def get_relative_frequencies(stutters, combinations):
     """Compute expected amount of each combination of stutters."""
     A = np.array([reduce(mul, (s["amount"] for s in combo)) for combo in combinations])
@@ -275,6 +241,38 @@ def get_relative_frequencies(stutters, combinations):
             break
     return A.tolist()
 #get_relative_frequencies
+
+
+def predict_noise(allele, model, strands, min_pct):
+    """Predict noise for one allele using the given model."""
+    noise_profile = {"sequences": [allele]}
+    for strand in strands:
+        noise_profile[strand] = [100]
+    for strand in strands:
+        if strand == "reverse":
+            allele = reverse_complement(allele)
+        stutters = get_all_stutters(allele, model, min_pct)
+        if not stutters:
+            continue
+        combinations = list(get_all_combinations(stutters, indexes_out=False, minlen=1, maxlen=100))
+        frequencies = get_relative_frequencies(stutters, combinations)
+        for i in range(len(combinations)):
+            freq = round(frequencies[i] * 100., 3)
+            if not freq:
+                continue
+            sequence =  get_stutter_sequence(allele, combinations[i])
+            if strand == "reverse":
+                sequence = reverse_complement(sequence)
+            try:
+                i = noise_profile["sequences"].index(sequence)
+            except ValueError:
+                noise_profile["sequences"].append(sequence)
+                for strandx in strands:
+                    noise_profile[strandx].append(0)
+                i = -1
+            noise_profile[strand][i] = freq
+    return noise_profile
+#predict_noise
 
 
 def predict_profiles(stuttermodel, seqsfile, outfile, default_marker, use_all_data, min_pct,
@@ -319,42 +317,12 @@ def predict_profiles(stuttermodel, seqsfile, outfile, default_marker, use_all_da
         allele = ensure_sequence_format(line[colid_sequence], "raw",
             library=library, marker=marker)
 
-        p = {"sequences": [allele]}
-        for strand in strands:
-            p[strand] = [100]
-        for strand in strands:
-            if strand == "reverse":
-                allele = reverse_complement(allele)
-            stutters = get_all_stutters(allele, model[marker], min_pct)
-            if not stutters:
+        profile = predict_noise(allele, model[marker], strands, min_pct)
+        for i in range(len(profile["sequences"])):
+            if all(profile[strand][i] < min_pct for strand in strands):
                 continue
-            combinations = get_all_combinations(stutters)
-            frequencies = get_relative_frequencies(stutters, combinations)
-            for i in range(len(combinations)):
-                freq = round(frequencies[i] * 100., 3)
-                if not freq:
-                    continue
-                sequence = mutate_sequence(allele, [
-                    "%+i.1->%s" % (s["end"], allele[s["end"] - s["stutlen"]: s ["end"]])
-                    if s["fold"] > 0 else "%+i%s>-" % (
-                        s["end"] - s["stutlen"] + 1,
-                        allele[s["end"] - s["stutlen"] : s["end"]])
-                    for s in combinations[i]])
-                if strand == "reverse":
-                    sequence = reverse_complement(sequence)
-                try:
-                    i = p["sequences"].index(sequence)
-                except ValueError:
-                    p["sequences"].append(sequence)
-                    for strandx in strands:
-                        p[strandx].append(0)
-                    i = -1
-                p[strand][i] = freq
-        for i in range(len(p["sequences"])):
-            if all(p[strand][i] < min_pct for strand in strands):
-                continue
-            outfile.write("\t".join((marker, p["sequences"][0], p["sequences"][i]) +
-                tuple(str(p[strand][i]) for strand in strands) + ("bgpredict",)) + "\n")
+            outfile.write("\t".join((marker, profile["sequences"][0], profile["sequences"][i]) +
+                tuple(str(profile[strand][i]) for strand in strands) + ("bgpredict",)) + "\n")
 #predict_profiles
 
 

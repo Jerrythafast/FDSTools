@@ -20,8 +20,9 @@
 # along with FDSTools.  If not, see <http://www.gnu.org/licenses/>.
 #
 
+from itertools import islice
 from .io import get_column_ids
-from .seq import ensure_sequence_format
+from .seq import ensure_sequence_format, mutate_sequence
 
 
 def load_profiles(profilefile, library=None):
@@ -67,3 +68,52 @@ def load_profiles(profilefile, library=None):
 
     return profiles
 #load_profiles
+
+
+def iter_overlapping_repeats(allele, repeat_pattern, unit_length):
+    """Similar to repeat_pattern.finditer(allele) but allowing overlap."""
+    pos = 0
+    while True:
+        match = repeat_pattern.search(allele, pos)
+        if not match:
+            return
+        yield match
+        pos = match.end() - unit_length + 1
+#iter_overlapping_repeats
+
+
+def get_all_combinations(stutters, minlen, maxlen, indexes_out=False, appendto=None, start=0):
+    """
+    Generate all compatible combinations of stutters.
+    The input stutters must be sorted by increasing (start, end).
+    """
+    if appendto is None:
+        appendto = []
+    for i, stutter_i in enumerate(islice(stutters, start, None), start):
+        if appendto:
+            prev_stutter = stutters[appendto[-1]] if indexes_out else appendto[-1]
+            if stutter_i["end"] <= prev_stutter["end"]:
+                continue  # Engulfed in or same repeat stretch as previous.
+            if prev_stutter["fold"] < 0 and -prev_stutter["fold"] * len(prev_stutter["seq"]) > \
+                    stutter_i["start"] - prev_stutter["start"]:
+                continue  # Minus stutter of prev overlaps next stretch.
+            if stutter_i["fold"] < 0 and -stutter_i["fold"] * len(stutter_i["seq"]) > \
+                    stutter_i["end"] - prev_stutter["end"]:
+                continue  # Minus stutter overlaps prev stretch.
+        withnewelement = [x for x in appendto]
+        withnewelement.append(i if indexes_out else stutter_i)
+        if len(withnewelement) >= minlen:
+            yield tuple(withnewelement)
+        if len(withnewelement) < maxlen:
+            yield from get_all_combinations(stutters, minlen, maxlen, indexes_out, withnewelement, i + 1)
+#get_all_combinations
+
+
+def get_stutter_sequence(allele, stutter_combination):
+    return mutate_sequence(allele, [
+        "%+i.1->%s" % (s["end"], allele[s["end"] - s["stutlen"] : s["end"]])
+        if s["fold"] > 0 else "%+i%s>-" % (
+            s["end"] - s["stutlen"] + 1,
+            allele[s["end"] - s["stutlen"] : s["end"]])
+        for s in stutter_combination])
+#get_stutter_sequence
