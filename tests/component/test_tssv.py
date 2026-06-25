@@ -186,7 +186,8 @@ class TestTssv(ComponentTestCase):
             str(output.generated_output),
             "--report", str(report.generated_output),
             "--minimum", "1",
-            "--filter-ambiguous"
+            "--filter-ambiguous",
+            "--output-qualities"
         ]
 
         test_data = [output, report]
