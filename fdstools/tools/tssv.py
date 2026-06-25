@@ -716,7 +716,7 @@ def run(args):
          std_or_open(args.report, "wt") as reportfile, \
          open_outdir(args.dir, args.library.get_ranges(), file_format, args.zip_level) as outdir:
 
-        if args.output_qualities or args.distrust_base_quality and ".fq" not in file_format:
+        if (args.output_qualities or args.distrust_base_quality) and ".fq" not in file_format:
             raise ValueError(
                 f"Basecall quality values are not available in {file_format} input file")
 
