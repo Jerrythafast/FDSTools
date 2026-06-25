@@ -261,10 +261,10 @@ def process_paired_read(segment, start, end, pair_cache):
     if ref_start_max > ref_end_min:
         # The read pair doesn't overlap (and doesn't touch).
         # We can treat the reads separately.
-        if segment.reference_start <= start and segment.reference_end >= end:
+        if ref_start1 <= start and ref_end1 >= end:
             # R1 includes this marker.
             yield clip_segment_to_range(segment, start, end), segment.is_reverse
-        if mate.reference_start <= start and mate.reference_end >= end:
+        if ref_start2 <= start and ref_end2 >= end:
             # R2 includes this marker.
             # Deliberately reporting the reverseness of R1.
             yield clip_segment_to_range(mate, start, end), segment.is_reverse
