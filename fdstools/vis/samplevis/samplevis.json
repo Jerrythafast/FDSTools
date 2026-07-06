@@ -28,7 +28,7 @@
       "init": 2
     },
     {
-      "name": "allele_amplitude_pct_threshold_samesize_novel",
+      "name": "allele_amplitude_pct_threshold_same_size_novel",
       "init": 0
     },
     {
@@ -467,7 +467,7 @@
       "transform": [
         {
           "type": "filter",
-          "test": "datum.total_added >= allele_amplitude_threshold && datum.pct_of_max >= allele_amplitude_pct_threshold && (!test(/(^|,) *novel *(,|$)/, datum.flags) || !test(/(^|,) *same_size *(,|$)/, datum.flags) || datum.pct_of_max >= allele_amplitude_pct_threshold_samesize_novel) && datum.pct_of_sum >= allele_amplitude_markerpct_threshold && ((datum.total_added/datum.total*100-100) >= allele_correction_threshold || (datum.total_add/datum.total_added*100) >= allele_recovery_threshold) && min(datum.forward_added, datum.reverse_added) >= allele_orientation_threshold"
+          "test": "datum.total_added >= allele_amplitude_threshold && datum.pct_of_max >= allele_amplitude_pct_threshold && (!test(/(^|,) *novel *(,|$)/, datum.flags) || !test(/(^|,) *same_size *(,|$)/, datum.flags) || datum.pct_of_max >= allele_amplitude_pct_threshold_same_size_novel) && datum.pct_of_sum >= allele_amplitude_markerpct_threshold && ((datum.total_added/datum.total*100-100) >= allele_correction_threshold || (datum.total_add/datum.total_added*100) >= allele_recovery_threshold) && min(datum.forward_added, datum.reverse_added) >= allele_orientation_threshold"
         }
       ],
       "modify": [

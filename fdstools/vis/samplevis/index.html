@@ -1681,6 +1681,13 @@ function onLoadSpec(has_data, no_file_chooser){
         setSignalValue("allele_amplitude_pct_threshold", value);
         autoSelectAlleles();
     }, false);
+    document.getElementById("minSa").addEventListener('change', function(){
+        var value = parseFloat(this.value);
+        if(isNaN(value))
+            return;
+        setSignalValue("allele_amplitude_pct_threshold_same_size_novel", value);
+        autoSelectAlleles();
+    }, false);
     document.getElementById("minTa").addEventListener('change', function(){
         var value = parseFloat(this.value);
         if(isNaN(value))
@@ -1753,6 +1760,7 @@ function onLoadSpec(has_data, no_file_chooser){
     document.getElementById("minO").value = getSignalValue("orientation_threshold");
     document.getElementById("minNa").value = getSignalValue("allele_amplitude_threshold");
     document.getElementById("minPa").value = getSignalValue("allele_amplitude_pct_threshold");
+    document.getElementById("minSa").value = getSignalValue("allele_amplitude_pct_threshold_same_size_novel");
     document.getElementById("minTa").value = getSignalValue("allele_amplitude_markerpct_threshold");
     document.getElementById("minCa").value = getSignalValue("allele_correction_threshold");
     document.getElementById("minAa").value = getSignalValue("allele_recovery_threshold");
