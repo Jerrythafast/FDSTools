@@ -2,7 +2,7 @@
 <html>
 <head>
     <!--
-    # Copyright (C) 2021 Jerry Hoogenboom
+    # Copyright (C) 2026 Netherlands Forensic Institute
     #
     # This file is part of FDSTools, data analysis tools for Massively
     # Parallel Sequencing of forensic DNA markers.
@@ -24,7 +24,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>Sample Visualisation - FDSTools</title>
-    <!-- VERSION 2.3.0 -->
+    <!-- VERSION 2.3.1 -->
     <!-- BEGIN_LIBRARIES -->
     <script src="https://vega.github.io/vega-editor/vendor/d3.min.js"></script>
     <script src="https://vega.github.io/vega/vega.min.js"></script>
@@ -560,6 +560,14 @@
                 </tr>
                 <tr>
                     <td><label><input type="text" value="2" id="minPa" size="3" class="num">% of highest allele per marker</label></td>
+                </tr>
+                <tr>
+                    <td>
+                        <label>
+                            <input type="text" value="0" id="minSa" size="3" class="num">% of highest (Same-size Novel)
+                            <span class="help" title="Only applies to sequences marked as both 'Novel' and 'Same-size'">?</span>
+                        </label>
+                    </td>
                 </tr>
                 <tr>
                     <td><label><input type="text" value="1.5" id="minTa" size="3" class="num">% of the marker's total reads</label></td>
@@ -1421,6 +1429,10 @@ function updateTable(i){
                     notes.push("Novel");
                     warn |= 4;
                 }
+                if(flag == "same_size"){
+                    notes.push("Same-size");
+                    warn |= 4;
+                }
                 else if(flag.startsWith("STUTTER:")){
                     notes.push("Stutter-marked");
                     warn |= 4;
@@ -1669,6 +1681,13 @@ function onLoadSpec(has_data, no_file_chooser){
         setSignalValue("allele_amplitude_pct_threshold", value);
         autoSelectAlleles();
     }, false);
+    document.getElementById("minSa").addEventListener('change', function(){
+        var value = parseFloat(this.value);
+        if(isNaN(value))
+            return;
+        setSignalValue("allele_amplitude_pct_threshold_same_size_novel", value);
+        autoSelectAlleles();
+    }, false);
     document.getElementById("minTa").addEventListener('change', function(){
         var value = parseFloat(this.value);
         if(isNaN(value))
@@ -1741,6 +1760,7 @@ function onLoadSpec(has_data, no_file_chooser){
     document.getElementById("minO").value = getSignalValue("orientation_threshold");
     document.getElementById("minNa").value = getSignalValue("allele_amplitude_threshold");
     document.getElementById("minPa").value = getSignalValue("allele_amplitude_pct_threshold");
+    document.getElementById("minSa").value = getSignalValue("allele_amplitude_pct_threshold_same_size_novel");
     document.getElementById("minTa").value = getSignalValue("allele_amplitude_markerpct_threshold");
     document.getElementById("minCa").value = getSignalValue("allele_correction_threshold");
     document.getElementById("minAa").value = getSignalValue("allele_recovery_threshold");

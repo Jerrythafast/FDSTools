@@ -78,26 +78,31 @@ _DEF_THRESHOLD_PCT_OF_SUM = 0.0
 _DEF_THRESHOLD_ORIENTATION = 0
 
 # Default minimum number of reads to mark as allele in Samplevis.
-# This value can be overridden by the -n command line option.
+# This value can be overridden by the -N command line option.
 _DEF_THRESHOLD_ABS_ALLELE = 30
 
 # Default minimum percentage of reads w.r.t. the highest allele of the
 # marker to mark as allele in Samplevis.
-# This value can be overridden by the -m command line option.
+# This value can be overridden by the -X command line option.
 _DEF_THRESHOLD_PCT_OF_MAX_ALLELE = 2.
+
+# Default minimum percentage of reads w.r.t. the highest allele of the
+# marker to mark as allele in Samplevis, if flagged same_size and novel.
+# This value can be overridden by the -W command line option.
+_DEF_THRESHOLD_PCT_OF_MAX_ALLELE_SAME_SIZE_NOVEL = 0.
 
 # Default minimum percentage of reads w.r.t. the marker's total number
 # of reads to mark as allele in Samplevis.
-# This value can be overridden by the -p command line option.
+# This value can be overridden by the -Q command line option.
 _DEF_THRESHOLD_PCT_OF_SUM_ALLELE = 1.5
 
 # Default minimum percentage of correction to mark as allele in Samplevis.
-# This value can be overridden by the -c command line option.
+# This value can be overridden by the -C command line option.
 _DEF_THRESHOLD_CORRECTION_ALLELE = 0
 
 # Default minimum number of recovered reads as a percentage of the
 # number of reads after correction to mark as allele in Samplevis.
-# This value can be overridden by the -r command line option.
+# This value can be overridden by the -Y command line option.
 _DEF_THRESHOLD_RECOVERY_ALLELE = 0
 
 # Default minimum number of reads per strand to mark as allele in Samplevis.
@@ -186,7 +191,8 @@ def create_visualisation(vistype, infile, infile2, outfile, vega, tidy, min_abs,
                          min_pct_of_sum, min_per_strand, bias_threshold, bar_width, padding,
                          marker, width, height, log_scale, repeat_unit, no_alldata, no_aggregate,
                          no_ce_length_sort, max_seq_len, jitter, title, allele_min_abs,
-                         allele_min_pct_of_max, allele_min_pct_of_sum, allele_min_correction,
+                         allele_min_pct_of_max, allele_min_pct_of_max_same_size_novel,
+                         allele_min_pct_of_sum, allele_min_correction,
                          allele_min_recovery, allele_min_per_strand):
     # Get graph spec.
     spec = json.loads(
@@ -234,6 +240,8 @@ def create_visualisation(vistype, infile, infile2, outfile, vega, tidy, min_abs,
         set_signal_value(spec, "max_seq_len", max_seq_len)
         set_signal_value(spec, "allele_amplitude_threshold", allele_min_abs)
         set_signal_value(spec, "allele_amplitude_pct_threshold", allele_min_pct_of_max)
+        set_signal_value(spec, "allele_amplitude_pct_threshold_same_size_novel",
+            allele_min_pct_of_max_same_size_novel)
         set_signal_value(spec, "allele_amplitude_markerpct_threshold", allele_min_pct_of_sum)
         set_signal_value(spec, "allele_correction_threshold", allele_min_correction)
         set_signal_value(spec, "allele_recovery_threshold", allele_min_recovery)
@@ -409,6 +417,10 @@ def add_arguments(parser):
         type=float, default=_DEF_THRESHOLD_PCT_OF_MAX_ALLELE,
         help="the minimum percentage of reads w.r.t. the highest allele of "
              "the marker (default: %(default)s)")
+    allelegroup.add_argument("-W", "--allele-min-pct-of-max-same-size-novel", metavar="PCT",
+        type=float, default=_DEF_THRESHOLD_PCT_OF_MAX_ALLELE_SAME_SIZE_NOVEL,
+        help="the minimum percentage of same sized novel reads w.r.t. the highest allele of the "
+             "marker (default: %(default)s)")
     allelegroup.add_argument("-Q", "--allele-min-pct-of-sum", metavar="PCT",
         type=float, default=_DEF_THRESHOLD_PCT_OF_SUM_ALLELE,
         help="the minimum percentage of reads w.r.t. the marker's total "
@@ -455,6 +467,7 @@ def run(args):
                              args.repeat_unit, args.no_alldata, args.no_aggregate,
                              args.no_ce_length_sort, args.max_seq_len, args.jitter, args.title,
                              args.allele_min_abs, args.allele_min_pct_of_max,
+                             args.allele_min_pct_of_max_same_size_novel,
                              args.allele_min_pct_of_sum, args.allele_min_correction,
                              args.allele_min_recovery, args.allele_min_per_strand)
 #run
