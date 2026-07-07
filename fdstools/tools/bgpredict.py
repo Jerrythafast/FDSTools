@@ -177,12 +177,14 @@ def adjust_lbound(model):
                     model[marker][seq, fold]['lbound'] = longest_match_length + 1
 #adapt_lbound
 
+
 def bounded_poly(x, lbound, coefs):
     """Nonnegative polynomial with fixed lower bound."""
     if x < lbound:
         return 0.
     return max(0., sum(coef * x ** power for power, coef in enumerate(coefs)))
 #bounded_poly
+
 
 def make_polynomials(model):
     for marker_models in model.values():
@@ -191,6 +193,7 @@ def make_polynomials(model):
                 bounded_poly, lbound=this_model["lbound"], coefs=this_model["coefs"])
 #make_polynomials
 
+
 def get_all_stutters(allele, model, min_pct):
     """Return a sorted list of all possible stutters."""
     stutters = []
@@ -198,10 +201,9 @@ def get_all_stutters(allele, model, min_pct):
         unit_length = len(seq)
         stutlen = unit_length * abs(stutter_fold)
 
-        # Require at least 3 full repeats minus 2 bases, because the
-        # pattern returned by get_repeat_pattern() is not guaranteed
-        # to report all repeats shorter than this.
-        minlen = max(unit_length * 3 - 2, stutlen)
+        # We want at least one and a half repeat.
+        # Also require at least 4 bases to avoid an excessive amount of zeros.
+        minlen = max(stutlen, (unit_length * 3 + 1) // 2, 4)
 
         # Generate all stutter variants for this sequence.
         for m in iter_overlapping_repeats(allele, model[seq, stutter_fold]["pat"], unit_length):

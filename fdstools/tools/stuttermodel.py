@@ -27,10 +27,10 @@ The model obtained from this tool can be used by bgpredict to predict
 background noise profiles of alleles for which no reference samples are
 available.
 """
-
-from  itertools import combinations
 import re
 #import numpy as np  # Only imported when actually running this tool.
+
+from itertools import combinations
 
 from ..lib.noise import iter_overlapping_repeats, get_all_combinations, get_stutter_sequence
 from ..lib.cli import add_bulk_input_output_args, add_sequence_format_args, \
@@ -232,6 +232,11 @@ def filter_data(data, min_samples):
 def find_stutter_positions(allele, patterns):
     for seq in sorted(patterns, key=lambda seq: (len(seq), seq)):
         unit_length = len(seq)
+
+        # We want at least one and a half repeat.
+        # Also require at least 4 bases to avoid an excessive amount of zeros.
+        minlen = max((unit_length * 3 + 1) // 2, 4)
+
         positions = ((m, i == 1)
             for i, pattern in enumerate(patterns[seq])  # One or two.
             for m in iter_overlapping_repeats(allele, pattern, unit_length))
@@ -239,17 +244,13 @@ def find_stutter_positions(allele, patterns):
             start = m.start()
             end = m.end()
             length = end - start
-
-            # Require at least 3 full repeats, because the pattern
-            # returned by get_repeat_pattern() is not guaranteed to
-            # report all repeats shorter than 3 repeats minus 2 nt.
-            if length >= unit_length * 3:
+            if length >= minlen:
                 yield {
                     "seq": seq,
                     "start": start,
                     "end": end,
-                    "length": length,  # revcomp is not yet used, but it should be more efficient to reverse logic and then we can use all.
-                    "revcomp": is_reverse_complement}
+                    "length": length,
+                    "is_revcomp": is_reverse_complement}
 #find_stutter_positions
 
 
@@ -263,32 +264,33 @@ def get_all_existing_stutters(data, patterns):
 
 
 def get_all_existing_stutters_of_allele(data, patterns, marker, allele, samples):
-    stutters1 = sorted(
-        get_existing_stutters(data, patterns, marker, allele, samples),
+    stutter_positions = list(find_stutter_positions(allele, patterns))
+    observed_seqs = {seqs for sample in samples for seqs in data["samples"][sample, marker]}
+    all_stutters = sorted(
+        get_existing_stutters(allele, stutter_positions, observed_seqs),
         key=lambda s: (s[1][0]["start"], s[1][0]["end"]))
-    all_stutters = dict(stutters1)
-    stutters = [s[1][0] for s in stutters1] # TODO: It's a bit icky that I need to unpack it again here
+    stutters = [s[1][0] for s in all_stutters] # TODO: It's a bit icky that I need to unpack it again here
 
     stuttersn = None
     n = 1
     while True:
-        stuttersn = get_possible_larger_combinations(data, patterns, marker, allele, samples, stutters, stuttersn, n)
+        stuttersn = get_possible_larger_combinations(allele, observed_seqs, stutters, stuttersn, n)
         if not stuttersn:
             break
-        all_stutters.update(stuttersn.values())
+        all_stutters.extend(stuttersn.values())
         n += 1
-    return all_stutters
+    return stutter_positions, all_stutters
 #get_all_existing_stutters_of_allele
 
 
-def get_existing_stutters(data, patterns, marker, allele, samples):
+def get_existing_stutters(allele, stutter_positions, observed_seqs):
     """
     Create a list of (stutter_seq, [stutter]) pairs for all possible
     stutters of the given allele that exist in any of the samples with
     this allele.
     """
     stutters = []
-    for stutterpos in find_stutter_positions(allele, patterns):
+    for stutterpos in stutter_positions:
         unit_length = len(stutterpos["seq"])
         stutter_fold = -1
         while True:
@@ -299,7 +301,7 @@ def get_existing_stutters(data, patterns, marker, allele, samples):
                 stutter["stutlen"] = stutlen
                 stutter["fold"] = stutter_fold
                 stutter_seq = get_stutter_sequence(allele, [stutter])
-                if any(stutter_seq in seqs for sample in samples for seqs in data["samples"][sample, marker]):
+                if stutter_seq in observed_seqs:
                     stutters.append((stutter_seq, [stutter]))
                     success = True
             if success:
@@ -312,7 +314,7 @@ def get_existing_stutters(data, patterns, marker, allele, samples):
 #get_existing_stutters
 
 
-def get_possible_larger_combinations(data, patterns, marker, allele, samples, stutters, stuttersn, n):
+def get_possible_larger_combinations(allele, observed_seqs, stutters, stuttersn, n):
     """
     Create all combinations of n+1 stutters. For n > 1, subject to the
     requirement that all sub-combinations of n stutters exist in
@@ -325,16 +327,15 @@ def get_possible_larger_combinations(data, patterns, marker, allele, samples, st
         if n > 1 and any(subset not in stuttersn for subset in combinations(key, n)):
             continue
         stutter_seq = get_stutter_sequence(allele, stutter_combination)
-        if any(stutter_seq in seqs for sample in samples for seqs in data["samples"][sample, marker]):
+        if stutter_seq in observed_seqs:
             stuttersm[key] = (stutter_seq, stutter_combination)
     return stuttersm
 #get_possible_larger_combinations
 
 
-def fit_stutter(samples_in, outfile, allelefile, min_pct, min_abs,
-                min_stutter_pct, min_lengths, min_samples, library, min_r2, orphans, degree,
-                same_shape, nonnegative, ignore_zeros, max_unit_length, raw_outfile, only_marker,
-                combine_strands, workers):
+def fit_stutter(samples_in, outfile, allelefile, min_pct, min_abs, min_stutter_pct, min_lengths,
+                min_samples, library, min_r2, orphans, degree, same_shape, nonnegative,
+                ignore_zeros, max_unit_length, raw_outfile, only_marker, combine_strands):
     # Parse allele list.
     allelelist = {} if allelefile is None else parse_allelelist(
         allelefile, convert="raw", library=library)
@@ -377,58 +378,72 @@ def fit_stutter(samples_in, outfile, allelefile, min_pct, min_abs,
 
     for seq in sorted(patterns, key=lambda seq: (len(seq), seq)):
         stutter_fold = -1
+        active_markers = set(data["alleles"]) | {"All data"}
         while True:
-            if fit_stutter_model(outfile, raw_outfile, data, seq, patterns[seq], possible_stutters,
-                    min_r2, min_stutter_pct, min_lengths, degree, same_shape, nonnegative, ignore_zeros, stutter_fold, orphans,
-                    combine_strands):
+            active_markers = fit_stutter_model(outfile, raw_outfile, data, seq, possible_stutters,
+                min_r2, min_stutter_pct, min_lengths, degree, same_shape, nonnegative,
+                ignore_zeros, stutter_fold, orphans, combine_strands, active_markers)
+            if active_markers:
                 stutter_fold += 1 if stutter_fold > 0 else -1
             elif stutter_fold < 0:
                 stutter_fold = 1
+                active_markers = set(data["alleles"]) | {"All data"}
             else:
                 break
 #fit_stutter
 
 
-def fit_stutter_model(outfile, raw_outfile, data, seq, patterns, possible_stutters, min_r2, min_stutter_pct,
+def fit_stutter_model(outfile, raw_outfile, data, seq, possible_stutters, min_r2, min_stutter_pct,
                       min_lengths, degree, same_shape, nonnegative, ignore_zeros, stutter_fold,
-                      orphans, combine_strands):
+                      orphans, combine_strands, active_markers):
     palindromic = seq == reverse_complement(seq)
     num_amounts = 1 if combine_strands else 2
     num_fits = 1 if palindromic else num_amounts
-    stutlen = len(seq) * abs(stutter_fold)
 
     all_lengths = []
     all_observed_amounts = []
+    raw_data = {}
     found_fits = {}
     if same_shape:
         markers = []
         from_markers = []
     for marker in data["alleles"]:
         lengths, observed_amounts = collect_raw_data_marker(
-            data, marker, patterns, possible_stutters, palindromic, stutlen, seq, stutter_fold, num_amounts, raw_outfile)
+            data, possible_stutters[marker], marker, seq, stutter_fold, num_amounts, palindromic)
         all_lengths.extend(lengths)
         all_observed_amounts.extend(observed_amounts)
         if lengths:
-            if not same_shape:
-                found_fits_marker = fit_stutter_model_marker(
-                    lengths, observed_amounts, ignore_zeros, min_lengths, min_r2, degree, nonnegative)
-                if any(found_fits_marker):
-                    found_fits[marker] = found_fits_marker
-            else:
+            if raw_outfile is not None and (same_shape or {marker, "All data"} & active_markers):
+                raw_data[marker] = (lengths, observed_amounts)
+            if same_shape:
                 # Prepare for same_shape fit below.
                 marker_i = len(markers)
                 markers.append(marker)
                 from_markers.extend(marker_i for x in lengths)
+            elif marker in active_markers:
+                found_fits_marker = fit_stutter_model_marker(
+                    lengths, observed_amounts, ignore_zeros, min_stutter_pct, min_lengths, min_r2,
+                    degree, nonnegative)
+                if any(found_fits_marker):
+                    found_fits[marker] = found_fits_marker
 
     all_observed_amounts = np.array(all_observed_amounts)
     if not all_observed_amounts.any() or len(set(all_lengths)) < min_lengths:
-        return False
+        return set()
+
+    # Write raw data.
+    for marker, (lengths, observed_amounts) in raw_data.items():
+        for length, amounts in zip(lengths, observed_amounts):
+            raw_outfile.write(
+                "\t".join(map(str, [seq, marker, stutter_fold, length] + amounts)) + "\n")
 
     # Compute fit to all data.
-    found_fits_all = fit_stutter_model_marker(
-        all_lengths, all_observed_amounts, ignore_zeros, min_lengths, min_r2, degree, nonnegative)
-    if any(found_fits_all):
-        found_fits["All data"] = found_fits_all
+    if "All data" in active_markers:
+        found_fits_all = fit_stutter_model_marker(
+            all_lengths, all_observed_amounts, ignore_zeros, min_stutter_pct, min_lengths, min_r2,
+            degree, nonnegative)
+        if any(found_fits_all):
+            found_fits["All data"] = found_fits_all
 
     """
     With same_shape=True, the following Least Squares setting is used:
@@ -493,6 +508,8 @@ def fit_stutter_model(outfile, raw_outfile, data, seq, patterns, possible_stutte
 
             if fit is not None:
                 for marker_i, marker in enumerate(this_markers):
+                    if marker not in active_markers:
+                        continue
                     marker_rows = (markers[from_markers] == marker)
                     marker_lengths = this_lengths[this_from_markers == marker_i]
                     marker_f = fit[list(range(degree)) + [marker_i + degree]]
@@ -504,46 +521,50 @@ def fit_stutter_model(outfile, raw_outfile, data, seq, patterns, possible_stutte
                         found_fits[marker][i] = (marker_f,
                             marker_lengths, lower_bound, r2)
 
+    if not orphans:
+        for marker in tuple(found_fits):
+            if not all(found_fits[marker]):
+                del found_fits[marker]
+
     if raw_outfile != outfile:
-        for marker in found_fits:
-            if not orphans and not all(found_fits[marker]):
-                continue
-            for i in range(num_fits):
-                if not found_fits[marker][i]:
+        for marker, marker_fits in found_fits.items():
+            for i, marker_fit in enumerate(marker_fits):
+                if not marker_fit:
                     continue
                 direction = "total" if combine_strands else "reverse" if i else "forward"
-                print_fit(outfile, found_fits[marker][i][0], found_fits[marker][i][1], seq, marker,
-                          stutter_fold, direction, found_fits[marker][i][2], found_fits[marker][i][3])
+                print_fit(outfile, marker_fit[0], marker_fit[1], seq, marker, stutter_fold,
+                    direction, marker_fit[2], marker_fit[3])
 
-    return any(found_fits)
+    # Return the names of the markers that were successful.
+    return set(found_fits)
 #fit_stutter_model
 
 
-def collect_raw_data_marker(data, marker, patterns, possible_stutters, palindromic, stutlen, seq, stutter_fold, num_amounts, raw_outfile):
+def collect_raw_data_marker(data, possible_stutters_marker, marker, seq, stutter_fold, num_amounts,
+                            palindromic):
+    """Collect raw data points for one particular combination of seq, marker, stutter_fold."""
+    stutlen = len(seq) * abs(stutter_fold)
     lengths = []
     observed_amounts = []
-    for allele in data["alleles"][marker]:
-
-        # Get all possible stutter positions in this allele.
-        positions = [(m, False) for m in patterns[0].finditer(allele)]
-        if not palindromic:
-            positions.extend((m, True) for m in patterns[1].finditer(allele))
-        for m, is_reverse_complement in positions:
-            start = m.start()
-            end = m.end()
-            length = end - start
-            if length <= stutlen:
-                continue  # Not repeated.
-
-            for sample in data["alleles"][marker][allele]:
-                amount = [0.] * num_amounts  # Reads per 100 reads of allele.
-                for stutter_seq, stutter_combination in possible_stutters[marker][allele].items():
-                    if not any(s["seq"] == seq and s["fold"] == stutter_fold and s["start"] == start and s["end"] == end for s in stutter_combination):
-                        continue  # This stutter combination does not include the stutter we are currently analysing.
-                    if stutter_seq in data["samples"][sample, marker]:
-                        for i in range(num_amounts):
-                            amount[i] += data["samples"][sample, marker][stutter_seq][i]
-                if is_reverse_complement:
+    for allele, (stutter_positions, possible_stutters_allele) in possible_stutters_marker.items():
+        for sample in data["alleles"][marker][allele]:
+            stutter_amounts = {
+                (stutter["start"], stutter["end"], stutter["is_revcomp"]): [0.] * num_amounts
+                for stutter in stutter_positions
+                if stutter["seq"] == seq and stutter["length"] >= stutlen}
+            for stutter_seq, stutter_combination in possible_stutters_allele:
+                this_amounts = data["samples"][sample, marker].get(stutter_seq)
+                if this_amounts is None:
+                    continue  # This stutter sequence is not observed in this sample.
+                for stutter in stutter_combination:
+                    if stutter["seq"] != seq or stutter["fold"] != stutter_fold:
+                        continue  # Not the type of stutter we are analysing now.
+                    stutter_key = stutter["start"], stutter["end"], stutter["is_revcomp"]
+                    for i in range(num_amounts):
+                        stutter_amounts[stutter_key][i] += this_amounts[i]
+            for (stutter_start, stutter_end, stutter_revcomp), amount in stutter_amounts.items():
+                length = stutter_end - stutter_start
+                if stutter_revcomp:
                     amount = amount[::-1]
                 if palindromic and num_amounts == 2:
                     # The forward and reverse reads are now
@@ -554,18 +575,12 @@ def collect_raw_data_marker(data, marker, patterns, possible_stutters, palindrom
                     amount = [amount[1]]
                 observed_amounts.append(amount)
                 lengths.append(length)
-
-    # Write raw data for this marker.
-    if raw_outfile is not None:
-        for i in range(len(lengths)):
-            raw_outfile.write("\t".join(map(str,
-                [seq, marker, stutter_fold, lengths[i]] +
-                    observed_amounts[i])) + "\n")
     return lengths, observed_amounts
 #collect_raw_data_marker
 
 
-def fit_stutter_model_marker(lengths, observed_amounts, ignore_zeros, min_lengths, min_r2, degree, nonnegative):
+def fit_stutter_model_marker(lengths, observed_amounts, ignore_zeros, min_stutter_pct, min_lengths,
+                             min_r2, degree, nonnegative):
     observed_amounts = np.asarray(observed_amounts)
     num_fits = observed_amounts.shape[1]
     found_fits = [False] * num_fits
@@ -574,8 +589,8 @@ def fit_stutter_model_marker(lengths, observed_amounts, ignore_zeros, min_length
     if len(set(lengths)) >= min_lengths:
         lengths = np.asarray(lengths)
         for i in range(num_fits):
-            if not observed_amounts[:, i].any():
-                continue  # All zero.
+            if not (observed_amounts[:, i] > min_stutter_pct).any():
+                continue  # All below the threshold.
             if ignore_zeros:
                 nonzero_rows = observed_amounts[:, i] > 0
                 this_lengths = lengths[nonzero_rows]
@@ -607,8 +622,6 @@ def add_arguments(parser):
     parser.add_argument("-C", "--combine-strands", action="store_true",
         help="if specified, stutter will be modeled for the total number of reads, "
              "instead of separately for either strand")
-    parser.add_argument("-T", "--num-threads", metavar="THREADS", type=pos_int_arg, default=1,
-        help="number of worker threads to use (default: %(default)s)")
     parser.add_argument("-D", "--degree", type=pos_int_arg, default=_DEF_DEGREE, metavar="N",
         help="degree of polynomials to fit (default: %(default)s)")
     parser.add_argument("-S", "--same-shape", action="store_true",
@@ -665,5 +678,5 @@ def run(args):
                     args.min_abs, args.min_stutter_pct, args.min_lengths, args.min_samples,
                     args.library, args.min_r2, args.orphans, args.degree, args.same_shape,
                     args.nonnegative, args.ignore_zeros, args.max_unit_length, raw_outfile,
-                    args.marker, args.combine_strands, args.num_threads)
+                    args.marker, args.combine_strands)
 #run

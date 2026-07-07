@@ -4,16 +4,6 @@ from tests.lib.ComponentTestCase import ComponentTestCase, Tools
 from tests.lib.ComponentTestData import OutputFile
 
 
-def expected_mismatches():
-    # Use-all-data gives a rounding difference for D1S1656
-    # (because those are not present in the input stuttermodel):
-    # 9_326 instead of 9_325.
-
-    regex_1 = r"^D1S1656\t[ACTG]*\t[ACTG]*\t9\.32[56]\tbgpredict\n"
-
-    return (regex_1, )
-
-
 class TestBGPredict(ComponentTestCase):
 
     def setUp(self) -> None:
@@ -106,7 +96,6 @@ class TestBGPredict(ComponentTestCase):
         """
         infile_stuttermodel = self.data_dir_root / Tools.STUTTERMODEL / "stuttermodel_advanced1.txt"
         output = OutputFile(self.data_dir_root / Tools.BGPREDICT / "bgpredict-adv4.txt")
-        output.accepted_mismatch_tuple = expected_mismatches()
 
         fdstools_args = [
             str(infile_stuttermodel),
@@ -128,7 +117,6 @@ class TestBGPredict(ComponentTestCase):
         """
         infile_stuttermodel = self.data_dir_root / Tools.BGPREDICT / "stuttermodel_adapted_adv5.txt" # adapted from an old version of stuttermodel-adv1
         output = OutputFile(self.data_dir_root / Tools.BGPREDICT / "bgpredict-adv5.txt")
-        output.accepted_mismatch_tuple = expected_mismatches()
 
         fdstools_args = [
             str(infile_stuttermodel),

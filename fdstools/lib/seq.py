@@ -176,10 +176,17 @@ def microhaplotype_to_variants(seq, positions):
 
 def get_repeat_pattern(seq):
     """Return compiled regular expression that finds repeats of seq."""
-    return re.compile("".join(             # For AGAT, one obtains:
-        ["(?:" * (len(seq)-1)] +           # (?:(?:(?:
-        ["%s)?" % x for x in seq[1:]] +    # G)?A)?T)?
-        ["(?:", seq, ")+"] +               # (?:AGAT)+
-        ["(?:%s" % x for x in seq[:-1]] +  # (?:A(?:G(?:A
-        [")?" * (len(seq)-1)]))            # )?)?)?
+    if len(seq) == 1:
+        return re.compile(f"{seq}+")
+    return re.compile("".join(           # For AGAT, one obtains:
+        [f"(" * (len(seq)-1)] +          # (((
+        [f"{x})?" for x in seq[1:]] +    # G)?A)?T)?
+        [f"(?:({seq})+|"] +              # (?:(AGAT)+|
+        [f"(?({i}){seq[:-i]}|" for i in range(len(seq) - 1, 0, -1)] +
+        [f"{seq}"] +                     # (?(3)A|(?(2)AG|(?(1)AGA|AGAT
+        [f")" * len(seq)] +              # ))))
+        [f"(?({len(seq)})"] +            # (?(4)
+        [f"(?:{x}" for x in seq[:-1]] +  # (?:A(?:G(?:A
+        [f")?" * (len(seq)-1)] +         # )?)?)?
+        [f"|)"]))                        # |)
 #get_repeat_pattern

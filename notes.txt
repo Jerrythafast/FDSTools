@@ -144,7 +144,7 @@ library         a     d       h                       t   v
 samplestats     aAbBcCdDe fF  h i       mMnNo pP          v    XyY
 seqconvert      a   c d e f   h i     lLmM  o     r       v
 stuttermark           d e f   h i     l m n o     r s     v
-stuttermodel    a   cCdDe f   h       lLmMnNoOp   r sStTu v       z
+stuttermodel    a   cCdDe f   h       lLmMnNoOp   r sSt u v       z
 tssv            aA B  dD   F  h        LmMn     qQ R   T  v    X
 vis             aAbBcCd       hH Ij    LmMnN  p  Q  sStT UvVwWxX Y Z
 

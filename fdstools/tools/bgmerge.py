@@ -82,7 +82,7 @@ def merge_profiles(infiles, outfile, library):
                     sequenceprofile["forward"],
                     sequenceprofile["reverse"],
                     sequenceprofile["total"],
-                    ",".join(sequenceprofile["tools"])))) + "\n")
+                    ",".join(sorted(sequenceprofile["tools"]))))) + "\n")
 #merge_profiles
 
 

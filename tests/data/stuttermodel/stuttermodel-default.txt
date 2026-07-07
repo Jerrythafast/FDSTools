@@ -1,5 +1,6 @@
 unit	marker	stutter	lbound	min	max	direction	r2	a	b	c
-AAAG	All data	-1	9	5	61	total	0.985	-7.899e-01	7.378e-02	2.788e-03
-AAAG	All data	+1	9	5	61	total	0.974	-4.930e-02	5.451e-03	7.696e-05
-AGAT	All data	-1	7	5	46	total	0.750	-1.093e+00	1.605e-01	9.696e-04
-AGAT	All data	+1	24	5	46	total	0.588	1.214e-01	-2.433e-02	8.038e-04
+AAAG	All data	-1	9	7	61	total	0.985	-9.849e-01	9.724e-02	2.444e-03
+AAAG	All data	-2	10	8	61	total	0.898	-5.515e-01	6.534e-02	-5.751e-04
+AAAG	All data	+1	9	7	61	total	0.975	-6.062e-02	6.810e-03	5.703e-05
+AGAT	All data	-1	8	6	46	total	0.725	-1.519e+00	2.137e-01	-1.288e-05
+AGAT	All data	+1	26	6	46	total	0.557	1.529e-01	-2.828e-02	8.768e-04
