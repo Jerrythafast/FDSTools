@@ -7,7 +7,7 @@ from tests.lib.ComponentTestData import OutputFile
 class TestBGEstimate(ComponentTestCase):
 
     def setUp(self) -> None:
-        super().setUp()
+        super().setUp() 
 
         self.indir = self.data_dir_root / "_references"
         self.infiles = str(self.indir / "F????.txt")
@@ -54,7 +54,7 @@ class TestBGEstimate(ComponentTestCase):
     def test_advanced2_param(self):
         """
         -> Arguments differ from default values.
-        ->  --min-genotypes, "4",
+        -> --min-genotypes, "4",
         -> --combine-strand turned on
         -> --min-output-pct, "0"
         -> Output is used as input for component tests of seqconvert and bgmerge.
@@ -129,7 +129,8 @@ class TestBGEstimate(ComponentTestCase):
     def test_advanced5_param(self):
         """
         --homozygotes turned on
-        -> --min-genotypes, "0.6",
+        -> --min-genotypes, "1"
+        -> --min-output-pct", "0.6"
         """
         output = OutputFile(self.data_dir_root / Tools.BGESTIMATE /
                            "bgestimate_adv5.txt")

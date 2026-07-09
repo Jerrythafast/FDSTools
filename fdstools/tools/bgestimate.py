@@ -34,6 +34,7 @@ import time
 #import numpy as np  # Only imported when actually running this tool.
 
 from math import ceil
+from itertools import islice
 
 from ..lib.cli import add_bulk_input_output_args, add_sequence_format_args, \
                       iterate_input_samples, pos_int_arg
@@ -78,7 +79,7 @@ _DEF_OUTPUT_PCT = 0.5
 
 
 
-def solve_profile_mixture_single(samples, genotypes, n, starting_values={}, variance=False):
+def solve_profile_mixture_single(samples, genotypes, n, starting_values={}, variance=False, allele_filters=None):
     """
     Solve the single-allele profiles of n true alleles:
       Profile of A:  [100,   5,  50, 25, ...]
@@ -98,7 +99,8 @@ def solve_profile_mixture_single(samples, genotypes, n, starting_values={}, vari
     """
     num_samples = len(samples)
     profile_size = len(samples[0])
-
+    if allele_filters is not None:
+        allele_filters = [np.array(filters, dtype=int) for filters in allele_filters]
     A = np.empty((n, n))  # Will zero it at loop start.
     P = np.zeros((n, profile_size))
     C = np.zeros((n, profile_size))
@@ -161,10 +163,12 @@ def solve_profile_mixture_single(samples, genotypes, n, starting_values={}, vari
                     P[p, :p] = 0
                     P[p, p+1:] = 0
                     continue
-                tmp = (F[p, :] - E[p:p+1, :p] @ P[:p, :] - E[p:p+1, p+1:] @ P[p+1:, :]) / E[p, p]
-                tmp[tmp < 0] = 0
-                tmp[0, p] = 100
-                P[p, :] = tmp
+                allele_noise_profile = (F[p, :] - E[p:p+1, :p] @ P[:p, :] - E[p:p+1, p+1:] @ P[p+1:, :]) / E[p, p]
+                if allele_filters is not None:
+                    allele_noise_profile[0, allele_filters[p]] = 0
+                allele_noise_profile[allele_noise_profile < 0] = 0
+                allele_noise_profile[0, p] = 100
+                P[p, :] = allele_noise_profile
             prev_scorex = cur_scorex
             cur_scorex = np.square(C - A @ P).sum()
             score_changex = (prev_scorex - cur_scorex) / prev_scorex
@@ -244,11 +248,11 @@ def solve_profile_mixture_single(samples, genotypes, n, starting_values={}, vari
                 if not E[p, p]:
                     V[p, :] = 0
                     continue
-                tmp = (F[p, :] - E[p:p+1, :p] @ V[:p, :] - E[p:p+1, p+1:] @ V[p+1:, :]) / E[p, p]
-                tmp[tmp < 0] = 0
-                tmp[0, p] = 0  # No variance for actual allele.
-                tmp[P[p, :] == 0] = 0  # No variance for zero means.
-                V[p, :] = tmp
+                allele_noise_profile = (F[p, :] - E[p:p+1, :p] @ V[:p, :] - E[p:p+1, p+1:] @ V[p+1:, :]) / E[p, p]
+                allele_noise_profile[allele_noise_profile < 0] = 0
+                allele_noise_profile[0, p] = 0  # No variance for actual allele.
+                allele_noise_profile[P[p, :] == 0] = 0  # No variance for zero means.
+                V[p, :] = allele_noise_profile
             prev_scorex = cur_scorex
             cur_scorex = np.square(C - A @ V).sum()
             score_changex = (prev_scorex - cur_scorex) / prev_scorex
@@ -401,7 +405,7 @@ def add_sample_data(data, sample_data, sample_alleles, min_pct, min_abs, tag, co
             p["profiles_reverse"][-1][i] = sample_data[marker, allele][1]
 
         for gi in thresholds[marker]:
-            if sum(count >= max(min_abs, threshold)
+            if any(count >= max(min_abs, threshold)
                    for count, threshold in
                    zip(sample_data[marker, allele], thresholds[marker][gi])):
                 data[marker]["allele_counts"][gi][i] += 1
@@ -417,28 +421,33 @@ def preprocess_data(data, min_sample_pct, combine_strands):
     The data is re-ordered as well, to ensure that the true alleles are
     placed before any other sequences in the profiles.
     """
+    zeroed_indices_per_allele_per_marker = {}
     for marker in data:
         p = data[marker]["profiles"]
         counts = data[marker]["allele_counts"]
         thresholds = {i: min_sample_pct * counts[i][i] / 100 for i in counts}
-        order = sorted(counts)
+        order_passed = sorted(counts)
         for i in range(len(p["alleles"])):
             if i in counts:
                 continue
             for gi in counts:
                 if counts[gi][i] >= thresholds[gi]:
-                    order.append(i)
+                    order_passed.append(i)
                     break
-        p["alleles"] = [p["alleles"][i] for i in order]
+        p["alleles"] = [p["alleles"][i] for i in order_passed]
         if combine_strands:
-            p["profiles_total"] = [[x[i] for i in order] for x in p["profiles_total"]]
+            p["profiles_total"] = [[x[i] for i in order_passed] for x in p["profiles_total"]]
         else:
-            p["profiles_forward"] = [[x[i] for i in order] for x in p["profiles_forward"]]
-            p["profiles_reverse"] = [[x[i] for i in order] for x in p["profiles_reverse"]]
+            p["profiles_forward"] = [[x[i] for i in order_passed] for x in p["profiles_forward"]]
+            p["profiles_reverse"] = [[x[i] for i in order_passed] for x in p["profiles_reverse"]]
         data[marker]["genotypes"] = [
-            [order.index(y) for y in x] for x in data[marker]["genotypes"]]
+            [order_passed.index(y) for y in x] for x in data[marker]["genotypes"]]
+        zeroed_indices_per_allele_per_marker[marker] = [[j for j, i in enumerate(order_passed) if counts[gi][i] < thresholds[gi]] for gi in islice(order_passed, len(counts))]
         del data[marker]["allele_counts"]
+
+    return zeroed_indices_per_allele_per_marker
 #preprocess_data
+
 
 
 def generate_profiles(samples_in, outfile, allelefile, min_pct,
@@ -478,7 +487,7 @@ def generate_profiles(samples_in, outfile, allelefile, min_pct,
         del sample_data[tag]
 
     # Filter insignificant background products.
-    preprocess_data(data, min_sample_pct, combine_strands)
+    filters_per_allele = preprocess_data(data, min_sample_pct, combine_strands)
 
     LOG.info("Data loading and filtering took %f seconds", time.monotonic() - t0)
 
@@ -510,13 +519,13 @@ def generate_profiles(samples_in, outfile, allelefile, min_pct,
         if combine_strands:
             p["profiles_total"] = solve_profile_mixture_single(
                 p["profiles_total"], data[marker]["genotypes"], p["true alleles"],
-                starting_values=init)
+                starting_values=init, allele_filters=filters_per_allele[marker])
         else:
             for i, direction in enumerate(("forward", "reverse")):
                 LOG.info("Solving %s read profiles", direction)
                 p["profiles_" + direction] = solve_profile_mixture_single(
                     p["profiles_" + direction], data[marker]["genotypes"], p["true alleles"],
-                    starting_values={x: init[x][i] for x in init})
+                    starting_values={x: init[x][i] for x in init}, allele_filters=filters_per_allele[marker])
 
         LOG.info("Solved marker %s in %f seconds", marker, time.monotonic() - t0)
 
