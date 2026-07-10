@@ -188,9 +188,14 @@ def write_percentiles_table(outfile, data, percentiles):
 
 
 def analyse_background(samples_in, outfile, allelefile, seqformat, library, mode, percentiles):
-    # Parse allele list.
-    allelelist = {} if allelefile is None else parse_allelelist(
-        allelefile, convert="raw", library=library)
+    if allelefile is None:
+        # No need to convert input sequence data.
+        allelelist = {}
+        input_format = None
+    else:
+        # Parse allele list, convert all input to raw sequences.
+        input_format = "raw"
+        allelelist = parse_allelelist(allelefile, convert="raw", library=library)
 
     # TODO: Should we consider forward and reverse reads separately?
     data = {}
@@ -199,7 +204,7 @@ def analyse_background(samples_in, outfile, allelefile, seqformat, library, mode
         alleles_out = allelelist.setdefault(tag, {}) if allelefile is None else None
         if tag not in allelelist:
             continue  # No need to read this sample.
-        sample_data = read_sample_data_file(infile, "raw", library,
+        sample_data = read_sample_data_file(infile, input_format, library,
             drop_special_seq=True,
             after_correction=True,
             combine_strands=True,
@@ -209,7 +214,7 @@ def analyse_background(samples_in, outfile, allelefile, seqformat, library, mode
 
     if mode == "full":
         seqconvert = partial(ensure_sequence_format,
-            to_format=seqformat, from_format="raw", library=library)
+            to_format=seqformat, from_format=input_format, library=library)
         write_full_table(outfile, data, seqconvert)
     else:
         write_percentiles_table(outfile, data, percentiles)

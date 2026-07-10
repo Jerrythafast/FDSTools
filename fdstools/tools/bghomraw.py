@@ -81,7 +81,7 @@ def add_sample_data(data, sample_data, sample_alleles, min_pct, min_abs, tag, co
         reads = sample_data[marker, sequence]
         if not combine_strands:
             reads.append(sum(reads))
-        factors = [100 / (x or 1) for x in reads]
+        factors = [100 / (x or 1) for x in sample_data[marker, allele]]
         if (marker, allele) not in data:
             data[marker, allele] = {}
         if sequence not in data[marker, allele]:
@@ -137,9 +137,14 @@ def filter_data(data, min_samples, min_sample_pct):
 
 def compute_ratios(samples_in, outfile, allelefile, min_pct, min_abs, min_samples, min_sample_pct,
                    no_alleles, seqformat, library, only_marker, combine_strands):
-    # Parse allele list.
-    allelelist = {} if allelefile is None else parse_allelelist(
-        allelefile, convert="raw", library=library)
+    if allelefile is None:
+        # No need to convert input sequence data.
+        allelelist = {}
+        input_format = None
+    else:
+        # Parse allele list, convert all input to raw sequences.
+        input_format = "raw"
+        allelelist = parse_allelelist(allelefile, convert="raw", library=library)
 
     # Read sample data.
     data = {}
@@ -169,12 +174,12 @@ def compute_ratios(samples_in, outfile, allelefile, min_pct, min_abs, min_sample
             "forward", "reverse", "total", "fnoise", "rnoise", "tnoise")) + "\n")
     for marker, raw_allele in data:
         allele = ensure_sequence_format(
-            raw_allele, seqformat, from_format="raw", library=library, marker=marker)
+            raw_allele, seqformat, from_format=input_format, library=library, marker=marker)
         for raw_sequence, values in data[marker, raw_allele].items():
             if no_alleles and raw_sequence == raw_allele:
                 continue
             sequence = ensure_sequence_format(
-                raw_sequence, seqformat, from_format="raw", library=library, marker=marker)
+                raw_sequence, seqformat, from_format=input_format, library=library, marker=marker)
             for i, tag in enumerate(values["tag"]):
                 if combine_strands:
                     noise = values["tnoise"][i]

@@ -175,10 +175,10 @@ tssv            May create them             May create them
 TOOL            analysis    default output  output option
 allelefinder    (as input)  (as input)      yes
 bam2fds         raw         raw             yes
-bganalyse       raw         raw             yes
+bganalyse       raw*        raw             yes
 bgcorrect       raw         (as input)      yes
 bgestimate      raw         raw             no
-bghomraw        raw         raw             yes
+bghomraw        raw*        raw             yes
 bghomstats      raw         raw             yes
 bgmerge         raw         raw             no
 bgpredict       raw         raw             no
@@ -188,6 +188,7 @@ samplestats     (as input)  (as input)      no
 stuttermark     tssv        tssv            no
 stuttermodel    raw         not applicable  not applicable
 tssv            raw         raw             yes
+* Input conversion is only performed if allelelist is used
 
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
