@@ -41,11 +41,13 @@ each marker is given at selected percentiles of the samples.  I.e., it
 gives the highest and total remaining noise considering only the
 cleanest x% of samples, for different values of x.
 """
+from functools import partial
 from math import ceil
 
 from ..lib.cli import add_sequence_format_args, add_bulk_input_output_args, \
                       comma_separated_arg, iterate_input_samples, std_or_open
 from ..lib.io import parse_allelelist, read_sample_data_file
+from ..lib.seq import ensure_sequence_format
 
 __version__ = "1.1.0"
 
@@ -112,7 +114,7 @@ def process_sample(sample_data, sample_alleles, tag):
 
     return {
         marker: {
-            "genotype": sorted(sample_alleles[marker]),
+            "genotype": sample_alleles[marker],
             "allele_reads": allele_reads[marker],
             "noise": noise[marker],
             "marker_reads": marker_reads[marker],
@@ -122,7 +124,7 @@ def process_sample(sample_data, sample_alleles, tag):
 #process_sample
 
 
-def write_full_table(outfile, data):
+def write_full_table(outfile, data, seqconvert):
     outfile.write("\t".join((
         "sample", "marker", "genotype", "allelic_reads",
         "highest_remaining_bg_reads", "lowest_remaining_bg_reads",
@@ -133,7 +135,9 @@ def write_full_table(outfile, data):
         for marker in data[tag]:
             d = data[tag][marker]
             outfile.write("\t".join([
-                tag, marker, ",".join(d["genotype"])] + [
+                tag,
+                marker,
+                ",".join(sorted(seqconvert(allele, marker=marker) for allele in d["genotype"]))] + [
                 "%.5g" % x if abs(x) >= 10000 else
                 "%.4g" % x if abs(x) >= 1000 else
                 "%.3g" % x if abs(x) > 0.0000000001 else "0" for x in (
@@ -186,7 +190,7 @@ def write_percentiles_table(outfile, data, percentiles):
 def analyse_background(samples_in, outfile, allelefile, seqformat, library, mode, percentiles):
     # Parse allele list.
     allelelist = {} if allelefile is None else parse_allelelist(
-        allelefile, convert=seqformat, library=library)
+        allelefile, convert="raw", library=library)
 
     # TODO: Should we consider forward and reverse reads separately?
     data = {}
@@ -195,7 +199,7 @@ def analyse_background(samples_in, outfile, allelefile, seqformat, library, mode
         alleles_out = allelelist.setdefault(tag, {}) if allelefile is None else None
         if tag not in allelelist:
             continue  # No need to read this sample.
-        sample_data = read_sample_data_file(infile, seqformat, library,
+        sample_data = read_sample_data_file(infile, "raw", library,
             drop_special_seq=True,
             after_correction=True,
             combine_strands=True,
@@ -204,7 +208,9 @@ def analyse_background(samples_in, outfile, allelefile, seqformat, library, mode
         data[tag] = process_sample(sample_data, allelelist[tag], tag)
 
     if mode == "full":
-        write_full_table(outfile, data)
+        seqconvert = partial(ensure_sequence_format,
+            to_format=seqformat, from_format="raw", library=library)
+        write_full_table(outfile, data, seqconvert)
     else:
         write_percentiles_table(outfile, data, percentiles)
 #analyse_background
