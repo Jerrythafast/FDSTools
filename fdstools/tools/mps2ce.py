@@ -26,6 +26,7 @@ so that MPS data can be used with tools developed for CE data.
 """
 from ..lib.cli import add_batch_input_output_args, add_sequence_format_args, iterate_samples
 from ..lib.io import parse_flags, read_sample_data_file, std_or_open
+from ..lib.seq import ensure_sequence_format
 
 __version__ = "1.0.0"
 
@@ -97,12 +98,10 @@ def is_ce_format(seqformat):
 # is_ce_format
 
 
-def read_tssv(library, seqformat, tag, infile):
+def read_tssv(infile):
     with std_or_open(infile) as infile:
         return read_sample_data_file(
             infile,
-            seqformat=seqformat,
-            library=library,
             drop_special_seq=True,
             after_correction=True,
             combine_strands=True,
@@ -110,7 +109,7 @@ def read_tssv(library, seqformat, tag, infile):
 # read_tssv
 
 
-def reformat_data(library, data, ce_format, remove_non_str_markers, alleles_only):
+def reformat_data(library, data, ce_format, seqformat, remove_non_str_markers, alleles_only):
     """
     reformat_data returns [{Marker: {Allele: Height}}, max_alleles]
     """
@@ -132,6 +131,8 @@ def reformat_data(library, data, ce_format, remove_non_str_markers, alleles_only
                                  "or add the flags column to all input files.")
             if "allele" not in parse_flags(extra_cols["flags"]):
                 continue
+
+        allele = ensure_sequence_format(allele, seqformat, library=library, marker=marker)
 
         if ce_format and allele.startswith("CE"):
             allele = allele.split("_")[0][2:]
@@ -170,9 +171,9 @@ def mps2ce_tool(samples, library, sep, alleles_only,
     outfile_data = {}  # {tag: {marker: data}}}
     max_alleles = 0
     for tag, infile, outfile in samples:
-        tssv_data = read_tssv(library, seqformat, tag, infile)
+        tssv_data = read_tssv(infile)
         ce_data, sample_max_alleles = reformat_data(
-            library, tssv_data, ce_format, remove_non_str_markers, alleles_only)
+            library, tssv_data, ce_format, seqformat, remove_non_str_markers, alleles_only)
         outfile_data[tag] = ce_data
 
         if merge_output is None:

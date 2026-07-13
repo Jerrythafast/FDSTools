@@ -172,21 +172,23 @@ tssv            May create them             May create them
 
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-allelefinder    analysis    default output  output option
+TOOL            analysis    default output  output option
+allelefinder    (as input)  (as input)      yes
 bam2fds         raw         raw             yes
-bganalyse       (as output) raw             yes
+bganalyse       raw*        raw             yes
 bgcorrect       raw         (as input)      yes
 bgestimate      raw         raw             no
-bghomraw        (as output) raw             yes
-bghomstats      (as output) (as input)      yes
+bghomraw        raw*        raw             yes
+bghomstats      raw         raw             yes
 bgmerge         raw         raw             no
 bgpredict       raw         raw             no
 findnewalleles  raw         (as input)      no
-mps2ce          (as output) ce              yes
+mps2ce          (as input)  ce              yes
 samplestats     (as input)  (as input)      no
 stuttermark     tssv        tssv            no
 stuttermodel    raw         not applicable  not applicable
 tssv            raw         raw             yes
+* Input conversion is only performed if allelelist is used
 
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 

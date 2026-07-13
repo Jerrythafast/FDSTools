@@ -34,6 +34,7 @@ handle heterozygous samples as well.
 from ..lib.cli import add_bulk_input_output_args, add_sequence_format_args, \
                       iterate_input_samples, pos_int_arg, std_or_open
 from ..lib.io import parse_allelelist, read_sample_data_file
+from ..lib.seq import ensure_sequence_format
 from ..lib.util import adjust_stats
 
 __version__ = "1.1.0"
@@ -126,7 +127,7 @@ def compute_stats(samples_in, outfile, allelefile, min_pct, min_abs,
                   min_samples, min_sample_pct, seqformat, library, only_marker, combine_strands):
     # Parse allele list.
     allelelist = {} if allelefile is None else parse_allelelist(
-        allelefile, convert=seqformat, library=library)
+        allelefile, convert="raw", library=library)
 
     # Read sample data.
     data = {}
@@ -135,7 +136,7 @@ def compute_stats(samples_in, outfile, allelefile, min_pct, min_abs,
         alleles_out = allelelist.setdefault(tag, {}) if allelefile is None else None
         if tag not in allelelist:
             continue  # No need to read this sample.
-        sample_data = read_sample_data_file(infile, seqformat, library, drop_special_seq=True,
+        sample_data = read_sample_data_file(infile, "raw", library, drop_special_seq=True,
             combine_strands=combine_strands, only_marker=only_marker, alleles_out=alleles_out)
         sample_alleles = {
             marker: alleles.pop()
@@ -154,13 +155,17 @@ def compute_stats(samples_in, outfile, allelefile, min_pct, min_abs,
     else:
         outfile.write("\t".join(["marker", "allele", "sequence", "n", "fmin", "fmax", "fmean",
             "fvariance", "rmin", "rmax", "rmean", "rvariance", "tools"]) + "\n")
-    for marker, allele in data:
-        for sequence in data[marker, allele]:
+    for marker, raw_allele in data:
+        allele = ensure_sequence_format(
+            raw_allele, seqformat, from_format="raw", library=library, marker=marker)
+        for raw_sequence, values in data[marker, raw_allele].items():
+            sequence = ensure_sequence_format(
+                raw_sequence, seqformat, from_format="raw", library=library, marker=marker)
             outfile.write("\t".join(
-                [marker, allele, sequence, str(data[marker, allele][sequence][0]["n"])] +
+                [marker, allele, sequence, str(values[0]["n"])] +
                 ["%.3g" % x if abs(x) > 0.0000000001 else "0" for y in (
                     (stats["min"], stats["max"], stats["mean"], stats["variance"])
-                    for stats in data[marker, allele][sequence][:-1])
+                    for stats in values[:-1])
                 for x in y] +
                 ["bghomstats"]) + "\n")
 #compute_stats
@@ -193,7 +198,7 @@ def add_arguments(parser):
              "product, as a percentage of the number of samples with a "
              "particular true allele (default: %(default)s)")
     filtergroup.add_argument("-M", "--marker", metavar="MARKER", help="work only on MARKER")
-    add_sequence_format_args(parser)
+    add_sequence_format_args(parser, default_format="raw")
 #add_arguments
 
 
