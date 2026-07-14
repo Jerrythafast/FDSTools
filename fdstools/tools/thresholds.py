@@ -35,23 +35,13 @@ CHANGES IN 1.1:
 - if there is no noise, the marker would be skipped in previous version. Now fixed.
 - gives a warning if a marker is not in the allelelist, because it will be skipped.
 """
-import argparse, sys, re, os
+import sys
 
-from glob import glob
-
-from ..lib.cli import add_sequence_format_args, pos_int_arg
+from ..lib.cli import add_bulk_input_output_args, add_sequence_format_args, iterate_input_samples
 from ..lib.io import std_or_open, parse_allelelist
-from ..lib.seq import ensure_sequence_format
-from ..lib.tssv import filter_sequences
-from ..lib.util import batched, thread_safe_process_pool
 
 
 __version__ = "1.0.0"
-
-
-# Default minimum number of reads to consider.
-# This value can be overridden by the -a command line option.
-_DEF_MINIMUM = 2
 
 
 # Sequences to be filtered out.
@@ -179,17 +169,9 @@ def add_arguments(parser):
 
 
 def run(args):
-
-    SAMPLESTAT_LOCATION = (args.d)
-    VERSION = (args.v) # Should be in format 'v1' or 'v1a' - no underscores!
-    TAG_PATTERN = re.compile(r"((?:NS|Mi).+)_(E\d{4})") # It can handle both NextSeq and MiSeq runs
-    SAMPLESTATS_NAME_BEFORE_TAG = f"samplestats_{VERSION}_"
-    SAMPLESTATS_NAME_AFTER_TAG = "-done.txt"
-
     samples_in = iterate_input_samples(args.infiles, args.tag_expr, args.tag_format)
     with std_or_open(args.outfile, "wt") as outfile:
         analyse_thresholds(samples_in, outfile, args.allelelist, args.library)
-
 #run
 
 
