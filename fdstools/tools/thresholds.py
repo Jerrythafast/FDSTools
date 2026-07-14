@@ -85,24 +85,24 @@ def read_sample_file(instream):
         data[marker, sequence] = [total_corrected_mp_max, category]
     return data
 
-def determine_lowest_allele_highest_noise(sampledata, sample, results):
+def determine_lowest_allele_highest_noise(sampledata, sample_alleles, sample, results):
     markers = set(key[0] for key in sampledata.keys()) # Get unique markers
 
     for marker in markers:
-        if marker not in allelelist[sample]:
+        if marker not in sample_alleles:
             print(f"WARNING: Skipping marker {marker} in sample {sample}", file=sys.stderr)
             continue
 
         allele_data = [
             sampledata.get((marker, sequence), [0])[0]  # Get value from sampledata, or 0 if not detected
-            for sequence in allelelist[sample][marker]]
+            for sequence in sample_alleles[marker]]
         noise_data = {
             sequence: value
             for (m, sequence), value in sampledata.items()
-            if m == marker and sequence not in allelelist[sample][marker]}
+            if m == marker and sequence not in sample_alleles[marker]}
 
         # Change category of same size noise.
-        allele_ce = set(allele.split("_")[0] for allele in allelelist[sample][marker])
+        allele_ce = set(allele.split("_")[0] for allele in sample_alleles[marker])
 
         if len(allele_data) > 0:
             lowest_allele = min(allele_data) # For homozygotes, this number will be 100
@@ -144,7 +144,7 @@ def analyse_thresholds(samples_in, outfile, allelefile, library):
         sampledata = read_sample_file(infile)
 
         # Determine the pct_max for the lowest allele for heterozygotes for each marker of this sample
-        determine_lowest_allele_highest_noise(sampledata, tag, results_noise_alleles)
+        determine_lowest_allele_highest_noise(sampledata, allelelist[tag], tag, results_noise_alleles)
 
 
 
