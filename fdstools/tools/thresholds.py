@@ -141,6 +141,9 @@ def analyse_thresholds(samples_in, outfile, allelefile, library):
     # Read data file of each sample and calculate for each sample the heterozygote balance per marker
     results_noise_alleles = {}
     for tag, infile in samples_in:
+        if tag not in allelelist:
+            continue
+
         sampledata = read_sample_file(infile)
 
         # Determine the pct_max for the lowest allele for heterozygotes for each marker of this sample
