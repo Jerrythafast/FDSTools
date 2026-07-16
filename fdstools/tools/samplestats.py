@@ -442,9 +442,13 @@ def compute_stats(infile, outfile, settings, filter_action, filter_absolute, lib
             row.append([])
         else:
             row[ci["flags"]] = parse_flags(row[ci["flags"]])
-        if marker not in data:
-            data[marker] = []
-        data[marker].append(row)
+        data.setdefault(marker, []).append(row)
+
+    # Make sure the data within each marker is sorted by descending total reads.
+    # This is important for setting the correct same_size flags.
+    data = {
+        marker: sorted(rows, key=lambda row: row[ci[total_column]], reverse=True)
+        for marker, rows in data.items()}
 
     # Compute statistics.
     if filter_action != "off":
