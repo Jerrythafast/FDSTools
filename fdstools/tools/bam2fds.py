@@ -292,14 +292,14 @@ def process_paired_read(segment, start, end, pair_cache):
 #process_paired_read
 
 
-def process_batch(infile, batch, include_supplementary):
+def process_batch(infile, batch, include_supplementary, filter_deletions):
     with import_alignmentfile_class()(infile) as alignment_file:
         results = [None] * len(batch)
         for i, (marker, reported_range) in enumerate(batch):
             sequences = {}
             for seq, is_reverse in process_marker_reads(
                     alignment_file, reported_range, include_supplementary):
-                if not seq:
+                if filter_deletions and not seq:
                     # Alignment overlapped marker, but the target
                     # resided entirely in a deletion.
                     continue
@@ -326,13 +326,13 @@ def print_marker_results(outfile, library, seqformat, minimum, aggregate_filtere
 #print_marker_results
 
 
-def read_bam(infile, outfile, library, seqformat, include_supplementary, minimum,
+def read_bam(infile, outfile, library, seqformat, include_supplementary, filter_deletions, minimum,
              aggregate_filtered, missing_marker_action, num_threads):
     print("\t".join(("marker", "sequence", "total", "forward", "reverse")), file=outfile)
     with thread_safe_process_pool(num_threads) as pool:
         batch_size = max(1, len(library.get_ranges()) // num_threads)
         for future in as_completed(
-                pool.submit(process_batch, infile, batch, include_supplementary)
+                pool.submit(process_batch, infile, batch, include_supplementary, filter_deletions)
                 for batch in batched(library.get_ranges().items(), batch_size)):
             print_marker_results(outfile, library, seqformat, minimum,
                 aggregate_filtered, missing_marker_action, future.result())
@@ -350,6 +350,8 @@ def add_arguments(parser):
     filtergroup = parser.add_argument_group("filtering options")
     filtergroup.add_argument("-S", "--no-supplementary", action="store_true",
         help="ignore supplementary alignments")
+    filtergroup.add_argument("-D", "--filter-deletions", action="store_true",
+        help="ignore reads in which the target is completely deleted")
     filtergroup.add_argument("-a", "--minimum", metavar="N", type=pos_int_arg,
         default=_DEF_MINIMUM,
         help="report only sequences with this minimum number of reads (default: %(default)s)")
@@ -369,6 +371,6 @@ def add_arguments(parser):
 def run(args):
     with std_or_open(args.outfile, "wt") as outfile:
         read_bam(args.infile, outfile, args.library, args.sequence_format,
-                 not args.no_supplementary, args.minimum, args.aggregate_filtered,
-                 args.missing_marker_action, args.num_threads)
+                 not args.no_supplementary, args.filter_deletions, args.minimum,
+                 args.aggregate_filtered, args.missing_marker_action, args.num_threads)
 #run

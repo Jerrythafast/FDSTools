@@ -128,7 +128,7 @@ Reserved option letters:
 
 Options:
 allelefinder    a     d e fF  h       l mMn o      R      v   x
-bam2fds         a  B  d    F  h          M           S T  v
+bam2fds         a  B  dD   F  h          M           S T  v
 bganalyse       a   c d e fF  h       l m   o p           v
 bgcorrect             d e fF  h i     l  M  o             v
 bgestimate      a   cCd e f g hH      l mMn o pP    sS    v
