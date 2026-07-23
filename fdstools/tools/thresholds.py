@@ -21,21 +21,27 @@
 #
 
 """
-Calculate the pct_of_highest_allele of the lowest allele and the pct_of_allelic of the highest noise
-in different categories (stutter, novel, same size novel and other) from infile. 
+Summarise the allele balance and the highest noise in a set of
+reference samples to aid in determining interpretation thresholds.
 
-Return a table with highest percentages for each category in each samplefile given.
-For homozygotes, the lowest allele will be 100%. 
+For each input sample, calculate the total_mp_max (percentage of highest
+allele) of the lowest allele and the pct_of_allelic of the highest noise
+in different categories (stutter, novel, same size novel and other). For
+homozygotes, the lowest allele will be 100%.
 
-If allelelist is not given, the flags column is used to determine alleles.
-
-Default sequence format is raw.
+Categorisation of noise relies on the flags column in the input files.
+Sequences flagged as 'STUTTER' (as done by Stuttermark) are categorised
+as 'stutter' and sequences flagged as 'novel' (as done by
+FindNewAlleles) are categorised as 'novel' or 'samesize' depending on
+whether the sequence has the same length as one of the alleles. If the
+-a/--allelelist option is not used, the 'allele' flag is used to
+identify the genuine alleles of each sample. Any remaining sequences
+are categorised as 'other' noise.
 """
 import logging
 
 from ..lib.cli import add_bulk_input_output_args, add_sequence_format_args, iterate_input_samples
 from ..lib.io import std_or_open, parse_allelelist, parse_flags, read_sample_data_file
-from ..lib.seq import SEQ_SPECIAL_VALUES
 
 __version__ = "1.0.0"
 
@@ -76,7 +82,7 @@ def process_sample_data(sampledata, sample_alleles):
     return processed_data
 #process_sample_data
 
-def determine_lowest_allele_highest_noise(sampledata, sample_alleles, sample):
+def determine_lowest_allele_highest_noise(sampledata, sample_alleles, sample, outfile):
     for marker, markerdata in sampledata.items():
         if marker not in sample_alleles:
             LOG.warning("WARNING: Skipping marker %s in sample %s", marker, sample)
@@ -118,7 +124,7 @@ def analyse_thresholds(samples_in, outfile, allelefile, library):
         processed_sampledata = process_sample_data(sampledata, allelelist)
 
         # Determine the pct_max for the lowest allele for heterozygotes for each marker of this sample
-        determine_lowest_allele_highest_noise(processed_sampledata, allelelist[tag], tag)
+        determine_lowest_allele_highest_noise(processed_sampledata, allelelist[tag], tag, outfile)
 #analyse_thresholds
 
 
