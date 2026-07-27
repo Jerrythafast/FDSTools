@@ -175,7 +175,7 @@ def find_alleles_sample(data, outfile, reportfile, tag, min_reads, min_reads_low
                     reportfile.write(f"{alleles[marker][allele]}\tALLELE\t{seq}\n")
                 seq = top_noise[marker][0] if seqformat is None else ensure_sequence_format(
                         top_noise[marker][0], seqformat, library=library, marker=marker)
-                reportfile.write(f"{top_noise[marker][1]}\tNOISE\t{seq}\n")
+                reportfile.write(f"{top_noise[marker][1]}\tNOISE\t{seq}\n\n")
             noisy_markers += 1
             alleles[marker] = {}
 
