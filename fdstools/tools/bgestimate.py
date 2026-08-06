@@ -42,7 +42,7 @@ from ..lib.io import parse_allelelist, prune_allelelist, read_sample_data_file, 
 from ..lib.noise import load_profiles
 from ..lib.util import nnls
 
-__version__ = "1.2.1"
+__version__ = "1.3.0"
 
 LOG = logging.getLogger(__name__)
 
@@ -447,7 +447,6 @@ def preprocess_data(data, min_sample_pct, combine_strands):
 
     return zeroed_indices_per_allele_per_marker
 #preprocess_data
-
 
 
 def generate_profiles(samples_in, outfile, allelefile, min_pct,

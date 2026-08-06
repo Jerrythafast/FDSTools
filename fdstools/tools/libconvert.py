@@ -49,7 +49,7 @@ from ..lib.library import PAT_STR_DEF, INI_COMMENT
 from ..lib.seq import PAT_SEQ_RAW
 from .library import make_empty_library_ini
 
-__version__ = "1.2.0"
+__version__ = "1.2.1"
 
 
 def convert_library(infile, outfile):

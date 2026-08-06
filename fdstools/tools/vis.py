@@ -54,7 +54,7 @@ from pathlib import Path
 from ..lib.cli import pos_int_arg
 from ..lib.io import std_or_open
 
-__version__ = "1.1.1"
+__version__ = "1.1.2"
 
 
 # Default values for parameters are specified below.

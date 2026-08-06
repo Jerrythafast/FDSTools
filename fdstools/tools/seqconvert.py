@@ -66,7 +66,7 @@ from ..lib.library import BUILTIN_NAMES, CUSTOM_REPORTEDRANGE_OPTION
 from ..lib.seq import SEQ_SPECIAL_VALUES, reverse_complement, ensure_sequence_format, \
                       sequence_range_adjust
 
-__version__ = "1.1.0"
+__version__ = "1.1.1"
 
 LOG = logging.getLogger(__name__)
 

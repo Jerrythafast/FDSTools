@@ -39,7 +39,7 @@ from ..lib.io import parse_allelelist, read_sample_data_file, std_or_open
 from ..lib.seq import reverse_complement, get_repeat_pattern
 from ..lib.util import nnls
 
-__version__ = "1.2.1"
+__version__ = "1.3.0"
 
 
 # Default values for parameters are specified below.

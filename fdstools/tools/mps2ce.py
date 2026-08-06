@@ -28,7 +28,7 @@ from ..lib.cli import add_batch_input_output_args, add_sequence_format_args, ite
 from ..lib.io import parse_flags, read_sample_data_file, std_or_open
 from ..lib.seq import ensure_sequence_format
 
-__version__ = "1.0.0"
+__version__ = "1.0.1"
 
 # Default values for parameters are specified below.
 _DEF_SEPARATOR = "\t"

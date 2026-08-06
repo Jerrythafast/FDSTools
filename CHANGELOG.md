@@ -5,11 +5,41 @@ FDSTools Changelog
 - Wheels are now built against the CPython 3.9 stable ABI (abi3), which
   means later versions of CPython will download and install the wheel
   that was built for version 3.9. Support for earlier versions was dropped.
+- Reliability of multiprocessing has been improved by no longer using the
+  'fork' start method to start child processes.
+- Output that previously went to the standard error stream is now logged
+  through Python's built-in logging module.
+- The -d/--debug option will no longer trigger performance profiling;
+  this can still be done through: python -m cProfile -m fdstools ...
+- All input and output files are now properly closed.
+- Added many more component tests, covering Bam2fds, BGCorrect, BGEstimate,
+  BGMerge, BGPredict, Demultiplex, FindNewAlleles, MergeReads, Samplestats
+  and Stuttermodel.
+- Includes [Allelefinder v1.1.1](#Allelefinder-111)
 - Includes [BAM2FDS v1.0.0](#BAM2FDS-100)
+- Includes [BGAnalyse v1.1.1](#BGAnalyse-111)
+- Includes [BGCorrect v1.1.1](#BGCorrect-111)
+- Includes [BGEstimate v1.3.0](#BGEstimate-130)
+- Includes [BGHomRaw v1.1.1](#BGHomRaw-111)
+- Includes [BGHomStats v1.1.1](#BGHomStats-111)
+- Includes [BGMerge v1.1.1](#BGMerge-111)
+- Includes [BGPredict v1.2.0](#BGPredict-120)
+- Includes [Demultiplex v1.0.0](#Demultiplex-100)
+- Includes [FindNewAlleles v1.1.2](#FindNewAlleles-112)
+- Includes [Libconvert v1.2.1](#Libconvert-121)
+- Includes [Library v1.1.3](#Library-113)
 - Includes [MergeReads v1.0.0](#MergeReads-100)
+- Includes [MPS2CE v1.0.1](#MPS2CE-101)
+- Includes [Pipeline v1.1.3](#Pipeline-113)
 - Includes [Samplestats v1.3.2](#Samplestats-132)
-- Includes [Stuttermodel v1.2.1](#Stuttermodel-121)
+- Includes [Seqconvert v1.1.1](#Seqconvert-111)
+- Includes [Stuttermark v1.6.2](#Stuttermark-162)
+- Includes [Stuttermodel v1.3.0](#Stuttermodel-130)
 - Includes [TSSV v2.3.0](#TSSV-230)
+- Includes [Vis v1.1.2](#Vis-112)
+- Includes [Samplevis v2.3.1](#Samplevis-231)
+- Includes [Stuttermodelvis v2.0.5](#Stuttermodelvis-205)
+- Updated dependency requirement (strnaming~=1.2.1).
 
 ### Version 2.1.1
 - Fixed an issue that caused the new [flank_length] section to be ignored.
@@ -297,6 +327,13 @@ FDSTools Changelog
 
 Allelefinder
 ------------
+### Allelefinder 1.1.1
+- If the -R/--report option is not given, only the most important messages are
+  written to the standard error stream as logged warnings.
+- When the -R/--report option is set to "-", the report is now written to the
+  standard output stream instead of the standard error stream.
+
+
 ### Allelefinder 1.1.0
 - Removed the -c/--stuttermark-column argument. Allelefinder will look for stutter
   annotations in the 'flags' column instead, if present.
@@ -331,6 +368,14 @@ BAM2FDS
 
 BGAnalyse
 ---------
+### BGAnalyse 1.1.1
+- Greatly improved performance when the output sequence format is set to
+  anything other than "raw".
+- The -c/--annotation-column option has been removed. If the -a/--allelelist option
+  is not given, the genuine alleles of the samples are now recognised by looking for
+  the 'allele' flag in the 'flags' column.
+
+
 ### BGAnalyse 1.1.0
 - Fixed bug that caused non-integer percentiles to appear rounded down in the output.
 - BGAnalyse will now use the total_corrected column instead of the forward_corrected
@@ -349,6 +394,10 @@ BGAnalyse
 
 BGCorrect
 ---------
+### BGCorrect 1.1.1
+- Minor internal changes to improve handling of input and output files.
+
+
 ### BGCorrect 1.1.0
 - Added the -C/--combine-strands option, to apply noise correction only for the total
   number of reads instead of separately for either strand.
@@ -375,6 +424,20 @@ BGCorrect
 
 BGEstimate
 ----------
+### BGEstimate 1.3.0
+- Modified the fitting algorithm: noise ratios are now kept at zero for all noise that does
+  not meet the -m/--min-pct and -n/--min-abs thresholds in at least -S/--min-sample-pct
+  percent of all samples with a particular allele. This greatly reduces crosstalk between
+  noise profiles of alleles that occur together in heterozygous samples.
+- Added the -P/--min-output-pct option, to set a filter on the minimum noise ratio in
+  the output (default: 0.50).
+- The -c/--annotation-column option has been removed. If the -a/--allelelist option
+  is not given, the genuine alleles of the samples are now recognised by looking for
+  the 'allele' flag in the 'flags' column.
+- If the -R/--report option has been removed. Progress information is now written via
+  Python's logging module.
+
+
 ### BGEstimate 1.2.0
 - Added the -C/--combine-strands option, to estimate noise profiles for the total number
   of reads instead of estimating separate noise profiles for either strand.
@@ -412,6 +475,15 @@ BGEstimate
 
 BGHomRaw
 --------
+### BGHomRaw 1.1.1
+- Greatly improved performance when the output sequence format is set to
+  anything other than "raw".
+- The -c/--annotation-column option has been removed. If the -a/--allelelist option
+  is not given, the genuine alleles of the samples are now recognised by looking for
+  the 'allele' flag in the 'flags' column.
+- Added the -A/--no-alleles option, to suppress writing the genuine alleles of each sample.
+
+
 ### BGHomRaw 1.1.0
 - Added the -C/--combine-strands option, to calculate noise ratios for the total number
   of reads only, instead of calculating separate noise ratios for either strand.
@@ -430,6 +502,15 @@ BGHomRaw
 
 BGHomStats
 ----------
+### BGHomStats 1.1.1
+- Greatly improved performance when the output sequence format is set to
+  anything other than "raw".
+- The default sequence output format has been changed from "no conversion" to "raw".
+- The -c/--annotation-column option has been removed. If the -a/--allelelist option
+  is not given, the genuine alleles of the samples are now recognised by looking for
+  the 'allele' flag in the 'flags' column.
+
+
 ### BGHomStats 1.1.0
 - Added the -C/--combine-strands option, to calculate statistics for the total number
   of reads only, instead of calculating separate statistics for either strand.
@@ -450,6 +531,10 @@ BGHomStats
 
 BGMerge
 -------
+### BGMerge 1.1.1
+- The tool names in the 'tools' output column are now always sorted alphabetically.
+
+
 ### BGMerge 1.1.0
 - Noise profiles for forward, reverse and total noise are now merged independently.
 - The 'tool' output column has been renamed to 'tools' and now contains all tools used
@@ -475,6 +560,17 @@ BGMerge
 
 BGPredict
 ---------
+### BGPredict 1.2.0
+- Improved logic for determining which stutter sequences are possible, especially in situations
+  where two repeat stretches of the same repeat unit overlap partially, shifting frames
+  (e.g. by skipping a base) in the middle of a longer repeat.
+- By default, a stutter model's 'lbound' value (minimum repeat length for which a positive
+  stutter ratio is predicted) is now implicitly increased if another stutter model, with a longer
+  repeat unit, is simultaneously applied, such that no stutter of the shorter unit will be
+  predicted within the repeat stretches of the longer unit. This new step can be turned off with
+  the -L/--no-check-lbounds option.
+
+
 ### BGPredict 1.1.0
 - The default value of the -t/--min-r2 option has been changed to 0, effectively
   disabling the filter by default.
@@ -504,8 +600,19 @@ BGPredict
 
 
 
+Demultiplex
+--------------
+### Demultiplex 1.0.0
+- Initial version.
+
+
+
 FindNewAlleles
 --------------
+### FindNewAlleles 1.1.2
+- Minor internal changes to improve handling of input and output files.
+
+
 ### FindNewAlleles 1.1.1
 - Added the -r/--remove-allele-flags option. When specified, the 'allele' flag is
   removed from those alleles that are flagged as 'novel' by this tool.
@@ -530,6 +637,10 @@ FindNewAlleles
 
 Libconvert
 ----------
+### Libconvert 1.2.1
+- Minor internal changes to improve handling of input and output files.
+
+
 ### Libconvert 1.2.0
 - Removed conversion from FDSTools to TSSV format.
 - Removed the -a/--aliases option.
@@ -570,6 +681,10 @@ Libconvert
 
 Library
 -------
+### Library 1.1.3
+- Minor internal changes to improve handling of input and output files.
+
+
 ### Library 1.1.2
 - Updated explanatory text in [flanks] section to include 'REF' as a possible value.
 - Added the new [flank_length] section to configure marker-specific flanking sequence
@@ -616,6 +731,10 @@ MergeReads
 
 MPS2CE
 --------
+### MPS2CE 1.0.1
+- Minor internal changes to improve handling of input and output files.
+
+
 ### MPS2CE 1.0.0
 - Initial version.
 
@@ -623,6 +742,10 @@ MPS2CE
 
 Pipeline
 --------
+### Pipeline 1.1.3
+- Minor internal changes to improve handling of input and output files and logging.
+
+
 ### Pipeline 1.1.2
 - Updated tool import mechanism.
 
@@ -651,7 +774,7 @@ Pipeline
 
 
 ### Pipeline 1.0.2
-- Added -A/--in-allelelist option, with which an existing allele list file
+- Added the -A/--in-allelelist option, with which an existing allele list file
   can be provided when running the reference-database analysis pipeline,
   bypassing Allelefinder.
 
@@ -671,13 +794,19 @@ Pipeline
 Samplestats
 -----------
 ### Samplestats 1.3.2
-- Added -X/--settings option, allowing to provide a file with per-marker settings.
+- All sequences that were flagged as 'novel' in the input and that have the same length as a
+  called allele with more reads will additionally be flagged as 'same_size'.
+- Added the -s/--min-pct-of-max-same-size-novel option, which makes it possible to require
+  a higher value than the standard -m/--min-pct-of-max value for sequences that that have been
+  flagged as both 'novel' and 'same_size'. This option can be used to avoid mistakenly
+  interpreting sequences with basecall errors as alleles in unbalanced mixtures.
+- Added the -X/--settings option, allowing to provide a file with per-marker settings.
 
 
 ### Samplestats 1.3.1
 - Fixed glitch that caused addition of an empty flag in the flags column if it was
   present but empty in the input.
-- Added -U/--uncall-alleles option, which lets Samplestats remove allele calls from
+- Added the -U/--uncall-alleles option, which lets Samplestats remove allele calls from
   sequences that do not meet the provided criteria.
 
 
@@ -730,6 +859,13 @@ Samplestats
 
 Seqconvert
 ----------
+### Seqconvert 1.1.1
+- When using the -L/--library2 option, when the genome_position of a marker is different than
+  in the first library file (specified with -l/--library), sequences will now be adapted to
+  the new range. A warning is logged if this involves extending the sequences with bases from
+  the reference sequence.
+
+
 ### Seqconvert 1.1.0
 - STRNaming is now used as the back-end for generating allele names.
 
@@ -752,6 +888,12 @@ Seqconvert
 
 Stuttermark
 -----------
+### Stuttermark 1.6.2
+- Repeats that extend slightly outside the reported region will now include lowercase
+  nucleotides, just like in allele names.
+- Minor internal changes to improve handling of input and output files and logging.
+
+
 ### Stuttermark 1.6.1
 - Fixed glitch that caused addition of an empty flag in the flags column if it was
   present but empty in the input.
@@ -807,8 +949,19 @@ Stuttermark
 
 Stuttermodel
 ------------
-### Stuttermodel 1.2.1
-- Fixed an issue that could cause Stuttermodel to lock up when using multiple threads.
+### Stuttermodel 1.3.0
+- Greatly improved logic for determining which noise sequences should be interpreted as stutter
+  and, by extension, be included in the stutter ratio. Previously, noise sequences that combined
+  a stutter with a basecall/sequence error were included in the stutter ratio. The new logic is
+  identical to how BGPredict determines which stutter sequences are possible, thereby improving
+  the accuracy of the predictions.
+- Added the -N/--nonnegative option, to require all polynomial coefficients to be nonnegative.
+- Added the -p/--min-stutter-pct option (default: 0.50), to avoid fitting a flat stutter model
+  if the highest observed stutter ratio is very low.
+- The -c/--annotation-column option has been removed. If the -a/--allelelist option
+  is not given, the genuine alleles of the samples are now recognised by looking for
+  the 'allele' flag in the 'flags' column.
+- The -T/--num-threads option has been removed as the new algorithm is much faster.
 
 
 ### Stuttermodel 1.2.0
@@ -849,11 +1002,25 @@ Stuttermodel
 TSSV
 ----
 ### TSSV 2.3.0
-- TSSV will now attempt to resolve ambiguous bases (IUPAC codes) by finding matching
-  unambiguous sequences. When multiple options are possible, the reads are added to the
-  unambiguous sequence that has the highest total number of unambiguous reads.
+- By default, TSSV will now attempt to resolve ambiguous bases (IUPAC codes) by finding
+  matching unambiguous sequences. When multiple options are possible, the reads are added
+  to the unambiguous sequence that has the highest total number of unambiguous reads.
+  This new feature can be turned off with the -A/--filter-ambiguous option.
+- Added the -q/--output-qualities option, to output the cubic mean of the basecall quality
+  scores of each sequence in Phred+33 ASCII format.
+- Added the -Q/--distrust-base-quality option, allowing TSSV to 'repair' low-quality basecalls
+  by adding the corresponding reads to a compatible, fully high-quality sequence with more
+  reads, similar to the treatment of reads with ambiguous bases. This feature operates on the
+  cubic mean quality scores as produced by the -q/--output-qualities option (it is not applied
+  on every input read seprately, but rather as a post-processing step).
 - An empty input file will now produce a zeroed-out result instead of an error message.
-- Minor internal changes to share features with the new bam2fds tool.
+- If the -R/--report option is not given, no statistical report is generated anymore.
+- If the -R/--report option is set to "-", the report is now written to the
+  standard output stream instead of the standard error stream.
+- By default, the -D/--dir option no longer writes GZipped FastA/FastQ files. Instead, if
+  GZip compression is desired, the new -z/--zip-level option should be given to enable it.
+  The new option allows for setting the compression level; use '6' for compression equal to the
+  GNU gzip program or '9' for the smallest possible files (this used to be the default behaviour).
 
 
 ### TSSV 2.2.0
@@ -935,6 +1102,10 @@ TSSV
 
 Vis
 ---
+### Vis 1.1.2
+- Added the -W/--allele-min-pct-of-max-same-size-novel option for Samplevis.
+
+
 ### Vis 1.1.1
 - Minor code change to fix warnings.
 
@@ -958,13 +1129,13 @@ Vis
 
 ### Vis 1.0.2
 - Changed default value of -n/--min-abs from 15 to 5.
-- Added -I/--input2 option, which allows for specifying a file with raw
+- Added the -I/--input2 option, which allows for specifying a file with raw
   data points for Stuttermodelvis and Profilevis.
 - Added support for creating BGAnalysevis visualisations.
 
 
 ### Vis 1.0.1
-- Added -j/--jitter option for Stuttermodelvis (default: 0.25).
+- Added the -j/--jitter option for Stuttermodelvis (default: 0.25).
 - Fixed bug where Vis would not allow the -n/--min-abs and the
   -s/--min-per-strand options to be set to 0.
 
@@ -1079,6 +1250,13 @@ Profilevis
 
 Samplevis
 ---------
+### Samplevis 2.3.1
+- Added a new 'Percentage of highest (Same-size Novel)' option to the Table Filtering Options.
+  This option works just like the -s/--min-pct-of-max-same-size-novel option in Samplestats.
+  However, for it to work, sequences must be flagged as 'novel' AND 'same_size' in the input
+  of Samplevis; i.e., Samplevis relies on the 'same_size' flags written by Samplestats.
+
+
 ### Samplevis 2.3.0
 - Fixed an issue that prevented manually marking additional alleles.
 - Fixed an issue with restoring allele calls after the visualisation has been saved.
@@ -1164,6 +1342,10 @@ Samplevis
 
 Stuttermodelvis
 ---------------
+### Stuttermodelvis 2.0.5
+- All raw data points are now visible if an "All data" fit is present.
+
+
 ### Stuttermodelvis 2.0.4
 - Added ability to display stutter models fitted on total read counts.
 
