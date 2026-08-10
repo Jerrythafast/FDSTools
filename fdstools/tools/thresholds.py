@@ -63,7 +63,7 @@ def process_sample_data(sampledata, sample_alleles):
     processed_data = {
         marker: {category: [] for category in ("allele", "stutter", "same_size", "novel", "other")}
         for marker in sample_alleles}
-    for (marker, sequence), (reads, extra_col) in sampledata:
+    for (marker, sequence), (reads, extra_col) in sampledata.items():
         if marker not in sample_alleles:
             continue
         mp_max = reads / marker_max[marker]
