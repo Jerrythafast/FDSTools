@@ -93,7 +93,7 @@ def determine_lowest_allele_highest_noise(sampledata, sample_alleles, sample, ou
 
         allele_data = markerdata["allele"]
 
-        lowest_allele = min(allele_data, default=0) # Percentage of highest allele. For homozygotes, this number will be 100.
+        lowest_allele = min(allele_data, default=0) * 100. # Percentage of highest allele. For homozygotes, this number will be 100.
 
         scale_to_pct_allelic = 100. / sum(allele_data)      # Factor to convert mp_max to mp_allelic
         highest_stutter = max(markerdata["stutter"], default=0.) * scale_to_pct_allelic
