@@ -47,6 +47,8 @@ __version__ = "1.0.0"
 
 LOG = logging.getLogger(__name__)
 
+
+
 def process_sample_data(sampledata, sample_alleles):
     marker_allele_sizes = {
         marker: {len(allele) for allele in alleles}
@@ -61,7 +63,7 @@ def process_sample_data(sampledata, sample_alleles):
     processed_data = {
         marker: {category: [] for category in ("allele", "stutter", "same_size", "novel", "other")}
         for marker in sample_alleles}
-    for (marker, sequence), (reads, extra_col) in sampledata.items():
+    for (marker, sequence), (reads, extra_col) in sampledata:
         if marker not in sample_alleles:
             continue
         mp_max = reads / marker_max[marker]
@@ -82,6 +84,7 @@ def process_sample_data(sampledata, sample_alleles):
     return processed_data
 #process_sample_data
 
+
 def determine_lowest_allele_highest_noise(sampledata, sample_alleles, sample, outfile):
     for marker, markerdata in sampledata.items():
         if marker not in sample_alleles:
@@ -90,18 +93,19 @@ def determine_lowest_allele_highest_noise(sampledata, sample_alleles, sample, ou
 
         allele_data = markerdata["allele"]
 
-        lowest_allele = min(allele_data, default=0) # Percentage of highest allele. For homozygotes, this number will be 100. 
-       
+        lowest_allele = min(allele_data, default=0) # Percentage of highest allele. For homozygotes, this number will be 100.
+
         scale_to_pct_allelic = 100. / sum(allele_data)      # Factor to convert mp_max to mp_allelic
-        highest_stutter = max(markerdata["stutter"], 0.) * scale_to_pct_allelic
-        highest_novel = max(markerdata["novel"], 0.) * scale_to_pct_allelic
-        highest_samesize = max(markerdata["same_size"], 0.) * scale_to_pct_allelic
-        highest_other = max(markerdata["other"], 0.) * scale_to_pct_allelic
-        
+        highest_stutter = max(markerdata["stutter"], default=0.) * scale_to_pct_allelic
+        highest_novel = max(markerdata["novel"], default=0.) * scale_to_pct_allelic
+        highest_samesize = max(markerdata["same_size"], default=0.) * scale_to_pct_allelic
+        highest_other = max(markerdata["other"], default=0.) * scale_to_pct_allelic
+
         # Write marker results of sample to output
         outfile.write(f"{sample}\t{marker}\t{lowest_allele}\t{highest_stutter}\t"
                         f"{highest_novel}\t{highest_samesize}\t{highest_other}\n")
 #determine_lowest_allele_highest_noise
+
 
 def analyse_thresholds(samples_in, outfile, allelefile, library):
     allelelist = {} if allelefile is None else parse_allelelist(
@@ -120,8 +124,8 @@ def analyse_thresholds(samples_in, outfile, allelefile, library):
         sampledata = read_sample_data_file(infile, seqformat="raw", library=library,
             drop_special_seq=True, after_correction=True, combine_strands=True,
             extra_columns={"flags": True}, alleles_out=alleles_out)
-        
-        processed_sampledata = process_sample_data(sampledata, allelelist)
+
+        processed_sampledata = process_sample_data(sampledata, allelelist[tag])
 
         # Determine the pct_max for the lowest allele for heterozygotes for each marker of this sample
         determine_lowest_allele_highest_noise(processed_sampledata, allelelist[tag], tag, outfile)
