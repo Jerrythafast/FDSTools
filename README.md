@@ -25,7 +25,7 @@ running the following command:
 
 Release Notes
 -------------
-### Version 2.2.0 (in development)
+### Version 2.2.0 (2026-08-10)
 Modernized packaging and bumped the minimum supported Python version to 3.9.
 Improved robustness of concurrency and the handling of input and output.
 
@@ -44,7 +44,7 @@ Added a large number of new component tests, covering Bam2fds, BGCorrect,
 BGEstimate, BGMerge, BGPredict, Demultiplex, FindNewAlleles, MergeReads,
 Samplestats and Stuttermodel.
 
-And we welcome two new members to the team: Myrthe V. and Myrthe M.!
+And finally, we have two new members in our team: welcome Myrthe & Myrthe!
 
 
 ### Version 2.1.1 (2024-07-02)
