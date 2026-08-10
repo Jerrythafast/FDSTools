@@ -41,11 +41,11 @@ perfect match, and are averaged over the number of called bases in the
 barcode read (i.e., ignoring 'N' nucleotides). Therefore, the filter
 values supplied on the command line are essentially per-base values.
 
-The built-in 'xleap' scoring matrix contains absolute log10 basecall
-probabilities for the XLEAP SBS chemistry, empirically determined from a
-series of NextSeq 1000 runs. Using this matrix, the output scores can be
-interpreted as absolute log10 likelihoods, and the score difference is a
-log10 likelihood ratio.
+The built-in 'nextseq-xleap' scoring matrix contains absolute log10
+basecall probabilities for the XLEAP SBS chemistry, empirically
+determined from a series of NextSeq 1000 runs. Using this matrix, the
+output scores can be interpreted as absolute log10 likelihoods, and the
+score difference is a log10 likelihood ratio.
 """
 import gzip
 import re
@@ -117,8 +117,8 @@ SCORE_MATRICES = {
         ("G", "T"): 5.,
         ("T", "T"): 0.},
 
-    # Absolute log10 basecall probabilities observed in NextSeq data.
-    "xleap": {
+    # Absolute log10 basecall probabilities observed in NextSeq 1000 data.
+    "nextseq-xleap": {
         ("A", "A"): 0.0009,
         ("A", "C"): 3.2587,
         ("A", "G"): 2.8521,
@@ -398,7 +398,8 @@ def add_arguments(parser):
         help="input file with sample tags and barcodes, either tab-separated (without headers) "
              "or Illumina SampleSheet.csv file with [BCLConvert_Data] section (no other features "
              "are supported); both barcodes must be specified in the same orientation as expected "
-             "in the headers of FastQ files unless -c/--reverse-right or -X/--xleap is specified")
+             "in the headers of FastQ files unless -c/--reverse-right or -X/--nextseq-xleap "
+             "is specified")
     parser.add_argument("infile1", metavar="R1", nargs="?", default="-",
         help="input FastQ or FastA file, possibly GZipped, either an interleaved file or R1 "
              "(default: read from stdin)")
@@ -426,13 +427,14 @@ def add_arguments(parser):
     filtergroup.add_argument("-m", "--matrix", metavar="MATRIX",
         help="scoring matrix to use: a 5x5 (including headers) tab-separated file with first "
              "column named 'from' or 'to', the 16 scores are nonnegative real values; built-in "
-             "files: 'mismatch' (the default) scores matches as 0 and mismatches as 5, 'xleap' "
-             "uses empirical absolute log10 basecall probabilities for XLEAP SBS chemistry")
+             "files: 'mismatch' (the default) scores matches as 0 and mismatches as 5, "
+             "'nextseq-xleap' uses empirical absolute log10 basecall probabilities for XLEAP SBS "
+             "chemistry on the NextSeq 1000")
     filtergroup.add_argument("-P", "--filter-idx-phix", action="store_true",
         help="if specified, recognize indexed PhiX barcodes and sort to Undetermined")
-    filtergroup.add_argument("-X", "--xleap", action="store_true",
-        help="convenience option, equivalent to: -c -m xleap -a GGGGGG (with correct length); "
-             "do not use for MiSeq i100 index-first data")
+    filtergroup.add_argument("-X", "--nextseq-xleap", action="store_true",
+        help="convenience option, equivalent to: -c -m nextseq-xleap -a GGGGGG (with correct "
+             "length); for use with NextSeq 1000 data")
     filtergroup.add_argument("-Y", "--filter-diff", metavar="DIFF",
         type=float, default=_DEF_FILTER_DIFF,
         help="drop reads with score difference below this value (default: %(default)s)")
@@ -451,7 +453,7 @@ def add_arguments(parser):
 def run(args):
     # Read score matrix.
     if args.matrix is None:
-        matrix = SCORE_MATRICES["xleap" if args.xleap else "mismatch"]
+        matrix = SCORE_MATRICES["nextseq-xleap" if args.nextseq_xleap else "mismatch"]
     elif args.matrix in SCORE_MATRICES:
         matrix = SCORE_MATRICES[args.matrix]
     else:
@@ -483,7 +485,7 @@ def run(args):
 
     # Recognise "dark read" artefact in XLEAP SBS chemistry
     # and reverse-complement right barcodes.
-    if args.xleap:
+    if args.nextseq_xleap:
         left_length, right_length = map(len, next(iter(tags_barcodes.values())))
         left_artefacts.add("G" * left_length)
         right_artefacts.add("G" * right_length)
