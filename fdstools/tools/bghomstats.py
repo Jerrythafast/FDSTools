@@ -37,7 +37,7 @@ from ..lib.io import parse_allelelist, read_sample_data_file
 from ..lib.seq import ensure_sequence_format
 from ..lib.util import adjust_stats
 
-__version__ = "1.1.0"
+__version__ = "1.1.1"
 
 
 # Default values for parameters are specified below.

@@ -21,8 +21,7 @@
 #
 
 """
-Automatically run complete, predefined analysis pipelines.  Recommended
-starting point for new users.
+Automatically run complete, predefined analysis pipelines.
 
 This tool runs one of three default analysis pipelines automatically,
 given a configuration file with tool options and input/output file
@@ -66,7 +65,7 @@ from ..lib.cli import DEF_TAG_EXPR, DEF_TAG_FORMAT, get_tag, regex_arg, glob_pat
 from ..lib.library import INI_COMMENT
 
 
-__version__ = "1.1.2"
+__version__ = "1.1.3"
 
 LOG = logging.getLogger(__name__)
 

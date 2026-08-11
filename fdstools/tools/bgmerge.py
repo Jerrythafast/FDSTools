@@ -45,7 +45,7 @@ from ..lib.cli import add_sequence_format_args, glob_path
 from ..lib.io import std_or_open
 from ..lib.noise import load_profiles
 
-__version__ = "1.1.0"
+__version__ = "1.1.1"
 
 
 def merge_profiles(infiles, outfile, library):

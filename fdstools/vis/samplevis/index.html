@@ -1033,11 +1033,12 @@ function autoSelectAlleles(graph){
         return;
     var minNa = parseFloat(document.getElementById("minNa").value),
         minPa = parseFloat(document.getElementById("minPa").value),
+        minSa = parseFloat(document.getElementById("minSa").value),
         minTa = parseFloat(document.getElementById("minTa").value),
         minCa = parseFloat(document.getElementById("minCa").value),
         minAa = parseFloat(document.getElementById("minAa").value),
         minOa = parseFloat(document.getElementById("minOa").value);
-    if(isNaN(minNa + minPa + minTa + minCa + minAa + minOa))
+    if(isNaN(minNa + minPa + minSa + minTa + minCa + minAa + minOa))
         return;
     (graph === undefined? graphs : [graph]).forEach(function(graph){
         var selectedAllelesInGraph = graph.data("selectedAlleles").values().map(function(datum){return datum.thedatum});
@@ -1045,6 +1046,7 @@ function autoSelectAlleles(graph){
             if(datum.sequence != "Other sequences" &&
                datum.total_added >= minNa &&
                datum.pct_of_max >= minPa &&
+               (new Set(datum.flags.split(",").map(flag => flag.trim()).filter(flag => ["novel", "same_size"].includes(flag))).size < 2 || datum.pct_of_max >= minSa) &&
                datum.pct_of_sum >= minTa &&
                ((datum.total_added/datum.total*100-100) >= minCa ||
                (datum.total_add/datum.total_added*100) >= minAa) &&

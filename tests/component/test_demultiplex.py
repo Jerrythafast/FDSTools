@@ -52,17 +52,17 @@ class TestDemultiplex(ComponentTestCase):
             "--filter-diff", "0.1",
             "--filter-score", "0.7"]
         fdstools_args1 = fdstools_args_basis + [
-            "--matrix", "xleap",
+            "--matrix", "nextseq-xleap",
             "--reverse-right",
             "--artefacts", "GGGGGGGGGG",
             "--right-artefacts", "AGATCTCGGT"]
         fdstools_args2 = fdstools_args_basis + [
-            "--matrix", "xleap",
+            "--matrix", "nextseq-xleap",
             "--reverse-right",
             "--left-artefacts", "GGGGGGGGGG",
             "--right-artefacts", "GGGGGGGGGG", "AGATCTCGGT"]
         fdstools_args3 = fdstools_args_basis + [
-            "--xleap",
+            "--nextseq-xleap",
             "--right-artefacts", "AGATCTCGGT"]
         self.componentTest(Tools.DEMULTIPLEX, fdstools_args1, output_files)
         self.componentTest(Tools.DEMULTIPLEX, fdstools_args2, output_files)

@@ -47,7 +47,7 @@ from types import MethodType
 from ..lib.io import std_or_open
 from ..lib.library import BUILTIN_LIBS, BUILTIN_NAMES, INI_COMMENT
 
-__version__ = "1.1.2"
+__version__ = "1.1.3"
 
 
 def ini_add_comment(ini, section, comment):

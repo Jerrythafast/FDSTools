@@ -58,7 +58,7 @@ from ..lib.cli import add_batch_input_output_args, add_sequence_format_args, ite
 from ..lib.io import get_column_ids, parse_flags
 from ..lib.seq import SEQ_SPECIAL_VALUES, PAT_TSSV_BLOCK, ensure_sequence_format
 
-__version__ = "1.6.1"
+__version__ = "1.6.2"
 
 LOG = logging.getLogger(__name__)
 

@@ -25,8 +25,26 @@ running the following command:
 
 Release Notes
 -------------
-### Version 2.2.0 (in development)
+### Version 2.2.0 (2026-08-10)
 Modernized packaging and bumped the minimum supported Python version to 3.9.
+Improved robustness of concurrency and the handling of input and output.
+
+Updated STRNaming to version 1.2.1. Repeats that extend slightly outside the
+reported region will now include lowercase nucleotides in allele names.
+
+Added three new tools: Demultiplex (a sample demultiplexer with forensic
+sensitivity, with special options to deal with basecall errors in NextSeq
+data), MergeReads (a versatile paired-end read merging tool) and Bam2fds
+(for extracting forensic markers from aligned whole genome sequencing data).
+
+The accuracy of Stuttermodel, BGPredict and BGEstimate has been improved
+and new settings have been introduced in various tools.
+
+Added a large number of new component tests, covering Bam2fds, BGCorrect,
+BGEstimate, BGMerge, BGPredict, Demultiplex, FindNewAlleles, MergeReads,
+Samplestats and Stuttermodel.
+
+And finally, we have two new members in our team: welcome Myrthe & Myrthe!
 
 
 ### Version 2.1.1 (2024-07-02)

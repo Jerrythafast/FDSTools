@@ -53,7 +53,7 @@ from ..lib.noise import load_profiles
 from ..lib.seq import SEQ_SPECIAL_VALUES, ensure_sequence_format
 from ..lib.util import nnls
 
-__version__ = "1.1.0"
+__version__ = "1.1.1"
 
 
 def get_sample_data(infile, convert_to_raw, library, combine_strands):

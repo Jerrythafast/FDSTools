@@ -31,7 +31,7 @@ from ..lib.io import get_column_ids, parse_flags, std_or_open
 from ..lib.seq import SEQ_SPECIAL_VALUES, ensure_sequence_format
 
 
-__version__ = "1.1.1"
+__version__ = "1.1.2"
 
 
 def read_known(infile, library):
