@@ -1,5 +1,8 @@
 FDSTools Changelog
 ==================
+### Version 2.2.1
+- Includes [Samplevis v2.3.2](#Samplevis-232)
+
 ### Version 2.2.0
 - Replaced setup.py and MANIFEST.in with pyproject.toml.
 - Wheels are now built against the CPython 3.9 stable ABI (abi3), which
@@ -1250,6 +1253,11 @@ Profilevis
 
 Samplevis
 ---------
+### Samplevis 2.3.2
+- Fixed an issue that prevented the Table Filtering Options to stop working if the input
+  data did not contain the 'flags' column.
+
+
 ### Samplevis 2.3.1
 - Added a new 'Percentage of highest (Same-size Novel)' option to the Table Filtering Options.
   This option works just like the -s/--min-pct-of-max-same-size-novel option in Samplestats.

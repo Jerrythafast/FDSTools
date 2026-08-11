@@ -25,6 +25,10 @@ running the following command:
 
 Release Notes
 -------------
+### Version 2.2.1 (2026-08-11)
+Fixed a critical issue with Samplevis.
+
+
 ### Version 2.2.0 (2026-08-10)
 Modernized packaging and bumped the minimum supported Python version to 3.9.
 Improved robustness of concurrency and the handling of input and output.
